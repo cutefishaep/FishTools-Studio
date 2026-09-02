@@ -142,38 +142,73 @@
     icon: 'details',
     category: 'blur',
     desc: 'Tingkatkan ketajaman detail kontras dan kejernihan tekstur tepi layer.',
-    defaultParams: { strength: 60 }
+    defaultParams: { strength: 1.0, radius: 1.0 },
+    paramsConfig: [
+      { id: 'strength', label: 'Strength', min: 0.0, max: 20.0, step: 0.01, unit: '' },
+      { id: 'radius', label: 'Radius', min: 1.0, max: 10.0, step: 0.1, unit: '' }
+    ]
   }, function(srcCanvas, dstCtx, params, width, height) {
-    const strength = (params.strength !== undefined ? params.strength : 60) / 100;
-    dstCtx.clearRect(0, 0, width, height);
-    dstCtx.drawImage(srcCanvas, 0, 0, width, height);
+    let strength = params.strength !== undefined ? params.strength : 1.0;
+    if (strength > 20.0) strength = strength / 100.0;
+    const radius = Math.max(1.0, Math.min(10.0, params.radius !== undefined ? params.radius : 1.0));
 
-    if (strength <= 0) return;
+    dstCtx.clearRect(0, 0, width, height);
+    if (strength <= 0.001) {
+      dstCtx.drawImage(srcCanvas, 0, 0, width, height);
+      return;
+    }
 
     try {
-      const imgData = dstCtx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-      const srcData = new Uint8ClampedArray(data);
+      const sCtx = srcCanvas.getContext('2d');
+      const srcImg = sCtx.getImageData(0, 0, width, height);
+      const dstImg = dstCtx.createImageData(width, height);
+      const srcData = srcImg.data;
+      const dstData = dstImg.data;
 
-      const kCenter = 1.0 + (4 * strength);
-      const kEdge = -strength;
+      const centerWeight = 1.0 + (strength * 4.0);
+      const sideWeight = -strength;
+      const radPx = Math.max(1, Math.round(radius));
 
-      for (let y = 1; y < height - 1; y++) {
-        const row = y * width;
-        for (let x = 1; x < width - 1; x++) {
-          const idx = (row + x) * 4;
-          const up = idx - (width * 4);
-          const down = idx + (width * 4);
-          const left = idx - 4;
-          const right = idx + 4;
+      const w = width;
+      const h = height;
 
-          data[idx] = Math.min(255, Math.max(0, (srcData[idx] * kCenter) + (srcData[up] + srcData[down] + srcData[left] + srcData[right]) * kEdge));
-          data[idx+1] = Math.min(255, Math.max(0, (srcData[idx+1] * kCenter) + (srcData[up+1] + srcData[down+1] + srcData[left+1] + srcData[right+1]) * kEdge));
-          data[idx+2] = Math.min(255, Math.max(0, (srcData[idx+2] * kCenter) + (srcData[up+2] + srcData[down+2] + srcData[left+2] + srcData[right+2]) * kEdge));
+      for (let y = 0; y < h; y++) {
+        const topY = Math.max(0, y - radPx);
+        const botY = Math.min(h - 1, y + radPx);
+        const rowOff = y * w;
+        const topOff = topY * w;
+        const botOff = botY * w;
+
+        for (let x = 0; x < w; x++) {
+          const leftX = Math.max(0, x - radPx);
+          const rightX = Math.min(w - 1, x + radPx);
+
+          const idx = (rowOff + x) * 4;
+          const leftIdx = (rowOff + leftX) * 4;
+          const rightIdx = (rowOff + rightX) * 4;
+          const topIdx = (topOff + x) * 4;
+          const botIdx = (botOff + x) * 4;
+
+          const a = srcData[idx + 3];
+          if (a === 0) {
+            dstData[idx + 3] = 0;
+            continue;
+          }
+
+          const r = srcData[idx] * centerWeight + (srcData[topIdx] + srcData[botIdx] + srcData[leftIdx] + srcData[rightIdx]) * sideWeight;
+          const g = srcData[idx + 1] * centerWeight + (srcData[topIdx + 1] + srcData[botIdx + 1] + srcData[leftIdx + 1] + srcData[rightIdx + 1]) * sideWeight;
+          const b = srcData[idx + 2] * centerWeight + (srcData[topIdx + 2] + srcData[botIdx + 2] + srcData[leftIdx + 2] + srcData[rightIdx + 2]) * sideWeight;
+
+          dstData[idx] = Math.max(0, Math.min(255, Math.round(r)));
+          dstData[idx + 1] = Math.max(0, Math.min(255, Math.round(g)));
+          dstData[idx + 2] = Math.max(0, Math.min(255, Math.round(b)));
+          dstData[idx + 3] = a;
         }
       }
-      dstCtx.putImageData(imgData, 0, 0);
-    } catch (_) {}
+      dstCtx.putImageData(dstImg, 0, 0);
+    } catch (_) {
+      dstCtx.drawImage(srcCanvas, 0, 0, width, height);
+    }
   });
 
   reg({

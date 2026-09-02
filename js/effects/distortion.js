@@ -139,6 +139,7 @@
     const invW = 1 / w, invH = 1 / h;
     const wm1 = w - 1;
     const hm1 = h - 1;
+    const invScale = 1.0 / scale;
 
     for (let y = 0; y < h; y++) {
       const ny = (y * invH) - 0.5;
@@ -148,8 +149,8 @@
 
         const nu = nx * aspect;
         const nv = ny;
-        const ru = (nu * cosA - nv * sinA) * scale;
-        const rv = (nu * sinA + nv * cosA) * scale;
+        const ru = (nu * cosA - nv * sinA) * invScale;
+        const rv = (nu * sinA + nv * cosA) * invScale;
         let pu = (ru / aspect) + 0.5;
         let pv = rv + 0.5;
 
@@ -629,21 +630,25 @@
     type: 'raster_transform',
     name: 'Transform (Transformasi Efek)',
     category: 'distort',
-    desc: 'Skala dan rotasi internal raster di dalam rantai efek layer.',
-    defaultParams: { scale: 1.0, angle: 0, alpha: 1.0 },
+    desc: 'Skala, posisi, dan rotasi internal raster di dalam rantai efek layer.',
+    defaultParams: { scale: 1.0, angle: 0, offsetX: 0, offsetY: 0, alpha: 1.0 },
     paramsConfig: [
       { id: 'scale', label: 'Scale', min: 0.05, max: 10, step: 0.01, unit: '' },
       { id: 'angle', label: 'Angle', min: -360, max: 360, step: 0.5, unit: '°' },
+      { id: 'offsetX', label: 'Offset X', min: -1000, max: 1000, step: 1, unit: 'px' },
+      { id: 'offsetY', label: 'Offset Y', min: -1000, max: 1000, step: 1, unit: 'px' },
       { id: 'alpha', label: 'Alpha', min: 0, max: 1, step: 0.01, unit: '' }
     ]
   }, function(srcCanvas, dstCtx, p, w, h) {
     const scale = (p.scale !== undefined && p.scale > 0.001) ? p.scale : 1.0;
     const angleRad = ((p.angle || 0) * Math.PI) / 180;
+    const offX = p.offsetX !== undefined ? p.offsetX : ((p.offset && p.offset.x !== undefined) ? p.offset.x : 0);
+    const offY = p.offsetY !== undefined ? p.offsetY : ((p.offset && p.offset.y !== undefined) ? p.offset.y : 0);
     const alpha = p.alpha !== undefined ? p.alpha : 1.0;
 
     dstCtx.clearRect(0, 0, w, h);
     dstCtx.save();
-    dstCtx.translate(w / 2, h / 2);
+    dstCtx.translate(w / 2 + offX, h / 2 + offY);
     if (angleRad !== 0) dstCtx.rotate(angleRad);
     if (scale !== 1.0) dstCtx.scale(scale, scale);
     dstCtx.globalAlpha = Math.max(0, Math.min(1, alpha));

@@ -557,9 +557,15 @@ function renderAppliedEffectsStack(layerId) {
       effDef.paramsConfig.forEach(cfg => {
         const val = p[cfg.id] !== undefined ? p[cfg.id] : (effDef.defaultParams ? effDef.defaultParams[cfg.id] : 0);
         const channelKey = 'fx_' + eff.id + '_' + cfg.id;
-        body.appendChild(createEffectRulerRow(cfg.id, cfg.label || cfg.id, cfg.min, cfg.max, val, cfg.step || 1, cfg.unit || '', (v) => {
-          p[cfg.id] = v;
-        }, eff.id, channelKey));
+        if (cfg.type === 'color' || cfg.id === 'color' || cfg.id === 'color1' || cfg.id === 'color2' || cfg.id === 'tint') {
+          body.appendChild(createEffectColorPickerRow(cfg.id, cfg.label || cfg.id, val || '#FFFFFF', (c) => {
+            p[cfg.id] = c;
+          }, eff.id, channelKey));
+        } else {
+          body.appendChild(createEffectRulerRow(cfg.id, cfg.label || cfg.id, cfg.min, cfg.max, val, cfg.step || 1, cfg.unit || '', (v) => {
+            p[cfg.id] = v;
+          }, eff.id, channelKey));
+        }
       });
     } else {
       if (eff.type === 'copy_background') {
@@ -573,15 +579,128 @@ function renderAppliedEffectsStack(layerId) {
       } else if (eff.type === 'brightness_contrast') {
         body.appendChild(createEffectRulerRow('brightness', 'Brightness', 0, 250, p.brightness !== undefined ? p.brightness : 100, 5, '%', (v) => { p.brightness = v; }, eff.id, 'fx_' + eff.id + '_brightness'));
         body.appendChild(createEffectRulerRow('contrast', 'Contrast', 0, 250, p.contrast !== undefined ? p.contrast : 100, 5, '%', (v) => { p.contrast = v; }, eff.id, 'fx_' + eff.id + '_contrast'));
-      } else if (eff.type === 'glow') {
-        body.appendChild(createEffectRulerRow('radius', 'Radius', 1, 50, p.radius || 15, 1, 'px', (v) => { p.radius = v; }, eff.id, 'fx_' + eff.id + '_radius'));
+      } else if (eff.type === 'lightglow' || eff.type === 'glow') {
+        body.appendChild(createEffectRulerRow('strength', 'Strength', 0, 2, p.strength !== undefined ? p.strength : (p.radius ? p.radius/20 : 0.25), 0.01, '', (v) => { p.strength = v; }, eff.id, 'fx_' + eff.id + '_strength'));
+        body.appendChild(createEffectRulerRow('threshold', 'Threshold', 0, 1, p.threshold !== undefined ? p.threshold : 0.5, 0.01, '', (v) => { p.threshold = v; }, eff.id, 'fx_' + eff.id + '_threshold'));
+        body.appendChild(createEffectRulerRow('intensity', 'Intensity', 0, 5, p.intensity !== undefined ? p.intensity : 1.0, 0.01, '', (v) => { p.intensity = v; }, eff.id, 'fx_' + eff.id + '_intensity'));
+        body.appendChild(createEffectColorPickerRow('color', 'Warna Glow', p.color || '#ff5566', (c) => { p.color = c; }, eff.id, 'fx_' + eff.id + '_color'));
+        body.appendChild(createEffectRulerRow('alpha', 'Alpha', 0, 1, p.alpha !== undefined ? p.alpha : 0.75, 0.01, '', (v) => { p.alpha = v; }, eff.id, 'fx_' + eff.id + '_alpha'));
+      } else if (eff.type === 'gradient_overlay') {
+        body.appendChild(createEffectColorPickerRow('color1', 'Warna 1', p.color1 || '#ffffff', (c) => { p.color1 = c; }, eff.id, 'fx_' + eff.id + '_color1'));
+        body.appendChild(createEffectColorPickerRow('color2', 'Warna 2', p.color2 || '#000000', (c) => { p.color2 = c; }, eff.id, 'fx_' + eff.id + '_color2'));
+        body.appendChild(createEffectRulerRow('angle', 'Angle', -360, 360, p.angle || 0, 1, '°', (v) => { p.angle = v; }, eff.id, 'fx_' + eff.id + '_angle'));
+        body.appendChild(createEffectRulerRow('scale', 'Scale', 0.1, 5, p.scale !== undefined ? p.scale : 1.0, 0.01, '', (v) => { p.scale = v; }, eff.id, 'fx_' + eff.id + '_scale'));
+        body.appendChild(createEffectRulerRow('alpha', 'Alpha', 0, 1, p.alpha !== undefined ? p.alpha : 1.0, 0.01, '', (v) => { p.alpha = v; }, eff.id, 'fx_' + eff.id + '_alpha'));
       } else if (eff.type === 'vignette') {
         body.appendChild(createEffectRulerRow('radius', 'Radius', 10, 100, p.radius || 50, 1, '%', (v) => { p.radius = v; }, eff.id, 'fx_' + eff.id + '_radius'));
+        body.appendChild(createEffectRulerRow('feather', 'Feather', 0, 100, p.feather !== undefined ? p.feather : 50, 1, '%', (v) => { p.feather = v; }, eff.id, 'fx_' + eff.id + '_feather'));
+        body.appendChild(createEffectColorPickerRow('color', 'Warna', p.color || '#000000', (c) => { p.color = c; }, eff.id, 'fx_' + eff.id + '_color'));
+      } else if (eff.type === 'tint' || eff.type === 'solid_color') {
+        body.appendChild(createEffectColorPickerRow('color', 'Warna Tint', p.color || p.tint || '#FAB778', (c) => { p.color = c; p.tint = c; }, eff.id, 'fx_' + eff.id + '_color'));
+        body.appendChild(createEffectRulerRow('amount', 'Intensitas', 0, 100, p.amount !== undefined ? p.amount : (p.intensity ? p.intensity*100 : 100), 1, '%', (v) => { p.amount = v; p.intensity = v/100; }, eff.id, 'fx_' + eff.id + '_amount'));
       } else if (eff.type === 'grayscale' || eff.type === 'invert' || eff.type === 'sepia') {
         body.appendChild(createEffectRulerRow('amount', 'Intensitas', 0, 100, p.amount !== undefined ? p.amount : 100, 1, '%', (v) => { p.amount = v; }, eff.id, 'fx_' + eff.id + '_amount'));
       } else if (eff.type === 'drop_shadow') {
         body.appendChild(createEffectRulerRow('size', 'Ukuran', 0, 50, p.size || 12, 1, 'px', (v) => { p.size = v; }, eff.id, 'fx_' + eff.id + '_size'));
+        body.appendChild(createEffectColorPickerRow('color', 'Warna Shadow', p.color || '#000000', (c) => { p.color = c; }, eff.id, 'fx_' + eff.id + '_color'));
       }
+    }
+
+    function createEffectColorPickerRow(paramId, label, val, onChange, effId, channelKey) {
+      const row = document.createElement('div');
+      row.className = 'effect-ruler-row';
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '8px';
+
+      const chKey = channelKey || ('fx_' + (effId || 'fx') + '_' + paramId);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'effect-ruler-lbl-pill selectable';
+      lbl.textContent = label;
+      lbl.dataset.channel = chKey;
+      lbl.dataset.param = paramId;
+      lbl.dataset.effectId = effId || '';
+
+      if (activeEffectParamChannel && activeEffectParamChannel === chKey) {
+        lbl.classList.add('active');
+      }
+
+      lbl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasActive = lbl.classList.contains('active');
+        document.querySelectorAll('#appliedEffectsStack .effect-ruler-lbl-pill').forEach(p => p.classList.remove('active'));
+        if (!wasActive) {
+          lbl.classList.add('active');
+          activeEffectParamChannel = chKey;
+        } else {
+          activeEffectParamChannel = null;
+        }
+        updateEffectKeyframeUI();
+        if (typeof renderAllKeyframeMarkers === 'function') renderAllKeyframeMarkers();
+      });
+
+      const colorBtnContainer = document.createElement('div');
+      colorBtnContainer.style.flex = '1';
+      colorBtnContainer.style.display = 'flex';
+      colorBtnContainer.style.alignItems = 'center';
+      colorBtnContainer.style.gap = '10px';
+      colorBtnContainer.style.padding = '0 6px';
+
+      const colorThumb = document.createElement('div');
+      colorThumb.className = 'effect-color-thumb';
+      colorThumb.style.width = '38px';
+      colorThumb.style.height = '24px';
+      colorThumb.style.borderRadius = '6px';
+      colorThumb.style.border = '2px solid rgba(255, 242, 194, 0.4)';
+      colorThumb.style.backgroundColor = val || '#FFFFFF';
+      colorThumb.style.cursor = 'pointer';
+      colorThumb.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+
+      const hexVal = document.createElement('div');
+      hexVal.style.fontSize = '0.78rem';
+      hexVal.style.fontWeight = '700';
+      hexVal.style.color = 'var(--col-cream, #FFF2C2)';
+      hexVal.style.fontFamily = 'monospace';
+      hexVal.textContent = (String(val || '#FFFFFF')).toUpperCase();
+
+      colorThumb.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('#appliedEffectsStack .effect-ruler-lbl-pill').forEach(p => p.classList.remove('active'));
+        lbl.classList.add('active');
+        activeEffectParamChannel = chKey;
+
+        if (typeof openGlobalColorPicker === 'function') {
+          openGlobalColorPicker({
+            anchorElement: colorThumb,
+            anchor: colorThumb,
+            color: val || '#FFFFFF',
+            initialColor: val || '#FFFFFF',
+            onChange: (colorData) => {
+              const newHex = (typeof colorData === 'string') ? colorData : (colorData && colorData.hex ? colorData.hex : '#FFFFFF');
+              val = newHex;
+              colorThumb.style.backgroundColor = newHex;
+              hexVal.textContent = String(newHex).toUpperCase();
+              onChange(newHex);
+              recordEffectKeyframe(layerId, chKey, newHex);
+              if (typeof setLayerEffects === 'function') setLayerEffects(layerId, effects);
+              if (typeof updateLayerEffectsFast === 'function') updateLayerEffectsFast(layerId);
+              if (typeof applyFillToMeshGlobal === 'function') applyFillToMeshGlobal(layerId, true);
+              if (typeof render3D === 'function') render3D();
+              triggerAutoSave();
+              updateEffectKeyframeUI();
+            }
+          });
+        }
+      });
+
+      colorBtnContainer.appendChild(colorThumb);
+      colorBtnContainer.appendChild(hexVal);
+
+      row.appendChild(lbl);
+      row.appendChild(colorBtnContainer);
+
+      return row;
     }
 
     function createEffectRulerRow(paramId, label, min, max, val, step, unit, onChange, effId, channelKey) {
@@ -673,8 +792,11 @@ function renderAppliedEffectsStack(layerId) {
             }
             if (typeof updateLayerEffectsFast === 'function') {
               updateLayerEffectsFast(layerId);
-            } else {
-              applyFillToMeshGlobal(layerId);
+            }
+            if (typeof applyFillToMeshGlobal === 'function') {
+              applyFillToMeshGlobal(layerId, true);
+            }
+            if (typeof render3D === 'function') {
               render3D();
             }
             triggerAutoSave();

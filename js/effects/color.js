@@ -14,7 +14,10 @@
     defaultParams: { hue: 0, saturation: 100, lightness: 100 }
   }, function(srcCanvas, dstCtx, params, width, height) {
     const h = params.hue || 0;
-    const s = params.saturation !== undefined ? params.saturation : 100;
+    let s = params.saturation !== undefined ? params.saturation : 100;
+    if (s >= -1.0 && s <= 2.0 && s !== 100) {
+      s = Math.max(0, Math.round((s + 1.0) * 100));
+    }
     const l = params.lightness !== undefined ? params.lightness : 100;
 
     dstCtx.clearRect(0, 0, width, height);
@@ -52,40 +55,49 @@
     const gamma = (params.gamma !== undefined && params.gamma > 0.001) ? params.gamma : 1.0;
     const offset = params.offset !== undefined ? params.offset : 0;
 
-    const sCtx = srcCanvas.getContext('2d');
-    const imgData = sCtx.getImageData(0, 0, width, height);
-    const data = imgData.data;
-    const expMult = Math.pow(2.0, exp);
-    const invGamma = 1.0 / gamma;
+    try {
+      const sCtx = srcCanvas.getContext('2d');
+      const imgData = sCtx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      const expMult = Math.pow(2.0, exp);
+      const invGamma = 1.0 / gamma;
 
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] === 0) continue;
-      let r = data[i] / 255.0;
-      let g = data[i + 1] / 255.0;
-      let b = data[i + 2] / 255.0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        let r = data[i] / 255.0;
+        let g = data[i + 1] / 255.0;
+        let b = data[i + 2] / 255.0;
 
-      if (offset !== 0) {
-        r += offset;
-        g += offset;
-        b += offset;
-      }
-      if (gamma !== 1.0) {
-        r = Math.pow(Math.max(0, r), invGamma);
-        g = Math.pow(Math.max(0, g), invGamma);
-        b = Math.pow(Math.max(0, b), invGamma);
-      }
-      if (exp !== 0) {
-        r *= expMult;
-        g *= expMult;
-        b *= expMult;
-      }
+        if (offset !== 0) {
+          r += offset;
+          g += offset;
+          b += offset;
+        }
+        if (gamma !== 1.0) {
+          r = Math.pow(Math.max(0, r), invGamma);
+          g = Math.pow(Math.max(0, g), invGamma);
+          b = Math.pow(Math.max(0, b), invGamma);
+        }
+        if (exp !== 0) {
+          r *= expMult;
+          g *= expMult;
+          b *= expMult;
+        }
 
-      data[i] = Math.max(0, Math.min(255, Math.round(r * 255)));
-      data[i + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
-      data[i + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+        data[i] = Math.max(0, Math.min(255, Math.round(r * 255)));
+        data[i + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
+        data[i + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+      }
+      dstCtx.clearRect(0, 0, width, height);
+      dstCtx.putImageData(imgData, 0, 0);
+    } catch(err) {
+      dstCtx.clearRect(0, 0, width, height);
+      dstCtx.save();
+      const bPct = Math.max(0, Math.round(Math.pow(2.0, exp) * 100));
+      dstCtx.filter = `brightness(${bPct}%)`;
+      dstCtx.drawImage(srcCanvas, 0, 0, width, height);
+      dstCtx.restore();
     }
-    dstCtx.clearRect(0, 0, width, height);
-    dstCtx.putImageData(imgData, 0, 0);
   }
 
   reg({
@@ -128,59 +140,126 @@
       { id: 'vib', label: 'Vibrance', min: 1, max: 2, step: 0.01, unit: '' }
     ]
   }, function(srcCanvas, dstCtx, params, width, height) {
-    const sat = params.saturation !== undefined ? params.saturation : 0;
-    const vib = params.vib !== undefined ? params.vib : 1.0;
+    let sat = params.saturation !== undefined ? params.saturation : 0;
+    if (sat > 2.5) sat = (sat - 100) / 100.0;
+    const vib = (params.vib !== undefined) ? params.vib : ((params.vibrance !== undefined) ? params.vibrance : 1.0);
 
-    const sCtx = srcCanvas.getContext('2d');
-    const imgData = sCtx.getImageData(0, 0, width, height);
-    const data = imgData.data;
+    try {
+      const sCtx = srcCanvas.getContext('2d');
+      const imgData = sCtx.getImageData(0, 0, width, height);
+      const data = imgData.data;
 
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] === 0) continue;
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const maxVal = Math.max(r, g, b);
-      const avg = (r + g + b) / 3;
-      const amt = ((Math.abs(maxVal - avg) * 2 / 255) * (vib - 1)) + (sat);
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) continue;
+        const r = data[i] / 255.0;
+        const g = data[i + 1] / 255.0;
+        const b = data[i + 2] / 255.0;
 
-      data[i] = Math.max(0, Math.min(255, Math.round(r + (r - avg) * amt)));
-      data[i + 1] = Math.max(0, Math.min(255, Math.round(g + (g - avg) * amt)));
-      data[i + 2] = Math.max(0, Math.min(255, Math.round(b + (b - avg) * amt)));
+        const y = 0.299 * r + 0.587 * g + 0.114 * b;
+        let u = -0.14713 * r - 0.28886 * g + 0.436 * b;
+        let v = 0.615 * r - 0.51499 * g - 0.10001 * b;
+
+        const origSat = Math.min(1.0, Math.hypot(u, v) * 2.5);
+        const satU = u * Math.max(1.0, vib);
+        const satV = v * Math.max(1.0, vib);
+
+        u = satU * (1.0 - origSat) + u * origSat;
+        v = satV * (1.0 - origSat) + v * origSat;
+
+        u = u * (sat + 1.0);
+        v = v * (sat + 1.0);
+
+        const rOut = Math.max(0, Math.min(1, y + 1.13983 * v));
+        const gOut = Math.max(0, Math.min(1, y - 0.39465 * u - 0.58060 * v));
+        const bOut = Math.max(0, Math.min(1, y + 2.03211 * u));
+
+        data[i] = Math.round(rOut * 255);
+        data[i + 1] = Math.round(gOut * 255);
+        data[i + 2] = Math.round(bOut * 255);
+      }
+      dstCtx.clearRect(0, 0, width, height);
+      dstCtx.putImageData(imgData, 0, 0);
+    } catch(err) {
+      dstCtx.clearRect(0, 0, width, height);
+      dstCtx.save();
+      const satPercent = Math.max(0, Math.round((sat + 1.0) * vib * 100));
+      dstCtx.filter = `saturate(${satPercent}%)`;
+      dstCtx.drawImage(srcCanvas, 0, 0, width, height);
+      dstCtx.restore();
     }
-    dstCtx.clearRect(0, 0, width, height);
-    dstCtx.putImageData(imgData, 0, 0);
   });
 
   reg({
     type: 'lightglow',
-    name: 'Light Glow (Pendaran Cahaya Halus)',
+    name: 'Light Glow (Pendaran Cahaya)',
     icon: 'flare',
     category: 'color',
     desc: 'Pendaran cahaya lembut sinematik dengan threshold.',
-    defaultParams: { strength: 0.25, threshold: 0.7, intensity: 1.0, color: '#3d4cf5', blend: 0.25, halo: 0.0, alpha: 0.75 },
+    defaultParams: { strength: 0.25, threshold: 0.5, intensity: 1.0, color: '#ff5566', blend: 0.25, halo: 0.0, alpha: 0.75 },
     paramsConfig: [
-      { id: 'strength', label: 'Strength', min: 0, max: 2, step: 0.01, unit: '' },
+      { id: 'strength', label: 'Diffusion / Strength', min: 0, max: 2, step: 0.01, unit: '' },
       { id: 'threshold', label: 'Threshold', min: 0, max: 1, step: 0.01, unit: '' },
       { id: 'intensity', label: 'Intensity', min: 0, max: 5, step: 0.01, unit: '' },
+      { id: 'color', label: 'Color', type: 'color' },
       { id: 'blend', label: 'Blend', min: 0, max: 1, step: 0.01, unit: '' },
       { id: 'alpha', label: 'Alpha', min: 0, max: 1, step: 0.01, unit: '' }
     ]
   }, function(srcCanvas, dstCtx, params, width, height) {
     const strength = params.strength !== undefined ? params.strength : 0.25;
+    const threshold = params.threshold !== undefined ? params.threshold : 0.5;
     const intensity = params.intensity !== undefined ? params.intensity : 1.0;
-    const col = params.color || '#3d4cf5';
+    const col = params.color || '#ff5566';
+    const blend = params.blend !== undefined ? params.blend : 0.25;
     const alpha = params.alpha !== undefined ? params.alpha : 0.75;
-    const rad = Math.max(1, Math.round(strength * 30));
+    const rad = Math.max(2, Math.round(strength * 40));
 
     dstCtx.clearRect(0, 0, width, height);
-    dstCtx.save();
     dstCtx.drawImage(srcCanvas, 0, 0, width, height);
+
+    if (strength <= 0.001 || intensity <= 0.001 || alpha <= 0.001) return;
+
+    const scratch = getScratchCanvas('LIGHT_GLOW_BRIGHT', width, height);
+    if (!scratch) return;
+    const sCtx = scratch.getContext('2d');
+    sCtx.clearRect(0, 0, width, height);
+    sCtx.drawImage(srcCanvas, 0, 0, width, height);
+
+    const imgData = sCtx.getImageData(0, 0, width, height);
+    const d = imgData.data;
+    const parsedCol = (typeof parseHexOrRgbLocal === 'function') ? parseHexOrRgbLocal(col) : { r: 255, g: 85, b: 102 };
+    const cr = parsedCol.r;
+    const cg = parsedCol.g;
+    const cb = parsedCol.b;
+
+    for (let i = 0; i < d.length; i += 4) {
+      const a = d[i + 3];
+      if (a < 5) continue;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0;
+      if (lum > threshold * 0.7) {
+        const factor = Math.max(0, Math.min(1, (lum - threshold * 0.7) / Math.max(0.01, 1.0 - threshold * 0.7)));
+        const mixedR = r * (1 - blend) + cr * blend;
+        const mixedG = g * (1 - blend) + cg * blend;
+        const mixedB = b * (1 - blend) + cb * blend;
+        d[i] = Math.round(mixedR);
+        d[i + 1] = Math.round(mixedG);
+        d[i + 2] = Math.round(mixedB);
+        d[i + 3] = Math.round(a * factor);
+      } else {
+        d[i + 3] = 0;
+      }
+    }
+    sCtx.putImageData(imgData, 0, 0);
+
     dstCtx.save();
+    dstCtx.globalCompositeOperation = 'screen';
     dstCtx.filter = `blur(${rad}px)`;
-    dstCtx.globalAlpha = Math.min(1.0, alpha * intensity);
-    dstCtx.drawImage(srcCanvas, 0, 0, width, height);
-    dstCtx.restore();
+    dstCtx.globalAlpha = Math.max(0, Math.min(1.0, alpha * intensity));
+    dstCtx.drawImage(scratch, 0, 0, width, height);
+    if (intensity > 1.0) {
+      dstCtx.globalAlpha = Math.min(1.0, alpha * (intensity - 1.0));
+      dstCtx.drawImage(scratch, 0, 0, width, height);
+    }
     dstCtx.restore();
   });
 

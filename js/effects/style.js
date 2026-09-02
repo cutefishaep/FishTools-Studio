@@ -26,7 +26,12 @@
     icon: 'vignette',
     category: 'style',
     desc: 'Penggelapan halus pada tepi sudut gambar untuk fokus sinematik.',
-    defaultParams: { radius: 50, feather: 50, color: '#000000' }
+    defaultParams: { radius: 50, feather: 50, color: '#000000' },
+    paramsConfig: [
+      { id: 'radius', label: 'Radius', min: 10, max: 100, step: 1, unit: '%' },
+      { id: 'feather', label: 'Feather', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'color', label: 'Warna Vignette', type: 'color' }
+    ]
   }, function(srcCanvas, dstCtx, params, width, height) {
     const radPercent = (params.radius !== undefined ? params.radius : 50) / 100;
     const feather = (params.feather !== undefined ? params.feather : 50) / 100;
@@ -269,6 +274,8 @@
     desc: 'Hamparan gradasi warna linear atau radial dengan blending.',
     defaultParams: { color1: '#ffffff', color2: '#000000', angle: 0, scale: 1.0, alpha: 1.0 },
     paramsConfig: [
+      { id: 'color1', label: 'Warna Gradien 1', type: 'color' },
+      { id: 'color2', label: 'Warna Gradien 2', type: 'color' },
       { id: 'angle', label: 'Angle', min: -360, max: 360, step: 1, unit: '°' },
       { id: 'scale', label: 'Scale', min: 0.1, max: 5, step: 0.01, unit: '' },
       { id: 'alpha', label: 'Alpha', min: 0, max: 1, step: 0.01, unit: '' }

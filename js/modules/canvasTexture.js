@@ -1003,8 +1003,13 @@ function getBlurredTextureForLayer(id, blurPx) {
     }
     return cloned;
   });
+  const nonOverdrawEffects = animatedEffects.filter(eff => {
+    if (!eff || eff.enabled === false) return false;
+    const t = (eff.type || '').toLowerCase();
+    return !(t === 'tiles' || t === 'tile' || t.includes('tile'));
+  });
   if (typeof FishEffects !== 'undefined' && typeof FishEffects.applyCustomEffectProcessors === 'function') {
-    baseCanvas = FishEffects.applyCustomEffectProcessors(baseCanvas, animatedEffects, id);
+    baseCanvas = FishEffects.applyCustomEffectProcessors(baseCanvas, nonOverdrawEffects, id);
   }
 
   const qBlur = Math.min(64, Math.max(0, Math.round(blurPx || 0)));
@@ -1064,20 +1069,35 @@ function updateLayerEffectsFast(id) {
     const mesh = meshLayerMap.get(targetId);
     if (!mesh || !mesh.material) return;
 
+    const metric = (typeof layerMetricsCache !== 'undefined') ? layerMetricsCache.get(targetId) : null;
+    const isAdj = metric && (metric.cat === 'adjustment' || (typeof getLayerEffects === 'function' && getLayerEffects(targetId).some(e => e && e.enabled !== false && (e.type === 'copy_background' || e.type === 'copybackground'))));
+
+    if (isAdj) {
+      if (typeof updateAdjustmentLayerUniforms === 'function') {
+        updateAdjustmentLayerUniforms(targetId, mesh.material, typeof elapsed !== 'undefined' ? elapsed : 0);
+      }
+      if (typeof render3D === 'function') render3D();
+      return;
+    }
+
     if (!layerBaseCanvasMap.has(targetId)) {
       applyFillToMeshGlobal(targetId);
       return;
     }
+
     for (const k of Array.from(layerBlurTextureCache.keys())) {
       if (k.startsWith(targetId + '_')) {
         const oldTex = layerBlurTextureCache.get(k);
-        if (oldTex) try { oldTex.dispose(); } catch(_) {}
+        if (oldTex && (!layerActiveTextureMap || !Array.from(layerActiveTextureMap.values()).includes(oldTex))) {
+          try { oldTex.dispose(); } catch(_) {}
+        }
         layerBlurTextureCache.delete(k);
       }
     }
 
     const tex = getBlurredTextureForLayer(targetId, 0);
     if (tex) {
+      tex.needsUpdate = true;
       if (mesh.material.type === 'ShaderMaterial' && mesh.material.uniforms && mesh.material.uniforms.map) {
         mesh.material.uniforms.map.value = tex;
       } else {
@@ -1085,8 +1105,10 @@ function updateLayerEffectsFast(id) {
         if (mesh.material.color) mesh.material.color = new THREE.Color('#FFFFFF');
         mesh.material.transparent = true;
         mesh.material.needsUpdate = true;
+        if (mesh.material.map) mesh.material.map.needsUpdate = true;
       }
     }
+    if (typeof applyTransformToThreeMesh === 'function') applyTransformToThreeMesh(targetId);
     if (typeof render3D === 'function') render3D();
   }) : null;
 }
@@ -1103,13 +1125,24 @@ function applyFillToMeshGlobal(id, force = false) {
   const isPlaying = (typeof playing !== 'undefined' && playing);
   if (!mesh.visible && isPlaying && !force) return;
 
+  const metric = (typeof layerMetricsCache !== 'undefined') ? layerMetricsCache.get(id) : null;
+  const isAdj = metric && (metric.cat === 'adjustment' || (typeof getLayerEffects === 'function' && getLayerEffects(id).some(e => e && e.enabled !== false && (e.type === 'copy_background' || e.type === 'copybackground'))));
+  if (isAdj) {
+    const t = getLayerTransform(id);
+    const transformOpacity = (t && t.opacity !== undefined) ? (t.opacity / 100) : 1;
+    if (mesh.material.type !== 'ShaderMaterial' && typeof createAdjustmentLayerMaterial === 'function') {
+      mesh.material = createAdjustmentLayerMaterial(null, transformOpacity);
+    }
+    if (typeof render3D === 'function') render3D();
+    return;
+  }
+
   const fill = getLayerFill(id);
   if (!fill) return;
   const bs = (typeof getLayerBorderShadow === 'function') ? getLayerBorderShadow(id) : null;
   const t = getLayerTransform(id);
   const transformOpacity = (t && t.opacity !== undefined) ? (t.opacity / 100) : 1;
 
-  const metric = (typeof layerMetricsCache !== 'undefined') ? layerMetricsCache.get(id) : null;
   const clipName = metric ? metric.clipName : '';
   const isPkg = fill.mediaUrl && (fill.mediaUrl.startsWith('video_pkg_') || fill.mediaUrl.startsWith('pkg_'));
   const seq = videoFrameSequenceMap.get(fill.mediaUrl) || videoFrameSequenceMap.get(id) || (clipName && videoFrameSequenceMap.get(clipName));
@@ -1209,10 +1242,14 @@ function applyFillToMeshGlobal(id, force = false) {
       if (hasCopyBg) {
         if (mesh.material.type !== 'ShaderMaterial' && typeof createAdjustmentLayerMaterial === 'function') {
           mesh.material = createAdjustmentLayerMaterial(tex, targetOpacity);
-        } else if (mesh.material.uniforms && mesh.material.uniforms.map) {
-          mesh.material.uniforms.map.value = tex;
-          mesh.material.uniforms.opacity.value = targetOpacity;
+        } else if (mesh.material.uniforms && mesh.material.uniforms.tBackground) {
+          mesh.material.uniforms.tBackground.value = tex;
+          if (mesh.material.uniforms.uOpacity) mesh.material.uniforms.uOpacity.value = targetOpacity;
         }
+        if (typeof updateAdjustmentLayerUniforms === 'function') {
+          updateAdjustmentLayerUniforms(id, mesh.material, typeof elapsed !== 'undefined' ? elapsed : 0);
+        }
+        if (typeof applyTransformToThreeMesh === 'function') applyTransformToThreeMesh(id);
       } else {
         if (mesh.material.type === 'ShaderMaterial' && typeof createMotionBlurMaterial === 'function') {
           mesh.material = createMotionBlurMaterial();
@@ -1226,6 +1263,7 @@ function applyFillToMeshGlobal(id, force = false) {
         mesh.material.side = THREE.DoubleSide;
         mesh.material.opacity = targetOpacity;
         mesh.material.needsUpdate = true;
+        if (typeof applyTransformToThreeMesh === 'function') applyTransformToThreeMesh(id);
       }
       if (typeof requestDebouncedRender3D === 'function') requestDebouncedRender3D();
       else if (typeof render3D === 'function') render3D();

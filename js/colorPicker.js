@@ -865,15 +865,18 @@ class FishColorPicker {
     return window.FishPopover ? window.FishPopover.isOpen() : false;
   }
 
-  open({ color, alpha, anchorElement, onChange, onComplete }) {
-    this.activeCallback = onChange || null;
-    this.activeCompleteCallback = onComplete || null;
+  open(options = {}) {
+    const anchorEl = options.anchorElement || options.anchor || null;
+    const initialCol = options.color || options.initialColor || '#FFFFFF';
+    const initAlpha = options.alpha !== undefined ? options.alpha : 1;
+    this.activeCallback = options.onChange || null;
+    this.activeCompleteCallback = options.onComplete || null;
 
-    this.setColor(color || '#FFFFFF', alpha !== undefined ? alpha : 1);
+    this.setColor(initialCol, initAlpha);
     this.switchView('wheel');
 
     if (window.FishPopover) {
-      const fallbackAnchor = anchorElement || document.getElementById('btnEditGradientStopColor') || document.getElementById('gradientBar');
+      const fallbackAnchor = anchorEl || document.getElementById('btnEditGradientStopColor') || document.getElementById('gradientBar');
       window.FishPopover.show({
         anchorElement: fallbackAnchor,
         content: this.cardInner,

@@ -32,11 +32,31 @@
     return c;
   }
   function parseAmEasing(eStr, kfElement) {
+    let rawStr = eStr;
+    if (!rawStr && kfElement) {
+      rawStr = kfElement.getAttribute('e') ||
+               kfElement.getAttribute('easing') ||
+               kfElement.getAttribute('curve') ||
+               kfElement.getAttribute('ease') ||
+               kfElement.getAttribute('interpolation') ||
+               kfElement.getAttribute('p') ||
+               kfElement.getAttribute('curveType');
+    }
+
     if (kfElement) {
-      const curveEl = kfElement.querySelector('curve') || kfElement.querySelector('ease') || kfElement.querySelector('easing');
+      const cp1Attr = kfElement.getAttribute('cp1') || kfElement.getAttribute('p1') || kfElement.getAttribute('in');
+      const cp2Attr = kfElement.getAttribute('cp2') || kfElement.getAttribute('p2') || kfElement.getAttribute('out');
+      if (cp1Attr && cp2Attr) {
+        const p1 = cp1Attr.split(/[\s,]+/).map(parseFloat);
+        const p2 = cp2Attr.split(/[\s,]+/).map(parseFloat);
+        if (p1.length >= 2 && p2.length >= 2 && !isNaN(p1[0]) && !isNaN(p2[0])) {
+          return { cp1x: p1[0], cp1y: p1[1], cp2x: p2[0], cp2y: p2[1] };
+        }
+      }
+      const curveEl = kfElement.querySelector('curve, ease, easing, cubic, bezier, interpolator');
       if (curveEl) {
-        const cp1 = curveEl.getAttribute('cp1') || curveEl.getAttribute('p1');
-        const cp2 = curveEl.getAttribute('cp2') || curveEl.getAttribute('p2');
+        const cp1 = curveEl.getAttribute('cp1') || curveEl.getAttribute('p1') || curveEl.getAttribute('in');
+        const cp2 = curveEl.getAttribute('cp2') || curveEl.getAttribute('p2') || curveEl.getAttribute('out');
         if (cp1 && cp2) {
           const p1 = cp1.split(/[\s,]+/).map(parseFloat);
           const p2 = cp2.split(/[\s,]+/).map(parseFloat);
@@ -44,16 +64,27 @@
             return { cp1x: p1[0], cp1y: p1[1], cp2x: p2[0], cp2y: p2[1] };
           }
         }
+        const cVal = curveEl.getAttribute('value') || curveEl.textContent;
+        if (cVal) rawStr = cVal;
       }
     }
 
-    if (!eStr) return null;
-    const str = eStr.trim().toLowerCase();
+    if (!rawStr) return null;
+    const str = rawStr.trim().toLowerCase();
     if (str === 'hold' || str === 'step') {
       return { cp1x: 0, cp1y: 0, cp2x: 0, cp2y: 1 };
     }
     if (str === 'linear') {
       return { cp1x: 0.33, cp1y: 0.33, cp2x: 0.67, cp2y: 0.67 };
+    }
+    if (str === 'ease-in' || str === 'easein') {
+      return { cp1x: 0.42, cp1y: 0.0, cp2x: 1.0, cp2y: 1.0 };
+    }
+    if (str === 'ease-out' || str === 'easeout') {
+      return { cp1x: 0.0, cp1y: 0.0, cp2x: 0.58, cp2y: 1.0 };
+    }
+    if (str === 'ease-in-out' || str === 'easeinout' || str === 'ease') {
+      return { cp1x: 0.42, cp1y: 0.0, cp2x: 0.58, cp2y: 1.0 };
     }
     const numbers = str.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi);
     if (numbers && numbers.length >= 4) {
@@ -133,8 +164,8 @@
       type = 'hue_saturation'; name = 'Hue / Saturation';
     } else if (rawId.includes('exposure') || rawId.includes('gamma')) {
       type = 'exposure'; name = 'Exposure / Gamma';
-    } else if (rawId.includes('lift')) {
-      type = 'copy_background'; name = 'Copy Background';
+    } else if (rawId.includes('lift') || rawId.includes('copybackground') || rawId.includes('copy_background') || rawId.includes('copybg')) {
+      return null;
     } else if (rawId.includes('lightglow') || rawId.includes('glow')) {
       type = 'lightglow'; name = 'Light Glow';
     } else if (rawId.includes('unsharpmask')) {
@@ -143,8 +174,6 @@
       type = 'sharpen'; name = 'Sharpen';
     } else if (rawId.includes('transform')) {
       type = 'raster_transform'; name = 'Transform';
-    } else if (rawId.includes('copybackground') || rawId.includes('copy_background') || rawId.includes('copybg')) {
-      type = 'copy_background'; name = 'Copy Background';
     } else if (rawId.includes('gradientoverlay') || rawId.includes('gradient')) {
       type = 'gradient_overlay'; name = 'Gradient Overlay';
     }
@@ -190,8 +219,7 @@
     const params = { ...rawParams };
 
     if (type === 'hue_saturation') {
-      if (params.hue !== undefined) params.hue = params.hue / 3;
-      if (params.saturation !== undefined) params.saturation = (params.saturation - 1) * 100;
+      if (params.hue !== undefined && Math.abs(params.hue) > 3.14) params.hue = params.hue / 3;
     }
 
     if (type === 'exposure') {
@@ -207,17 +235,47 @@
     return { type, name, params, propKeyframes };
   }
 
-  function convertAlightMotionXmlToFishProject(xmlText, filename) {
+  function parseXmlSafely(rawXmlText) {
+    if (!rawXmlText) return null;
+    let cleanText = String(rawXmlText).replace(/^[\uFEFF\uFFFE]/, '').trim();
+    cleanText = cleanText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    cleanText = cleanText.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-    const parserError = xmlDoc.querySelector('parsererror');
-    if (parserError) {
+    let xmlDoc = null;
+    try {
+      xmlDoc = parser.parseFromString(cleanText, 'text/xml');
+      if (xmlDoc.querySelector('parsererror')) {
+        xmlDoc = null;
+      }
+    } catch (_) {
+      xmlDoc = null;
+    }
+
+    if (!xmlDoc) {
+      try {
+        xmlDoc = parser.parseFromString(cleanText, 'text/html');
+      } catch (_) {
+        xmlDoc = null;
+      }
+    }
+
+    return xmlDoc;
+  }
+
+  function convertAlightMotionXmlToFishProject(xmlText, filename) {
+    const xmlDoc = parseXmlSafely(xmlText);
+    if (!xmlDoc) {
       throw new Error('File XML rusak atau bukan format XML yang valid.');
     }
 
-    let root = xmlDoc.querySelector('scene');
+    let root = xmlDoc.querySelector('scene') || xmlDoc.querySelector('sceneElement');
     if (!root) {
       root = xmlDoc.documentElement;
+    }
+    if (!root) {
+      const allScenes = xmlDoc.getElementsByTagName('scene');
+      if (allScenes && allScenes.length > 0) root = allScenes[0];
     }
     if (!root) {
       throw new Error('Struktur Alight Motion <scene> tidak ditemukan dalam file XML.');
@@ -291,6 +349,10 @@
       const fillType = layerEl.getAttribute('fillType') || layerEl.getAttribute('type') || 'color';
       const fillImage = layerEl.getAttribute('fillImage') || layerEl.getAttribute('src') || layerEl.getAttribute('media') || '';
 
+      const hasLocallyAppliedFalse = !!layerEl.querySelector('effect[locallyApplied="false"]') || layerEl.getAttribute('locallyApplied') === 'false';
+      const hasCopyBgExplicit = fillType === 'background' || fillType === 'copybackground' || layerEl.getAttribute('copyBackground') === 'true' || (label && /copy\s*background|salin\s*latar/i.test(label)) || !!layerEl.querySelector('effect[id*="lift"]');
+      const isAdjustmentLayer = hasCopyBgExplicit || hasLocallyAppliedFalse || tagName === 'adjustment';
+
       if (tagName === 'null' || tagName === 'nullobj' || label.toLowerCase().startsWith('null') || fillType === 'null' || fillType === 'perspective') {
         category = 'null';
       } else if (tagName === 'audio') {
@@ -299,6 +361,9 @@
         category = 'camera';
       } else if (tagName === 'text' || layerEl.querySelector('text')) {
         category = 'text';
+      } else if (isAdjustmentLayer) {
+        category = 'adjustment';
+        shapeType = 'square';
       } else if (fillType === 'media' || fillImage || /\.(jpg|png|mp4|webm|webp|jpeg|gif)$/i.test(label)) {
         category = 'media';
         shapeType = 'square';
@@ -413,6 +478,7 @@
           const easing = parseAmEasing(kf.getAttribute('e') || kf.getAttribute('easing'), kf);
           if (easing) {
             kfEntry.easing_scale = easing;
+            kfEntry.easing = easing;
           }
         });
       }
@@ -434,6 +500,7 @@
           if (easing) {
             kfEntry.easing_rotZ = easing;
             kfEntry.easing_rotation = easing;
+            kfEntry.easing = easing;
           }
         });
       }
@@ -446,7 +513,10 @@
           const kfEntry = getOrCreateKf(kfTime);
           kfEntry.rotX = rx;
           const easing = parseAmEasing(kf.getAttribute('e'), kf);
-          if (easing) kfEntry.easing_rotX = easing;
+          if (easing) {
+            kfEntry.easing_rotX = easing;
+            kfEntry.easing = easing;
+          }
         });
       }
 
@@ -459,21 +529,39 @@
           const kfEntry = getOrCreateKf(kfTime);
           kfEntry.rotY = ry;
           const easing = parseAmEasing(kf.getAttribute('e'), kf);
-          if (easing) kfEntry.easing_rotY = easing;
+          if (easing) {
+            kfEntry.easing_rotY = easing;
+            kfEntry.easing = easing;
+          }
         });
+      }
+      if (layerEl.hasAttribute('opacity')) {
+        const opVal = parseFloat(layerEl.getAttribute('opacity'));
+        if (!isNaN(opVal)) tObj.opacity = opVal <= 1.0 ? Math.round(opVal * 100) : Math.round(opVal);
+      } else if (layerEl.hasAttribute('alpha')) {
+        const opVal = parseFloat(layerEl.getAttribute('alpha'));
+        if (!isNaN(opVal)) tObj.opacity = opVal <= 1.0 ? Math.round(opVal * 100) : Math.round(opVal);
       }
       const opEl = tfEl.querySelector('opacity') || tfEl.querySelector('alpha') || tfEl.querySelector('property[name="opacity"]') || tfEl.querySelector('property[name="alpha"]');
       if (opEl) {
         const opValStr = opEl.getAttribute('value');
-        if (opValStr) {
+        if (opValStr !== null && opValStr !== undefined) {
           const opRaw = parseFloat(opValStr);
-          tObj.opacity = opRaw <= 1.0 ? Math.round(opRaw * 100) : (opRaw <= 100 ? Math.round(opRaw) : Math.round((opRaw / 255) * 100));
+          if (!isNaN(opRaw)) {
+            tObj.opacity = opRaw <= 1.0 ? Math.round(opRaw * 100) : (opRaw <= 100 ? Math.round(opRaw) : Math.round((opRaw / 255) * 100));
+          }
         }
         opEl.querySelectorAll('kf').forEach(kf => {
           const tAttr = kf.getAttribute('t') || kf.getAttribute('time');
           const kfTime = resolveKfTime(tAttr, startSec, endSec, totalTimeSec, fps);
-          const opRaw = parseFloat(kf.getAttribute('v') || kf.getAttribute('value') || 1.0) || 1.0;
-          const op = opRaw <= 1.0 ? Math.round(opRaw * 100) : (opRaw <= 100 ? Math.round(opRaw) : Math.round((opRaw / 255) * 100));
+          const valAttr = kf.getAttribute('v') || kf.getAttribute('value');
+          let op = 100;
+          if (valAttr !== null && valAttr !== undefined) {
+            const opRaw = parseFloat(valAttr);
+            if (!isNaN(opRaw)) {
+              op = opRaw <= 1.0 ? Math.round(opRaw * 100) : (opRaw <= 100 ? Math.round(opRaw) : Math.round((opRaw / 255) * 100));
+            }
+          }
 
           const kfEntry = getOrCreateKf(kfTime);
           kfEntry.opacity = op;
@@ -481,6 +569,7 @@
           const easing = parseAmEasing(kf.getAttribute('e') || kf.getAttribute('easing'), kf);
           if (easing) {
             kfEntry.easing_opacity = easing;
+            kfEntry.easing = easing;
           }
         });
       }
@@ -488,18 +577,6 @@
       transforms[shapeId] = tObj;
       const layerEffectsList = [];
       let hasMotionBlur = false;
-      const hasLocallyAppliedFalse = !!layerEl.querySelector('effect[locallyApplied="false"]') || layerEl.getAttribute('locallyApplied') === 'false';
-      const hasCopyBgExplicit = fillType === 'background' || fillType === 'copybackground' || layerEl.getAttribute('copyBackground') === 'true' || (label && /copy\s*background|salin\s*latar/i.test(label));
-
-      if (hasCopyBgExplicit || hasLocallyAppliedFalse) {
-        layerEffectsList.push({
-          id: 'fx_' + Math.random().toString(36).substr(2, 6),
-          type: 'copy_background',
-          name: 'Copy Background',
-          enabled: true,
-          params: { opacity: 100 }
-        });
-      }
 
       layerEl.querySelectorAll('effect').forEach(effEl => {
         const effIdAttr = effEl.getAttribute('id') || effEl.getAttribute('type') || '';
@@ -548,6 +625,7 @@
             const easing = parseAmEasing(pkf.eAttr, pkf.kfEl);
             if (easing) {
               kfEntry['easing_' + channelKey] = easing;
+              kfEntry.easing = easing;
             }
           });
         }

@@ -1,4 +1,4 @@
-﻿const GLOBAL_MEDIA_STORAGE_KEY = 'fishTool_globalMediaLibrary';
+const GLOBAL_MEDIA_STORAGE_KEY = 'fishTool_globalMediaLibrary';
 let _globalMediaMemoryCache = null;
 let _globalMediaDbInitPromise = null;
 
@@ -906,6 +906,7 @@ var CATEGORY_ITEMS = {
   shape: [],
   media: [],
   camera: [
+    { icon: 'tune', name: 'Adjustment Layer', filename: 'Adjustment_1', sub: 'Effect Layer', cat: 'adjustment' },
     { icon: 'videocam', name: 'Camera', filename: 'Camera_1', sub: 'Camera Layer', cat: 'camera' },
     { icon: 'crop_free', name: 'Null', filename: 'Null_1', sub: 'Null Object', cat: 'null' }
   ],

@@ -917,11 +917,13 @@ function selectTrack(row) {
   const clipText = clipName ? clipName.textContent.trim() : '';
   const isCamera = (cat === 'camera' || clipText.toLowerCase().startsWith('camera'));
   const isNull = (cat === 'null' || clipText.toLowerCase().startsWith('null'));
+  const isAdjustment = (cat === 'adjustment');
   const isGroup = (cat === 'group' || (row.dataset.layerId && row.dataset.layerId.startsWith('group_')) || (typeof layerGroupData !== 'undefined' && layerGroupData.has(row.dataset.layerId)));
-  const isShape = (cat === 'shape' || cat === 'svg' || (row.dataset.shapeType && row.dataset.shapeType !== 'null') || clipText.toLowerCase().endsWith('.svg'));
+  const isShape = (cat === 'shape' || cat === 'svg' || (row.dataset.shapeType && row.dataset.shapeType !== 'null') || clipText.toLowerCase().endsWith('.svg')) && !isAdjustment;
 
   if (iconEl) {
-    if (isGroup) iconEl.textContent = 'folder_open';
+    if (isAdjustment) iconEl.textContent = 'tune';
+    else if (isGroup) iconEl.textContent = 'folder_open';
     else if (isShape) iconEl.textContent = 'interests';
     else if (isCamera) iconEl.textContent = 'videocam';
     else if (cat === 'text') iconEl.textContent = 'title';
@@ -959,10 +961,12 @@ function selectTrack(row) {
     allTileBtns.forEach(btn => {
       if (btn.id === 'btnInspCameraControl') {
         btn.style.display = 'none';
+      } else if (btn.id === 'btnInspColorFill') {
+        btn.style.display = isAdjustment ? 'none' : 'flex';
       } else if (btn.id === 'btnInspEditGroup') {
         btn.style.display = isGroup ? 'flex' : 'none';
       } else if (btn.id === 'btnInspEditShape') {
-        btn.style.display = (isShape && !isGroup) ? 'flex' : 'none';
+        btn.style.display = (isShape && !isGroup && !isAdjustment) ? 'flex' : 'none';
       } else if (btn.id === 'btnInspEditText') {
         btn.style.display = (cat === 'text' && !isGroup) ? 'flex' : 'none';
       } else {

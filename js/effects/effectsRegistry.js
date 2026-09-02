@@ -1,4 +1,4 @@
-﻿
+
 window.FishEffects = window.FishEffects || {};
 
 const EFFECT_PROCESSORS = new Map();
@@ -40,6 +40,35 @@ function getEffectDefinition(type) {
 }
 const effectOutputCache = new Map();
 
+function normalizeEffectType(type) {
+  if (!type) return '';
+  const t = String(type).toLowerCase();
+  if (t.includes('satvib') || t.includes('vibrance') || t.includes('saturation') || t.includes('saturasi')) return 'satvib';
+  if (t.includes('hueshift') || t.includes('hue_saturation') || t.includes('colorize')) return 'hue_saturation';
+  if (t.includes('exposure') || t.includes('lift') || t.includes('gamma')) return 'exposure';
+  if (t.includes('directionalblur') || t.includes('directional_blur')) return 'directional_blur';
+  if (t.includes('boxblur') || t.includes('box_blur')) return 'box_blur';
+  if (t.includes('gaussianblur') || t.includes('gaussian_blur') || t === 'blur' || t.includes('fast_blur')) return 'gaussian_blur';
+  if (t.includes('unsharp')) return 'unsharpmask';
+  if (t.includes('sharpen')) return 'sharpen';
+  if (t.includes('lightglow') || t.includes('glow')) return 'lightglow';
+  if (t.includes('transform')) return 'raster_transform';
+  if (t.includes('rgbsplit') || t.includes('rgb_split')) return 'rgb_split';
+  if (t.includes('pinch')) return 'pinch_bulge';
+  if (t.includes('wipe')) return 'wipe';
+  if (t.includes('gradient')) return 'gradient_overlay';
+  if (t.includes('vignette')) return 'vignette';
+  return type;
+}
+
+function getEffectProcessor(type) {
+  if (!type) return null;
+  if (EFFECT_PROCESSORS.has(type)) return EFFECT_PROCESSORS.get(type);
+  const norm = normalizeEffectType(type);
+  if (EFFECT_PROCESSORS.has(norm)) return EFFECT_PROCESSORS.get(norm);
+  return null;
+}
+
 function applyCustomEffectProcessors(baseCanvas, activeEffects, layerId) {
   if (!baseCanvas || !activeEffects || !activeEffects.length) return baseCanvas;
 
@@ -47,9 +76,10 @@ function applyCustomEffectProcessors(baseCanvas, activeEffects, layerId) {
   let paramSig = '';
   for (let i = 0; i < activeEffects.length; i++) {
     const eff = activeEffects[i];
-    if (eff && eff.enabled !== false && EFFECT_PROCESSORS.has(eff.type)) {
-      enabledEffects.push(eff);
-      paramSig += eff.type + ':';
+    const proc = getEffectProcessor(eff ? eff.type : '');
+    if (eff && eff.enabled !== false && proc) {
+      enabledEffects.push({ ...eff, _proc: proc });
+      paramSig += (eff.type || '') + ':';
       if (eff.params) {
         for (const k in eff.params) {
           const v = eff.params[k];
@@ -60,16 +90,19 @@ function applyCustomEffectProcessors(baseCanvas, activeEffects, layerId) {
   }
 
   if (enabledEffects.length === 0) return baseCanvas;
+  const hasCopyBg = enabledEffects.some(e => e.type === 'copy_background' || e.type === 'copybackground');
   const cacheKey = (layerId || 'default') + '|' + (baseCanvas._version || 0) + '|' + baseCanvas.width + 'x' + baseCanvas.height + '|' + paramSig;
-  const cached = effectOutputCache.get(layerId || 'default');
-  if (cached && cached.key === cacheKey && cached.canvas) {
-    return cached.canvas;
+  if (!hasCopyBg) {
+    const cached = effectOutputCache.get(layerId || 'default');
+    if (cached && cached.key === cacheKey && cached.canvas) {
+      return cached.canvas;
+    }
   }
 
   const origW = baseCanvas.width;
   const origH = baseCanvas.height;
   const isScrub = (typeof isScrubbing !== 'undefined' && isScrubbing);
-  const maxDim = isScrub ? 256 : ((typeof isLowQuality !== 'undefined' && isLowQuality) ? 320 : 420);
+  const maxDim = isScrub ? 480 : 1280;
 
   let procW = origW;
   let procH = origH;
@@ -96,7 +129,7 @@ function applyCustomEffectProcessors(baseCanvas, activeEffects, layerId) {
 
   for (let i = 0; i < enabledEffects.length; i++) {
     const eff = enabledEffects[i];
-    const processor = EFFECT_PROCESSORS.get(eff.type);
+    const processor = eff._proc || getEffectProcessor(eff.type);
     if (typeof processor === 'function') {
       const outputCanvas = getScratchCanvas((layerId || 'G') + (bufferToggle ? '_A' : '_B'), procW, procH);
       if (!outputCanvas) continue;
@@ -112,7 +145,7 @@ function applyCustomEffectProcessors(baseCanvas, activeEffects, layerId) {
   }
 
   let resultCanvas = currentCanvas;
-  if (procW !== origW || procH !== origH) {
+  if (procW !== origW || procH !== origH || currentCanvas !== baseCanvas) {
     const finalCanvas = getScratchCanvas((layerId || 'G') + '_FINAL', origW, origH);
     const finalCtx = finalCanvas.getContext('2d');
     finalCtx.imageSmoothingEnabled = true;
@@ -121,28 +154,15 @@ function applyCustomEffectProcessors(baseCanvas, activeEffects, layerId) {
     finalCtx.drawImage(currentCanvas, 0, 0, origW, origH);
     resultCanvas = finalCanvas;
   }
-  effectOutputCache.set(layerId || 'default', {
-    key: cacheKey,
-    canvas: resultCanvas
-  });
+  if (!hasCopyBg) {
+    effectOutputCache.set(layerId || 'default', {
+      key: cacheKey,
+      canvas: resultCanvas
+    });
+  }
 
   return resultCanvas;
 }
-registerEffect({
-  type: 'copy_background',
-  name: 'Copy Background (Adjustment Layer)',
-  icon: 'content_copy',
-  category: 'style',
-  desc: 'Menyalin komposisi seluruh layer di bawahnya untuk dijadikan Adjustment Layer.',
-  defaultParams: { opacity: 100 }
-}, function(srcCanvas, dstCtx, params, width, height) {
-  const alpha = params.opacity !== undefined ? Math.max(0, Math.min(1, params.opacity / 100)) : 1;
-  dstCtx.clearRect(0, 0, width, height);
-  dstCtx.save();
-  dstCtx.globalAlpha = alpha;
-  dstCtx.drawImage(srcCanvas, 0, 0, width, height);
-  dstCtx.restore();
-});
 
 window.FishEffects = {
   registerEffect,

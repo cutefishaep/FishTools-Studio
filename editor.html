@@ -1,0 +1,2025 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FishTools Studio — Video Editor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐟</text></svg>">
+
+  <!-- Google Fonts & Material Symbols Rounded -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,700,1,0">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="css/global.css?v=4.4">
+  <link rel="stylesheet" href="css/colorPicker.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/navbar.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/stage3d.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/timeline.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/inspector.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/graphEditor.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/popovers.css?v=4.4">
+  <link rel="stylesheet" href="css/modules/modals.css?v=4.4">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       FULLSCREEN PROJECT LOADING SCREEN (FishTool Studio)
+       ══════════════════════════════════════════════════════════════════ -->
+  <div id="projectLoadingScreen" class="project-loading-screen">
+    <div class="doodle-layer">
+      <span class="doodle d1 material-symbols-rounded">movie</span>
+      <span class="doodle d2 material-symbols-rounded">videocam</span>
+      <span class="doodle d3 material-symbols-rounded">layers</span>
+      <span class="doodle d4 material-symbols-rounded">auto_awesome</span>
+      <span class="doodle d5 material-symbols-rounded">blur_on</span>
+      <span class="doodle d6 material-symbols-rounded">timeline</span>
+      <span class="doodle d7 material-symbols-rounded">brush</span>
+      <span class="doodle d8 material-symbols-rounded">crop</span>
+      <span class="doodle d9 material-symbols-rounded">tune</span>
+      <span class="doodle d10 material-symbols-rounded">play_circle</span>
+    </div>
+
+    <div class="loading-content-card">
+      <h1 class="loading-title">Loading Project</h1>
+      <div class="loading-project-name" id="loadingProjectName">My Project</div>
+
+      <div class="loading-progress-wrapper">
+        <div class="loading-progress-track">
+          <div class="loading-progress-bar" id="loadingProgressBar"></div>
+        </div>
+        <div class="loading-progress-meta">
+          <span class="loading-status-text" id="loadingStatusText">Menginisialisasi editor engine...</span>
+          <span class="loading-percent-text" id="loadingPercentText">0%</span>
+        </div>
+      </div>
+
+      <!-- Logs Container Terminal -->
+      <div class="loading-logs-box" id="loadingLogsBox">
+        <div class="loading-logs-header">
+          <span class="loading-logs-title">System Activity Logs</span>
+          <span class="loading-logs-indicator"></span>
+        </div>
+        <div class="loading-logs-scroll" id="loadingLogsScroll">
+          <div class="loading-log-entry info">[BOOT] Inisialisasi FishTool Studio Core...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor Full Container -->
+  <div class="editor-wrap">
+
+    <!-- ╔══════════════════════════════════════════════════════════════════╗
+         ║ [GROUP 1: NAVBAR & HEADER CONTROLS]                              ║
+         ║ - Tombol Back (Kembali ke Dashboard)                             ║
+         ║ - Nama Projek (Bisa diedit/rename langsung secara interaktif)    ║
+         ║ - Tombol Export Video                                            ║
+         ╚══════════════════════════════════════════════════════════════════╝ -->
+    <header class="editor-nav" id="editorNavbar">
+      <div class="nav-left">
+        <!-- 1.1 Tombol Back -->
+        <button class="btn-back" id="btnBack" title="Kembali ke Dashboard (Go Back)">
+          <span class="material-symbols-rounded" style="font-size:22px;">arrow_back</span>
+        </button>
+
+        <!-- 1.2 Nama Projek (Editable Title) -->
+        <div class="project-title-group" id="projectTitleGroup" title="Klik untuk mengubah nama proyek">
+          <span class="nav-title" id="activeTitle" contenteditable="true" spellcheck="false">My Project</span>
+        </div>
+
+        <!-- 1.3 Group Breadcrumb Navigation (Active when editing inside a Group) -->
+        <div class="group-breadcrumb-nav" id="groupBreadcrumbNav" style="display: none;">
+          <button type="button" class="btn-group-nav-parent" id="btnGroupNavParent" onclick="if(typeof exitGroupContext==='function') exitGroupContext();" title="Kembali ke Proyek Utama">
+            <span class="breadcrumb-double-arrow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="11 17 6 12 11 7"></polyline>
+                <polyline points="18 17 13 12 18 7"></polyline>
+              </svg>
+            </span>
+            <span class="parent-project-name" id="groupParentProjectName">My Project</span>
+          </button>
+          <div class="group-nav-current" id="groupNavCurrent">
+            <span class="breadcrumb-single-arrow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </span>
+            <span class="group-title-text" id="groupNavTitle" contenteditable="true" spellcheck="false" title="Klik untuk mengubah nama group">Group 1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- Group Settings Button (Shown inside Group Edit Mode) -->
+        <button type="button" class="btn-group-settings" id="btnGroupSettings" onclick="if(typeof openGroupSettingsModal==='function') openGroupSettingsModal();" title="Pengaturan Group (Resolusi, FPS, Background)" style="display: none;">
+          <span class="material-symbols-rounded">settings</span>
+        </button>
+        <!-- Project Settings Button -->
+        <button type="button" class="btn-project-settings" id="btnProjectSettings" title="Pengaturan Proyek (Ratio, Resolusi, FPS, Background)">
+          <span class="material-symbols-rounded">tune</span>
+        </button>
+        <!-- 1.3 Tombol Export Video -->
+        <button class="btn-export" id="btnExport" title="Export Video">
+          <span class="export-btn-label">EXPORT</span>
+          <span class="material-symbols-rounded export-icon" style="font-size:18px;">download</span>
+        </button>
+      </div>
+
+      <!-- 1.4 Top Context Bar (Slides down over the navbar when a layer is selected) -->
+      <div class="layer-top-context-bar" id="layerTopContextBar">
+        <div class="top-context-left">
+          <button type="button" class="top-context-btn" id="topBtnInspBack" title="Selesai / Tutup Pilihan (Deselect)">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+          <div class="top-context-title-group" id="topInspLayerTitleGroup" title="Klik untuk mengubah nama layer">
+            <span class="top-context-name" id="topInspLayerName" contenteditable="true" spellcheck="false">Layer Name</span>
+          </div>
+        </div>
+        <div class="top-context-right">
+          <button type="button" class="top-context-btn" id="topBtnInspMotionBlur" title="Toggle Motion Blur Layer">
+            <span class="material-symbols-rounded">blur_on</span>
+          </button>
+          <button type="button" class="top-context-btn" id="topBtnInspLink" title="Link ke Null / Layer Lain (Parenting)">
+            <span class="material-symbols-rounded">link</span>
+          </button>
+          <button type="button" class="top-context-btn top-btn-trash" id="topBtnInspDelete" title="Hapus Layer (Sampah)">
+            <span class="material-symbols-rounded">delete</span>
+          </button>
+          <button type="button" class="top-context-btn" id="topBtnInspMore" title="Opsi Layer Lainnya">
+            <span class="material-symbols-rounded">more_vert</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3-Dots & Right-Click Context Menu (Alight Motion Style - Pure Text Only) -->
+      <div class="layer-options-popup" id="layerOptionsPopup">
+        <button type="button" class="pop-menu-item" data-action="select-all">
+          <span>Select All Layers</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="select-other">
+          <span>Select Other / Invert</span>
+        </button>
+        <div class="pop-menu-divider"></div>
+        <button type="button" class="pop-menu-item" data-action="copy">
+          <span>Copy</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="paste" id="popMenuPasteBtn">
+          <span>Paste</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="duplicate">
+          <span>Duplicate</span>
+        </button>
+        <div class="pop-menu-divider"></div>
+        <button type="button" class="pop-menu-item" data-action="flip-h">
+          <span>Flip Horizontally</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="flip-v">
+          <span>Flip Vertically</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="fit-comp">
+          <span>Fit Composition Area</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="fill-comp">
+          <span>Fill Composition Area</span>
+        </button>
+        <button type="button" class="pop-menu-item" data-action="stretch-comp">
+          <span>Stretch to Composition Area</span>
+        </button>
+        <div class="color-tag-section" id="popMenuColorSection">
+          <div class="pop-menu-divider"></div>
+          <div class="color-tag-label">Warna Tag Layer:</div>
+          <div class="color-tags-row">
+            <button type="button" class="color-tag-btn" data-color="none" title="Tanpa Tag" style="background:#5C2607;"></button>
+            <button type="button" class="color-tag-btn" data-color="#2D9CDB" title="Biru" style="background:#2D9CDB;"></button>
+            <button type="button" class="color-tag-btn" data-color="#27AE60" title="Hijau" style="background:#27AE60;"></button>
+            <button type="button" class="color-tag-btn" data-color="#F2C94C" title="Kuning" style="background:#F2C94C;"></button>
+            <button type="button" class="color-tag-btn" data-color="#EB5757" title="Merah" style="background:#EB5757;"></button>
+            <button type="button" class="color-tag-btn" data-color="#BB6BD9" title="Ungu" style="background:#BB6BD9;"></button>
+            <button type="button" class="color-tag-btn" data-color="#F2994A" title="Oranye" style="background:#F2994A;"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1.5 Multi-Selection Top Header Bar (Alight Motion Style Batch Mode) -->
+      <div class="multi-select-header-bar" id="multiSelectHeaderBar">
+        <!-- Main Batch Action Header -->
+        <div class="multi-header-main" id="multiHeaderMain">
+          <div class="multi-header-left">
+            <button type="button" class="multi-header-btn" id="btnExitMultiSelect" title="Tutup Mode Pilihan (Exit Selection)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <button type="button" class="multi-header-btn" id="btnSelectAllLayers" title="Pilih Semua Layer / Invert (Select All)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+            </button>
+            <span class="multi-select-count" id="multiSelectCount">1 layer selected</span>
+          </div>
+          <div class="multi-header-right">
+            <!-- Grouping Button -->
+            <button type="button" class="multi-header-btn" id="btnGroupSelected" title="Group (Gabungkan Layer)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2.5" y="2.5" width="19" height="19" rx="3.5" stroke-dasharray="2.5 2"/>
+                <polygon points="6,17 11.5,8 17,17"/>
+                <circle cx="15.5" cy="14" r="3.5"/>
+              </svg>
+            </button>
+            <button type="button" class="multi-header-btn multi-btn-trash" id="btnDeleteSelectedBatch" title="Hapus Semua Layer Terpilih">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+            </button>
+            <!-- Expand Align Menu Button (Triangle / Arrow) -->
+            <button type="button" class="multi-header-btn btn-toggle-align" id="btnToggleAlignMenu" title="Menu Align & Distribusi">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#082618"><polygon points="7,5 18,12 7,19"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Align & Distribution Sub-Bar (Opens when triangle is clicked) -->
+        <div class="multi-header-align" id="multiHeaderAlign">
+          <button type="button" class="multi-header-btn" id="btnExitMultiSelectFromAlign" title="Tutup">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <button type="button" class="multi-header-btn" id="btnBackToGroupMenu" title="Kembali ke Menu Grup">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#082618"><polygon points="18,4 5,12 18,20"/></svg>
+          </button>
+          <div class="align-tools-scroll">
+            <!-- Align Left -->
+            <button type="button" class="multi-header-btn" data-align="left" title="Align Left (Rata Kiri)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="4" y1="3" x2="4" y2="21" stroke-width="2"/>
+                <rect x="7" y="6" width="13" height="4" rx="1" fill="#082618"/>
+                <rect x="7" y="14" width="8" height="4" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Align Center H -->
+            <button type="button" class="multi-header-btn" data-align="center" title="Align Center Horizontal (Rata Tengah)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="12" y1="3" x2="12" y2="21" stroke-width="2"/>
+                <rect x="5.5" y="6" width="13" height="4" rx="1" fill="#082618"/>
+                <rect x="8" y="14" width="8" height="4" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Align Right -->
+            <button type="button" class="multi-header-btn" data-align="right" title="Align Right (Rata Kanan)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="20" y1="3" x2="20" y2="21" stroke-width="2"/>
+                <rect x="4" y="6" width="13" height="4" rx="1" fill="#082618"/>
+                <rect x="9" y="14" width="8" height="4" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Align Top -->
+            <button type="button" class="multi-header-btn" data-align="top" title="Align Top (Rata Atas)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="3" y1="4" x2="21" y2="4" stroke-width="2"/>
+                <rect x="6" y="7" width="4" height="13" rx="1" fill="#082618"/>
+                <rect x="14" y="7" width="4" height="8" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Align Middle V -->
+            <button type="button" class="multi-header-btn" data-align="middle" title="Align Middle Vertical (Rata Tengah Vertikal)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="3" y1="12" x2="21" y2="12" stroke-width="2"/>
+                <rect x="6" y="5.5" width="4" height="13" rx="1" fill="#082618"/>
+                <rect x="14" y="8" width="4" height="8" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Align Bottom -->
+            <button type="button" class="multi-header-btn" data-align="bottom" title="Align Bottom (Rata Bawah)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="3" y1="20" x2="21" y2="20" stroke-width="2"/>
+                <rect x="6" y="4" width="4" height="13" rx="1" fill="#082618"/>
+                <rect x="14" y="9" width="4" height="8" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Distribute H -->
+            <button type="button" class="multi-header-btn" data-align="dist-h" title="Distribute Horizontally (Bagi Rata Horizontal)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="4" y1="3" x2="4" y2="21" stroke-width="1.5" stroke-dasharray="1 1"/>
+                <line x1="20" y1="3" x2="20" y2="21" stroke-width="1.5" stroke-dasharray="1 1"/>
+                <rect x="9" y="7" width="6" height="10" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+            <!-- Distribute V -->
+            <button type="button" class="multi-header-btn" data-align="dist-v" title="Distribute Vertically (Bagi Rata Vertikal)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#082618" stroke-width="1.8">
+                <line x1="3" y1="4" x2="21" y2="4" stroke-width="1.5" stroke-dasharray="1 1"/>
+                <line x1="3" y1="20" x2="21" y2="20" stroke-width="1.5" stroke-dasharray="1 1"/>
+                <rect x="7" y="9" width="10" height="6" rx="1" fill="#082618"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ╔══════════════════════════════════════════════════════════════════╗
+         ║ [GROUP 2: WORKSPACE BODY (Preview Stage & Controls)]             ║
+         ╚══════════════════════════════════════════════════════════════════╝ -->
+    <div class="editor-body">
+
+      <!-- ── 2.1 Preview Canvas Stage Area ── -->
+      <section class="preview-stage" id="previewStage">
+
+        <!-- Canvas Video Container -->
+        <div class="canvas-wrap" id="canvasWrap">
+          
+          <!-- Video Screen Container (Scalable for Zoom) -->
+          <div class="canvas-screen" id="canvasScreen">
+            <div class="canvas-video-layer" id="canvasVideo"></div>
+            <svg class="canvas-transform-overlay" id="canvasTransformOverlay"></svg>
+          </div>
+
+          <!-- Composition 3x3 Grid Overlay (Toggled via Menu) -->
+          <div class="canvas-grid-overlay" id="canvasGridOverlay">
+            <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+            <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+            <div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div>
+          </div>
+
+          <!-- Quality Badge Overlay -->
+          <div class="canvas-quality-badge" id="canvasQualityBadge">DRAFT QUALITY (0.5x)</div>
+        </div>
+
+        <!-- ╔══════════════════════════════════════════════════════════════════╗
+             ║ [GROUP 3: CONTROLLER TOOLBAR (DESKTOP MODE)]                     ║
+             ║ - Undo, Redo, Skip Prev, Play/Pause, Skip Next, Marker, Menu     ║
+             ╚══════════════════════════════════════════════════════════════════╝ -->
+        <div class="toolbar-desktop" id="toolbarDesktop">
+          <button class="tool-btn" id="btnUndoDesktop" title="Undo">
+            <span class="material-symbols-rounded">undo</span>
+          </button>
+          <button class="tool-btn" id="btnRedoDesktop" title="Redo">
+            <span class="material-symbols-rounded">redo</span>
+          </button>
+          <button class="tool-btn" id="btnSkipPrevDesktop" title="Skip ke awal">
+            <span class="material-symbols-rounded">skip_previous</span>
+          </button>
+
+          <!-- Main Play Button -->
+          <button class="tool-btn btn-play-main" id="btnPlayDesktop" title="Play / Pause">
+            <span class="material-symbols-rounded play-icon">play_arrow</span>
+          </button>
+
+          <button class="tool-btn" id="btnSkipNextDesktop" title="Skip ke akhir">
+            <span class="material-symbols-rounded">skip_next</span>
+          </button>
+          <button class="tool-btn" id="btnMarkerDesktop" title="Bookmark">
+            <span class="material-symbols-rounded">bookmark</span>
+          </button>
+
+          <!-- Menu Button (Toggles Upward Popover) -->
+          <button class="tool-btn btn-menu-toggle" id="btnDesktopMenu" title="Menu Pengaturan Preview">
+            <span class="material-symbols-rounded">menu</span>
+          </button>
+        </div>
+
+        <!-- ╔══════════════════════════════════════════════════════════════════╗
+             ║ [GROUP 4: PREVIEW CONTROLS POPOVER (DESKTOP)]                    ║
+             ║ - Lower Quality, 3x3 Grid, Zoom In (+), Zoom Out (-)             ║
+             ╚══════════════════════════════════════════════════════════════════╝ -->
+        <div class="preview-popover-vertical" id="desktopMenuPopover">
+          <button class="pop-icon-btn active" id="btnToggleGlobalMotionBlurDesktop" title="Global Motion Blur (On/Off)">
+            <span class="material-symbols-rounded">blur_on</span>
+          </button>
+          <button class="pop-icon-btn" id="btnToggleQualityDesktop" title="Lower Quality (Draft Mode)">
+            <span class="material-symbols-rounded">speed</span>
+          </button>
+          <button class="pop-icon-btn" id="btnToggleGridDesktop" title="Nyalakan Grid 3x3">
+            <span class="material-symbols-rounded">grid_on</span>
+          </button>
+          <div class="pop-divider"></div>
+          <button class="pop-zoom-btn" id="btnZoomInDesktop" title="Zoom In (+)">
+            <span class="material-symbols-rounded">add</span>
+          </button>
+          <span class="pop-zoom-label" id="zoomValueDesktop">100%</span>
+          <button class="pop-zoom-btn" id="btnZoomOutDesktop" title="Zoom Out (-)">
+            <span class="material-symbols-rounded">remove</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- ── 2.2 Mobile Controls & Timeline Group Container ── -->
+      <div class="mobile-editor-controls" id="mobileEditorControls">
+
+        <!-- ╔══════════════════════════════════════════════════════════════════╗
+             ║ [GROUP 3: CONTROLLER TOOLBAR (MOBILE MODE)]                      ║
+             ╚══════════════════════════════════════════════════════════════════╝ -->
+        <div class="toolbar-mobile" id="toolbarMobile" style="position: relative;">
+          <button class="tool-btn" id="btnUndoMobile" title="Undo">
+            <span class="material-symbols-rounded">undo</span>
+          </button>
+          <button class="tool-btn" id="btnRedoMobile" title="Redo">
+            <span class="material-symbols-rounded">redo</span>
+          </button>
+          <button class="tool-btn" id="btnSkipPrevMobile" title="Skip ke awal">
+            <span class="material-symbols-rounded">skip_previous</span>
+          </button>
+
+          <!-- Main Play Button (Mobile) -->
+          <button class="tool-btn btn-play-main" id="btnPlayMobile" title="Play / Pause">
+            <span class="material-symbols-rounded play-icon">play_arrow</span>
+          </button>
+
+          <button class="tool-btn" id="btnSkipNextMobile" title="Skip ke akhir">
+            <span class="material-symbols-rounded">skip_next</span>
+          </button>
+          <button class="tool-btn" id="btnMarkerMobile" title="Bookmark">
+            <span class="material-symbols-rounded">bookmark</span>
+          </button>
+
+          <!-- Menu Button (Mobile) -->
+          <button class="tool-btn btn-menu-toggle" id="btnMobileMenu" title="Menu Pengaturan Preview">
+            <span class="material-symbols-rounded">menu</span>
+          </button>
+
+          <!-- ╔══════════════════════════════════════════════════════════════════╗
+               ║ [GROUP 4: PREVIEW CONTROLS POPOVER (MOBILE)]                     ║
+               ╚══════════════════════════════════════════════════════════════════╝ -->
+          <div class="preview-popover-vertical mobile-popover-pos" id="mobileMenuPopover">
+            <button class="pop-icon-btn active" id="btnToggleGlobalMotionBlurMobile" title="Global Motion Blur (On/Off)">
+              <span class="material-symbols-rounded">blur_on</span>
+            </button>
+            <button class="pop-icon-btn" id="btnToggleQualityMobile" title="Lower Quality (Draft Mode)">
+              <span class="material-symbols-rounded">speed</span>
+            </button>
+            <button class="pop-icon-btn" id="btnToggleGridMobile" title="Nyalakan Grid 3x3">
+              <span class="material-symbols-rounded">grid_on</span>
+            </button>
+            <div class="pop-divider"></div>
+            <button class="pop-zoom-btn" id="btnZoomInMobile" title="Zoom In (+)">
+              <span class="material-symbols-rounded">add</span>
+            </button>
+            <span class="pop-zoom-label" id="zoomValueMobile">100%</span>
+            <button class="pop-zoom-btn" id="btnZoomOutMobile" title="Zoom Out (-)">
+              <span class="material-symbols-rounded">remove</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ╔══════════════════════════════════════════════════════════════════╗
+             ║ [GROUP 5: TIMELINE PANEL & TRACKS VIEWPORT]                      ║
+             ║ - 5.1 Playhead Overlay (Garis Tengah Statis)                     ║
+             ║ - 5.2 Timecode Badge (Waktu Berjalan 00:00:00)                   ║
+             ║ - 5.3 Time Ruler Strip (Mistar Waktu & Diamond Marker Pins)      ║
+             ║ - 5.4 Track Rows Container (Track Clips & Pinned Eye Buttons)    ║
+             ║ - 5.5 FAB Button (+) (Tambah Track Baru)                         ║
+             ╚══════════════════════════════════════════════════════════════════╝ -->
+        <aside class="timeline-panel" id="timelinePanel">
+
+          <!-- 5.1 Center Vertical Playhead Overlay Line (Locked firmly in center) -->
+          <div class="playhead-line" id="playheadLine"></div>
+
+          <!-- 5.2 Timecode Display Badge (Single Timer: 00:00:00) -->
+          <div class="timecode-strip">
+            <div class="timecode-badge" id="timecodeDisplay" title="Current Timecode">00:00:00</div>
+          </div>
+
+          <!-- 5.3 & 5.4 Tracks Viewport Area -->
+          <div class="tracks-viewport" id="tracksViewport">
+
+            <div class="tracks-scroll-stage" id="tracksScrollStage">
+
+              <!-- 5.3 Time Ruler Strip (Ticks across duration) -->
+              <div class="time-ruler-row" id="timeRulerRow">
+                <div class="ruler-spacer"></div>
+                <div class="time-ruler-marks" id="timeRulerMarks">
+                  <!-- Generated dynamically from 00:00 to max duration by rebuildTimeRuler() -->
+                </div>
+              </div>
+
+              <!-- 5.4 Track Rows Container (Layers start clean and are added dynamically via FAB '+') -->
+              <div class="track-rows-container" id="trackRowsContainer">
+                <!-- Track rows are added dynamically by clicking the (+) button -->
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- 5.5 Floating Add Track Pop-up Card (Horizontal Bottom Card, No Overlay) -->
+          <div class="add-track-popover" id="addTrackPopover">
+            
+            <!-- Top Row: Horizontal Category Tabs & Close Button (Right above the '+' FAB) -->
+            <div class="popover-header-row">
+              <div class="category-tabs-horizontal" id="popoverCategoryTabs">
+                <button type="button" class="cat-tab-btn active" data-cat="shape" title="Shape (Bentuk & Ikon)">
+                  <span class="material-symbols-rounded">category</span>
+                </button>
+                <button type="button" class="cat-tab-btn" data-cat="media" title="Media (Foto, Video & Audio)">
+                  <span class="material-symbols-rounded">perm_media</span>
+                </button>
+                <button type="button" class="cat-tab-btn" data-cat="camera" title="Camera & Object (Camera, Null, Group)">
+                  <span class="material-symbols-rounded">videocam</span>
+                </button>
+                <button type="button" class="cat-tab-btn" data-cat="text" title="Text (Teks & Subtitle)">
+                  <span class="material-symbols-rounded">title</span>
+                </button>
+              </div>
+
+              <!-- Close Button right above the FAB position -->
+              <button class="popover-close-btn" id="btnAddTrackClose" title="Tutup Pop-up (Close)">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+            
+            <!-- Bottom Grid Shelf for Active Category -->
+            <div class="popover-items-grid" id="popoverItemsGrid">
+              <!-- Dynamically populated grid items -->
+            </div>
+
+          </div>
+
+          <!-- 5.5.B Layer Inspector Drawer (Opens when clicking any layer/clip) -->
+          <div class="layer-inspector-drawer" id="layerInspectorDrawer">
+            <!-- Top Quick Actions Strip (Speed, Trim Left, Split, Trim Right, Volume) -->
+            <div class="inspector-quick-strip">
+              <!-- 1. Trim Left (Dashed Left, Solid Right) -->
+              <button type="button" class="insp-quick-btn" id="btnInspTrimLeft" title="Potong Sisi Kiri (Trim Left to Playhead)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-width="1.9"/>
+                  <path d="M4 8.5h4.5v7H4" stroke-dasharray="2 2"/>
+                  <path d="M15.5 8.5H20v7h-4.5"/>
+                </svg>
+              </button>
+
+              <!-- 2. Split at Playhead (Solid Left, Solid Right) -->
+              <button type="button" class="insp-quick-btn" id="btnInspSplit" title="Bagi / Split di Posisi Playhead">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-width="1.9"/>
+                  <path d="M8.5 8.5H4v7h4.5"/>
+                  <path d="M15.5 8.5H20v7h-4.5"/>
+                </svg>
+              </button>
+
+              <!-- 3. Trim Right (Solid Left, Dashed Right) -->
+              <button type="button" class="insp-quick-btn" id="btnInspTrimRight" title="Potong Sisi Kanan (Trim Right to Playhead)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-width="1.9"/>
+                  <path d="M8.5 8.5H4v7h4.5"/>
+                  <path d="M20 8.5h-4.5v7H20" stroke-dasharray="2 2"/>
+                </svg>
+              </button>
+            </div>
+
+<!-- Main Tool Tiles Grid (Color & Fill, Border & Shadow, Blending, Move & Transform, Edit Shape, Presets, Effects) -->
+            <div class="inspector-tools-grid">
+              <button type="button" class="insp-tile-btn" id="btnInspColorFill">
+                <span class="material-symbols-rounded insp-tile-icon">format_paint</span>
+                <span class="insp-tile-label">Color & Fill</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspBorderShadow">
+                <span class="material-symbols-rounded insp-tile-icon">crop_square</span>
+                <span class="insp-tile-label">Border & Shadow</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspMoveTransform">
+                <span class="material-symbols-rounded insp-tile-icon">open_with</span>
+                <span class="insp-tile-label">Move & Transform</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspCameraControl" style="display:none;">
+                <span class="material-symbols-rounded insp-tile-icon">videocam</span>
+                <span class="insp-tile-label">Camera Control</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspEditGroup" onclick="if(typeof handleEditGroupClick==='function') handleEditGroupClick(event);" style="display:none;">
+                <span class="material-symbols-rounded insp-tile-icon">folder_open</span>
+                <span class="insp-tile-label">Edit Group</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspEditShape">
+                <span class="material-symbols-rounded insp-tile-icon">interests</span>
+                <span class="insp-tile-label">Edit Shape</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspEditText" style="display:none;">
+                <span class="material-symbols-rounded insp-tile-icon">edit_note</span>
+                <span class="insp-tile-label">Edit Text</span>
+              </button>
+              <button type="button" class="insp-tile-btn">
+                <span class="material-symbols-rounded insp-tile-icon">star</span>
+                <span class="insp-tile-label">Presets</span>
+              </button>
+              <button type="button" class="insp-tile-btn" id="btnInspEffects">
+                <span class="material-symbols-rounded insp-tile-icon">flare</span>
+                <span class="insp-tile-label">Effects</span>
+              </button>
+            </div>
+
+            <!-- Linked Layers Section -->
+            <div class="inspector-linked-layers" id="linkedLayersSection" style="display: none; margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,242,194,0.15);">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span class="material-symbols-rounded" style="color: var(--col-primary, #D06423); font-size: 20px;">link</span>
+                <span style="font-size: 0.85rem; font-weight: 700; color: var(--col-yellow);">Linked Layers</span>
+              </div>
+              <div id="linkedLayersList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+            </div>
+
+            <!-- Color & Fill Sub-Panel - switch tabs in header + Fill/Fit/Stretch options -->
+            <div class="inspector-subpanel" id="panelColorFill" style="display:none;">
+              <div class="subpanel-header" style="display:flex; align-items:center; justify-content:space-between; width:100%; box-sizing:border-box;">
+                <div class="subpanel-header-left" style="display:flex; align-items:center; gap:8px;">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromColorFill" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title" style="font-size:0.88rem; font-weight:800;">Color &amp; Fill</span>
+                </div>
+                <!-- Icon-only horizontal switcher tabs: Solid Color, Media, Gradient (Compact Size) -->
+                <div class="color-fill-header-tabs" id="colorFillTabs">
+                  <button type="button" class="controller-switch-btn active" data-fill-tab="color" title="Solid Color">
+                    <span class="material-symbols-rounded">format_paint</span>
+                  </button>
+                  <button type="button" class="controller-switch-btn" data-fill-tab="media" title="Media (Foto & Video)">
+                    <span class="material-symbols-rounded">perm_media</span>
+                  </button>
+                  <button type="button" class="controller-switch-btn" data-fill-tab="gradient" title="Gradient">
+                    <span class="material-symbols-rounded">gradient</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="color-fill-content" style="flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column;">
+                <!-- TAB: Fill Color -->
+                <div id="fillTabColor" class="fill-tab active" style="display:flex; flex-direction:column; gap:0.55rem; overflow:hidden; flex:1; min-height:0; padding:2px 0; box-sizing:border-box;">
+                  <div id="fillColorGrid" style="display:grid; grid-template-columns: repeat(12, 1fr); gap:4px; width:100%; padding:0;"></div>
+                  <div style="display:flex; align-items:center; gap:0.6rem; margin-top:2px;">
+                    <button type="button" id="btnCustomFillColor" style="display:flex; align-items:center; gap:0.6rem; background:rgba(0,0,0,0.25); border:1.5px solid rgba(255,242,194,0.25); border-radius:10px; padding:6px 12px; height:36px; cursor:pointer; flex:1; box-sizing:border-box;">
+                      <span id="fillColorPreview" style="width:20px; height:20px; border-radius:5px; background:#FAB778; border:1.5px solid #FFFFFF; flex-shrink:0;"></span>
+                      <span style="font-size:0.8rem; font-weight:700; color:var(--col-yellow);">Custom Color Picker</span>
+                      <span class="material-symbols-rounded" style="margin-left:auto; font-size:18px; color:var(--col-yellow);">palette</span>
+                    </button>
+                    <input type="color" id="inputFillColor" value="#FAB778" style="display:none;">
+                  </div>
+                </div>
+                <!-- TAB: Media -->
+                <div id="fillTabMedia" class="fill-tab" style="display:none; flex-direction:column; gap:0.6rem; overflow-y:auto; flex:1; min-height:0; padding:4px 0; box-sizing:border-box;">
+                  <!-- Media Scaling Mode Bar: Fill, Fit, Stretch -->
+                  <div class="media-fit-mode-bar" id="mediaFitModeBar" style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(255,242,194,0.18); border-radius:8px; padding:3px; gap:4px; width:100%; box-sizing:border-box;">
+                    <button type="button" class="media-fit-btn" data-fit="fill" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:5px 6px; background:transparent; border:none; border-radius:6px; color:var(--col-cream, #FAB778); font-family:inherit; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s ease;">
+                      <span class="material-symbols-rounded" style="font-size:15px;">crop</span>
+                      <span>Fill</span>
+                    </button>
+                    <button type="button" class="media-fit-btn active" data-fit="fit" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:5px 6px; background:transparent; border:none; border-radius:6px; color:var(--col-cream, #FAB778); font-family:inherit; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s ease;">
+                      <span class="material-symbols-rounded" style="font-size:15px;">aspect_ratio</span>
+                      <span>Fit</span>
+                    </button>
+                    <button type="button" class="media-fit-btn" data-fit="stretch" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:5px 6px; background:transparent; border:none; border-radius:6px; color:var(--col-cream, #FAB778); font-family:inherit; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s ease;">
+                      <span class="material-symbols-rounded" style="font-size:15px;">fit_screen</span>
+                      <span>Stretch</span>
+                    </button>
+                  </div>
+
+                  <input type="file" id="inputFillMedia" accept="image/*,video/*" style="display:none;">
+                  <div id="uploadedMediaGrid" class="media-pool-tiles-grid">
+                    <button type="button" id="btnUploadMedia" class="media-upload-tile-btn" title="Upload Media">
+                      <span class="material-symbols-rounded">add</span>
+                    </button>
+                  </div>
+                </div>
+                <!-- TAB: Gradient Advanced (Matching Image 1) -->
+                <div id="fillTabGradient" class="fill-tab" style="display:none;">
+                  <!-- 1. Gradient Type Switcher (Linear, Radial, Conical) -->
+                  <div class="gradient-type-segmented-bar" id="gradientTypeBar">
+                    <button type="button" class="gradient-type-btn active" data-type="linear" title="Linear Gradient">
+                      <div class="gradient-type-thumb thumb-linear"></div>
+                    </button>
+                    <button type="button" class="gradient-type-btn" data-type="radial" title="Radial Gradient">
+                      <div class="gradient-type-thumb thumb-radial"></div>
+                    </button>
+                    <button type="button" class="gradient-type-btn" data-type="conical" title="Conical / Angular Gradient">
+                      <div class="gradient-type-thumb thumb-conical"></div>
+                    </button>
+                  </div>
+
+                  <!-- 2. Gradient Slider Track & Custom Handles -->
+                  <div class="gradient-track-container">
+                    <div class="gradient-slider-bar" id="gradientBar" title="Klik pada bar untuk menambah titik warna baru">
+                      <div id="gradientStops" style="position:absolute; inset:0;"></div>
+                    </div>
+                  </div>
+
+                  <!-- 3. Gradient Action Row (Add/Remove stops) -->
+                  <div class="gradient-actions-row">
+                    <div class="gradient-stop-actions">
+                      <button type="button" id="btnAddGradientStop" class="gradient-btn-mini" title="Tambah Stop">
+                        <span class="material-symbols-rounded" style="font-size:17px;">add</span> Add Stop
+                      </button>
+                      <button type="button" id="btnRemoveGradientStop" class="gradient-btn-mini" title="Hapus Stop" disabled>
+                        <span class="material-symbols-rounded" style="font-size:17px;">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Border & Shadow Sub-Panel (Compact, themed with chocolate & apricot) -->
+            <div class="inspector-subpanel" id="panelBorderShadow" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromBorderShadow" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title">Border &amp; Shadow</span>
+                </div>
+                <div class="keyframe-controls-group">
+                  <button type="button" class="keyframe-diamond-btn" id="btnToggleBorderShadowKeyframe" title="Tambah / Hapus Keyframe">
+                    <svg class="keyframe-diamond-icon" viewBox="0 0 24 24" width="20" height="20">
+                      <path d="M12 2 L22 12 L12 22 L2 12 Z" class="diamond-shape" />
+                      <path d="M12 7 L12 17 M7 12 L17 12" class="diamond-icon-symbol" stroke-width="2.2" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn" id="btnBorderShadowGraph" title="Kurva Easing / Graph">
+                    <span class="material-symbols-rounded">show_chart</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Top Segmented Tabs: Stroke vs Shadow -->
+              <div class="border-shadow-tabs" id="borderShadowTabs">
+                <button type="button" class="controller-switch-btn active" data-bs-tab="stroke" title="Stroke / Border">
+                  <span class="material-symbols-rounded">crop_square</span>
+                </button>
+                <button type="button" class="controller-switch-btn" data-bs-tab="shadow" title="Shadow">
+                  <span class="material-symbols-rounded">filter_drama</span>
+                </button>
+              </div>
+
+              <!-- Content Area -->
+              <div class="border-shadow-content">
+                <!-- TAB: STROKE / BORDER (Matching Image 3) -->
+                <div id="bsTabStroke" class="bs-tab-pane active">
+                  <!-- Header row: Color Swatch + Title + Toggle Switch -->
+                  <div class="bs-header-row">
+                    <div class="bs-header-left">
+                      <button type="button" class="bs-color-swatch-btn" id="btnStrokeColorSwatch" title="Pilih Warna Stroke">
+                        <span class="bs-swatch-box" id="strokeColorBox" style="background:#000000;"></span>
+                      </button>
+                      <span class="bs-section-title">Stroke</span>
+                    </div>
+                    <label class="fish-switch" title="Aktifkan Stroke">
+                      <input type="checkbox" id="toggleStrokeEnabled">
+                      <span class="fish-switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Stroke Width / Size Ruler Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn" id="btnStrokeSizeParam">Size</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="strokeSizeRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valStrokeSize">4.0</div>
+                  </div>
+
+                  <!-- Cap Styles & Join Styles Rows -->
+                  <div class="bs-cap-join-row">
+                    <!-- Cap styles -->
+                    <div class="bs-btn-group" id="strokeCapGroup">
+                      <button type="button" class="bs-icon-toggle-btn active" data-cap="butt" title="Butt Cap">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="4" y="6" width="16" height="12" rx="0" fill="rgba(255,255,255,0.2)"/>
+                          <circle cx="6" cy="12" r="2.5" fill="#FAB778"/>
+                          <line x1="6" y1="12" x2="18" y2="12" stroke="#FAB778" stroke-width="2"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="bs-icon-toggle-btn" data-cap="round" title="Round Cap">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M4 12a6 6 0 0 1 6-6h10v12H10a6 6 0 0 1-6-6z" fill="rgba(255,255,255,0.2)"/>
+                          <circle cx="8" cy="12" r="2.5" fill="#FAB778"/>
+                          <line x1="8" y1="12" x2="18" y2="12" stroke="#FAB778" stroke-width="2"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="bs-icon-toggle-btn" data-cap="square" title="Square Cap">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="5" width="18" height="14" rx="2" fill="rgba(255,255,255,0.2)"/>
+                          <circle cx="7" cy="12" r="2.5" fill="#FAB778"/>
+                          <line x1="7" y1="12" x2="18" y2="12" stroke="#FAB778" stroke-width="2"/>
+                        </svg>
+                      </button>
+                    </div>
+
+                    <!-- Stroke Align: Inside / Middle / Outside -->
+                    <div class="bs-btn-group" id="strokeAlignGroup">
+                      <button type="button" class="bs-icon-toggle-btn" data-align="inside" title="Inside">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                          <rect x="4" y="4" width="16" height="16" rx="1.5" fill="rgba(255,255,255,0.2)"/>
+                          <rect x="6.5" y="6.5" width="11" height="11" rx="0.8" fill="none" stroke="#FAB778" stroke-width="2.2"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="bs-icon-toggle-btn active" data-align="center" title="Middle">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                          <rect x="4" y="4" width="16" height="16" rx="1.5" fill="rgba(255,255,255,0.2)" stroke="#FAB778" stroke-width="2.2"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="bs-icon-toggle-btn" data-align="outside" title="Outside">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                          <rect x="4" y="4" width="16" height="16" rx="1.5" fill="rgba(255,255,255,0.2)"/>
+                          <rect x="2.2" y="2.2" width="19.6" height="19.6" rx="1.8" fill="none" stroke="#FAB778" stroke-width="2.2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- TAB: SHADOW (Matching Image 1 & Image 2) -->
+                <div id="bsTabShadow" class="bs-tab-pane" style="display:none;">
+                  <!-- Header row: Title + Toggle Switch -->
+                  <div class="bs-header-row">
+                    <span class="bs-section-title">Shadow</span>
+                    <label class="fish-switch" title="Aktifkan Shadow">
+                      <input type="checkbox" id="toggleShadowEnabled">
+                      <span class="fish-switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Row 1: Color Button + Values + Color Swatch Box -->
+                  <div class="bs-color-select-row">
+                    <button type="button" class="bs-param-btn" id="btnShadowColorTrigger">Color</button>
+                    <div class="bs-color-info">
+                      <span class="bs-rgb-text" id="shadowRgbText">0 0 0</span>
+                      <button type="button" class="bs-color-swatch-btn" id="btnShadowColorSwatch" title="Pilih Warna Shadow">
+                        <span class="bs-swatch-box" id="shadowColorBox" style="background:#000000;"></span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Row 2: Size (Blur Radius) Ruler Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn" id="btnShadowSizeParam">Size</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="shadowSizeRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valShadowSize">4</div>
+                  </div>
+
+                  <!-- Row 3: Alpha (Opacity) Ruler Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn" id="btnShadowAlphaParam">Alpha</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="shadowAlphaRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valShadowAlpha">100%</div>
+                  </div>
+
+                  <!-- Row 4: Position (Offset X / Y) Ruler Row -->
+                  <div class="bs-control-row bs-position-row">
+                    <button type="button" class="bs-param-btn" id="btnShadowPosParam">Position</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="shadowPosRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-dual-value-box">
+                      <button type="button" class="bs-axis-btn active" id="btnShadowAxisX" title="Atur Sumbu X">
+                        <span class="axis-lbl">X:</span>
+                        <span class="axis-val" id="valShadowPosX">3</span>
+                      </button>
+                      <button type="button" class="bs-axis-btn" id="btnShadowAxisY" title="Atur Sumbu Y">
+                        <span class="axis-lbl">Y:</span>
+                        <span class="axis-val" id="valShadowPosY">3</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Edit Shape Sub-Panel -->
+            <div class="inspector-subpanel" id="panelEditShape" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromEditShape" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title" id="shapeSubpanelTitle">Edit Shape</span>
+                </div>
+              </div>
+              <div class="shape-edit-content" id="shapeEditContent"></div>
+            </div>
+
+            <!-- Edit Text Sub-Panel (Alight Motion Style Typography Studio) -->
+            <div class="inspector-subpanel" id="panelEditText" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromEditText" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title">Edit Text</span>
+                </div>
+                <div class="keyframe-controls-group" style="display:flex; align-items:center; gap:6px;">
+                  <button type="button" class="keyframe-diamond-btn" id="btnToggleTextKeyframe" title="Tambah / Hapus Keyframe Teks">
+                    <svg class="keyframe-diamond-icon" viewBox="0 0 24 24" width="20" height="20">
+                      <path d="M12 2 L22 12 L12 22 L2 12 Z" class="diamond-shape" />
+                      <path d="M12 7 L12 17 M7 12 L17 12" class="diamond-icon-symbol" stroke-width="2.2" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn" id="btnTextKeyframeGraph" title="Kurva Easing / Graph Editor Teks">
+                    <span class="material-symbols-rounded">show_chart</span>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn expression-btn" id="btnTextExpression" title="After Effects Text Expression (fx)">
+                    <span style="font-family: monospace; font-weight: 800; font-size: 13px; letter-spacing: -0.5px;">(fx)</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Top Segmented Tabs: Animator vs Typography -->
+              <div class="border-shadow-tabs" id="textStudioTabs">
+                <button type="button" class="controller-switch-btn active" data-text-tab="animator" title="Text Animator (AE)">
+                  <span class="material-symbols-rounded">animation</span>
+                </button>
+                <button type="button" class="controller-switch-btn" data-text-tab="typography" title="Typography & Format">
+                  <span class="material-symbols-rounded">format_shapes</span>
+                </button>
+              </div>
+
+              <div class="edit-text-body" style="flex:1; min-height:0; display:flex; flex-direction:column; gap:0.65rem; padding:4px 0; overflow-y:auto;">
+                <!-- TAB 1: RANGE ANIMATOR (Spacious Layout Matching Screenshot) -->
+                <div id="textTabPaneAnimator" class="text-tab-pane active" style="display:flex; flex-direction:column; gap:0.65rem;">
+                  
+                  <!-- Offset Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn active text-param-btn" id="btnTextOffsetParam" data-channel="textAnimOffset">Offset</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="textOffsetRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valTextAnimOffset">0%</div>
+                  </div>
+
+                  <!-- Start Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn text-param-btn" id="btnTextStartParam" data-channel="textAnimStart">Start</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="textStartRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valTextAnimStart">0%</div>
+                  </div>
+
+                  <!-- End Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn text-param-btn" id="btnTextEndParam" data-channel="textAnimEnd">End</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="textEndRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valTextAnimEnd">100%</div>
+                  </div>
+
+                  <!-- Hidden sliders kept for compatibility / fallback -->
+                  <input type="range" id="sliderTextAnimOffset" min="-100" max="100" value="0" style="display:none;">
+                  <input type="range" id="sliderTextAnimStart" min="0" max="100" value="0" style="display:none;">
+                  <input type="range" id="sliderTextAnimEnd" min="0" max="100" value="100" style="display:none;">
+
+                  <!-- Target Property & Shape Selectors -->
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:2px;">
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                      <span style="font-size:0.7rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Animasi Properti:</span>
+                      <select id="selectTextAnimProperty" style="background:rgba(0,0,0,0.4); border:1px solid rgba(255,242,194,0.2); color:var(--col-yellow); border-radius:8px; height:32px; padding:0 8px; font-size:0.75rem; font-weight:600; outline:none;">
+                        <option value="opacity">Opacity (Fade)</option>
+                        <option value="position">Position Y (Slide Up)</option>
+                        <option value="scale">Scale (Pop In)</option>
+                        <option value="rotation">Rotation (Spin)</option>
+                        <option value="tracking">Tracking (Spasi)</option>
+                        <option value="charOffset">Hacker Decode (Offset)</option>
+                      </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                      <span style="font-size:0.7rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Shape Kurva:</span>
+                      <select id="selectTextAnimShape" style="background:rgba(0,0,0,0.4); border:1px solid rgba(255,242,194,0.2); color:var(--col-yellow); border-radius:8px; height:32px; padding:0 8px; font-size:0.75rem; font-weight:600; outline:none;">
+                        <option value="square">Square (Stepped)</option>
+                        <option value="ramp_up">Ramp Up (Linear)</option>
+                        <option value="ramp_down">Ramp Down</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="round">Round (Sine)</option>
+                        <option value="smooth">Smooth (Ease)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Based On & Randomize Order -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span style="font-size:0.7rem; color:var(--col-cream);">Based On:</span>
+                      <select id="selectTextAnimBasedOn" style="background:rgba(0,0,0,0.4); border:1px solid rgba(255,242,194,0.2); color:var(--col-yellow); border-radius:6px; padding:2px 6px; font-size:0.72rem; outline:none;">
+                        <option value="characters">Characters (Huruf)</option>
+                        <option value="words">Words (Kata)</option>
+                        <option value="lines">Lines (Baris)</option>
+                      </select>
+                    </div>
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.7rem; color:var(--col-cream); cursor:pointer;">
+                      <input type="checkbox" id="chkTextAnimRandomize" style="accent-color:#FAB778;">
+                      <span>Randomize</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- TAB 2: TYPOGRAPHY (Font, Size, Spacing, Align) -->
+                <div id="textTabPaneTypography" class="text-tab-pane" style="display:none; flex-direction:column; gap:0.65rem;">
+                  <!-- Live Textarea Input (Typography Tab Only) -->
+                  <div class="text-input-wrap" style="background:rgba(0,0,0,0.3); border:1.5px solid rgba(255,242,194,0.18); border-radius:14px; padding:8px 12px; display:flex; flex-direction:column; gap:4px;">
+                    <textarea class="edit-text-textarea" id="textInputArea" rows="2" placeholder="Ketik teks di sini..." style="background:transparent; border:none; outline:none; resize:none; color:var(--col-cream, #FFF2C2); font-family:inherit; font-size:0.95rem; font-weight:600; line-height:1.35; width:100%;"></textarea>
+                  </div>
+
+                  <!-- Font Picker Button -->
+                  <button type="button" class="btn-text-font-trigger" id="btnBrowseFontGallery" style="width:100%; height:36px; display:flex; justify-content:space-between; align-items:center; padding:0 12px; background:rgba(0,0,0,0.4); border:1.5px solid rgba(255,242,194,0.2); border-radius:10px; color:var(--col-yellow); cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="material-symbols-rounded" style="font-size:18px; color:var(--col-primary, #D06423);">font_download</span>
+                      <span id="currentFontNameLabel" class="current-font-name" style="font-weight:700;">Poppins</span>
+                    </div>
+                    <span class="material-symbols-rounded" style="font-size:16px; opacity:0.7;">expand_more</span>
+                  </button>
+
+                  <!-- Font Size Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn text-param-btn" id="btnTextSizeParam" data-channel="textSize">Size</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="textSizeRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valTextSize">48</div>
+                  </div>
+
+                  <!-- Tracking / Spacing Row -->
+                  <div class="bs-control-row">
+                    <button type="button" class="bs-param-btn text-param-btn" id="btnTextTrackingParam" data-channel="textTracking">Space</button>
+                    <div class="bs-ruler-wrap">
+                      <div class="bs-ruler-track" id="textTrackingRuler"></div>
+                      <div class="bs-ruler-indicator"></div>
+                    </div>
+                    <div class="bs-value-box" id="valTextLetterSpacing">0</div>
+                  </div>
+
+                  <!-- Hidden range inputs for fallback -->
+                  <input type="range" id="sliderTextSize" min="10" max="220" value="48" style="display:none;">
+                  <input type="range" id="sliderTextLetterSpacing" min="-5" max="40" step="1" value="0" style="display:none;">
+                  <input type="range" id="sliderTextLineHeight" min="0.8" max="2.5" step="0.1" value="1.2" style="display:none;">
+
+                  <!-- Alignment & Style Buttons -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-top:2px;">
+                    <!-- Align Segmented -->
+                    <div class="bs-btn-group" id="textAlignSegmented">
+                      <button type="button" class="bs-icon-toggle-btn" data-align="left" title="Rata Kiri"><span class="material-symbols-rounded" style="font-size:18px;">format_align_left</span></button>
+                      <button type="button" class="bs-icon-toggle-btn active" data-align="center" title="Rata Tengah"><span class="material-symbols-rounded" style="font-size:18px;">format_align_center</span></button>
+                      <button type="button" class="bs-icon-toggle-btn" data-align="right" title="Rata Kanan"><span class="material-symbols-rounded" style="font-size:18px;">format_align_right</span></button>
+                    </div>
+                    <!-- Style Toggles -->
+                    <div class="bs-btn-group" id="textStyleSegmented">
+                      <button type="button" class="bs-icon-toggle-btn active" id="btnToggleBold" title="Tebal (Bold)"><span class="material-symbols-rounded" style="font-size:18px;">format_bold</span></button>
+                      <button type="button" class="bs-icon-toggle-btn" id="btnToggleItalic" title="Miring (Italic)"><span class="material-symbols-rounded" style="font-size:18px;">format_italic</span></button>
+                      <button type="button" class="bs-icon-toggle-btn" id="btnToggleUnderline" title="Garis Bawah (Underline)"><span class="material-symbols-rounded" style="font-size:18px;">format_underlined</span></button>
+                      <button type="button" class="bs-icon-toggle-btn" id="btnToggleUppercase" title="Huruf Kapital (All Caps)"><span class="material-symbols-rounded" style="font-size:18px;">uppercase</span></button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Camera Control Subpanel -->
+            <div class="inspector-subpanel" id="panelCameraControl" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromCameraControl" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title">Camera Control</span>
+                </div>
+                <button type="button" id="btnResetCameraView" title="Reset Sudut Pandang Kamera" style="display:inline-flex; align-items:center; gap:4px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,242,194,0.15); border-radius:10px; height:30px; padding:0 10px; font-size:0.75rem; font-weight:700; color:var(--col-yellow); cursor:pointer;">
+                  <span class="material-symbols-rounded" style="font-size:16px;">restart_alt</span> Reset
+                </button>
+              </div>
+
+              <!-- Content Area for Camera Control -->
+              <div class="camera-control-content" style="flex:1; min-height:0; display:flex; flex-direction:column; gap:0.75rem; padding:4px 0; overflow-y:auto;">
+                
+                <!-- 1. CAMERA ZOOM SLIDER -->
+                <div class="cam-control-card" style="background:rgba(0,0,0,0.22); border:1px solid rgba(255,242,194,0.12); border-radius:14px; padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span class="material-symbols-rounded" style="font-size:18px; color:var(--col-yellow);">zoom_in</span>
+                      <span style="font-size:0.82rem; font-weight:800; color:var(--col-yellow);">Camera Zoom</span>
+                    </div>
+                    <span id="valCameraZoom" style="font-size:0.82rem; font-weight:800; color:#FAB778;">100%</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="range" id="sliderCameraZoom" min="20" max="350" value="100" style="width:100%; accent-color:#FAB778; cursor:pointer;">
+                  </div>
+                </div>
+
+                <!-- 2. BOKEH / DEPTH OF FIELD (DOF) WITH AUTO-FOCUS TARGET -->
+                <div class="cam-control-card" style="background:rgba(0,0,0,0.22); border:1px solid rgba(255,242,194,0.12); border-radius:14px; padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
+                  <!-- Bokeh Header with Toggle Switch -->
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span class="material-symbols-rounded" style="font-size:18px; color:var(--col-yellow);">blur_on</span>
+                      <span style="font-size:0.82rem; font-weight:800; color:var(--col-yellow);">Bokeh / Depth of Field</span>
+                    </div>
+                    <label class="fish-switch" title="Toggle Bokeh / Depth of Field">
+                      <input type="checkbox" id="toggleCameraBokeh">
+                      <span class="fish-switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Bokeh Collapsible Parameters (Only active when toggleCameraBokeh is checked) -->
+                  <div id="cameraBokehSettings" style="display:none; flex-direction:column; gap:8px; border-top:1px solid rgba(255,242,194,0.1); padding-top:8px;">
+                    
+                    <!-- 2.A Focus Mode Switch (Auto-Focus Target vs Manual Distance) -->
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                      <span style="font-size:0.75rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Mode Fokus</span>
+                      <div class="cam-focus-mode-tabs" style="display:flex; gap:6px;">
+                        <button type="button" class="cam-focus-mode-btn active" data-focus-mode="auto" id="btnFocusModeAuto" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:6px 0; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                          <span class="material-symbols-rounded" style="font-size:16px;">center_focus_strong</span> Auto Focus Layer
+                        </button>
+                        <button type="button" class="cam-focus-mode-btn" data-focus-mode="manual" id="btnFocusModeManual" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:6px 0; border-radius:8px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                          <span class="material-symbols-rounded" style="font-size:16px;">tune</span> Manual Distance
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 2.B Target Layer Select (Visible in Auto Mode) -->
+                    <div id="boxFocusTargetLayer" style="display:flex; flex-direction:column; gap:4px;">
+                      <span style="font-size:0.75rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Pilih Objek / Layer yang Difokuskan</span>
+                      <div style="position:relative; width:100%;">
+                        <select id="selectFocusTargetLayer" style="width:100%; height:34px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,242,194,0.22); border-radius:10px; color:var(--col-yellow); font-size:0.82rem; font-weight:700; padding:0 10px; outline:none; cursor:pointer; appearance:none;">
+                          <option value="">-- Pilih Layer Target --</option>
+                        </select>
+                        <span class="material-symbols-rounded" style="position:absolute; right:10px; top:8px; pointer-events:none; font-size:18px; color:var(--col-yellow);">arrow_drop_down</span>
+                      </div>
+                    </div>
+
+                    <!-- 2.C Manual Focus Distance Slider (Visible in Manual Mode) -->
+                    <div id="boxFocusManualDist" style="display:none; flex-direction:column; gap:4px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Jarak Fokus (Focus Distance)</span>
+                        <span id="valFocusDist" style="font-size:0.78rem; font-weight:800; color:#FAB778;">1000 px</span>
+                      </div>
+                      <input type="range" id="sliderFocusDist" min="0" max="2000" step="10" value="1000" style="width:100%; accent-color:#FAB778; cursor:pointer;">
+                    </div>
+
+                    <!-- 2.D Bokeh Blur Intensity (Aperture) -->
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Intensitas Blur (Bokeh Strength)</span>
+                        <span id="valBokehBlur" style="font-size:0.78rem; font-weight:800; color:#FAB778;">50%</span>
+                      </div>
+                      <input type="range" id="sliderBokehBlur" min="0" max="100" value="50" style="width:100%; accent-color:#FAB778; cursor:pointer;">
+                    </div>
+
+                    <!-- 2.E Bokeh Depth Range / Jarak Transisi Blur -->
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:700; color:var(--col-yellow); opacity:0.85;">Rentang / Jarak Transisi Blur (Falloff)</span>
+                        <span id="valBokehRange" style="font-size:0.78rem; font-weight:800; color:#FAB778;">60 px</span>
+                      </div>
+                      <input type="range" id="sliderBokehRange" min="10" max="250" value="60" style="width:100%; accent-color:#FAB778; cursor:pointer;">
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Effects Subpanel (Layer's Active Effect Stack / Rack) -->
+            <div class="inspector-subpanel" id="panelEffects" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromEffects" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title">Effects</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <button type="button" class="subpanel-icon-action-btn" id="btnOpenAddEffectDrawer" title="Tambah Efek (+)" style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,242,194,0.18); border-radius:10px; width:34px; height:30px; display:flex; align-items:center; justify-content:center; color:#FAB778; cursor:pointer;">
+                    <span class="material-symbols-rounded" style="font-size:20px;">add</span>
+                  </button>
+                  <div class="keyframe-controls-group" style="margin: 0;">
+                    <button type="button" class="keyframe-diamond-btn" id="btnToggleEffectKeyframe" title="Tambah / Hapus Keyframe">
+                      <svg class="keyframe-diamond-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M12 2 L22 12 L12 22 L2 12 Z" class="diamond-shape" />
+                        <path d="M12 7 L12 17 M7 12 L17 12" class="diamond-icon-symbol" stroke-width="2.2" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                    <button type="button" class="keyframe-graph-btn" id="btnEffectGraph" title="Kurva Easing / Graph">
+                      <span class="material-symbols-rounded">show_chart</span>
+                    </button>
+                  </div>
+                  <button type="button" id="btnClearAllEffects" title="Hapus Semua Efek" style="display:inline-flex; align-items:center; gap:4px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,242,194,0.18); border-radius:10px; height:30px; padding:0 8px; font-size:0.74rem; font-weight:700; color:#FFF2C2; cursor:pointer;">
+                    <span class="material-symbols-rounded" style="font-size:16px;">delete_sweep</span> Reset
+                  </button>
+                </div>
+              </div>
+
+              <!-- Main Effects Rack Body -->
+              <div class="effects-subpanel-body" style="flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; padding:6px 0; overflow-y:auto;">
+                <!-- Applied Effects Stack Container -->
+                <div class="applied-effects-stack" id="appliedEffectsStack">
+                  <!-- Populated dynamically by inspector.js -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Add Effect Catalog Subpanel (Full-height Drawer View extending to Controller) -->
+            <div class="inspector-subpanel" id="panelAddEffect" style="display:none;">
+              <div class="subpanel-header" style="gap:8px;">
+                <div class="subpanel-header-left" style="flex-shrink:0;">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromAddEffect" title="Kembali ke Rak Efek">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title">Add Effect</span>
+                </div>
+                <!-- Live Search Bar -->
+                <div class="effect-catalog-search-wrap" style="flex:1; display:flex; align-items:center; background:rgba(0,0,0,0.35); border:1px solid rgba(255,242,194,0.18); border-radius:12px; padding:0 8px; height:34px;">
+                  <span class="material-symbols-rounded" style="font-size:18px; color:rgba(255,242,194,0.5); margin-right:4px;">search</span>
+                  <input type="text" id="inputEffectCatalogSearch" placeholder="Cari efek..." style="flex:1; background:transparent; border:none; outline:none; color:#FFF2C2; font-size:0.82rem; font-weight:600;" autocomplete="off">
+                  <button type="button" id="btnClearEffectCatalogSearch" style="background:transparent; border:none; color:rgba(255,242,194,0.5); cursor:pointer; display:none; padding:0; align-items:center;">
+                    <span class="material-symbols-rounded" style="font-size:16px;">close</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Category Filter Tabs -->
+              <div class="effect-catalog-tabs" id="effectCatalogTabs" style="display:flex; align-items:center; gap:6px; overflow-x:auto; padding:4px 2px; margin-bottom:4px; scrollbar-width:none;">
+                <button type="button" class="effect-cat-tab active" data-cat="all">Semua Efek Distorsi</button>
+              </div>
+
+              <!-- Catalog Cards Grid Body -->
+              <div class="effect-catalog-body" style="flex:1; min-height:0; overflow-y:auto; padding:4px 0;">
+                <div class="effect-catalog-grid" id="effectCatalogGrid">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Move & Transform OpenFishTools Controller Sub-Panel -->
+            <div class="inspector-subpanel" id="panelMoveTransform" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackToToolsGrid" title="Kembali">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title">Move &amp; Transform</span>
+                </div>
+
+                <!-- Keyframe Controls Group (Alight Motion Diamond Keyframe System) -->
+                <div class="keyframe-controls-group">
+                  <button type="button" class="keyframe-diamond-btn" id="btnToggleKeyframe" title="Tambah / Hapus Keyframe">
+                    <svg class="keyframe-diamond-icon" viewBox="0 0 24 24" width="20" height="20">
+                      <path d="M12 2 L22 12 L12 22 L2 12 Z" class="diamond-shape" />
+                      <path d="M12 7 L12 17 M7 12 L17 12" class="diamond-icon-symbol" stroke-width="2.2" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn" id="btnKeyframeGraph" title="Kurva Easing / Graph">
+                    <span class="material-symbols-rounded">show_chart</span>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn expression-btn" id="btnTransformExpression" title="After Effects Expression (fx)">
+                    <span style="font-family: monospace; font-weight: 800; font-size: 13px; letter-spacing: -0.5px;">(fx)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="controller-main-card" id="controller-main-card">
+                <div class="controller-tab-switch fish-top-tabs">
+                  <button type="button" class="controller-switch-btn active" data-target-panel="move" title="Position">
+                    <span class="material-symbols-rounded">open_with</span>
+                  </button>
+                  <button type="button" class="controller-switch-btn" data-target-panel="rotate" title="Rotation">
+                    <span class="material-symbols-rounded">rotate_right</span>
+                  </button>
+                  <button type="button" class="controller-switch-btn" data-target-panel="scale" title="Scale / Size">
+                    <span class="material-symbols-rounded">aspect_ratio</span>
+                  </button>
+                  <button type="button" class="controller-switch-btn" data-target-panel="opacity" title="Opacity / Blend">
+                    <span class="material-symbols-rounded">opacity</span>
+                  </button>
+                </div>
+
+                <div class="controller-panel-body">
+                  <!-- 1. Move Pad + Z-Wheel -->
+                  <div class="controller-panel active" id="card-move">
+                    <div class="controller-move-wrapper">
+                      <!-- Move Pad (With integrated compact X/Y coordinate badge) -->
+                      <div class="controller-move-pad" id="move-pad">
+                        <i class="controller-corner c-tl"></i><i class="controller-corner c-tr"></i><i class="controller-corner c-bl"></i><i class="controller-corner c-br"></i>
+                        
+                        <div class="controller-pad-coords-pill">
+                          <div class="controller-val-group"><span id="val-pos-x" class="controller-val-num">0.00</span><span class="controller-val-label">x</span></div>
+                          <div class="controller-val-group"><span id="val-pos-y" class="controller-val-num">0.00</span><span class="controller-val-label">y</span></div>
+                        </div>
+
+                        <span class="controller-pad-hint">Geser di sini</span>
+                      </div>
+
+                      <!-- Z-Wheel Column (With Z coordinate pill directly above) -->
+                      <div class="controller-z-column">
+                        <div class="controller-display-pill controller-z-pill">
+                          <div class="controller-val-group"><span id="val-pos-z" class="controller-val-num">0.00</span><span class="controller-val-label">z</span></div>
+                        </div>
+                        <div class="controller-z-wheel-area" id="z-wheel">
+                          <div class="controller-z-center-mark" id="z-center-mark"></div>
+                          <div class="controller-z-wheel-ruler" id="z-ruler"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 2. Rotation Dial -->
+                  <div class="controller-panel" id="card-rotate" style="display:none; position: relative;">
+                    <div class="controller-rotation-axis-switch" id="rotation-axis-switch">
+                      <button type="button" class="active" data-rotation-axis="Z">Z</button>
+                      <button type="button" data-rotation-axis="X">X</button>
+                      <button type="button" data-rotation-axis="Y">Y</button>
+                    </div>
+                    <div class="controller-dial-wrapper" id="dial-area">
+                      <svg class="controller-dial-svg" viewBox="0 0 180 180">
+                        <circle class="controller-dial-inner-disc" cx="90" cy="90" r="64"></circle>
+                        <circle class="controller-dial-track" cx="90" cy="90" r="72"></circle>
+                        <path class="controller-dial-trail" id="dial-trail-path"></path>
+                        <path class="controller-dial-trail-overlay" id="dial-trail-overlay-path" style="display:none;"></path>
+                      </svg>
+                      <div class="controller-dial-center-display">
+                        <span class="controller-rot-multiplier" id="rot-multiplier"></span>
+                        <div class="controller-rot-box"><span id="val-rot" class="controller-rot-val">0°</span></div>
+                      </div>
+                      <i class="controller-dial-knob" id="dial-knob"></i>
+                    </div>
+                  </div>
+
+                  <!-- 3. Scale Rulers -->
+                  <div class="controller-panel" id="card-scale" style="display:none;">
+                    <div class="controller-scale-top-bar">
+                      <div class="controller-display-pill">
+                        <div class="controller-val-group"><span id="val-scale-w" class="controller-val-num">100.0</span><span class="controller-val-label" id="label-scale-w">Lebar (%)</span></div>
+                      </div>
+                      <button type="button" class="controller-link-btn linked" id="btn-link" title="Kunci Rasio"><span class="material-symbols-rounded" style="font-size:16px;">link</span></button>
+                      <div class="controller-display-pill">
+                        <div class="controller-val-group"><span id="val-scale-h" class="controller-val-num">100.0</span><span class="controller-val-label" id="label-scale-h">Tinggi (%)</span></div>
+                      </div>
+                    </div>
+                    <div class="controller-wheel-area">
+                      <div class="controller-wheel-row" id="wheel-w">
+                        <div class="controller-center-mark-w" id="mark-w"></div>
+                        <div class="controller-wheel-ruler" id="ruler-w"></div>
+                      </div>
+                      <div class="controller-wheel-row" id="wheel-h" style="display:none">
+                        <div class="controller-center-mark-w" id="mark-h"></div>
+                        <div class="controller-wheel-ruler" id="ruler-h"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 4. Opacity & Blending -->
+                  <div class="controller-panel" id="card-opacity" style="display:none;">
+                    <div class="controller-opacity-top-bar">
+                      <span class="material-symbols-rounded controller-opacity-icon">contrast</span>
+                      <div class="controller-opacity-slider-container">
+                        <input type="range" class="am-slider" id="opacity-slider" min="0" max="100" value="100">
+                      </div>
+                      <div class="controller-display-pill controller-opacity-pill">
+                        <div class="controller-val-group"><span id="val-opacity" class="controller-val-num">100%</span></div>
+                      </div>
+                    </div>
+                    <div class="controller-blend-list" id="blend-list"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="inspector-subpanel graph-editor-subpanel" id="panelGraphEditor" style="display:none;">
+              <div class="subpanel-header">
+                <div class="subpanel-header-left">
+                  <button type="button" class="subpanel-back-btn" id="btnBackFromGraph" title="Kembali ke Transform">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                  </button>
+                  <span class="subpanel-title" id="graphEditorTitle">Position</span>
+                </div>
+                <div class="keyframe-controls-group graph-controls-group">
+                  <button type="button" class="keyframe-graph-btn" id="btnGraphLibrary" title="Graph Presets &amp; Library">
+                    <span class="material-symbols-rounded">folder_open</span>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn" id="btnToggleGrid" title="Grid &amp; Snapping">
+                    <span class="material-symbols-rounded">grid_4x4</span>
+                  </button>
+                  <button type="button" class="keyframe-graph-btn" id="btnToggleOvershoot" title="Overshoot Curve">
+                    <span class="material-symbols-rounded">trending_up</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="graph-canvas-wrapper" id="graphCanvasWrapper">
+                <canvas id="graphEditorCanvas"></canvas>
+              </div>
+            </div>
+
+            <div class="graph-library-overlay" id="graphLibraryOverlay">
+              <div class="graph-library-panel" id="graphLibraryPanel">
+                <div class="graph-library-header">
+                  <span class="subpanel-title">Graph Library</span>
+                  <button type="button" class="graph-lib-close-btn" id="btnCloseGraphLibrary">
+                    <span class="material-symbols-rounded">close</span>
+                  </button>
+                </div>
+                <div class="graph-library-list" id="graphLibraryList"></div>
+                <button type="button" class="graph-lib-save-new-btn" id="btnSaveToLibrary">
+                  <span class="material-symbols-rounded">add</span>
+                  Simpan ke Library
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5.5.C Multi-Selection Bottom Footer Bar (Exact Alight Motion SVG Icons) -->
+          <div class="multi-select-footer-bar" id="multiSelectFooterBar">
+            <!-- Left: Batch Cut / Trim Tools -->
+            <div class="multi-footer-group multi-cut-group">
+              <!-- 1. Cut Left (Trim Start to Playhead: Dashed Left, Solid Right) -->
+              <button type="button" class="multi-footer-btn" id="btnBatchTrimLeft" title="Potong Kiri ke Playhead (Trim Start)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-width="1.9"/>
+                  <path d="M4 8.5h4.5v7H4" stroke-dasharray="2 2"/>
+                  <path d="M15.5 8.5H20v7h-4.5"/>
+                </svg>
+              </button>
+
+              <!-- 2. Split at Playhead (Solid Left, Solid Right) -->
+              <button type="button" class="multi-footer-btn" id="btnBatchSplit" title="Bagi di Playhead (Split all selected)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-width="1.9"/>
+                  <path d="M8.5 8.5H4v7h4.5"/>
+                  <path d="M15.5 8.5H20v7h-4.5"/>
+                </svg>
+              </button>
+
+              <!-- 3. Cut Right (Trim End to Playhead: Solid Left, Dashed Right) -->
+              <button type="button" class="multi-footer-btn" id="btnBatchTrimRight" title="Potong Kanan ke Playhead (Trim End)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="3" x2="12" y2="21" stroke-width="1.9"/>
+                  <path d="M8.5 8.5H4v7h4.5"/>
+                  <path d="M20 8.5h-4.5v7H20" stroke-dasharray="2 2"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Right: Batch Timing & Stagger Tools -->
+            <div class="multi-footer-group multi-timing-group">
+              <!-- 4. Align Start to Playhead -->
+              <button type="button" class="multi-footer-btn" id="btnBatchAlignStart" title="Ratakan Awal ke Playhead (Align Start)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="3.5" fill="#4A1D05"/>
+                  <rect x="5.5" y="6" width="13" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                  <rect x="5.5" y="10.8" width="9" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                  <rect x="5.5" y="15.5" width="5.5" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                </svg>
+              </button>
+
+              <!-- 5. Staircase / Stagger Steps Sequentially -->
+              <button type="button" class="multi-footer-btn" id="btnBatchStaircase" title="Berjejer Seperti Tangga (Stagger / Staircase Sequentially)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="3.5" fill="#4A1D05"/>
+                  <rect x="13" y="6" width="5.5" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                  <rect x="9.25" y="10.8" width="5.5" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                  <rect x="5.5" y="15.5" width="5.5" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                </svg>
+              </button>
+
+              <!-- 6. Align End to Playhead -->
+              <button type="button" class="multi-footer-btn" id="btnBatchAlignEnd" title="Ratakan Akhir ke Playhead (Align End)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="3.5" fill="#4A1D05"/>
+                  <rect x="5.5" y="6" width="13" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                  <rect x="9.5" y="10.8" width="9" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                  <rect x="13" y="15.5" width="5.5" height="2.5" rx="1.2" fill="#FFF2C2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5.6 Floating Add Track FAB Button (+) -->
+          <button class="fab-add" id="fabAddTrack" title="Tambah Track Baru">
+            <span class="material-symbols-rounded">add</span>
+          </button>
+
+        </aside>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+    <!-- ╔══════════════════════════════════════════════════════════════════╗
+       ║ [PROJECT SETTINGS MODAL DIALOG]                                  ║
+       ╚══════════════════════════════════════════════════════════════════╝ -->
+  <div class="overlay" id="projectSettingsModal">
+    <div class="am-modal-dialog">
+      <!-- 1. Corner-Bracket Aspect Ratio Row -->
+      <div class="am-ratio-row" id="editRatioSelector">
+        <button type="button" class="am-ratio-box" data-ratio="16:9" data-w="1920" data-h="1080">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">16:9</span>
+        </button>
+        <button type="button" class="am-ratio-box selected" data-ratio="9:16" data-w="1080" data-h="1920">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">9:16</span>
+        </button>
+        <button type="button" class="am-ratio-box" data-ratio="4:5" data-w="1080" data-h="1350">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">4:5</span>
+        </button>
+        <button type="button" class="am-ratio-box" data-ratio="1:1" data-w="1080" data-h="1080">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">1:1</span>
+        </button>
+        <button type="button" class="am-ratio-box" data-ratio="4:3" data-w="1440" data-h="1080">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">4:3</span>
+        </button>
+        <button type="button" class="am-ratio-box am-ratio-pencil" data-ratio="custom" title="Custom Ratio">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="material-symbols-rounded am-pencil-icon">edit</span>
+        </button>
+      </div>
+
+      <!-- 2. Settings List (Resolution, Frame Rate, Background) -->
+      <div class="am-settings-list">
+        <!-- 1. Resolution Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Resolution</span>
+            <span class="am-setting-sub">Composition Size</span>
+            <span class="am-setting-dim" id="lblEditCompositionSize">1080 &times; 1920</span>
+          </div>
+
+          <!-- Preset Resolution Custom Themed Dropdown -->
+          <div class="am-custom-select" id="wrapEditSelectResolution">
+            <button type="button" class="am-select-trigger" id="triggerEditResolution">
+              <span class="am-trigger-val" id="valEditResolution">1080p (FHD)</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuEditResolution">
+              <div class="am-dropdown-item" data-value="4K">4K (UHD)</div>
+              <div class="am-dropdown-item selected" data-value="1080p">1080p (FHD)</div>
+              <div class="am-dropdown-item" data-value="720p">720p (HD)</div>
+            </div>
+          </div>
+
+          <!-- Custom Resolution Inputs [ W ] (🔗) [ H ] -->
+          <div class="am-custom-res-wrap" id="editResCustomWrap" style="display: none;">
+            <input type="number" class="am-custom-res-input" id="editCustomResW" value="1080" min="100" max="4096">
+            <button type="button" class="am-btn-link-aspect active" id="editBtnLinkAspect" title="Lock / Unlock Aspect Ratio">
+              <span class="material-symbols-rounded">link</span>
+            </button>
+            <input type="number" class="am-custom-res-input" id="editCustomResH" value="1080" min="100" max="4096">
+          </div>
+        </div>
+
+        <!-- 2. Frame Rate Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Frame Rate</span>
+          </div>
+          <div class="am-custom-select" id="wrapEditSelectFps">
+            <button type="button" class="am-select-trigger" id="triggerEditFps">
+              <span class="am-trigger-val" id="valEditFps">30 fps</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuEditFps">
+              <div class="am-dropdown-item" data-value="60">60 fps</div>
+              <div class="am-dropdown-item selected" data-value="30">30 fps</div>
+              <div class="am-dropdown-item" data-value="24">24 fps</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Background Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Background</span>
+          </div>
+          <div class="am-custom-select" id="wrapEditSelectBackground">
+            <button type="button" class="am-select-trigger" id="triggerEditBackground">
+              <div class="am-swatch-box" id="editBgSwatchBox" style="background: #000000;"></div>
+              <span class="am-trigger-val" id="valEditBackground">Black</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuEditBackground">
+              <div class="am-dropdown-item selected" data-value="#000000" data-color="#000000">
+                <span class="am-item-swatch" style="background:#000000;"></span>
+                <span>Black</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#9E4310" data-color="#9E4310">
+                <span class="am-item-swatch" style="background:#9E4310;"></span>
+                <span>Terracotta</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FAB778" data-color="#FAB778">
+                <span class="am-item-swatch" style="background:#FAB778;"></span>
+                <span>Peach Apricot</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FFF2C2" data-color="#FFF2C2">
+                <span class="am-item-swatch" style="background:#FFF2C2;"></span>
+                <span>Custard Light</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FFFFFF" data-color="#FFFFFF">
+                <span class="am-item-swatch" style="background:#FFFFFF;"></span>
+                <span>White</span>
+              </div>
+              <div class="am-dropdown-item" data-value="transparent" data-color="#FFFFFF">
+                <span class="am-item-swatch swatch-trans" style="background: repeating-conic-gradient(#808080 0% 25%, #ffffff 0% 50%) 50% / 8px 8px;"></span>
+                <span>Transparent</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Motion Blur Settings Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Motion Blur</span>
+            <span class="am-setting-sub">Shutter / Samples</span>
+          </div>
+          <div class="am-custom-select" id="wrapEditSelectMotionBlur">
+            <button type="button" class="am-select-trigger" id="triggerEditMotionBlur">
+              <span class="am-trigger-val" id="valEditMotionBlur">Normal</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuEditMotionBlur">
+              <div class="am-dropdown-item" data-value="0.5" data-tune="0.5" data-samples="6">Light</div>
+              <div class="am-dropdown-item selected" data-value="1.0" data-tune="1.0" data-samples="10">Normal</div>
+              <div class="am-dropdown-item" data-value="1.8" data-tune="1.8" data-samples="16">Hard</div>
+              <div class="am-dropdown-item" data-value="2.8" data-tune="2.8" data-samples="24">Extreme</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Save Button Action -->
+      <div class="am-action-row">
+        <button type="button" class="am-btn-submit" id="btnProjSettingsSave">SAVE SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       GROUP SETTINGS MODAL (Resolution, FPS, Background - Default Transparent)
+       ══════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="groupSettingsModal" style="display:none;">
+    <div class="am-modal-dialog">
+      <!-- Modal Header -->
+      <div class="am-modal-header">
+        <div class="am-modal-header-left">
+          <span class="am-modal-title">Group Settings</span>
+          <span class="am-modal-sub">Konfigurasi Kanvas Grup</span>
+        </div>
+        <button type="button" class="am-modal-close-btn" id="btnGroupSettingsClose" title="Tutup">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <!-- Settings List -->
+      <div class="am-settings-list">
+        <!-- 1. Resolution Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Resolution</span>
+            <span class="am-setting-sub">Ukuran Kanvas Grup</span>
+          </div>
+          <div class="am-custom-select" id="wrapGroupSelectResolution">
+            <button type="button" class="am-select-trigger" id="triggerGroupResolution">
+              <span class="am-trigger-val" id="valGroupResolution">1080p (Full HD)</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuGroupResolution">
+              <div class="am-dropdown-item selected" data-value="1080p">1080p (Full HD)</div>
+              <div class="am-dropdown-item" data-value="720p">720p (HD)</div>
+              <div class="am-dropdown-item" data-value="4k">4K (Ultra HD)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Frame Rate Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Frame Rate</span>
+          </div>
+          <div class="am-custom-select" id="wrapGroupSelectFps">
+            <button type="button" class="am-select-trigger" id="triggerGroupFps">
+              <span class="am-trigger-val" id="valGroupFps">30 fps</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuGroupFps">
+              <div class="am-dropdown-item" data-value="60">60 fps</div>
+              <div class="am-dropdown-item selected" data-value="30">30 fps</div>
+              <div class="am-dropdown-item" data-value="24">24 fps</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Background Row (Default: Transparent) -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Background</span>
+            <span class="am-setting-sub">Latar Belakang Grup</span>
+          </div>
+          <div class="am-custom-select" id="wrapGroupSelectBackground">
+            <button type="button" class="am-select-trigger" id="triggerGroupBackground">
+              <div class="am-swatch-box" id="groupBgSwatchBox" style="background: repeating-conic-gradient(#808080 0% 25%, #ffffff 0% 50%) 50% / 8px 8px;"></div>
+              <span class="am-trigger-val" id="valGroupBackground">Transparent</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuGroupBackground">
+              <div class="am-dropdown-item selected" data-value="transparent" data-color="transparent">
+                <span class="am-item-swatch swatch-trans" style="background: repeating-conic-gradient(#808080 0% 25%, #ffffff 0% 50%) 50% / 8px 8px;"></span>
+                <span>Transparent</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#000000" data-color="#000000">
+                <span class="am-item-swatch" style="background:#000000;"></span>
+                <span>Black</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#9E4310" data-color="#9E4310">
+                <span class="am-item-swatch" style="background:#9E4310;"></span>
+                <span>Terracotta</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FAB778" data-color="#FAB778">
+                <span class="am-item-swatch" style="background:#FAB778;"></span>
+                <span>Peach Apricot</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FFFFFF" data-color="#FFFFFF">
+                <span class="am-item-swatch" style="background:#FFFFFF;"></span>
+                <span>White</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save Button Action -->
+      <div class="am-action-row">
+        <button type="button" class="am-btn-submit" id="btnGroupSettingsSave">SAVE SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PERSISTENT STORAGE PROMPT MODAL (Preserve media, presets & projects)
+       ══════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="persistentStorageModal" style="display:none; z-index:99999;">
+    <div class="am-modal-dialog" style="max-width: 420px; width: 90%; background: #4A1D05; border: 2px solid #FAB778; border-radius: 20px; padding: 20px; box-shadow: 0 12px 36px rgba(0,0,0,0.6);">
+      <div class="am-modal-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span class="material-symbols-rounded" style="color: #FAB778; font-size: 26px;">database</span>
+          <span class="am-modal-title" style="font-size: 1.1rem; font-weight: 800; color: #FFF2C2;">Penyimpanan Permanen</span>
+        </div>
+        <button type="button" class="am-btn-close" id="btnClosePersistentModal" title="Tutup" style="background:transparent; border:none; color:#FFF2C2; cursor:pointer;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <div style="color: #FFF2C2; font-size: 0.88rem; line-height: 1.5; margin-bottom: 20px; opacity: 0.92;">
+        Aktifkan izin penyimpanan permanen (<em>Persistent Storage</em>) agar seluruh file media (video, audio, gambar), preset, dan project Anda tersimpan aman serta <strong>tidak akan terhapus otomatis</strong> oleh browser saat membersihkan cache / data sementara.
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" id="btnDismissPersistentStorage" style="background: rgba(255,242,194,0.12); color: #FFF2C2; border: 1.5px solid rgba(255,242,194,0.25); border-radius: 10px; padding: 8px 16px; font-weight: 700; font-size: 0.85rem; cursor: pointer;">
+          Nanti Saja
+        </button>
+        <button type="button" id="btnEnablePersistentStorage" style="background: #FAB778; color: #4A1D05; border: none; border-radius: 10px; padding: 8px 18px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+          Aktifkan Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       EXPORT VIDEO POP-UP MODAL (Clean Alight Motion Style - No Blur / No Shadow)
+       ══════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="am-modal-dialog">
+      <!-- Header -->
+      <div class="am-modal-header">
+        <div style="display: flex; align-items: center; gap: 0.55rem;">
+          <span class="material-symbols-rounded" style="color: var(--col-yellow); font-size: 22px;">movie</span>
+          <span class="am-modal-title">Export Settings</span>
+        </div>
+        <button type="button" class="am-btn-close" id="btnCloseExportModal" title="Tutup">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <!-- Export Type Segmented Switcher (Icon-Only Capsule) -->
+      <div class="am-export-type-switcher" id="exportTypeSwitcher">
+        <button type="button" class="am-export-type-btn active" data-type="video" id="tabExportVideo" title="Video (MP4 / WebM)">
+          <span class="material-symbols-rounded">movie</span>
+        </button>
+        <button type="button" class="am-export-type-btn" data-type="png" id="tabExportPng" title="Current Frame as PNG">
+          <span class="material-symbols-rounded">image</span>
+        </button>
+        <button type="button" class="am-export-type-btn" data-type="fsp" id="tabExportFsp" title="Save Project (.fsp)">
+          <span class="material-symbols-rounded">save</span>
+        </button>
+      </div>
+
+      <!-- Settings List: Panel 1. Video Export -->
+      <div class="am-settings-list" id="panelExportVideo">
+        <!-- Project & Timeline Info Box -->
+        <div class="am-proj-info-box">
+          <div>
+            <div id="exportProjName" class="am-proj-name">My Project</div>
+            <div class="am-proj-sub">Timeline Duration</div>
+          </div>
+          <div id="exportProjDuration" class="am-proj-badge">00:00:10</div>
+        </div>
+
+        <!-- 1. Format -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Format</span>
+            <span class="am-setting-sub">Video Codec</span>
+          </div>
+          <div class="am-custom-select" id="wrapExportFormat">
+            <button type="button" class="am-select-trigger" id="triggerExportFormat">
+              <span class="am-trigger-val" id="valExportFormat">H.264 (MP4)</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuExportFormat">
+              <div class="am-dropdown-item selected" data-value="h264">H.264 (MP4)</div>
+              <div class="am-dropdown-item" data-value="vp9">VP9 (WebM)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Resolution -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Resolution</span>
+            <span class="am-setting-sub">Ukuran Layar</span>
+          </div>
+          <div class="am-custom-select" id="wrapExportRes">
+            <button type="button" class="am-select-trigger" id="triggerExportRes">
+              <span class="am-trigger-val" id="valExportRes">Follow Source</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuExportRes">
+              <div class="am-dropdown-item selected" data-value="source">Follow Source</div>
+              <div class="am-dropdown-item" data-value="1080p">1080p (Full HD)</div>
+              <div class="am-dropdown-item" data-value="720p">720p (HD)</div>
+              <div class="am-dropdown-item" data-value="4k">4K (Ultra HD)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Frame Rate -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Frame Rate</span>
+            <span class="am-setting-sub">Kecepatan Frame</span>
+          </div>
+          <div class="am-custom-select" id="wrapExportFps">
+            <button type="button" class="am-select-trigger" id="triggerExportFps">
+              <span class="am-trigger-val" id="valExportFps">Follow Source</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuExportFps">
+              <div class="am-dropdown-item selected" data-value="source">Follow Source</div>
+              <div class="am-dropdown-item" data-value="60">60 fps</div>
+              <div class="am-dropdown-item" data-value="30">30 fps</div>
+              <div class="am-dropdown-item" data-value="24">24 fps</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Bitrate Slider -->
+        <div class="am-setting-row" style="flex-direction: column; align-items: stretch; gap: 0.4rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="am-setting-title">Target Bitrate</span>
+            <span class="am-setting-dim" id="lblExportBitrateVal">16 Mbps</span>
+          </div>
+          <input type="range" class="am-slider" id="sliderExportBitrate" min="4" max="60" value="16" step="2" style="width: 100%;">
+        </div>
+
+        <!-- Progress Box (Hidden until rendering) -->
+        <div id="exportProgressBox" class="am-progress-box">
+          <div style="display: flex; justify-content: space-between; font-size: 0.76rem; font-weight: 800;">
+            <span id="lblExportStatus" style="color: #FAB778;">Rendering frame 0 / 0</span>
+            <span id="lblExportPct" style="color: #FFF2C2; font-family: monospace;">0%</span>
+          </div>
+          <div class="am-progress-track">
+            <div id="exportProgressFill" class="am-progress-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings List: Panel 2. PNG Frame Export -->
+      <div class="am-settings-list" id="panelExportPng" style="display: none;">
+        <div class="am-proj-info-box">
+          <div>
+            <div class="am-proj-name">Current Frame (PNG)</div>
+            <div class="am-proj-sub">Capture frame saat ini dengan kualitas penuh</div>
+          </div>
+          <div id="exportPngTimecode" class="am-proj-badge">00:00:00</div>
+        </div>
+
+        <!-- PNG Preview Box -->
+        <div style="width: 100%; height: 160px; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,242,194,0.16); border-radius: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+          <img id="exportPngPreviewImg" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;" alt="Frame Preview">
+        </div>
+      </div>
+
+      <!-- Settings List: Panel 3. Save Project .fsp Export -->
+      <div class="am-settings-list" id="panelExportFsp" style="display: none;">
+        <div class="am-proj-info-box">
+          <div>
+            <div id="exportFspProjName" class="am-proj-name">My Project</div>
+            <div class="am-proj-sub">File Proyek FishTool Studio (.fsp)</div>
+          </div>
+          <div class="am-proj-badge">.FSP</div>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,242,194,0.14); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; color: #FAB778; font-weight: 800; font-size: 0.88rem;">
+            <span class="material-symbols-rounded">folder_zip</span>
+            <span>Portable FishTool Project File</span>
+          </div>
+          <p style="margin: 0; font-size: 0.78rem; color: rgba(255,242,194,0.75); line-height: 1.4;">
+            File .fsp menyimpan seluruh data layer, keyframe, efek, rotasi 3D, dan konfigurasi proyek lengkap yang dapat dibuka dan diedit kembali kapan saja.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="am-action-row">
+        <!-- Video buttons -->
+        <button type="button" class="am-btn-submit" id="btnStartExportRender">RENDER VIDEO</button>
+        <button type="button" class="am-btn-download" id="btnDownloadExportVideo" style="display: none;">DOWNLOAD VIDEO</button>
+
+        <!-- PNG button -->
+        <button type="button" class="am-btn-submit" id="btnDownloadCurrentPng" style="display: none;">EXPORT AS PNG</button>
+
+        <!-- FSP button -->
+        <button type="button" class="am-btn-submit" id="btnDownloadFspProject" style="display: none;">SAVE PROJECT (.FSP)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js 3D Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Global Color Picker -->
+  <script src="js/colorPicker.js"></script>
+
+  <!-- FishUI Modular Controller Suite -->
+  <script src="js/fishUI.js"></script>
+
+  <!-- Pure JS MP4 Muxer -->
+  <script src="js/mp4-muxer.min.js"></script>
+
+  <!-- Editor Modular JavaScript Suite (Strict Dependency Order) -->
+  <script src="js/modules/state.js?v=6.9"></script>
+  <script src="js/effects/effectsRegistry.js?v=6.9"></script>
+  <script src="js/effects/distortion.js?v=6.9"></script>
+  <script src="js/effects/blur.js?v=6.9"></script>
+  <script src="js/effects/color.js?v=6.9"></script>
+  <script src="js/effects/style.js?v=6.9"></script>
+  <script src="js/modules/easing.js?v=6.9"></script>
+  <script src="js/modules/storage.js?v=6.9"></script>
+  <script src="js/modules/groupCompositor.js?v=6.9"></script>
+  <script src="js/modules/canvasTexture.js?v=6.9"></script>
+  <script src="js/modules/scene3d.js?v=6.9"></script>
+  <script src="js/modules/timeline.js?v=6.9"></script>
+  <script src="js/modules/timelinePlayback.js?v=6.9"></script>
+  <script src="js/modules/timelineLayerOps.js?v=6.9"></script>
+  <script src="js/modules/timelineUndo.js?v=6.9"></script>
+  <script src="js/modules/timelineGroups.js?v=6.9"></script>
+  <script src="js/modules/graphEditor.js?v=6.9"></script>
+  <script src="js/modules/inspector.js?v=6.9"></script>
+  <script src="js/modules/inspectorFill.js?v=6.9"></script>
+  <script src="js/modules/inspectorBorderShadow.js?v=6.9"></script>
+  <script src="js/modules/inspectorShape.js?v=6.9"></script>
+  <script src="js/modules/inspectorText.js?v=6.9"></script>
+  <script src="js/modules/inspectorCamera.js?v=6.9"></script>
+  <script src="js/modules/inspectorEffects.js?v=6.9"></script>
+  <script src="js/modules/mediaLibrary.js?v=6.9"></script>
+  <script src="js/modules/layerEditOps.js?v=6.9"></script>
+  <script src="js/modules/videoProcessor.js?v=6.9"></script>
+  <script src="js/modules/webmEncoder.js?v=6.9"></script>
+  <script src="js/modules/main.js?v=6.9"></script>
+  <script src="js/modules/exporter.js?v=6.9"></script>
+</body>
+</html>

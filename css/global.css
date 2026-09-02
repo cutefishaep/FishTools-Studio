@@ -1,0 +1,369 @@
+/* ════════════════════════════════════════════
+   global.css — Terracotta & Warm Apricot Palette
+   FishTools Studio
+════════════════════════════════════════════ */
+
+:root {
+  /* 🍑 PURE TERRACOTTA OCHRE & PEACH APRICOT PALETTE (100% Matching Reference) */
+  --col-bg:              #D06423;   /* Warm Terracotta Ochre Background */
+  
+  /* Controller, Navbar, Action Buttons, and Container: Pure Terracotta Clay */
+  --col-terracotta:      #D06423;   /* Pure Terracotta Clay */
+  --col-terracotta-hover:#BC571B;   /* Terracotta Hover */
+  
+  /* Sliding Panel & Timeline: Soft Peach Apricot Cream */
+  --col-cream:           #FAB778;   /* Peach Apricot Cream Panel */
+  --col-cream-hover:     #FFC68E;   /* Light Apricot Hover */
+  --col-cream-light:     #FDD4AB;   /* Light Modal Surface */
+  
+  /* Project Card Pill Surface (Warm Peach Pill inside Terracotta Box) */
+  --col-card-bg:         #FABD83;   /* Peach Apricot Card Surface */
+  --col-card-hover:      #FFCCA0;   /* Card Hover */
+  --col-card-container:  #D06423;   /* Pure Terracotta Container for Projects */
+  
+  /* Track Clips on Timeline */
+  --col-track-bg:        #D06423;   /* Terracotta Track Bar */
+  --col-track-hover:     #BC571B;
+  --col-playhead:        #943D0A;   /* Deep Terracotta Playhead */
+  
+  /* Typography & Accents */
+  --col-brown:           #A8460E;   /* Rich Terracotta Brown Text on Peach Cards */
+  --col-yellow:          #FFF2C2;   /* Warm Custard Cream Text on Terracotta */
+  --col-yellow-dim:      rgba(255, 242, 194, 0.85);
+  --col-subtext:         #B8531A;   /* Terracotta Subtext */
+  --col-sage:            #943D0A;   /* Deep Terracotta CTA Accent */
+  --col-sage-hover:      #7C2F04;
+  --col-border:          rgba(255, 242, 194, 0.22);
+  --col-doodle:          rgba(255, 242, 194, 0.42); /* Clear Warm Custard Doodles */
+
+  /* Geometry */
+  --r-xs:   8px;
+  --r-sm:  14px;
+  --r-md:  20px;
+  --r-lg:  28px;
+  --r-xl:  36px;
+  --r-panel-desktop: 68px;
+  --r-panel-mobile:  46px;
+
+  /* No Drop Shadows (Clean Flat Modern Look) */
+  --shadow-sm:   none;
+  --shadow-md:   none;
+  --shadow-lg:   none;
+  --shadow-panel:none;
+
+  /* Universal Browser Control Accents (No Default Browser Blue) */
+  accent-color: #FAB778;
+}
+
+::selection {
+  background: #FAB778 !important;
+  color: #4A1D05 !important;
+}
+
+::-moz-selection {
+  background: #FAB778 !important;
+  color: #4A1D05 !important;
+}
+
+/* ── Base Reset & Setup (Flat Modern Aesthetic, No Shadows) ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  accent-color: #FAB778;
+}
+
+*:focus-visible {
+  outline: 2px solid #FAB778 !important;
+  outline-offset: 1px;
+}
+
+a {
+  color: #FAB778;
+  text-decoration: none;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--col-bg);
+  color: var(--col-yellow);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+}
+
+.material-symbols-rounded {
+  font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 48;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Globally Hide All Browser Scrollbars (100% Clean UI) ── */
+html, body, *, *::before, *::after {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* ── Floating Decorative Doodles (Pastel Butter Yellow) ── */
+.doodle-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.doodle {
+  position: absolute;
+  color: var(--col-doodle);
+  font-size: 52px;
+  animation: floatDoodle 12s ease-in-out infinite alternate;
+  font-variation-settings: 'FILL' 1, 'wght' 700;
+}
+
+@keyframes floatDoodle {
+  0%   { transform: translateY(0px)   rotate(0deg)  scale(1);    }
+  50%  { transform: translateY(-16px) rotate(8deg)  scale(1.04); }
+  100% { transform: translateY(-28px) rotate(-6deg) scale(0.98); }
+}
+
+.d1  { top:  6%; left:  5%; font-size: 56px; animation-duration: 9s;  }
+.d2  { top: 20%; left: 24%; font-size: 44px; animation-duration: 13s; }
+.d3  { top: 38%; left:  7%; font-size: 50px; animation-duration: 10s; }
+.d4  { top: 60%; left: 28%; font-size: 48px; animation-duration: 14s; }
+.d5  { top: 82%; left:  6%; font-size: 58px; animation-duration: 11s; }
+.d6  { top:  8%; left: 45%; font-size: 42px; animation-duration: 12s; }
+.d7  { top: 48%; left: 42%; font-size: 52px; animation-duration: 10s; }
+.d8  { top: 76%; left: 48%; font-size: 46px; animation-duration: 15s; }
+.d9  { top: 12%; right: 10%; font-size: 48px; animation-duration: 9s; }
+.d10 { top: 78%; right: 14%; font-size: 52px; animation-duration: 11s; }
+
+/* ══════════════════════════════════════════════════════════════
+   FULLSCREEN PROJECT LOADING SCREEN (FishTool Studio — Terracotta Theme)
+   ══════════════════════════════════════════════════════════════ */
+.project-loading-screen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--col-bg, #D06423);
+  color: var(--col-yellow, #FFF2C2);
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease-out, visibility 0.25s;
+  user-select: none;
+  overflow: hidden;
+}
+
+.project-loading-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.project-loading-screen .doodle-layer {
+  opacity: 1;
+}
+
+.project-loading-screen .doodle {
+  color: var(--col-doodle, rgba(255, 242, 194, 0.42));
+}
+
+.loading-content-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+  background: rgba(74, 29, 5, 0.38);
+  border: 1.5px solid rgba(255, 242, 194, 0.28);
+  border-radius: var(--r-lg, 24px);
+  padding: 26px 22px 20px 22px;
+  box-shadow: none;
+  position: relative;
+  z-index: 2;
+}
+
+.loading-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--col-yellow, #FFF2C2);
+  margin: 0 0 8px 0;
+}
+
+.loading-project-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--col-cream, #FAB778);
+  margin-bottom: 20px;
+  max-width: 85%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 14px;
+  background: rgba(74, 29, 5, 0.45);
+  border-radius: var(--r-sm, 12px);
+  border: 1.5px solid rgba(255, 242, 194, 0.2);
+}
+
+.loading-progress-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.loading-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(74, 29, 5, 0.55);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 242, 194, 0.2);
+  position: relative;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--col-cream, #FAB778);
+  border-radius: 5px;
+  box-shadow: none;
+  transition: width 0.15s ease-out;
+}
+
+.loading-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.loading-status-text {
+  color: rgba(255, 242, 194, 0.85);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 78%;
+}
+
+.loading-percent-text {
+  color: var(--col-yellow, #FFF2C2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+/* System Logs Box (Clean, Flat, Retro Terracotta Terminal Theme) */
+.loading-logs-box {
+  width: 100%;
+  background: rgba(74, 29, 5, 0.55);
+  border: 1.5px solid rgba(255, 242, 194, 0.2);
+  border-radius: var(--r-sm, 12px);
+  padding: 10px 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.loading-logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 242, 194, 0.18);
+  padding-bottom: 5px;
+}
+
+.loading-logs-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--col-cream, #FAB778);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.loading-logs-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FAB778;
+}
+
+.loading-logs-scroll {
+  max-height: 100px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(250, 183, 120, 0.35) transparent;
+}
+
+.loading-logs-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.loading-logs-scroll::-webkit-scrollbar-thumb {
+  background: rgba(250, 183, 120, 0.35);
+  border-radius: 2px;
+}
+
+.loading-log-entry {
+  color: rgba(255, 242, 194, 0.75);
+  word-break: break-all;
+}
+
+.loading-log-entry.info {
+  color: rgba(255, 242, 194, 0.85);
+}
+
+.loading-log-entry.success {
+  color: var(--col-cream, #FAB778);
+}
+
+.loading-log-entry.warn {
+  color: #FFA726;
+}
+
+
+

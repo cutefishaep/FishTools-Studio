@@ -1,0 +1,1011 @@
+/* ════════════════════════════════════════════
+   dashboard.css — Kuning Pastel & Matcha Dashboard
+   FishTools Studio
+════════════════════════════════════════════ */
+
+/* ── Full Dashboard Container ── */
+.dash-wrap {
+  display: flex;
+  min-height: 100dvh;
+  position: relative;
+  z-index: 2;
+  background: transparent;
+  overflow-x: hidden;
+}
+
+/* ════════════════════════════════════════════
+   TABLET / WEB / 1:1 MODE (>= 768px OR >= 1/1)
+════════════════════════════════════════════ */
+@media (min-width: 768px), (min-aspect-ratio: 1/1) {
+  .dash-wrap {
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-between;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Left Column: Brand Title (Always at TOP-LEFT) */
+  .brand {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-self: flex-start;
+    padding: 3.5rem 4rem 0 4rem;
+    min-width: 260px;
+    z-index: 5;
+  }
+
+  .brand-title {
+    font-size: clamp(2.2rem, 4.5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--col-yellow);
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    word-break: normal;
+  }
+
+  .brand-version {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--col-yellow);
+    opacity: 0.90;
+    letter-spacing: -0.01em;
+  }
+
+  /* Right Column: Sliding Panel (Warm Peach Apricot - Anchored at Bottom-Right to Upper-Middle) */
+  .dash-panel {
+    position: relative;
+    width: 440px;
+    max-width: 48vw;
+    height: auto;
+    max-height: 82vh;
+    align-self: flex-end;
+    background: var(--col-cream);
+    /* Rounded ONLY on top-left */
+    border-top-left-radius: 54px;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 2.4rem 2.2rem 2.4rem 2.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex-shrink: 0;
+  }
+
+  .dash-panel::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* ════════════════════════════════════════════
+   PURE MOBILE PORTRAIT MODE (< 768px & Portrait)
+════════════════════════════════════════════ */
+@media (max-width: 767px) and (max-aspect-ratio: 13/14) {
+  .dash-wrap {
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .brand {
+    padding: 2.2rem 1.6rem 0 1.6rem;
+    flex-shrink: 0;
+    z-index: 5;
+    align-self: flex-start;
+  }
+
+  .brand-title {
+    font-size: clamp(2.2rem, 7vw, 2.8rem);
+    font-weight: 800;
+    color: var(--col-yellow);
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  .brand-version {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--col-yellow);
+    opacity: 0.90;
+  }
+
+  .dash-panel {
+    width: 100%;
+    position: relative;
+    background: var(--col-cream);
+    /* Rounded ONLY on top-left */
+    border-top-left-radius: var(--r-panel-mobile);
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 2rem 1.4rem 2.6rem 1.4rem;
+    max-height: 72dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+}
+
+/* ── Action Buttons Row ── */
+.actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.95rem;
+  flex-shrink: 0;
+}
+
+.btn-action {
+  background: var(--col-terracotta);
+  border: 1px solid rgba(255, 242, 194, 0.12);
+  border-radius: var(--r-md);
+  padding: 1.4rem 1.15rem 1.35rem 1.2rem;
+  min-height: 96px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  transition: background 0.2s ease, transform 0.12s ease;
+}
+
+/* 'NEW PROJECT' has a specially rounded top-left corner */
+.btn-action.btn-new {
+  border-top-left-radius: var(--r-xl);
+}
+
+.btn-action:hover {
+  background: var(--col-terracotta-hover);
+  transform: translateY(-2px);
+}
+
+.btn-action:active {
+  transform: scale(0.97);
+}
+
+.btn-label {
+  color: var(--col-yellow);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  z-index: 2;
+  line-height: 1.1;
+}
+
+.btn-watermark {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  font-size: 74px !important;
+  color: rgba(250, 183, 120, 0.45);
+  z-index: 1;
+  transform: rotate(8deg);
+  pointer-events: none;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.btn-action:hover .btn-watermark {
+  transform: rotate(14deg) scale(1.05);
+  color: rgba(250, 183, 120, 0.60);
+}
+
+/* ── Recent Projects Section (Terracotta Outer Container) ── */
+.projects-scroll {
+  background: var(--col-card-container);
+  border-radius: 26px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.projects-header {
+  display: none;
+}
+
+.project-card-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  touch-action: pan-y;
+  background: #E53935;
+  transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1), margin 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.24s ease, transform 0.24s ease;
+}
+
+.project-card-wrapper.deleting {
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  transform: scaleY(0) !important;
+  pointer-events: none;
+}
+
+.project-swipe-delete-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 76px;
+  background: #E53935;
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1;
+  border-top-right-radius: var(--r-md);
+  border-bottom-right-radius: var(--r-md);
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.project-swipe-delete-btn:hover {
+  background: #C62828;
+}
+
+.project-swipe-delete-btn:active {
+  transform: scale(0.92);
+}
+
+.project-swipe-delete-btn .material-symbols-rounded {
+  font-size: 26px !important;
+}
+
+/* ── Project Card Pill (Warm Peach Pill inside Terracotta Box) ── */
+.project-card {
+  position: relative;
+  z-index: 2;
+  background: var(--col-card-bg);
+  border: none;
+  border-radius: var(--r-md);
+  padding: 1.05rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), background 0.15s ease;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  will-change: transform;
+}
+
+.project-card:hover {
+  background: var(--col-card-hover);
+}
+
+.project-card:active {
+  transform: translateY(0);
+}
+
+.project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.project-name {
+  color: var(--col-brown);
+  font-size: 1.12rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.project-meta {
+  color: var(--col-subtext);
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.project-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--col-terracotta);
+  border: none;
+  outline: none;
+  color: var(--col-yellow);
+}
+
+.project-thumb .material-symbols-rounded {
+  font-size: 26px !important;
+}
+
+/* Empty State for Recent Projects */
+.empty-projects-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.2rem 1rem;
+  background: rgba(255, 242, 194, 0.12);
+  border: none;
+  border-radius: var(--r-md);
+  color: var(--col-yellow);
+  text-align: center;
+  gap: 0.35rem;
+}
+
+.empty-projects-state .material-symbols-rounded {
+  font-size: 38px !important;
+  opacity: 0.65;
+  margin-bottom: 0.15rem;
+}
+
+.empty-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.empty-sub {
+  font-size: 0.76rem;
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+/* ════════════════════════════════════════════
+   ALIGHT MOTION STYLE MODAL POPUP & DIALOG
+   ════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.2, 0.9, 0.3, 1), visibility 0.2s ease;
+  padding: 1.5rem 1rem;
+  box-sizing: border-box;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.am-modal-dialog {
+  background: var(--col-bg, #D06423) !important;
+  border: 1.5px solid rgba(255, 242, 194, 0.28) !important;
+  outline: none !important;
+  border-radius: 28px !important;
+  width: 90%;
+  max-width: 440px;
+  padding: 1.6rem 1.6rem 1.4rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  color: #FFF2C2;
+  overflow: visible !important;
+  box-sizing: border-box;
+  box-shadow: none !important;
+  animation: modalPop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 767px) {
+  .modal-overlay {
+    align-items: flex-start !important;
+    padding: 0 !important;
+  }
+
+  .am-modal-dialog {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 0 0 32px 32px !important;
+    border: none !important;
+    outline: none !important;
+    padding: 1.5rem 1.4rem 1.6rem 1.4rem !important;
+    max-height: 90vh !important;
+    transform: translateY(-100%) !important;
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) !important;
+  }
+
+  .modal-overlay.active .am-modal-dialog {
+    transform: translateY(0) !important;
+  }
+}
+
+/* 1. Project Name Input */
+.am-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid rgba(250, 183, 120, 0.4);
+  padding: 0.35rem 0;
+  transition: border-color 0.15s ease;
+}
+
+.am-input-group:focus-within {
+  border-color: #FAB778;
+}
+
+.am-project-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #FFF2C2;
+  padding-right: 2.2rem;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+
+.am-project-input::placeholder {
+  color: rgba(255, 242, 194, 0.35);
+}
+
+.am-input-clear {
+  position: absolute;
+  right: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #FAB778;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.am-input-clear:hover {
+  color: #FFF2C2;
+  transform: scale(1.1);
+}
+
+/* 2. Corner-Bracket Ratio Row */
+.am-ratio-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+  height: 66px;
+  padding: 4px 0;
+  overflow: visible;
+}
+
+.am-ratio-box {
+  background: rgba(74, 29, 5, 0.35);
+  border: 1px solid rgba(255, 242, 194, 0.18);
+  outline: none;
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  box-shadow: none !important;
+}
+
+/* Distinct Proportional Shapes Matching Real Aspect Ratios */
+.am-ratio-box[data-ratio="16:9"] {
+  width: 58px;
+  height: 36px;
+}
+
+.am-ratio-box[data-ratio="9:16"] {
+  width: 36px;
+  height: 60px;
+}
+
+.am-ratio-box[data-ratio="4:5"] {
+  width: 40px;
+  height: 48px;
+}
+
+.am-ratio-box[data-ratio="1:1"] {
+  width: 42px;
+  height: 42px;
+}
+
+.am-ratio-box[data-ratio="4:3"] {
+  width: 50px;
+  height: 40px;
+}
+
+.am-ratio-box[data-ratio="custom"] {
+  width: 40px;
+  height: 40px;
+}
+
+.am-ratio-box:hover {
+  background: rgba(74, 29, 5, 0.55);
+  border-color: rgba(250, 183, 120, 0.4);
+}
+
+/* Corner Brackets (⌜ ⌝ ⌞ ⌟) */
+.am-bracket {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-color: #FAB778;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.am-bracket.am-tl { top: 3px; left: 3px; border-top: 2px solid; border-left: 2px solid; }
+.am-bracket.am-tr { top: 3px; right: 3px; border-top: 2px solid; border-right: 2px solid; }
+.am-bracket.am-bl { bottom: 3px; left: 3px; border-bottom: 2px solid; border-left: 2px solid; }
+.am-bracket.am-br { bottom: 3px; right: 3px; border-bottom: 2px solid; border-right: 2px solid; }
+
+.am-ratio-label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #FFF2C2;
+  font-family: inherit;
+}
+
+.am-pencil-icon {
+  font-size: 17px !important;
+  color: #FAB778;
+}
+
+/* Selected Ratio Box (Theme Peach Ochre Fill) */
+.am-ratio-box.selected {
+  background: #FAB778 !important;
+  border: 1.5px solid #FFC68E !important;
+  transform: translateY(-1px);
+}
+
+.am-ratio-box.selected .am-bracket {
+  display: none;
+}
+
+.am-ratio-box.selected .am-ratio-label,
+.am-ratio-box.selected .am-pencil-icon {
+  color: #4A1D05 !important;
+  font-weight: 900;
+}
+
+/* 3. Settings List Rows */
+.am-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+  margin-top: 0.1rem;
+}
+
+.am-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.am-setting-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.am-setting-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #FFF2C2;
+}
+
+.am-setting-sub {
+  font-size: 0.72rem;
+  color: #FAB778;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.am-setting-dim {
+  font-size: 0.72rem;
+  color: #FAB778;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Themed Custom Selection Dropdown */
+.am-custom-select {
+  position: relative;
+  min-width: 175px;
+  user-select: none;
+}
+
+.am-select-trigger {
+  width: 100%;
+  background: rgba(74, 29, 5, 0.35);
+  border: 1.5px solid rgba(255, 242, 194, 0.2);
+  border-radius: 14px;
+  padding: 0.65rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #FFF2C2;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  box-shadow: none !important;
+}
+
+.am-select-trigger:hover,
+.am-custom-select.is-open .am-select-trigger {
+  background: rgba(74, 29, 5, 0.55);
+  border-color: #FAB778;
+}
+
+.am-trigger-val {
+  flex: 1;
+  text-align: left;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #FFF2C2;
+  white-space: nowrap;
+}
+
+.am-select-chevron {
+  font-size: 22px !important;
+  color: #FAB778;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.am-custom-select.is-open .am-select-chevron {
+  transform: rotate(180deg);
+}
+
+.am-custom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 100%;
+  background: #A8460E !important;
+  border: 1.5px solid rgba(255, 242, 194, 0.35) !important;
+  border-radius: 16px;
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 99999;
+  box-sizing: border-box;
+  box-shadow: none !important;
+}
+
+.am-custom-select.is-open .am-custom-dropdown-menu {
+  display: flex !important;
+}
+
+.am-custom-select.dropdown-up .am-custom-dropdown-menu,
+#wrapSelectBackground .am-custom-dropdown-menu {
+  top: auto !important;
+  bottom: calc(100% + 6px) !important;
+}
+
+.am-dropdown-item {
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #FFF2C2;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.am-dropdown-item:hover,
+.am-dropdown-item.selected {
+  background: #7C2F04 !important;
+  color: #FFF2C2 !important;
+}
+
+.am-item-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 242, 194, 0.35);
+  flex-shrink: 0;
+}
+
+.am-swatch-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 242, 194, 0.35);
+}
+
+/* Custom Resolution Inputs [ W ] (🔗) [ H ] */
+.am-custom-res-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.am-custom-res-input {
+  width: 68px;
+  background: rgba(74, 29, 5, 0.35);
+  border: 1.5px solid rgba(255, 242, 194, 0.2);
+  border-radius: 12px;
+  padding: 0.6rem 0.35rem;
+  color: #FFF2C2;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease;
+  -moz-appearance: textfield;
+  box-shadow: none !important;
+}
+
+.am-custom-res-input::-webkit-outer-spin-button,
+.am-custom-res-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.am-custom-res-input:focus {
+  border-color: #FAB778;
+  background: rgba(74, 29, 5, 0.55);
+}
+
+.am-btn-link-aspect {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(74, 29, 5, 0.35);
+  border: 1.5px solid rgba(255, 242, 194, 0.2);
+  color: #FAB778;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  box-shadow: none !important;
+}
+
+.am-btn-link-aspect.active {
+  background: #FAB778;
+  border-color: #FFC68E;
+  color: #4A1D05;
+}
+
+.am-btn-link-aspect .material-symbols-rounded {
+  font-size: 18px !important;
+}
+
+/* 4. Create Button */
+.am-action-row {
+  display: flex;
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.am-btn-submit {
+  width: 100%;
+  background: #FAB778 !important;
+  color: #4A1D05 !important;
+  border: none;
+  border-radius: 14px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: none !important;
+}
+
+.am-btn-submit:hover {
+  background: #FFC68E !important;
+  transform: translateY(-1px);
+}
+
+/* 5. Bottom Close (X) Icon */
+.am-bottom-close-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0.2rem;
+}
+
+.am-btn-close-icon {
+  background: rgba(74, 29, 5, 0.35);
+  border: 1.5px solid rgba(255, 242, 194, 0.22);
+  outline: none;
+  color: #FFF2C2;
+  cursor: pointer;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.am-btn-close-icon .material-symbols-rounded {
+  font-size: 24px !important;
+  font-weight: 700;
+  color: #FFF2C2;
+}
+
+.am-btn-close-icon:hover {
+  background: #FAB778;
+  border-color: #FAB778;
+  transform: scale(1.1);
+}
+
+.am-btn-close-icon:hover .material-symbols-rounded {
+  color: #4A1D05;
+}
+
+.color-swatch.selected::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: #FAB778;
+}
+
+.color-swatch.swatch-light.selected::after {
+  color: #4A1D05;
+}
+
+/* Modal Actions */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.btn-modal-cancel {
+  background: rgba(255, 242, 194, 0.15);
+  color: var(--col-yellow);
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  transition: background 0.15s ease;
+}
+
+.btn-modal-cancel:hover {
+  background: rgba(255, 242, 194, 0.25);
+}
+
+.btn-modal-create {
+  background: #FAB778;
+  color: #4A1D05;
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-modal-create:hover {
+  background: #FFC68E;
+  transform: translateY(-1px);
+}
+
+.btn-modal-create:active {
+  transform: scale(0.97);
+}
+
+/* ── Import Choice Option Buttons (Flat, Shadowless, Clean Theme) ── */
+.btn-import-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(74, 29, 5, 0.38);
+  border: 1.5px solid rgba(255, 242, 194, 0.22);
+  border-radius: var(--r-md, 14px);
+  cursor: pointer;
+  box-shadow: none;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+
+.btn-import-option:hover {
+  background: rgba(74, 29, 5, 0.58);
+  border-color: #FAB778;
+}
+
+.btn-import-option:active {
+  transform: scale(0.99);
+}
+
+.import-opt-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-xs, 8px);
+  background: rgba(74, 29, 5, 0.55);
+  border: 1px solid rgba(255, 242, 194, 0.25);
+  color: var(--col-cream, #FAB778);
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.import-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.import-opt-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--col-yellow, #FFF2C2);
+}
+
+.import-opt-desc {
+  font-size: 0.7rem;
+  color: rgba(255, 242, 194, 0.75);
+}
+

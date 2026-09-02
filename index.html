@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FishTools Studio — Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐟</text></svg>">
+
+  <!-- Google Fonts & Material Symbols Rounded -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,700,1,0">
+
+  <!-- Modular Stylesheets -->
+  <link rel="stylesheet" href="css/global.css?v=4.4">
+  <link rel="stylesheet" href="css/dashboard.css?v=4.4">
+</head>
+<body>
+
+  <!-- Floating Animated Doodles Background -->
+  <div class="doodle-layer" aria-hidden="true">
+    <span class="material-symbols-rounded doodle d1">movie</span>
+    <span class="material-symbols-rounded doodle d2">videocam</span>
+    <span class="material-symbols-rounded doodle d3">content_cut</span>
+    <span class="material-symbols-rounded doodle d4">mic</span>
+    <span class="material-symbols-rounded doodle d5">play_circle</span>
+    <span class="material-symbols-rounded doodle d6">closed_caption</span>
+    <span class="material-symbols-rounded doodle d7">brush</span>
+    <span class="material-symbols-rounded doodle d8">music_note</span>
+    <span class="material-symbols-rounded doodle d9">auto_awesome</span>
+    <span class="material-symbols-rounded doodle d10">crop</span>
+  </div>
+
+  <!-- Dashboard Page Layout -->
+  <div class="dash-wrap">
+
+    <!-- ╔══════════════════════════════════════════════════════════════════╗
+         ║ [GROUP 1: BRAND HEADER]                                          ║
+         ║ - Judul Aplikasi & Versi                                         ║
+         ╚══════════════════════════════════════════════════════════════════╝ -->
+    <header class="brand" id="dashboardBrand">
+      <h1 class="brand-title">FishTools Studio</h1>
+      <span class="brand-version">v1.0.0</span>
+    </header>
+
+    <!-- ╔══════════════════════════════════════════════════════════════════╗
+         ║ [GROUP 2: MAIN DASHBOARD PANEL]                                  ║
+         ║ Berisi: Buat Proyek, Tempat Preset, & Daftar Recent Projects     ║
+         ╚══════════════════════════════════════════════════════════════════╝ -->
+    <aside class="dash-panel" id="dashboardPanel">
+
+      <!-- ── [BAGIAN A: BUAT PROYEK BARU & IMPOR] ── -->
+      <div class="actions-row" id="sectionNewProject">
+        <!-- New Project: Rounded Top-Left corner -->
+        <button class="btn-action btn-new" id="btnNewProject" title="Buat Proyek Baru">
+          <span class="material-symbols-rounded btn-watermark">folder</span>
+          <span class="btn-label">New Project</span>
+        </button>
+
+        <!-- Import Project: Standard Rounded corners -->
+        <button class="btn-action btn-import" id="btnImportProject" title="Impor Proyek yang Ada">
+          <span class="material-symbols-rounded btn-watermark">download</span>
+          <span class="btn-label">Import Project</span>
+        </button>
+      </div>
+
+      <!-- ── [BAGIAN B: DAFTAR RECENT PROJECTS] ── -->
+      <div class="projects-scroll" id="sectionRecentProjects">
+        
+        <div class="section-label-header" style="margin-bottom: 0.2rem;">
+          <span class="section-title" style="color: var(--col-yellow);">Recent Projects</span>
+          <span id="recentCountBadge" style="font-size:0.7rem; color:var(--col-yellow); opacity:0.8; font-weight:700;">0 items</span>
+        </div>
+
+        <div id="recentProjectsContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Empty State (Shown when no projects exist) -->
+          <div class="empty-projects-state" id="emptyProjectsState">
+            <span class="material-symbols-rounded">folder_open</span>
+            <span class="empty-title">Belum ada proyek</span>
+            <span class="empty-sub">Klik "New Project" untuk mulai berkarya</span>
+          </div>
+        </div>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- ╔══════════════════════════════════════════════════════════════════╗
+       ║ [IMPORT CHOICE POP-UP MODAL DIALOG]                              ║
+       ║ - Pilihan Import File .fsp vs Convert Alight Motion XML         ║
+       ╚══════════════════════════════════════════════════════════════════╝ -->
+  <div class="modal-overlay" id="importChoiceModal">
+    <div class="am-modal-dialog" style="max-width: 380px;">
+      <div class="am-modal-header" style="margin-bottom: 16px; text-align: center;">
+        <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--col-yellow); margin-bottom: 4px;">Pilih Format Impor</h2>
+        <p style="font-size: 0.75rem; color: var(--col-cream); opacity: 0.8; margin: 0;">Pilih tipe file proyek yang ingin dibuka</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" class="btn-import-option" id="btnImportFspOption">
+          <div class="import-opt-icon"><span class="material-symbols-rounded">folder_zip</span></div>
+          <div class="import-opt-text">
+            <div class="import-opt-title">Import File .fsp</div>
+            <div class="import-opt-desc">File proyek asli FishTool Studio (.fsp / .json)</div>
+          </div>
+        </button>
+        <button type="button" class="btn-import-option" id="btnImportAmXmlOption">
+          <div class="import-opt-icon" style="color: #FAB778;"><span class="material-symbols-rounded">auto_fix_high</span></div>
+          <div class="import-opt-text">
+            <div class="import-opt-title">Convert dari Alight Motion XML</div>
+            <div class="import-opt-desc">Convert preset & proyek .xml Alight Motion</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="newProjectModal">
+    <div class="am-modal-dialog">
+      <!-- 1. Project Name Input with Clear (X) button -->
+      <div class="am-input-group">
+        <input type="text" id="inputProjectName" class="am-project-input" value="New Project 1" placeholder="Project Name" spellcheck="false">
+        <button type="button" class="am-input-clear" id="btnInputClear" title="Clear Name">
+          <span class="material-symbols-rounded">cancel</span>
+        </button>
+      </div>
+
+      <!-- 3. Corner-Bracket Aspect Ratio Row (16:9, 9:16, 4:5, 1:1, 4:3, custom) -->
+      <div class="am-ratio-row" id="ratioSelector">
+        <button type="button" class="am-ratio-box" data-ratio="16:9" data-w="1920" data-h="1080">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">16:9</span>
+        </button>
+        <button type="button" class="am-ratio-box selected" data-ratio="9:16" data-w="1080" data-h="1920">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">9:16</span>
+        </button>
+        <button type="button" class="am-ratio-box" data-ratio="4:5" data-w="1080" data-h="1350">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">4:5</span>
+        </button>
+        <button type="button" class="am-ratio-box" data-ratio="1:1" data-w="1080" data-h="1080">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">1:1</span>
+        </button>
+        <button type="button" class="am-ratio-box" data-ratio="4:3" data-w="1440" data-h="1080">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="am-ratio-label">4:3</span>
+        </button>
+        <button type="button" class="am-ratio-box am-ratio-pencil" data-ratio="custom" title="Custom Ratio">
+          <span class="am-bracket am-tl"></span><span class="am-bracket am-tr"></span>
+          <span class="am-bracket am-bl"></span><span class="am-bracket am-br"></span>
+          <span class="material-symbols-rounded am-pencil-icon">edit</span>
+        </button>
+      </div>
+
+      <!-- 4. Settings List (Resolution, Frame Rate, Background) -->
+      <div class="am-settings-list">
+        <!-- 1. Resolution Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Resolution</span>
+            <span class="am-setting-sub">Composition Size</span>
+            <span class="am-setting-dim" id="lblCompositionSize">1080 &times; 1920</span>
+          </div>
+
+          <!-- Preset Resolution Custom Themed Dropdown -->
+          <div class="am-custom-select" id="wrapSelectResolution">
+            <button type="button" class="am-select-trigger" id="triggerResolution">
+              <span class="am-trigger-val" id="valResolution">1080p (FHD)</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuResolution">
+              <div class="am-dropdown-item" data-value="4K">4K (UHD)</div>
+              <div class="am-dropdown-item selected" data-value="1080p">1080p (FHD)</div>
+              <div class="am-dropdown-item" data-value="720p">720p (HD)</div>
+            </div>
+          </div>
+
+          <!-- Custom Resolution Inputs [ W ] (🔗) [ H ] -->
+          <div class="am-custom-res-wrap" id="resCustomWrap" style="display: none;">
+            <input type="number" class="am-custom-res-input" id="customResW" value="1080" min="100" max="4096">
+            <button type="button" class="am-btn-link-aspect active" id="btnLinkAspect" title="Lock / Unlock Aspect Ratio">
+              <span class="material-symbols-rounded">link</span>
+            </button>
+            <input type="number" class="am-custom-res-input" id="customResH" value="1080" min="100" max="4096">
+          </div>
+        </div>
+
+        <!-- 2. Frame Rate Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Frame Rate</span>
+          </div>
+          <div class="am-custom-select" id="wrapSelectFps">
+            <button type="button" class="am-select-trigger" id="triggerFps">
+              <span class="am-trigger-val" id="valFps">30 fps</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuFps">
+              <div class="am-dropdown-item" data-value="60">60 fps</div>
+              <div class="am-dropdown-item selected" data-value="30">30 fps</div>
+              <div class="am-dropdown-item" data-value="24">24 fps</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Background Row -->
+        <div class="am-setting-row">
+          <div class="am-setting-label-group">
+            <span class="am-setting-title">Background</span>
+          </div>
+          <div class="am-custom-select" id="wrapSelectBackground">
+            <button type="button" class="am-select-trigger" id="triggerBackground">
+              <div class="am-swatch-box" id="bgSwatchBox" style="background: #000000;"></div>
+              <span class="am-trigger-val" id="valBackground">Black</span>
+              <span class="material-symbols-rounded am-select-chevron">keyboard_arrow_down</span>
+            </button>
+            <div class="am-custom-dropdown-menu" id="menuBackground">
+              <div class="am-dropdown-item selected" data-value="#000000" data-color="#000000">
+                <span class="am-item-swatch" style="background:#000000;"></span>
+                <span>Black</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#9E4310" data-color="#9E4310">
+                <span class="am-item-swatch" style="background:#9E4310;"></span>
+                <span>Terracotta</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FAB778" data-color="#FAB778">
+                <span class="am-item-swatch" style="background:#FAB778;"></span>
+                <span>Peach Apricot</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FFF2C2" data-color="#FFF2C2">
+                <span class="am-item-swatch" style="background:#FFF2C2;"></span>
+                <span>Custard Light</span>
+              </div>
+              <div class="am-dropdown-item" data-value="#FFFFFF" data-color="#FFFFFF">
+                <span class="am-item-swatch" style="background:#FFFFFF;"></span>
+                <span>White</span>
+              </div>
+              <div class="am-dropdown-item" data-value="transparent" data-color="#FFFFFF">
+                <span class="am-item-swatch swatch-trans" style="background: repeating-conic-gradient(#808080 0% 25%, #ffffff 0% 50%) 50% / 8px 8px;"></span>
+                <span>Transparent</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Create Button Action -->
+      <div class="am-action-row">
+        <button type="button" class="am-btn-submit" id="btnModalCreate">CREATE PROJECT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard JavaScript (Modularized) -->
+  <script src="js/modules/amXmlConverter.js?v=6.9"></script>
+  <script src="js/dashboard.js?v=6.9"></script>
+
+</body>
+</html>

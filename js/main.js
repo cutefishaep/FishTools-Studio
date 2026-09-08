@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUIProtections();
   initVersionFetcher();
   initProjectsFetcher();
+  initWelcomeModal();
 });
 
 /**
@@ -512,4 +513,70 @@ async function handleImportedFiles(files, dropzone, statusEl) {
       loadAndRender();
     }
   }, 300);
+}
+
+/**
+ * Automatically displays Welcome modal on first visit unless dismissed
+ */
+function initWelcomeModal() {
+  try {
+    const hasDismissed = localStorage.getItem('oft_seen_welcome_v1');
+    if (!hasDismissed) {
+      setTimeout(() => {
+        if (window.Modal) {
+          window.Modal.open('modal-welcome');
+        }
+      }, 450);
+    }
+  } catch (e) {
+    console.warn('Welcome modal init error:', e);
+  }
+}
+
+/**
+ * Closes welcome modal and saves dismissal preference if checked
+ */
+function closeWelcomeModal() {
+  const checkbox = document.getElementById('welcome-dismiss-checkbox');
+  if (checkbox && checkbox.checked) {
+    try {
+      localStorage.setItem('oft_seen_welcome_v1', '1');
+    } catch (e) {}
+  }
+  if (window.Modal) {
+    window.Modal.close();
+  }
+}
+
+/**
+ * Opens donate modal from inside welcome modal
+ */
+function openDonateFromWelcome() {
+  const checkbox = document.getElementById('welcome-dismiss-checkbox');
+  if (checkbox && checkbox.checked) {
+    try {
+      localStorage.setItem('oft_seen_welcome_v1', '1');
+    } catch (e) {}
+  }
+  if (window.Modal) {
+    window.Modal.open('modal-donate');
+  }
+}
+
+/**
+ * Toggles accordion preview for QRIS donation
+ */
+function toggleQrisDisplay() {
+  const content = document.getElementById('donate-qris-content');
+  const arrow = document.getElementById('qris-arrow-icon');
+  if (!content) return;
+
+  const isHidden = content.style.display === 'none' || !content.style.display;
+  if (isHidden) {
+    content.style.display = 'flex';
+    if (arrow) arrow.classList.add('is-open');
+  } else {
+    content.style.display = 'none';
+    if (arrow) arrow.classList.remove('is-open');
+  }
 }

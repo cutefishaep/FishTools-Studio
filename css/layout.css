@@ -68,11 +68,66 @@ html, body {
   position: relative;
   z-index: 10;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: flex-start;
   padding: 40px 24px 0 24px;
   user-select: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.studio-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+}
+
+.studio-top-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  color: var(--color-primary);
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--border-subtle);
+  outline: none;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.studio-top-btn svg {
+  display: block;
+  fill: currentColor;
+}
+
+.studio-top-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary-hover);
+  border-color: var(--color-primary);
+}
+
+.studio-top-btn:active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  transform: scale(0.95);
+}
+
+.btn-info-top {
+  padding: 0;
+  width: 34px;
+  justify-content: center;
 }
 
 .brand-wrapper {
@@ -634,12 +689,13 @@ html, body {
   }
 
   .studio-header {
-    height: 50vh;
-    height: 50dvh;
-    min-height: 50dvh;
-    max-height: 50dvh;
-    padding: 36px 20px 0 20px;
-    justify-content: flex-start;
+    height: auto;
+    min-height: auto;
+    max-height: 48dvh;
+    padding: 24px 20px 0 20px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
     align-items: flex-start;
   }
 
@@ -700,10 +756,12 @@ html, body {
     position: absolute;
     top: 36px;
     left: 32px;
-    width: 48%;
+    right: 32px;
+    width: auto;
     height: auto;
-    z-index: 10;
+    z-index: 20;
     padding: 0;
+    box-sizing: border-box;
   }
 
   .brand-title, .brand-subtitle {
@@ -758,9 +816,12 @@ html, body {
     position: absolute;
     top: 40px;
     left: 44px;
+    right: 44px;
+    width: auto;
     height: auto;
-    z-index: 10;
+    z-index: 20;
     padding: 0;
+    box-sizing: border-box;
   }
 
   .brand-title, .brand-subtitle {
@@ -816,9 +877,12 @@ html, body {
     position: absolute;
     top: 56px;
     left: 64px;
+    right: 64px;
+    width: auto;
     height: auto;
-    z-index: 10;
+    z-index: 20;
     padding: 0;
+    box-sizing: border-box;
   }
 
   .brand-title, .brand-subtitle {

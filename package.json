@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node server.js",
     "tunnel": "node server.js --tunnel",
+    "build": "node build.js",
     "start": "node server.js",
     "serve": "npx serve ."
   },

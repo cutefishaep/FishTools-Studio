@@ -4,3 +4,4 @@ cloudflared.exe
 .gemini/
 .system_generated/
 *.log
+dist/

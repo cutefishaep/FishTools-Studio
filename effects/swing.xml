@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect id="swing" name="Swing" category="movement" icon="assets/FXPH.svg">
+  <description>Pendulum-style angular swinging motion pivoting around custom origin point with decay</description>
+  <params>
+    <param id="frequency" label="Frequency" type="number" min="0.1" max="10" default="1.5" unit="Hz" />
+    <param id="swingAngle" label="Swing Angle" type="number" min="0" max="90" default="25" unit="°" />
+    <param id="originX" label="Anchor X" type="number" min="0" max="100" default="50" unit="%" />
+    <param id="originY" label="Anchor Y" type="number" min="0" max="100" default="50" unit="%" />
+    <param id="decay" label="Decay" type="number" min="0" max="10" default="0" unit="%" />
+  </params>
+</effect>

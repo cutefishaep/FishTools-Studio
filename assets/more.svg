@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+  <!-- Back sheet -->
+  <path d="M4 8H2v13c0 1.1.9 2 2 2h13v-2H4V8z"/>
+  <!-- Front sheet with top-right cutout -->
+  <path d="M8 4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2v-5h-2v5H8V6h5V4H8z"/>
+  <!-- Top-right plus with clean negative space -->
+  <path d="M19 1v3h-3v2h3v3h2V6h3V4h-3V1h-2z"/>
+</svg>

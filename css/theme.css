@@ -1,0 +1,204 @@
+/* ==========================================================================
+   THEME.CSS - Color Tokens, Theming Variables, and Typography
+   Default Palette: OpenFishTools Matcha Tea (1:1 Matched Tokens)
+   bg: #0d1109 | surface: #151a0f | surface2: #1d2415 | border: #2a3321 | accent: #98ce7b
+   ========================================================================== */
+
+/* --- Cal Sans Regular / SemiBold Web Font --- */
+@font-face {
+  font-family: 'Cal Sans';
+  src: url('../assets/fonts/CalSans-SemiBold.woff2') format('woff2'),
+       url('../assets/fonts/CalSans-SemiBold.woff') format('woff'),
+       url('../assets/fonts/CalSans-SemiBold.ttf') format('truetype');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- Disable Text Selection and Scrollbar UI Globally --- */
+*, *::before, *::after {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+:root {
+  /* --- Brand & Primary Accent Colors (Matcha Tea: #98ce7b, #7fb862) --- */
+  --color-primary: #98ce7b;             /* Fresh Matcha Tea Vibrant Green */
+  --color-primary-hover: #abdd90;       /* Soft Light Matcha Hover */
+  --color-primary-active: #7fb862;      /* Deep Leaf Matcha Active */
+  --color-accent: #7fb862;              /* Secondary Matcha Accent */
+  --color-accent-subtle: #5c6e4e;       /* Earthy Herbal Green */
+  --color-danger: #f87171;              /* Destructive Red Token */
+  --color-danger-hover: #ef4444;        /* Destructive Red Hover */
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+
+  /* --- Surface & Background Colors (Matcha Canvas & Surfaces) --- */
+  --bg-canvas: #0d1109;                 /* Deep Herbal Tea Dark Canvas (#0d1109) */
+  --bg-dashboard: #151a0f;              /* Dark Matcha Surface 1 (#151a0f) */
+  --bg-panel: #1d2415;                  /* Elevated Matcha Panel Surface 2 (#1d2415) */
+  --bg-panel-hover: #26301c;            /* Panel Hover Background */
+  --bg-panel-active: #151a0f;           /* Panel Active Background */
+  --bg-panel-inner: #151a0f;            /* Inner Item Background */
+  --bg-panel-inner-hover: #26301c;      /* Inner Item Hover (Distinct from #1d2415 panel) */
+  
+  /* --- Badge & Tag Colors --- */
+  --badge-prealpha-bg: #2a3321;         /* Muted Matcha Olive Pill */
+  --badge-prealpha-text: #98ce7b;       /* Bright Matcha Pill Text */
+  --badge-count-bg: #98ce7b;           /* Solid Matcha Fill Badge */
+  --badge-count-text: #0d1109;         /* Dark Text on Matcha Badge */
+
+  /* --- Timeline Track Accent Tokens --- */
+  --track-video: #98ce7b;               /* Video Track Bright Matcha */
+  --track-video-dark: #5c6e4e;          /* Video Track Hidden Shade */
+  --track-image: #abdd90;               /* Image Track Light Matcha */
+  --track-image-dark: #5c6e4e;          /* Image Track Hidden Shade */
+  --track-audio: #bbf29b;               /* Audio Track Vibrant Luminous Matcha (Bright & Clear) */
+  --track-audio-dark: #648250;          /* Audio Track Hidden Shade (Readable, Not Too Dark) */
+  --track-adj: #7fb862;                 /* Adjustment Track Leaf Matcha */
+  --track-adj-dark: #3f5233;            /* Adjustment Track Hidden Shade */
+  --track-color: #d4f8a8;               /* Color / Solid Track Pale Lime Matcha */
+  --track-color-dark: #6e8454;          /* Color Track Hidden Shade */
+
+  /* --- Tech Grid Overlay Colors --- */
+  --grid-line-thin: rgba(152, 206, 123, 0.18);
+  --grid-line-major: rgba(152, 206, 123, 0.45);
+  --grid-crosshair: #98ce7b;
+  --grid-dot: rgba(152, 206, 123, 0.55);
+
+  /* --- Typography Colors --- */
+  --text-primary: #98ce7b;              /* Main Matcha Brand Header/Accent */
+  --text-secondary: #98ce7b;            /* Fresh Matcha Brand Secondary Text */
+  --text-muted: #a5b39a;                /* Soft Herbal Sage Secondary Text */
+  --text-dim: #5c6e4e;                  /* Earthy Muted Indicator */
+
+  /* --- Flat Styling (No blur, no glow, no drop shadow) --- */
+  --border-panel: #2a3321;              /* Solid Panel & Divider Border */
+  --border-subtle: rgba(152, 206, 123, 0.22);
+  --border-focus: #98ce7b;
+  --shadow-panel: none;
+  --shadow-button-glow: none;
+  --shadow-active: none;
+
+  /* --- Font Families --- */
+  --font-brand: 'Cal Sans', sans-serif;
+  --font-mono: 'Cal Sans', sans-serif;
+}
+
+/* Optional Alternate Themes (Full 100% token coverage for all windows, containers & components) */
+[data-theme="cyber-cyan"] {
+  /* Brand & Accents */
+  --color-primary: #00e5ff;
+  --color-primary-hover: #5df2ff;
+  --color-primary-active: #00b4c8;
+  --color-accent: #008ba3;
+  --color-accent-subtle: #006b7d;
+  --color-danger: #ff5370;
+  --color-danger-hover: #ff3355;
+  --color-danger-bg: rgba(255, 83, 112, 0.15);
+
+  /* Surfaces & Containers */
+  --bg-canvas: #040d14;
+  --bg-dashboard: #0a1e28;
+  --bg-panel: #0c3040;
+  --bg-panel-hover: #104157;
+  --bg-panel-active: #08232f;
+  --bg-panel-inner: #092836;
+  --bg-panel-inner-hover: #144f69;
+
+  /* Badges */
+  --badge-prealpha-bg: #092836;
+  --badge-prealpha-text: #00e5ff;
+  --badge-count-bg: #00e5ff;
+  --badge-count-text: #040d14;
+
+  /* Timeline Track Tokens */
+  --track-video: #00e5ff;
+  --track-video-dark: #006b7d;
+  --track-image: #5df2ff;
+  --track-image-dark: #006b7d;
+  --track-audio: #6ee7b7;
+  --track-audio-dark: #0f766e;
+  --track-adj: #008ba3;
+  --track-adj-dark: #092836;
+
+  /* Grid Overlay */
+  --grid-line-thin: rgba(0, 229, 255, 0.18);
+  --grid-line-major: rgba(0, 229, 255, 0.45);
+  --grid-crosshair: #00e5ff;
+  --grid-dot: rgba(0, 229, 255, 0.55);
+
+  /* Typography */
+  --text-primary: #00e5ff;
+  --text-secondary: #7dd3fc;
+  --text-muted: #008ba3;
+  --text-dim: #005664;
+
+  /* Borders */
+  --border-panel: #144f69;
+  --border-subtle: rgba(0, 229, 255, 0.22);
+  --border-focus: #00e5ff;
+}
+
+[data-theme="amber-terminal"] {
+  /* Brand & Accents */
+  --color-primary: #ffaa00;
+  --color-primary-hover: #ffc44d;
+  --color-primary-active: #cc8800;
+  --color-accent: #a86c0c;
+  --color-accent-subtle: #805309;
+  --color-danger: #ff5252;
+  --color-danger-hover: #e04848;
+  --color-danger-bg: rgba(255, 82, 82, 0.15);
+
+  /* Surfaces & Containers */
+  --bg-canvas: #120b02;
+  --bg-dashboard: #241605;
+  --bg-panel: #38240a;
+  --bg-panel-hover: #4d310e;
+  --bg-panel-active: #291a07;
+  --bg-panel-inner: #2f1e08;
+  --bg-panel-inner-hover: #54360e;
+
+  /* Badges */
+  --badge-prealpha-bg: #2f1e08;
+  --badge-prealpha-text: #ffaa00;
+  --badge-count-bg: #ffaa00;
+  --badge-count-text: #120b02;
+
+  /* Timeline Track Tokens */
+  --track-video: #ffaa00;
+  --track-video-dark: #805309;
+  --track-image: #ffc44d;
+  --track-image-dark: #805309;
+  --track-audio: #fde047;
+  --track-audio-dark: #926d15;
+  --track-adj: #cc8800;
+  --track-adj-dark: #2f1e08;
+
+  /* Grid Overlay */
+  --grid-line-thin: rgba(255, 170, 0, 0.18);
+  --grid-line-major: rgba(255, 170, 0, 0.45);
+  --grid-crosshair: #ffaa00;
+  --grid-dot: rgba(255, 170, 0, 0.55);
+
+  /* Typography */
+  --text-primary: #ffaa00;
+  --text-secondary: #fcd34d;
+  --text-muted: #a86c0c;
+  --text-dim: #613e06;
+
+  /* Borders */
+  --border-panel: #54360e;
+  --border-subtle: rgba(255, 170, 0, 0.22);
+  --border-focus: #ffaa00;
+}

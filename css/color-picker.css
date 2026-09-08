@@ -1,0 +1,393 @@
+/* ==========================================================================
+   FishTool Studio - Universal Color Picker Popover (.color-picker-popover)
+   Strictly compliant with AGENTS.md:
+   - NO box-shadow, NO text-shadow, NO blur, NO drop-shadow
+   - 100% Theme Token Binding from css/theme.css
+   - 100% Cal Sans typography
+   - Guaranteed contrast & dynamic foreground adaptation
+   ========================================================================== */
+
+/* Color Picker Popover Card Integration */
+.color-picker-popover-card {
+  padding: 0;
+  width: 326px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--color-primary);
+  box-shadow: none;
+}
+
+.color-picker-standalone {
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 326px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  box-sizing: border-box;
+}
+
+.color-picker-inner {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 11px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Left Main Area */
+.color-picker-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-panel);
+}
+
+/* Header Bar */
+.color-picker-header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  box-sizing: border-box;
+  transition: background-color 0.08s ease;
+}
+
+.color-picker-header-label {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-brand);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: color 0.08s ease;
+}
+
+.color-picker-add-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  transition: transform 0.08s ease, opacity 0.12s ease;
+}
+
+.color-picker-add-btn:hover {
+  opacity: 0.8;
+}
+
+.color-picker-add-btn:active {
+  transform: scale(0.9);
+}
+
+/* Body */
+.color-picker-body {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 110px;
+}
+
+/* Tab 1: Palette View */
+.color-picker-view-palette {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.color-picker-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.color-picker-swatch-item {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  transition: transform 0.08s ease, border-color 0.12s ease;
+  box-sizing: border-box;
+}
+
+.color-picker-swatch-item:hover {
+  transform: scale(1.08);
+  border-color: #ffffff;
+}
+
+.color-picker-swatch-item.is-selected {
+  border: 2px solid var(--color-primary);
+}
+
+.color-picker-saved-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border-panel);
+  padding-top: 6px;
+}
+
+.color-picker-saved-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.color-picker-saved-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+/* Tab 2: Spectrum View */
+.color-picker-view-spectrum {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* SV Rect */
+.color-picker-sv-box {
+  width: 58px;
+  height: 110px;
+  border-radius: 6px;
+  position: relative;
+  overflow: visible;
+  cursor: crosshair;
+  touch-action: none;
+  border: 1px solid var(--border-panel);
+  box-sizing: border-box;
+}
+
+.color-picker-sv-white {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: linear-gradient(to right, #ffffff, transparent);
+  pointer-events: none;
+}
+
+.color-picker-sv-black {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: linear-gradient(to bottom, transparent, #000000);
+  pointer-events: none;
+}
+
+.color-picker-sv-cursor {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 3;
+}
+
+/* Hue Ring */
+.color-picker-wheel-box {
+  width: 110px;
+  height: 110px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-picker-wheel-ring {
+  width: 106px;
+  height: 106px;
+  border-radius: 50%;
+  background: conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.color-picker-wheel-ring-mask {
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  background-color: var(--bg-panel);
+}
+
+.color-picker-wheel-cursor {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;
+  box-sizing: border-box;
+}
+
+.color-picker-wheel-center {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  border: 1px solid var(--border-panel);
+  pointer-events: none;
+  transition: background-color 0.08s ease;
+  box-sizing: border-box;
+}
+
+.color-picker-wheel-center-hex {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+  transition: color 0.08s ease;
+}
+
+.color-picker-wheel-center-pct {
+  font-family: var(--font-brand);
+  font-size: 9px;
+  font-weight: 700;
+  transition: color 0.08s ease;
+}
+
+.color-picker-wheel-arrow {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--text-muted);
+  transform: rotate(-35deg);
+  pointer-events: none;
+}
+
+/* Alpha Slider */
+.color-picker-alpha-box {
+  width: 18px;
+  height: 110px;
+  border-radius: 9px;
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+  overflow: visible;
+  border: 1px solid var(--border-panel);
+  box-sizing: border-box;
+  background-image:
+    linear-gradient(45deg, #777 25%, transparent 25%),
+    linear-gradient(-45deg, #777 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #777 75%),
+    linear-gradient(-45deg, transparent 75%, #777 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 0 3px, 3px -3px, -3px 0px;
+}
+
+.color-picker-alpha-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(to bottom, #3d4cf5, transparent);
+  pointer-events: none;
+}
+
+.color-picker-alpha-cursor {
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 3;
+}
+
+/* Right Tool Sidebar */
+.color-picker-sidebar {
+  width: 46px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel-inner);
+}
+
+.color-picker-tab-btn {
+  flex: 1;
+  min-height: 46px;
+  border: none;
+  border-bottom: 1px solid var(--border-panel);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.12s ease, background-color 0.12s ease;
+  box-sizing: border-box;
+}
+
+.color-picker-tab-btn:last-child {
+  border-bottom: none;
+}
+
+.color-picker-tab-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.color-picker-tab-btn.is-active {
+  color: var(--color-primary);
+  background-color: var(--bg-panel);
+}
+
+.color-picker-tab-btn.is-active .color-picker-tab-icon-wrap {
+  border: 1.5px solid var(--color-primary);
+  border-radius: 6px;
+}
+
+.color-picker-tab-icon-wrap {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid transparent;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+}
+
+.color-picker-tab-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}

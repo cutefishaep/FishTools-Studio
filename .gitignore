@@ -1,0 +1,6 @@
+node_modules/
+cloudflared.exe
+.vercel/
+.gemini/
+.system_generated/
+*.log

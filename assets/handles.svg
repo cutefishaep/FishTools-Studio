@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -60 1080 1080" fill="none">
+  <!-- Outer Selection Bounding Box (Exact 960x960 bounds with rounded squircle contour) -->
+  <rect x="0" y="0" width="960" height="960" rx="216" stroke="#22c55e" stroke-width="6" stroke-dasharray="16 12" fill="none" opacity="0.6" />
+
+  <!-- Corner 1: TOP-LEFT Corner (x=0, y=0) -->
+  <!-- Diagonal corner handle arm extending outward/inward -->
+  <line x1="-30" y1="-30" x2="120" y2="120" stroke="#22c55e" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <circle cx="-30" cy="-30" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <circle cx="120" cy="120" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <!-- Corner Anchor Node (■) -->
+  <rect x="-20" y="-20" width="40" height="40" rx="6" fill="#22c55e" stroke="#0a120a" stroke-width="6" />
+
+  <!-- Corner 2: TOP-RIGHT Corner (x=960, y=0) -->
+  <line x1="990" y1="-30" x2="840" y2="120" stroke="#22c55e" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <circle cx="990" cy="-30" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <circle cx="840" cy="120" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <rect x="940" y="-20" width="40" height="40" rx="6" fill="#22c55e" stroke="#0a120a" stroke-width="6" />
+
+  <!-- Corner 3: BOTTOM-LEFT Corner (x=0, y=960) -->
+  <line x1="-30" y1="990" x2="120" y2="840" stroke="#22c55e" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <circle cx="-30" cy="990" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <circle cx="120" cy="840" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <rect x="-20" y="940" width="40" height="40" rx="6" fill="#22c55e" stroke="#0a120a" stroke-width="6" />
+
+  <!-- Corner 4: BOTTOM-RIGHT Corner (x=960, y=960) -->
+  <line x1="990" y1="990" x2="840" y2="840" stroke="#22c55e" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <circle cx="990" cy="990" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <circle cx="840" cy="840" r="18" stroke="#22c55e" stroke-width="6" fill="#0a120a" />
+  <rect x="940" y="940" width="40" height="40" rx="6" fill="#22c55e" stroke="#0a120a" stroke-width="6" />
+
+  <!-- 4 Midpoint Scale Anchors (▫) -->
+  <rect x="462" y="-18" width="36" height="36" rx="6" fill="#0a120a" stroke="#22c55e" stroke-width="6" />
+  <rect x="462" y="942" width="36" height="36" rx="6" fill="#0a120a" stroke="#22c55e" stroke-width="6" />
+  <rect x="-18" y="462" width="36" height="36" rx="6" fill="#0a120a" stroke="#22c55e" stroke-width="6" />
+  <rect x="942" y="462" width="36" height="36" rx="6" fill="#0a120a" stroke="#22c55e" stroke-width="6" />
+
+  <!-- Top Rotation Stem & Control Handle (○) -->
+  <line x1="480" y1="0" x2="480" y2="-45" stroke="#22c55e" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+  <circle cx="480" cy="-45" r="18" fill="#22c55e" stroke="#0a120a" stroke-width="6" />
+</svg>

@@ -1,0 +1,1241 @@
+/* ==========================================================================
+   EFFECTS-RACK.CSS - Modular Layer Effects Rack UI Component
+   - Pure flat styling, zero blur, zero box-shadow, zero gradients
+   - Strict CSS token binding from css/theme.css
+   - 100% Cal Sans typography
+   ========================================================================== */
+
+/* 1. Effects Rack Subview Container Layout */
+.effects-rack-layout {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  width: 100%;
+  height: 260px;
+  min-height: 230px;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.effects-rack-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* 2. Top Header Bar (Navigation & Quick Add Action) */
+.effects-rack-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-panel);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.effects-rack-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.effects-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.effects-back-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-inner);
+}
+
+.effects-back-btn:active {
+  color: var(--color-primary);
+  background-color: var(--bg-canvas);
+}
+
+.effects-back-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.effects-rack-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.effects-rack-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+/* More Options Wrap & Button */
+.effects-rack-more-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-effects-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.btn-effects-more:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+  border-color: var(--border-panel);
+}
+
+.btn-effects-more svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* More Options Menu Popover */
+.effects-rack-more-menu {
+  display: none;
+  position: absolute;
+  top: 34px;
+  right: 0;
+  width: 150px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 8px;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 150;
+  user-select: none;
+}
+
+.effects-rack-more-menu.is-open {
+  display: flex;
+}
+
+.effects-rack-more-item {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
+}
+
+.effects-rack-more-item:last-child {
+  border-bottom: none;
+}
+
+.effects-rack-more-item:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary);
+}
+
+/* 3. Small "Add Effects" Button (Compact Pill / Action Button) */
+.btn-add-effect {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border: none;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, transform 0.08s ease;
+}
+
+.btn-add-effect:hover {
+  background-color: var(--color-primary-hover);
+  color: var(--bg-canvas);
+}
+
+.btn-add-effect:active {
+  background-color: var(--color-primary-active);
+  color: var(--bg-canvas);
+  transform: scale(0.96);
+}
+
+.btn-add-effect svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+/* 4. Rack Body & Effect Cards Stack */
+.effects-rack-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  gap: 8px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 5. Empty State Container */
+.effects-rack-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 160px;
+  text-align: center;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+
+.effects-empty-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--bg-panel-inner);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.effects-empty-icon-wrap svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.effects-empty-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.effects-empty-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 250px;
+  line-height: 1.4;
+}
+
+/* 6. Modular Effect Card in Rack (Ready for layer effects) */
+.effects-rack-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 10px;
+  background-color: var(--bg-panel-inner);
+  border-radius: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.effects-rack-item:hover {
+  background-color: var(--bg-panel-inner-hover);
+}
+
+.effects-rack-item.is-selected {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.effects-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.effects-item-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.effects-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effects-item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.effects-item-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.effects-item-action-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.effects-rack-item.is-selected .effects-item-action-btn {
+  color: var(--bg-canvas);
+}
+
+.effects-rack-item.is-selected .effects-item-action-btn:hover {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.effects-item-action-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* 7. Effect Card & Inspector Controls (Matches Reference Design) */
+.effects-rack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.effects-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  border-radius: 8px;
+  overflow: visible;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.effects-card:not(.is-expanded) {
+  overflow: hidden;
+}
+
+.effects-card:not(.is-expanded).has-kebab-open {
+  overflow: visible;
+}
+
+/* Underneath Swipe-to-Delete Surface */
+.effects-card-swipe-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background-color: var(--color-danger);
+  border-radius: 7px;
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 14px;
+  gap: 6px;
+  color: var(--bg-canvas);
+  z-index: 1;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.effects-card:not(.is-expanded) .effects-card-swipe-bg {
+  display: flex;
+}
+
+.effects-swipe-trash-icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.effects-card.is-swipe-active .effects-swipe-trash-icon {
+  transform: scale(1.2);
+}
+
+.effects-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 10px;
+  background-color: var(--bg-panel-inner);
+  border-radius: 8px;
+  user-select: none;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.effects-card.is-expanded .effects-card-header {
+  border-bottom: 1px solid var(--border-panel);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.effects-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.effects-card-caret-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 0;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+
+.effects-card-caret-btn:hover {
+  color: var(--text-primary);
+}
+
+.effects-card-caret {
+  width: 10px;
+  height: 10px;
+  fill: currentColor;
+  transition: transform 0.15s ease;
+}
+
+.effects-card.is-expanded .effects-card-caret {
+  transform: rotate(90deg);
+}
+
+.effects-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Header Right Actions */
+.effects-card-collapsed-actions,
+.effects-card-expanded-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.effects-card:not(.is-expanded) .effects-card-expanded-actions {
+  display: none !important;
+}
+
+.effects-card.is-expanded .effects-card-collapsed-actions {
+  display: none !important;
+}
+
+.effects-card:not(.is-expanded) .effects-card-controls {
+  display: none !important;
+}
+
+.effects-card-eye-btn,
+.effects-card-kebab-btn,
+.effects-card-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.effects-card-eye-btn:hover,
+.effects-card-kebab-btn:hover,
+.effects-card-delete-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.effects-card-eye-btn.is-active {
+  color: var(--text-primary);
+}
+
+.effects-card-eye-btn:not(.is-active) {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.effects-card-eye-btn svg,
+.effects-card-kebab-btn svg,
+.effects-card-delete-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.effects-card-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: color 0.12s ease;
+}
+
+.effects-card-drag-handle:hover {
+  color: var(--text-primary);
+}
+
+.effects-card-drag-handle:active {
+  cursor: grabbing;
+  color: var(--color-primary);
+}
+
+.effects-card-drag-handle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.effects-card.is-dragging {
+  opacity: 0.45;
+  border-color: var(--color-primary);
+}
+
+/* Kebab Popover Menu */
+.effects-kebab-menu {
+  display: none;
+  position: absolute;
+  top: 38px;
+  right: 10px;
+  width: 180px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 8px;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  user-select: none;
+}
+
+.effects-kebab-menu.is-open {
+  display: flex;
+}
+
+.effects-kebab-item {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.effects-kebab-item:last-child {
+  border-bottom: none;
+}
+
+.effects-kebab-item:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary);
+}
+
+/* Controls Box with Scrubber Ruler */
+.effects-card-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.effects-control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+}
+
+.effects-param-select-btn {
+  width: 85px;
+  height: 38px;
+  flex-shrink: 0;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  padding: 0 8px;
+  transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  user-select: none;
+}
+
+.effects-param-select-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.effects-param-select-btn.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+/* Ruler Scrubber / Jog Wheel (Matches Scale & Camera Jog Wheels) */
+.effects-ruler-scrubber,
+.effects-control-row .jog-wheel-container {
+  flex: 1;
+  height: 38px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+  margin: 0;
+}
+
+.effects-control-row .jog-wheel-ticks,
+.effects-ruler-scrubber .jog-wheel-ticks {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  right: 0;
+  background-image: linear-gradient(
+    to right,
+    var(--text-muted) 0px,
+    var(--text-muted) 1px,
+    transparent 1px,
+    transparent 12px
+  );
+  background-size: 12px 100%;
+  background-repeat: repeat-x;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.effects-control-row .jog-wheel-needle,
+.effects-ruler-scrubber .jog-wheel-needle {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background-color: var(--color-primary);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.effects-param-value-btn {
+  width: 58px;
+  height: 38px;
+  flex-shrink: 0;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.effects-param-value-btn:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+.effects-param-label-static {
+  width: 85px;
+  height: 38px;
+  flex-shrink: 0;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+/* Segmented Select Group (e.g. Blend Modes) */
+.effects-segmented-group {
+  flex: 1;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  padding: 3px;
+  box-sizing: border-box;
+}
+
+.effects-segmented-btn {
+  flex: 1;
+  height: 100%;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  text-transform: capitalize;
+}
+
+.effects-segmented-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.effects-segmented-btn.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  font-weight: 700;
+}
+
+/* Color Picker Control Row */
+.effects-color-picker-wrap {
+  flex: 1;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.effects-color-swatch-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  display: block;
+  box-sizing: border-box;
+  padding: 3px;
+  background-color: var(--bg-canvas);
+  transition: border-color 0.12s ease;
+  outline: none;
+}
+
+.effects-color-swatch-btn:hover {
+  border-color: var(--color-primary);
+}
+
+.effects-color-swatch-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.effects-color-hex-input {
+  flex: 1;
+  height: 38px;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+  outline: none;
+  text-transform: uppercase;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+}
+
+.effects-color-hex-input:focus {
+  border-color: var(--color-primary);
+}
+
+.effects-rack-toast {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  z-index: 200;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* 8. Mobile Responsive Refinements */
+@media (max-width: 600px) {
+  .effects-rack-layout {
+    height: 230px;
+    min-height: 210px;
+  }
+}
+
+/* ==========================================================================
+   8. EFFECTS GALLERY PANEL (.effects-gallery-layout)
+   - Categories tabs bar (scrollable horizontal pills)
+   - Real-time search filter bar
+   - Multi-column card grid with category badges & icons
+   - Pure flat styling, zero blur, zero box-shadow, zero gradients
+   ========================================================================== */
+
+.effects-gallery-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Header with Back, Title, and Search Input */
+.effects-gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px 0 6px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-panel);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  gap: 10px;
+  z-index: 2;
+}
+
+.effects-gallery-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.effects-gallery-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.effects-gallery-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  border-radius: 6px;
+  flex: 1;
+  max-width: 180px;
+  box-sizing: border-box;
+}
+
+.effects-gallery-search-box svg {
+  width: 13px;
+  height: 13px;
+  fill: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.effects-gallery-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 11px;
+  width: 100%;
+  padding: 0;
+}
+
+.effects-gallery-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Scrollable Category Grid Body */
+.effects-gallery-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px 20px;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 2x2 Category Grid (Persegi Panjang) */
+.effects-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.effects-category-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  padding: 12px 10px;
+  background-color: var(--bg-panel-inner);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 10px;
+  border: 1px solid var(--border-panel);
+  cursor: pointer;
+  text-align: center;
+  overflow: hidden;
+  transition: border-color 0.12s ease, transform 0.08s ease;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.effects-category-card:hover {
+  border-color: var(--color-primary);
+}
+
+.effects-category-card:active {
+  transform: scale(0.97);
+}
+
+.effects-category-card.is-selected {
+  border-color: var(--color-primary);
+}
+
+.effects-category-card-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: var(--bg-canvas);
+  opacity: 0.5;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+.effects-category-card:hover .effects-category-card-overlay {
+  opacity: 0.35;
+}
+
+.effects-category-card.is-selected .effects-category-card-overlay {
+  opacity: 0.25;
+}
+
+.effects-category-name {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  letter-spacing: 0.2px;
+  margin: 0;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+  max-width: 90%;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.effects-category-card:hover .effects-category-name,
+.effects-category-card.is-selected .effects-category-name {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+/* Empty search state */
+.effects-gallery-no-results {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 600px) {
+  .effects-gallery-layout {
+    height: 100%;
+    min-height: 320px;
+  }
+  .effects-category-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .effects-category-card {
+    min-height: 100px;
+    padding: 10px 8px;
+  }
+  .effects-gallery-search-box {
+    max-width: 130px;
+  }
+  .effects-items-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 6px;
+  }
+  .effects-gallery-item-card {
+    max-width: 82px;
+  }
+}
+
+/* 9. Category Items View & Effect Cards in Gallery */
+.effects-items-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+}
+
+.effects-items-header {
+  display: flex;
+  align-items: center;
+  padding-bottom: 2px;
+}
+
+.effects-items-category-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.effects-items-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 8px;
+  box-sizing: border-box;
+  justify-items: center;
+}
+
+.effects-gallery-item-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  box-sizing: border-box;
+  text-align: center;
+  width: 100%;
+  max-width: 88px;
+}
+
+.effects-gallery-item-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, transform 0.08s ease;
+}
+
+.effects-gallery-item-thumb img,
+.effects-gallery-item-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.effects-gallery-item-card:hover .effects-gallery-item-thumb {
+  border-color: var(--color-primary);
+}
+
+.effects-gallery-item-card:active .effects-gallery-item-thumb {
+  transform: scale(0.95);
+}
+
+.effects-gallery-item-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  text-align: center;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.12s ease;
+  padding: 0 1px;
+}
+
+.effects-gallery-item-card:hover .effects-gallery-item-name,
+.effects-gallery-item-card:active .effects-gallery-item-name {
+  color: var(--color-primary);
+}

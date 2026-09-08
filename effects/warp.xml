@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect id="warp" name="Warp" category="warp" icon="assets/FXPH.svg">
+  <description>After Effects style geometric warp with Arc, Bulge, Twist, Fisheye and Squeeze styles</description>
+  <params>
+    <param id="warpStyle" label="Style" type="select" default="arc" options="arc,bulge,twist,fisheye,squeeze" />
+    <param id="bend" label="Bend" type="number" min="-100" max="100" default="30" unit="%" />
+    <param id="distortH" label="Distort H" type="number" min="-100" max="100" default="0" unit="%" />
+    <param id="distortV" label="Distort V" type="number" min="-100" max="100" default="0" unit="%" />
+  </params>
+</effect>

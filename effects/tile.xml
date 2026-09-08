@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect id="tile" name="Tile" category="warp" icon="assets/FXPH.svg">
+  <description>Optimal seamless motion tile repeat with mirror switch</description>
+  <params>
+    <param id="mirror" label="Mirror" type="switch" default="1" />
+    <param id="scale" label="Scale" type="number" min="10" max="300" default="100" unit="%" />
+    <param id="offsetX" label="Offset X" type="number" min="-100" max="100" default="0" unit="%" />
+    <param id="offsetY" label="Offset Y" type="number" min="-100" max="100" default="0" unit="%" />
+  </params>
+</effect>

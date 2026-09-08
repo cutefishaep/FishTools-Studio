@@ -1,0 +1,834 @@
+/* ==========================================================================
+   LAYOUT.CSS - Dimensions, Responsive Layouts, & Component Structure
+   Supports: Mobile (50/50 split, full-width) and Tablet/Desktop (compact 350-380px 
+   docked to bottom-right, 50% height).
+   All colors reference theme.css variables.
+   ========================================================================== */
+
+/* --- Universal Reset & Disables --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  font-family: var(--font-brand);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+  font-family: var(--font-brand);
+  color: var(--text-primary);
+  touch-action: pan-x pan-y;
+}
+
+/* ==========================================================================
+   APP VIEWPORT SHELL (Full Screen Multi-Device Container)
+   ========================================================================== */
+.app-viewport {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   HEADER / BRAND SECTION (Top Half on Mobile)
+   ========================================================================== */
+.studio-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 40px 24px 0 24px;
+  user-select: none;
+}
+
+.brand-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-title {
+  font-family: var(--font-brand);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.05;
+  color: var(--color-primary);
+}
+
+.brand-subtitle-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-subtitle {
+  font-family: var(--font-brand);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.05;
+  color: var(--color-primary);
+}
+
+.badge-pre-alpha {
+  background-color: var(--badge-prealpha-bg);
+  color: var(--badge-prealpha-text);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-4px);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ==========================================================================
+   AMBIENT MINIMALIST EDITING DOODLES (Graph, Timeline, Keyframe, Film, etc.)
+   ========================================================================== */
+.studio-doodles-container {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+.studio-doodles-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   TECHNICAL GRID BACKGROUND
+   - Tablet ke atas: DI TENGAH PERSIS (centered horizontally & vertically)
+   - Mobile: di-override di media query mobile (background besar di 25vh)
+   ========================================================================== */
+.tech-grid-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(340px, 35vw, 420px);
+  height: clamp(340px, 35vw, 420px);
+  aspect-ratio: 1/1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tech-grid-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ==========================================================================
+   ICON BUILD FRAMEWORK (Icon Being Built / CAD Blueprint Construction)
+   ========================================================================== */
+.icon-build-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44%;
+  height: 44%;
+  max-width: 185px;
+  max-height: 185px;
+  aspect-ratio: 1/1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+/* ==========================================================================
+   OBJECT CORNER HANDLES (Vector Path Node & Bezier Tangent Controls)
+   - Handles snap directly onto logo borders and corners (Zero Gap)
+   ========================================================================== */
+.object-handles-svg {
+  position: absolute;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Subtle Outer Path Contour */
+.handle-contour {
+  stroke: var(--color-primary);
+  stroke-width: 4;
+  stroke-dasharray: 12 12;
+  fill: none;
+  opacity: 0.5;
+}
+
+/* Tangent Handle Control Arms */
+.handle-arm {
+  stroke: var(--color-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+
+/* Tangent Handle Knobs (○) */
+.handle-circle-knob {
+  stroke: var(--color-primary);
+  stroke-width: 5;
+  fill: var(--bg-canvas);
+}
+
+/* Corner Vertex Anchor Nodes (■) */
+.handle-vertex-node {
+  fill: var(--color-primary);
+  stroke: var(--bg-canvas);
+  stroke-width: 4;
+}
+
+/* Midpoint Scale Nodes (▫) */
+.handle-mid-node {
+  fill: var(--bg-canvas);
+  stroke: var(--color-primary);
+  stroke-width: 5;
+}
+
+/* Rotation Handle Knob (Top Center) */
+.handle-rotate-knob {
+  fill: var(--color-primary);
+  stroke: var(--bg-canvas);
+  stroke-width: 4;
+}
+
+/* Enlarged App Icon inside the frame (100% Clean and Unobstructed) */
+.grid-center-icon {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1/1;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   DASHBOARD CONTAINER
+   - Ujung kiri atas tetap rounded
+   - Ujung kanan atas, kanan bawah, kiri bawah siku flat (0)
+   - Tanpa outline / border
+   ========================================================================== */
+.dashboard-container {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: var(--bg-dashboard);
+  border: none;
+  outline: none;
+  border-top-left-radius: 64px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   ACTION BUTTONS ROW (New Project & Import Project)
+   ========================================================================== */
+.action-buttons-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Generic Button Interactive States - 100% Solid with 50% Watermark Icon */
+.action-btn {
+  background-color: var(--bg-panel);
+  border: none;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  transition: background-color 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Watermark Background Icon (Enlarged, solid filled, top-left, rotated -30 deg) */
+.btn-bg-icon {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  width: 65%;
+  height: 65%;
+  max-width: 64px;
+  max-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  opacity: 0.9;
+  transform: rotate(-30deg);
+  transform-origin: center center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease, opacity 0.2s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.btn-bg-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Hover - Inverted High-Contrast (Bright Surface, Dark Text & Icon) */
+.action-btn:hover {
+  background-color: var(--color-primary);
+}
+
+.action-btn:hover .btn-bg-icon {
+  transform: rotate(-22deg) scale(1.06);
+  color: var(--bg-canvas);
+  opacity: 0.95;
+}
+
+.action-btn:hover .action-btn-title {
+  color: var(--bg-canvas);
+}
+
+/* Press (Active) Feedback */
+.action-btn:active {
+  background-color: var(--color-primary-active);
+}
+
+.action-btn:active .btn-bg-icon {
+  transform: rotate(-36deg) scale(0.96);
+  color: var(--bg-canvas);
+  opacity: 0.95;
+}
+
+.action-btn:active .action-btn-title {
+  color: var(--bg-canvas);
+}
+
+/* Specific Asymmetric Border Radius for "New Project" (Concentric with Dashboard: 64px outer - 16px padding = 48px inner) */
+.btn-new-project {
+  border-top-left-radius: 48px;
+  border-top-right-radius: 14px;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+/* Symmetrical Border Radius for "Import Project" */
+.btn-import-project {
+  border-radius: 14px;
+}
+
+.action-btn-title {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-brand);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--color-primary);
+  line-height: 1.15;
+  text-align: right;
+  transition: color 0.15s ease;
+}
+
+/* ==========================================================================
+   YOUR PROJECT CARD CONTAINER & SCROLLABLE LIST
+   ========================================================================== */
+.projects-panel {
+  background-color: var(--bg-panel);
+  border-radius: 16px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 14px 16px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  outline: none;
+  overflow: hidden;
+}
+
+.projects-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.projects-title {
+  font-family: var(--font-brand);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--color-primary);
+}
+
+/* Solid Count Badge (Number only, solid fill, no outline) */
+.project-count-badge {
+  border: none;
+  outline: none;
+  border-radius: 6px;
+  padding: 2px 8px;
+  min-width: 22px;
+  height: 22px;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--badge-count-text);
+  background-color: var(--badge-count-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Project List Content - Scrollable when projects exceed view */
+.projects-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.projects-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual Project Item Card - 100% Solid & Clean 2-Row Layout */
+.project-item {
+  background-color: var(--bg-panel-inner);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.project-row-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-name {
+  font-family: var(--font-brand);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+
+.project-size {
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.project-row-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.project-saved {
+  font-family: var(--font-brand);
+  color: var(--text-muted);
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.project-specs {
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: -0.2px;
+  flex-shrink: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+/* Project Item Hover & Press: Inverted High-Contrast (Bright Surface, Dark Foreground) */
+.project-item:hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.project-item:hover .project-name {
+  color: var(--bg-canvas);
+}
+
+.project-item:hover .project-size {
+  color: var(--bg-canvas);
+}
+
+.project-item:hover .project-saved {
+  color: var(--bg-canvas);
+  opacity: 0.82;
+}
+
+.project-item:hover .project-specs {
+  color: var(--bg-canvas);
+  opacity: 0.82;
+}
+
+.project-item:active {
+  background-color: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
+
+.project-item:active .project-name,
+.project-item:active .project-size,
+.project-item:active .project-saved,
+.project-item:active .project-specs {
+  color: var(--bg-canvas);
+}
+
+/* Loading & Empty States */
+.projects-loading, .projects-empty {
+  padding: 36px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.projects-empty-icon {
+  width: 44px;
+  height: 44px;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.projects-empty-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.loading-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-accent-subtle);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   DEVICE SPECIFIC ADAPTIVE LAYOUTS
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. MOBILE (Default: max-width 600px)
+   - 50% Top for OpenFishTools header & grid
+   - 50% Bottom Maximum for Dashboard Container (Full Width)
+   - Scrollable project pool
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .app-viewport {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .studio-header {
+    height: 50vh;
+    min-height: 50vh;
+    max-height: 50vh;
+    padding: 36px 20px 0 20px;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .tech-grid-container {
+    position: absolute;
+    top: 25vh;
+    left: auto;
+    right: -100px;
+    transform: translateY(-50%);
+    width: clamp(360px, 95vw, 420px);
+    height: clamp(360px, 95vw, 420px);
+    aspect-ratio: 1/1;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .dashboard-container {
+    height: 50vh;
+    max-height: 50vh;
+    min-height: 50vh;
+    width: 100%;
+    padding: 14px 16px 16px 16px;
+    border-top-left-radius: 64px;
+  }
+
+  .action-buttons-row {
+    height: 74px;
+    gap: 10px;
+  }
+
+  .action-btn {
+    padding: 10px 12px;
+  }
+
+  .action-btn-title {
+    font-size: 14.5px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. FOLD (Samsung Z-Fold: 601px - 840px)
+   - Lebar 50% persis mengisi layar kanan agar tidak memotong tekukan (crease)
+   - Tinggi 50vh di kuadran kanan bawah
+   - Header di kiri atas (layar kiri)
+   - Grid 4x4 persis di tengah layar
+   -------------------------------------------------------------------------- */
+@media (min-width: 601px) and (max-width: 840px) {
+  .app-viewport {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .studio-header {
+    position: absolute;
+    top: 36px;
+    left: 32px;
+    width: 48%;
+    height: auto;
+    z-index: 10;
+    padding: 0;
+  }
+
+  .brand-title, .brand-subtitle {
+    font-size: 40px;
+    letter-spacing: -0.5px;
+  }
+
+  .dashboard-container {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    height: 50vh;
+    max-height: 50vh;
+    min-height: 50vh;
+    border-top-left-radius: 64px;
+    padding: 14px 16px 16px 16px;
+    gap: 10px;
+  }
+
+  .action-buttons-row {
+    height: 76px;
+    gap: 10px;
+  }
+
+  .action-btn {
+    padding: 10px 12px;
+  }
+
+  .action-btn-title {
+    font-size: 15px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. TABLET (841px - 1100px, iPad Pro 11")
+   - Grid 4x4 DI TENGAH PERSIS
+   - Dashboard container di KANAN BAWAH
+   - Tinggi selalu 50% dari bawah ke atas
+   -------------------------------------------------------------------------- */
+@media (min-width: 841px) and (max-width: 1100px) {
+  .app-viewport {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .studio-header {
+    position: absolute;
+    top: 40px;
+    left: 44px;
+    height: auto;
+    z-index: 10;
+    padding: 0;
+  }
+
+  .brand-title, .brand-subtitle {
+    font-size: 52px;
+    letter-spacing: -0.8px;
+  }
+
+  .badge-pre-alpha {
+    font-size: 14px;
+    padding: 4px 12px;
+    transform: translateY(-6px);
+  }
+
+  .dashboard-container {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: clamp(380px, 32vw, 440px);
+    height: 50vh;
+    max-height: 50vh;
+    min-height: 50vh;
+    border-top-left-radius: 64px;
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .action-buttons-row {
+    height: 80px;
+    gap: 10px;
+  }
+
+  .action-btn-title {
+    font-size: 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. DESKTOP (> 1100px, Desktop - 1)
+   - Grid 4x4 DI TENGAH PERSIS
+   - Dashboard container di KANAN BAWAH
+   -------------------------------------------------------------------------- */
+@media (min-width: 1101px) {
+  .app-viewport {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .studio-header {
+    position: absolute;
+    top: 56px;
+    left: 64px;
+    height: auto;
+    z-index: 10;
+    padding: 0;
+  }
+
+  .brand-title, .brand-subtitle {
+    font-size: clamp(58px, 4.5vw, 68px);
+    letter-spacing: -1px;
+  }
+
+  .badge-pre-alpha {
+    font-size: 15px;
+    padding: 5px 14px;
+    transform: translateY(-8px);
+  }
+
+  .dashboard-container {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: clamp(380px, 30vw, 440px);
+    height: 50vh;
+    max-height: 50vh;
+    min-height: 50vh;
+    border-top-left-radius: 64px;
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .action-buttons-row {
+    height: 80px;
+    gap: 10px;
+  }
+
+  .action-btn-title {
+    font-size: 16px;
+  }
+}

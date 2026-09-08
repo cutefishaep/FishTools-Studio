@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect id="transform" name="Transform" category="movement" icon="assets/FXPH.svg">
+  <description>Secondary 2D transform stack with independent anchor, position, scale, rotation, skew and opacity</description>
+  <params>
+    <param id="posX" label="Position X" type="number" min="-1000" max="1000" default="0" unit="px" />
+    <param id="posY" label="Position Y" type="number" min="-1000" max="1000" default="0" unit="px" />
+    <param id="scale" label="Scale" type="number" min="0" max="400" default="100" unit="%" />
+    <param id="rotation" label="Rotation" type="number" min="-360" max="360" default="0" unit="°" />
+    <param id="skew" label="Skew" type="number" min="-85" max="85" default="0" unit="°" />
+    <param id="anchorX" label="Anchor X" type="number" min="-500" max="500" default="0" unit="px" />
+    <param id="anchorY" label="Anchor Y" type="number" min="-500" max="500" default="0" unit="px" />
+    <param id="opacity" label="Opacity" type="number" min="0" max="100" default="100" unit="%" />
+  </params>
+</effect>

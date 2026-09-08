@@ -1,0 +1,115 @@
+/* ==========================================================================
+   SWITCH.CSS - Modular Segmented Switch & Pill Toggle Component
+   - Flat & High Performance (No box-shadow, no blur, no gradients)
+   - Blocky Full-Bleed Segments inside Pill Outer Container
+   - 100% Theme variable driven (Cal Sans typography)
+   - Simultaneous Foreground Adaptation on Active / Selected States
+   - Fully Responsive & Decoupled Modular Architecture
+   ========================================================================== */
+
+/* 1. Universal Segmented Switch Track (Outer Pill Container) */
+.segmented-switch {
+  display: flex;
+  align-items: stretch;
+  background-color: var(--bg-dashboard);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0;
+  gap: 0;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  user-select: none;
+  outline: none;
+  overflow: hidden; /* Clips blocky inner segments to pill curvature */
+}
+
+/* Square/Card Radius Variant (if needed) */
+.segmented-switch.is-square {
+  border-radius: 12px;
+}
+
+/* Compact Variant */
+.segmented-switch.is-compact .segmented-switch-item {
+  height: 34px;
+}
+
+/* 2. Blocky Switch Segment Item Button */
+.segmented-switch-item {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: var(--bg-dashboard);
+  color: var(--color-primary);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 0; /* Blocky full-bleed interior */
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  padding: 0 8px;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segmented-switch-item:last-child {
+  border-right: none;
+}
+
+/* Inactive Hover State */
+.segmented-switch-item:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary-hover);
+}
+
+.segmented-switch-item:active {
+  background-color: var(--bg-panel);
+}
+
+/* Active / Selected Segment (Solid Full-Bleed Matcha Block) */
+.segmented-switch-item.is-active,
+.segmented-switch-item.is-selected {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-right-color: var(--color-primary);
+  z-index: 2;
+}
+
+.segmented-switch-item.is-active:hover,
+.segmented-switch-item.is-selected:hover {
+  background-color: var(--color-primary-hover);
+  color: var(--bg-canvas);
+}
+
+/* Segment Icons */
+.segmented-switch-item svg,
+.segmented-switch-item .svg-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+  color: inherit;
+  flex-shrink: 0;
+  transition: color 0.15s ease, fill 0.15s ease;
+}
+
+.segmented-switch.is-compact .segmented-switch-item svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Invert inner icon to canvas dark when segment is active */
+.segmented-switch-item.is-active svg,
+.segmented-switch-item.is-selected svg {
+  color: var(--bg-canvas);
+  fill: var(--bg-canvas);
+}

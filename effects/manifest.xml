@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effects-manifest version="1.0">
+  <category id="lightning" name="Lightning">
+    <effect id="brightness-contrast" src="brightness_contrast.xml" name="Brightness / Contrast" icon="assets/FXPH.svg" />
+    <effect id="color-balance" src="color_balance.xml" name="Color Balance" icon="assets/FXPH.svg" />
+    <effect id="color-temperature" src="color_temperature.xml" name="Color Temperature" icon="assets/FXPH.svg" />
+    <effect id="colorize" src="colorize.xml" name="Colorize" icon="assets/FXPH.svg" />
+    <effect id="exposure-gamma" src="exposure_gamma.xml" name="Exposure / Gamma" icon="assets/FXPH.svg" />
+    <effect id="hue-shift" src="hue_shift.xml" name="Hue Shift" icon="assets/FXPH.svg" />
+    <effect id="highlight-shadow" src="highlight_shadow.xml" name="Highlight / Shadow" icon="assets/FXPH.svg" />
+    <effect id="invert" src="invert.xml" name="Invert" icon="assets/FXPH.svg" />
+    <effect id="gradient-overlay" src="gradient_overlay.xml" name="Gradient Overlay" icon="assets/FXPH.svg" />
+    <effect id="saturation-vibrant" src="saturation_vibrant.xml" name="Saturation / Vibrant" icon="assets/FXPH.svg" />
+    <effect id="rgb-split" src="rgb_split.xml" name="RGB Split" icon="assets/FXPH.svg" />
+    <effect id="rays" src="rays.xml" name="Rays" icon="assets/FXPH.svg" />
+  </category>
+  <category id="warp" name="Warp">
+    <effect id="tile" src="tile.xml" name="Tile" icon="assets/FXPH.svg" />
+    <effect id="wave-warp" src="wave_warp.xml" name="Wave Warp" icon="assets/FXPH.svg" />
+    <effect id="warp" src="warp.xml" name="Warp" icon="assets/FXPH.svg" />
+  </category>
+  <category id="movement" name="Movement">
+    <effect id="transform" src="transform.xml" name="Transform" icon="assets/FXPH.svg" />
+    <effect id="oscillate" src="oscillate.xml" name="Oscillate" icon="assets/FXPH.svg" />
+    <effect id="swing" src="swing.xml" name="Swing" icon="assets/FXPH.svg" />
+  </category>
+</effects-manifest>

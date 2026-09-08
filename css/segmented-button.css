@@ -1,0 +1,111 @@
+/* ==========================================================================
+   SEGMENTED-BUTTON.CSS - Modular Segmented Button Bar Component
+   - Flat & High Performance (No box-shadow, no blur, no gradients)
+   - Blocky full-bleed buttons inside a pill outer container
+   - Momentary action buttons (NOT a persistent toggle switch, does NOT stay)
+   - Simultaneous Foreground Adaptation on :active:
+     Bright primary surface (warna terang) + Dark canvas icon (warna gelap)
+   - 100% Theme variable driven (Cal Sans typography)
+   ========================================================================== */
+
+/* 1. Universal Segmented Button Group (Outer Pill Container) */
+.segmented-button-group {
+  display: flex;
+  align-items: stretch;
+  background-color: var(--bg-dashboard);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0;
+  gap: 0;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  user-select: none;
+  outline: none;
+  overflow: hidden; /* Clips blocky inner buttons to pill curvature */
+}
+
+/* Compact Variant */
+.segmented-button-group.is-compact .segmented-button {
+  height: 34px;
+}
+
+/* 2. Blocky Segment Button Item */
+.segmented-button {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: var(--bg-dashboard);
+  color: var(--color-primary);
+  font-family: var(--font-brand);
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: 0; /* Blocky full-bleed interior */
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  outline: none !important;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  padding: 0 12px;
+  box-sizing: border-box;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segmented-button:last-child {
+  border-right: none;
+}
+
+/* Segment Button Icons */
+.segmented-button svg,
+.segmented-button .svg-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+  color: inherit;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: color 0.12s ease, fill 0.12s ease;
+}
+
+.segmented-button-group.is-compact .segmented-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Hover & Focus States (Tanpa outline) */
+.segmented-button:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary-hover);
+  outline: none !important;
+}
+
+.segmented-button:focus,
+.segmented-button:focus-visible {
+  outline: none !important;
+}
+
+/* Clicked / Pressed State (:active):
+   - Solid bright matcha primary green surface (warna terang)
+   - Icon simultaneously flips to dark canvas (warna gelap)
+   - Does NOT stay: reverts immediately upon pointer release!
+   - Pure color fill, no outline, no border highlight, no scale */
+.segmented-button:active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-right-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.segmented-button:active svg,
+.segmented-button:active .svg-icon {
+  color: var(--bg-canvas) !important;
+  fill: var(--bg-canvas) !important;
+}

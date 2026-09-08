@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect id="oscillate" name="Oscillate" category="movement" icon="assets/FXPH.svg">
+  <description>Continuous harmonic motion oscillation with frequency, amplitude, angle and damping decay</description>
+  <params>
+    <param id="frequency" label="Frequency" type="number" min="0.1" max="20" default="2" unit="Hz" />
+    <param id="amplitude" label="Amplitude" type="number" min="0" max="300" default="50" unit="px" />
+    <param id="angle" label="Angle" type="number" min="0" max="360" default="0" unit="°" />
+    <param id="phase" label="Phase" type="number" min="0" max="360" default="0" unit="°" />
+    <param id="decay" label="Decay" type="number" min="0" max="10" default="0" unit="%" />
+  </params>
+</effect>

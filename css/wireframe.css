@@ -1,0 +1,77 @@
+/* ==========================================================================
+   WIREFRAME.CSS - Modular Canvas & DOM Selection Bounding Box with 8 Handles
+   Strict Flat Design, 100% Theme Tokens, No blur, No shadow, No gradients.
+   ========================================================================== */
+
+.canvas-wireframe-overlay {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px solid var(--color-primary);
+  box-sizing: border-box;
+  z-index: 40;
+  transition: border-color 0.12s ease;
+}
+
+.canvas-wireframe-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-primary);
+  border: 1.5px solid var(--bg-canvas);
+  border-radius: 0;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+}
+
+.canvas-wireframe-handle:hover {
+  background-color: var(--color-primary-hover);
+  transform: translate(-50%, -50%) scale(1.25);
+}
+
+/* 8 Directional Control Handles */
+.canvas-wireframe-handle.handle-nw { top: 0; left: 0; cursor: nwse-resize; }
+.canvas-wireframe-handle.handle-n  { top: 0; left: 50%; cursor: ns-resize; }
+.canvas-wireframe-handle.handle-ne { top: 0; left: 100%; cursor: nesw-resize; }
+.canvas-wireframe-handle.handle-e  { top: 50%; left: 100%; cursor: ew-resize; }
+.canvas-wireframe-handle.handle-se { top: 100%; left: 100%; cursor: nwse-resize; }
+.canvas-wireframe-handle.handle-s  { top: 100%; left: 50%; cursor: ns-resize; }
+.canvas-wireframe-handle.handle-sw { top: 100%; left: 0; cursor: nesw-resize; }
+.canvas-wireframe-handle.handle-w  { top: 50%; left: 0; cursor: ew-resize; }
+
+/* Center Anchor Point */
+.canvas-wireframe-anchor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid var(--color-primary);
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: move;
+  background-color: var(--bg-canvas);
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.canvas-wireframe-anchor::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-primary);
+  border-radius: 50%;
+}
+
+.canvas-wireframe-anchor:hover {
+  border-color: var(--color-primary-hover);
+  transform: translate(-50%, -50%) scale(1.3);
+}
+

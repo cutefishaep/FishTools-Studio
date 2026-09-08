@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <pattern id="fxph-grid" width="12.5" height="12.5" patternUnits="userSpaceOnUse">
+      <path d="M 12.5 0 L 0 0 0 12.5" fill="none" stroke="#2a3826" stroke-width="0.8"/>
+    </pattern>
+  </defs>
+  <!-- Dark canvas surface -->
+  <rect width="100" height="100" fill="#131911"/>
+  <!-- Vector grid overlay (8x8 cells) -->
+  <rect width="100" height="100" fill="url(#fxph-grid)"/>
+  <!-- Outer subtle boundary -->
+  <rect x="0.5" y="0.5" width="99" height="99" fill="none" stroke="#2a3826" stroke-width="1"/>
+  <!-- Bold centered FX label -->
+  <text x="50" y="61" font-family="'Cal Sans', 'Inter', system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" fill="#22c55e" text-anchor="middle" letter-spacing="1">FX</text>
+</svg>

@@ -1,0 +1,784 @@
+/**
+ * js/preview-cache.js
+ * After Effects-Style RAM Preview Cache Engine
+ * High-performance hardware-accelerated frame caching, selective range invalidation,
+ * background idle caching, and visual timeline ruler indicator.
+ */
+(function(window) {
+  'use strict';
+
+  class PreviewCacheManager {
+    constructor() {
+      // Map<compId, Map<frameIndex (number), { bitmap: ImageBitmap, isDraft: boolean, width: number, height: number }>>
+      this.pools = new Map();
+      this.pools.set('root', new Map());
+      this.activeCompId = 'root';
+      this._fps = 60;
+      this.isDraftMode = false;
+      this.idleCacheEnabled = false;
+      this.isIdleRunning = false;
+      this.idleTimer = null;
+      this.idleWorkerId = null;
+      this.lastUserActivity = Date.now();
+      this.rulerCanvas = null;
+      this.rulerCtx = null;
+      this.offscreenCanvas = null;
+      this._isCachingFrame = false;
+      this._pendingFrames = new Set();
+      // Tracks frames whose createImageBitmap is currently in-flight (prevents double-encode race)
+      this._inFlightFrames = new Set();
+      // LRU eviction: max ~3600 frames in RAM (~1 full minute at 60fps)
+      // At 500px preview (562KB/frame): 3600 × 562KB ≈ 2GB — covers typical TikTok/Shorts content fully
+      // After Effects fills until RAM full; browser caps at this limit for stability.
+      this.maxFrames = 3600;
+    }
+
+    get frames() {
+      const key = this.activeCompId || 'root';
+      if (!this.pools.has(key)) {
+        this.pools.set(key, new Map());
+      }
+      return this.pools.get(key);
+    }
+
+    getPool(compId) {
+      const key = compId || this.activeCompId || 'root';
+      if (!this.pools.has(key)) {
+        this.pools.set(key, new Map());
+      }
+      return this.pools.get(key);
+    }
+
+    setActiveComp(compId = 'root') {
+      const target = compId || 'root';
+      if (this.activeCompId !== target) {
+        this.activeCompId = target;
+        if (!this.pools.has(target)) {
+          this.pools.set(target, new Map());
+        }
+        this.updateRulerUI();
+        if (this.idleCacheEnabled) {
+          this.scheduleIdleCheck();
+        }
+      }
+    }
+
+    get fps() {
+      if (typeof window !== 'undefined') {
+        if (typeof window.getProjectFps === 'function') {
+          const pFps = window.getProjectFps();
+          if (pFps && pFps > 0) return pFps;
+        }
+        if (typeof window.currentTimelineFps === 'number' && window.currentTimelineFps > 0) {
+          return window.currentTimelineFps;
+        }
+        if (window.currentProjectState && window.currentProjectState.fps) {
+          const pFps = parseInt(window.currentProjectState.fps, 10);
+          if (pFps && pFps > 0) return pFps;
+        }
+      }
+      return this._fps || 60;
+    }
+
+    set fps(val) {
+      const parsed = parseInt(val, 10);
+      if (parsed && parsed > 0) {
+        this._fps = parsed;
+      }
+    }
+
+    init({ rulerCanvasId = 'timeline-cache-ruler-bar', defaultFps = 60 } = {}) {
+      if (defaultFps) this._fps = defaultFps;
+      this.rulerCanvas = document.getElementById(rulerCanvasId);
+      if (this.rulerCanvas) {
+        this.rulerCtx = this.rulerCanvas.getContext('2d');
+      }
+      this.setupUserActivityListeners();
+    }
+
+    setFps(fps) {
+      const parsed = parseInt(fps, 10);
+      if (parsed && parsed !== this._fps) {
+        this._fps = parsed;
+        this.clearAll('all');
+      }
+    }
+
+    setDraftMode(isDraft) {
+      const boolVal = !!isDraft;
+      if (this.isDraftMode !== boolVal) {
+        this.isDraftMode = boolVal;
+        this.clearAll('all');
+      }
+    }
+
+    setIdleCacheEnabled(enabled) {
+      this.idleCacheEnabled = !!enabled;
+      if (!this.idleCacheEnabled) {
+        this.stopIdleWorker();
+      } else {
+        this.scheduleIdleCheck();
+      }
+    }
+
+    hasFrame(frameIndex, expectedWidth = null, expectedHeight = null) {
+      const entry = this.frames.get(frameIndex);
+      if (!entry) return false;
+      if (entry.isDraft !== this.isDraftMode ||
+          (expectedWidth && entry.width !== expectedWidth) ||
+          (expectedHeight && entry.height !== expectedHeight)) {
+        this.deleteFrame(frameIndex, false);
+        return false;
+      }
+      return true;
+    }
+
+    getFrame(frameIndex, expectedWidth = null, expectedHeight = null) {
+      const entry = this.frames.get(frameIndex);
+      if (!entry) return null;
+      if (entry.isDraft !== this.isDraftMode ||
+          (expectedWidth && entry.width !== expectedWidth) ||
+          (expectedHeight && entry.height !== expectedHeight)) {
+        this.deleteFrame(frameIndex, false);
+        return null;
+      }
+      return entry.bitmap;
+    }
+
+    /**
+     * Evict the single worst frame from the current pool when over maxFrames limit.
+     * Strategy: evict frames behind the playhead first (already played), then far-lookahead.
+     * This mirrors AE RAM preview eviction and keeps the cache useful for smooth playback.
+     */
+    _evictIfNeeded() {
+      const pool = this.frames;
+      if (!this.maxFrames || pool.size <= this.maxFrames) return;
+
+      const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) ? window.currentPixelsPerSecond : 80;
+      const curSec = (typeof window !== 'undefined' && typeof window.getCurrentPlayheadTime === 'function')
+        ? window.getCurrentPlayheadTime()
+        : ((typeof window !== 'undefined' && window.timelinePanX !== undefined) ? Math.abs(window.timelinePanX) / pps : 0);
+      const curFrame = Math.round(curSec * this.fps);
+
+      let worstIdx = -1;
+      let worstScore = -Infinity;
+
+      for (const fIdx of pool.keys()) {
+        if (this._inFlightFrames && this._inFlightFrames.has(fIdx)) continue; // never evict in-flight
+        const dist = fIdx - curFrame;
+        let score;
+        if (dist < 0) {
+          // Behind playhead: evict first — already rendered, no longer needed
+          score = (-dist) + 1000000;
+        } else if (dist > 360) {
+          // Far ahead (>6s at 60fps): evict — too far to be immediately useful
+          score = dist + 1000;
+        } else {
+          // Lookahead window [0, 6s ahead]: protect — needed for smooth forward playback
+          score = dist * 0.01;
+        }
+        if (score > worstScore) {
+          worstScore = score;
+          worstIdx = fIdx;
+        }
+      }
+
+      if (worstIdx !== -1) {
+        this.deleteFrame(worstIdx, false);
+      }
+    }
+
+    /**
+     * Check if a frame is part of a contiguous cached sequence.
+     * Prevents playback strobe/jitter when cache has gaps or isolated frames.
+     * minRun=2: AE-like behavior — just 2 contiguous frames are enough to allow cache playback.
+     */
+    isContiguousPlaybackFrame(frameIndex, minRun = 2) {
+      if (!this.frames.has(frameIndex)) return false;
+      const totalDur = (typeof window !== 'undefined' && typeof window.getProjectTotalDuration === 'function')
+        ? window.getProjectTotalDuration()
+        : 0;
+      const effectiveMinRun = totalDur > 0 ? Math.min(minRun, Math.max(1, Math.ceil(totalDur * this.fps))) : minRun;
+
+      let count = 0;
+      let f = frameIndex;
+      while (this.frames.has(f)) {
+        count++;
+        if (count >= effectiveMinRun) return true;
+        f--;
+      }
+      f = frameIndex + 1;
+      while (this.frames.has(f)) {
+        count++;
+        if (count >= effectiveMinRun) return true;
+        f++;
+      }
+      return count >= effectiveMinRun;
+    }
+
+    // Throttled ruler update: max 4x/second during idle cache fills to prevent ruler flicker
+    _scheduleRulerUpdate() {
+      if (this._rulerUpdatePending) return;
+      this._rulerUpdatePending = true;
+      setTimeout(() => {
+        this._rulerUpdatePending = false;
+        this.updateRulerUI();
+      }, 250);
+    }
+
+    async setFrameFromCanvas(frameIndex, sourceCanvas, isDraft = this.isDraftMode) {
+      if (!sourceCanvas || sourceCanvas.width === 0 || sourceCanvas.height === 0) return;
+      if (this.hasFrame(frameIndex, sourceCanvas.width, sourceCanvas.height)) return;
+      if (!this._pendingFrames) this._pendingFrames = new Set();
+      if (!this._inFlightFrames) this._inFlightFrames = new Set();
+      // Guard against GPU overload during 60fps playback (max 1 concurrent createImageBitmap)
+      if (this._inFlightFrames.size >= 1) return;
+      if (this._pendingFrames.has(frameIndex) || this._inFlightFrames.has(frameIndex)) return;
+      this._pendingFrames.add(frameIndex);
+      this._inFlightFrames.add(frameIndex);
+      try {
+        const bitmap = await createImageBitmap(sourceCanvas);
+        // Re-check after await: frame may have been cleared/invalidated while we were encoding
+        if (!this._inFlightFrames.has(frameIndex)) return; // Was cancelled during encoding
+        this.deleteFrame(frameIndex, false);
+        this.frames.set(frameIndex, {
+          bitmap,
+          isDraft,
+          width: sourceCanvas.width,
+          height: sourceCanvas.height
+        });
+        // Evict oldest frame if over limit (LRU — keeps playback smooth without OOM)
+        this._evictIfNeeded();
+        // Throttled ruler update — prevents ruler flickering during rapid idle cache fills (250ms batch)
+        this._scheduleRulerUpdate();
+      } catch (_) {}
+      finally {
+        if (this._pendingFrames) this._pendingFrames.delete(frameIndex);
+        if (this._inFlightFrames) this._inFlightFrames.delete(frameIndex);
+      }
+    }
+
+    deleteFrame(frameIndex, updateUI = true) {
+      if (this._pendingFrames) {
+        this._pendingFrames.delete(frameIndex);
+      }
+      // Also cancel any in-flight encode for this frame so stale bitmap is not stored after clear
+      if (this._inFlightFrames) {
+        this._inFlightFrames.delete(frameIndex);
+      }
+      const entry = this.frames.get(frameIndex);
+      if (entry) {
+        if (entry.bitmap && typeof entry.bitmap.close === 'function') {
+          entry.bitmap.close();
+        }
+        this.frames.delete(frameIndex);
+        if (updateUI) {
+          this.updateRulerUI();
+        }
+      }
+    }
+
+    /**
+     * Selective Cache Invalidation (AE-style)
+     * Invalidate only frames within [startSec, endSec] affected by a layer modification
+     */
+    invalidateRange(startSec, endSec, fps = this.fps, compId = null) {
+      if (startSec === undefined || endSec === undefined) {
+        this.clearAll('current', compId);
+        return;
+      }
+      const pool = this.getPool(compId || this.activeCompId);
+      const minSec = Math.max(0, Math.min(startSec, endSec));
+      const maxSec = Math.max(startSec, endSec);
+      const startFrame = Math.max(0, Math.floor(minSec * fps) - 1);
+      const endFrame = Math.ceil(maxSec * fps) + 1;
+
+      let changed = false;
+      for (let f = startFrame; f <= endFrame; f++) {
+        if (this._pendingFrames) {
+          this._pendingFrames.delete(f);
+        }
+        if (pool.has(f)) {
+          const entry = pool.get(f);
+          if (entry && entry.bitmap && typeof entry.bitmap.close === 'function') {
+            entry.bitmap.close();
+          }
+          pool.delete(f);
+          changed = true;
+        }
+      }
+      if (changed && (!compId || compId === this.activeCompId)) {
+        this.updateRulerUI();
+      }
+      if (this.idleCacheEnabled) {
+        this.scheduleIdleCheck();
+      }
+    }
+
+    clearAll(scope = 'current', compId = null) {
+      if (this._pendingFrames) {
+        this._pendingFrames.clear();
+      }
+      // Cancel all in-flight bitmap encodes so stale frames don't re-appear after clear
+      if (this._inFlightFrames) {
+        this._inFlightFrames.clear();
+      }
+      if (scope === 'all') {
+        for (const pool of this.pools.values()) {
+          for (const entry of pool.values()) {
+            if (entry && entry.bitmap && typeof entry.bitmap.close === 'function') {
+              entry.bitmap.close();
+            }
+          }
+          pool.clear();
+        }
+      } else {
+        const pool = this.getPool(compId || this.activeCompId);
+        for (const entry of pool.values()) {
+          if (entry && entry.bitmap && typeof entry.bitmap.close === 'function') {
+            entry.bitmap.close();
+          }
+        }
+        pool.clear();
+      }
+      this.updateRulerUI();
+      if (this.idleCacheEnabled) {
+        this.scheduleIdleCheck();
+      }
+    }
+
+    clear() {
+      this.clearAll('current');
+    }
+
+    /**
+     * Flexible Precompose Cache Adoption:
+     * When returning from a precompose, if the parent composition has only this precompose
+     * (or during this precomp's span with 1:1 default transform and no conflicting layers),
+     * adopt the precomp's rendered frames directly into the parent's frame pool.
+     */
+    adoptPrecompFrames(precompLayer, parentCompId = 'root') {
+      if (!precompLayer || !precompLayer.id) return;
+      const precompPool = this.getPool(precompLayer.id);
+      if (!precompPool || precompPool.size === 0) return;
+
+      const parentPool = this.getPool(parentCompId || 'root');
+      const fps = this.fps;
+      const pStartSec = precompLayer.startSec !== undefined ? precompLayer.startSec : 0;
+      const pDurSec = precompLayer.durationSec !== undefined ? precompLayer.durationSec : 0;
+      const pOffsetSec = precompLayer.sourceOffsetSec || 0;
+
+      for (const [innerFrame, entry] of precompPool.entries()) {
+        if (!entry || !entry.bitmap) continue;
+        const innerSec = innerFrame / fps;
+        if (innerSec >= 0 && (pDurSec <= 0 || innerSec <= pDurSec + 0.05)) {
+          const rootSec = pStartSec + innerSec - pOffsetSec;
+          if (rootSec >= pStartSec - 0.001 && rootSec <= pStartSec + pDurSec + 0.001) {
+            const rootFrame = Math.round(rootSec * fps);
+            try {
+              if (typeof createImageBitmap === 'function') {
+                createImageBitmap(entry.bitmap).then(clonedBitmap => {
+                  if (parentPool.has(rootFrame)) {
+                    const old = parentPool.get(rootFrame);
+                    if (old && old.bitmap && typeof old.bitmap.close === 'function') {
+                      old.bitmap.close();
+                    }
+                  }
+                  parentPool.set(rootFrame, {
+                    bitmap: clonedBitmap,
+                    isDraft: entry.isDraft,
+                    width: entry.width,
+                    height: entry.height,
+                    fromPrecomp: precompLayer.id
+                  });
+                  this.updateRulerUI();
+                }).catch(() => {
+                  parentPool.set(rootFrame, {
+                    bitmap: entry.bitmap,
+                    isDraft: entry.isDraft,
+                    width: entry.width,
+                    height: entry.height,
+                    fromPrecomp: precompLayer.id
+                  });
+                  this.updateRulerUI();
+                });
+              } else {
+                parentPool.set(rootFrame, {
+                  bitmap: entry.bitmap,
+                  isDraft: entry.isDraft,
+                  width: entry.width,
+                  height: entry.height,
+                  fromPrecomp: precompLayer.id
+                });
+              }
+            } catch (_) {
+              parentPool.set(rootFrame, {
+                bitmap: entry.bitmap,
+                isDraft: entry.isDraft,
+                width: entry.width,
+                height: entry.height,
+                fromPrecomp: precompLayer.id
+              });
+            }
+          }
+        }
+      }
+      this.updateRulerUI();
+    }
+
+    /**
+     * Reverse Cache Adoption:
+     * When entering a precompose, if the parent composition was already cached in that range,
+     * adopt those frames into the precompose's pool.
+     */
+    adoptRootFrames(precompLayer, rootCompId = 'root') {
+      if (!precompLayer || !precompLayer.id) return;
+      const rootPool = this.getPool(rootCompId || 'root');
+      if (!rootPool || rootPool.size === 0) return;
+
+      const precompPool = this.getPool(precompLayer.id);
+      const fps = this.fps;
+      const pStartSec = precompLayer.startSec !== undefined ? precompLayer.startSec : 0;
+      const pDurSec = precompLayer.durationSec !== undefined ? precompLayer.durationSec : 0;
+      const pOffsetSec = precompLayer.sourceOffsetSec || 0;
+
+      for (const [rootFrame, entry] of rootPool.entries()) {
+        if (!entry || !entry.bitmap) continue;
+        const rootSec = rootFrame / fps;
+        if (rootSec >= pStartSec - 0.001 && rootSec <= pStartSec + pDurSec + 0.001) {
+          const innerSec = (rootSec - pStartSec) + pOffsetSec;
+          if (innerSec >= 0) {
+            const innerFrame = Math.round(innerSec * fps);
+            try {
+              if (typeof createImageBitmap === 'function') {
+                createImageBitmap(entry.bitmap).then(clonedBitmap => {
+                  if (precompPool.has(innerFrame)) {
+                    const old = precompPool.get(innerFrame);
+                    if (old && old.bitmap && typeof old.bitmap.close === 'function') {
+                      old.bitmap.close();
+                    }
+                  }
+                  precompPool.set(innerFrame, {
+                    bitmap: clonedBitmap,
+                    isDraft: entry.isDraft,
+                    width: entry.width,
+                    height: entry.height
+                  });
+                  this.updateRulerUI();
+                }).catch(() => {
+                  precompPool.set(innerFrame, {
+                    bitmap: entry.bitmap,
+                    isDraft: entry.isDraft,
+                    width: entry.width,
+                    height: entry.height
+                  });
+                  this.updateRulerUI();
+                });
+              } else {
+                precompPool.set(innerFrame, {
+                  bitmap: entry.bitmap,
+                  isDraft: entry.isDraft,
+                  width: entry.width,
+                  height: entry.height
+                });
+              }
+            } catch (_) {
+              precompPool.set(innerFrame, {
+                bitmap: entry.bitmap,
+                isDraft: entry.isDraft,
+                width: entry.width,
+                height: entry.height
+              });
+            }
+          }
+        }
+      }
+      this.updateRulerUI();
+    }
+
+    updateRulerUI() {
+      if (this._rulerRafScheduled) return;
+      this._rulerRafScheduled = true;
+      requestAnimationFrame(() => {
+        this._rulerRafScheduled = false;
+        this._renderRuler();
+      });
+    }
+
+    _renderRuler() {
+      if (!this.rulerCanvas) {
+        this.rulerCanvas = document.getElementById('timeline-cache-ruler-bar');
+        if (this.rulerCanvas) this.rulerCtx = this.rulerCanvas.getContext('2d');
+      }
+      if (!this.rulerCanvas || !this.rulerCtx) return;
+
+      const pps = window.currentPixelsPerSecond || 80;
+      const totalDur = (typeof window.getProjectTotalDuration === 'function') ? window.getProjectTotalDuration() : 0;
+      const trackWidth = Math.ceil(totalDur * pps);
+
+      if (this.rulerCanvas.width !== trackWidth || this.rulerCanvas.height !== 3) {
+        this.rulerCanvas.width = Math.max(1, trackWidth);
+        this.rulerCanvas.height = 3;
+        this.rulerCanvas.style.width = trackWidth + 'px';
+        this.rulerCanvas.style.height = '3px';
+      }
+
+      this.rulerCtx.clearRect(0, 0, this.rulerCanvas.width, 3);
+      if (totalDur <= 0 || this.frames.size === 0) return;
+
+      if (!this._cachedPrimaryColor || (Date.now() - (this._lastColorQuery || 0) > 3000)) {
+        this._cachedPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#98ce7b';
+        this._lastColorQuery = Date.now();
+      }
+      this.rulerCtx.fillStyle = this._cachedPrimaryColor;
+
+      const pxPerFrame = pps / this.fps;
+      const totalFrames = Math.ceil(totalDur * this.fps);
+
+      let runStart = -1;
+      for (let f = 0; f <= totalFrames; f++) {
+        const isCached = this.frames.has(f);
+        if (isCached) {
+          if (runStart === -1) runStart = f;
+        } else {
+          if (runStart !== -1) {
+            const x = Math.floor(runStart * pxPerFrame);
+            const xEnd = Math.ceil(f * pxPerFrame);
+            const w = Math.max(1, xEnd - x);
+            this.rulerCtx.fillRect(x, 0, w, 3);
+            runStart = -1;
+          }
+        }
+      }
+      if (runStart !== -1) {
+        const x = Math.floor(runStart * pxPerFrame);
+        const xEnd = Math.ceil(totalFrames * pxPerFrame);
+        const w = Math.max(1, xEnd - x);
+        this.rulerCtx.fillRect(x, 0, w, 3);
+      }
+    }
+
+    setupUserActivityListeners() {
+      const onActivity = () => {
+        this.lastUserActivity = Date.now();
+        if (this.isIdleRunning) {
+          this.stopIdleWorker();
+        }
+        if (this.idleCacheEnabled) {
+          this.scheduleIdleCheck();
+        }
+      };
+
+      window.addEventListener('pointerdown', onActivity, { passive: true });
+      window.addEventListener('pointermove', onActivity, { passive: true });
+      window.addEventListener('keydown', onActivity, { passive: true });
+      window.addEventListener('wheel', onActivity, { passive: true });
+      window.addEventListener('scroll', onActivity, { passive: true });
+    }
+
+    scheduleIdleCheck() {
+      if (!this.idleCacheEnabled) return;
+      if (this.idleTimer) clearTimeout(this.idleTimer);
+      this.idleTimer = setTimeout(() => {
+        if (!this.idleCacheEnabled) return;
+        if (window.isTimelinePlaying || window.isTransformInteracting) return;
+        // Only run idle cache after video extraction fully completes.
+        // isTimeReadyToCache() checks per-frame video readiness, but idle cache rendering
+        // with neighboring/fallback frames would store wrong content in the bitmap cache.
+        if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) return;
+        if (document.querySelector('.modal-backdrop.is-open, .modal-backdrop.active')) return;
+        this.startIdleWorker();
+      }, 600);
+    }
+
+    startIdleWorker() {
+      if (this.isIdleRunning || !this.idleCacheEnabled || window.isTimelinePlaying || window.isTransformInteracting) return;
+      if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) return;
+      this.isIdleRunning = true;
+      this.runIdleStep();
+    }
+
+    stopIdleWorker() {
+      this.isIdleRunning = false;
+      if (this.idleWorkerId) {
+        if (typeof cancelIdleCallback === 'function') cancelIdleCallback(this.idleWorkerId);
+        else clearTimeout(this.idleWorkerId);
+        this.idleWorkerId = null;
+      }
+    }
+
+    isTimeReadyToCache(sec) {
+      const projectState = window.currentProjectState;
+      if (!projectState || !projectState.layers) return true;
+      const pps = window.currentPixelsPerSecond || 80;
+      const vfe = window.VideoFrameExtractor;
+
+      const checkLayers = (layers) => {
+        if (!Array.isArray(layers)) return true;
+        for (const layer of layers) {
+          if (layer.hidden) continue;
+          if (layer.type === 'precomp' && Array.isArray(layer.layers)) {
+            if (!checkLayers(layer.layers)) return false;
+          }
+          if (layer.type !== 'video') continue;
+          const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+          const end = start + dur;
+
+          // If time falls within this video layer's active playback bounds
+          if (sec >= start && sec < end) {
+            if (vfe && typeof vfe.isVideoFrameReady === 'function') {
+              if (!vfe.isVideoFrameReady(layer, sec)) {
+                return false; // Video frame not yet extracted into cache! Skip project caching!
+              }
+            } else {
+              return false;
+            }
+          }
+        }
+        return true;
+      };
+
+      return checkLayers(projectState.layers);
+    }
+
+    runIdleStep() {
+      if (!this.isIdleRunning || !this.idleCacheEnabled || window.isTimelinePlaying || window.isTransformInteracting) {
+        this.stopIdleWorker();
+        return;
+      }
+      // Wait for video extraction to fully complete before idle-caching.
+      // Idle cache with incomplete video would store neighboring/wrong frames as bitmaps.
+      if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) {
+        this.stopIdleWorker();
+        return;
+      }
+
+      const totalDur = (typeof window.getProjectTotalDuration === 'function') ? window.getProjectTotalDuration() : 0;
+      if (totalDur <= 0) {
+        this.stopIdleWorker();
+        return;
+      }
+
+      const totalFrames = Math.ceil(totalDur * this.fps);
+      const pps = window.currentPixelsPerSecond || 80;
+      const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+      const currentFrame = Math.max(0, Math.min(totalFrames - 1, Math.round((Math.abs(currentPanX) / pps) * this.fps)));
+
+      // AE-Style Bidirectional RAM Preview Sweep:
+      // Fill cache OUTWARD from playhead in both directions simultaneously.
+      // Forward: currentFrame, +1, +2, +3...
+      // Backward: currentFrame-1, -2, -3...
+      // Alternating forward/backward ensures frames immediately around playhead are cached first,
+      // matching After Effects RAM Preview behavior.
+      let targetFrame = -1;
+      let fwdIdx = currentFrame;
+      let bwdIdx = currentFrame - 1;
+
+      while (targetFrame === -1 && (fwdIdx < totalFrames || bwdIdx >= 0)) {
+        // Check forward first (more useful — user is likely playing forward)
+        if (fwdIdx < totalFrames) {
+          if (!this.frames.has(fwdIdx) && this.isTimeReadyToCache(fwdIdx / this.fps)) {
+            targetFrame = fwdIdx;
+            break;
+          }
+          fwdIdx++;
+        }
+        // Then check backward (recent history — scrub back support)
+        if (bwdIdx >= 0) {
+          if (!this.frames.has(bwdIdx) && this.isTimeReadyToCache(bwdIdx / this.fps)) {
+            targetFrame = bwdIdx;
+            break;
+          }
+          bwdIdx--;
+        }
+      }
+
+      if (targetFrame === -1) {
+        this.stopIdleWorker();
+        return;
+      }
+
+      const renderNext = async () => {
+        if (!this.isIdleRunning || !this.idleCacheEnabled || window.isTimelinePlaying || window.isTransformInteracting) {
+          this.stopIdleWorker();
+          return;
+        }
+
+        const activeCanvas = document.getElementById('editor-active-canvas');
+        if (!activeCanvas || activeCanvas.width === 0 || activeCanvas.height === 0) {
+          this.stopIdleWorker();
+          return;
+        }
+
+        if (!this.offscreenCanvas) {
+          this.offscreenCanvas = document.createElement('canvas');
+        }
+        this.offscreenCanvas.width = activeCanvas.width;
+        this.offscreenCanvas.height = activeCanvas.height;
+
+        const targetSec = targetFrame / this.fps;
+
+        // Pre-hydrate exact video frames from IndexedDB into RAM before idle-cache renders
+        const vfe = window.VideoFrameExtractor;
+        if (vfe && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
+          const pps = window.currentPixelsPerSecond || 80;
+          for (const layer of window.currentProjectState.layers) {
+            if (layer.type === 'video' && !layer.hidden) {
+              const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+              const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+              if (targetSec >= start && targetSec < start + dur) {
+                const sourceKey = vfe._getSourceKey ? vfe._getSourceKey(layer) : (layer.mediaId || layer.dataUrl || layer.id);
+                const source = vfe.getSourceCache ? vfe.getSourceCache(sourceKey) : null;
+                if (source) {
+                  const effSpeed = (typeof window.getLayerEffectivePropsAtTime === 'function')
+                    ? (window.getLayerEffectivePropsAtTime(layer, targetSec).speed || layer.speed || 1.0)
+                    : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
+                  const timeInClip = Math.max(0, (layer.sourceOffsetSec || 0) + (targetSec - start) * effSpeed);
+                  const fIdx = Math.round(timeInClip * source.fps);
+                  if (!source.frames.has(fIdx) && source.cachedFrameIndices && source.cachedFrameIndices.has(fIdx)) {
+                    if (typeof vfe.fetchFrameFromDBAsync === 'function') {
+                      await vfe.fetchFrameFromDBAsync(source, fIdx);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        let isFrameReady = true;
+        if (typeof window.renderCanvasFrame === 'function') {
+          const res = window.renderCanvasFrame(
+            this.offscreenCanvas,
+            window.currentProjectState ? window.currentProjectState.bgColor : 'transparent',
+            this.offscreenCanvas.width,
+            this.offscreenCanvas.height,
+            'idle-cache',
+            targetSec
+          );
+          if (res === false) isFrameReady = false;
+        }
+        if (isFrameReady) {
+          await this.setFrameFromCanvas(targetFrame, this.offscreenCanvas, this.isDraftMode);
+        } else {
+          this.stopIdleWorker();
+          return;
+        }
+
+        if (this.isIdleRunning) {
+          if (typeof requestIdleCallback === 'function') {
+            this.idleWorkerId = requestIdleCallback(() => this.runIdleStep(), { timeout: 50 });
+          } else {
+            // 16ms = exactly one 60fps frame tick — idle cache fills at display refresh rate
+            this.idleWorkerId = setTimeout(() => this.runIdleStep(), 16);
+          }
+        }
+      };
+
+      renderNext();
+    }
+  }
+
+  window.PreviewCacheManager = new PreviewCacheManager();
+})(window);

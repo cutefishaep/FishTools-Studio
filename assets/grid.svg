@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 424 424" width="424" height="424">
+  <defs>
+    <style>
+      .grid-sub { stroke: #22c55e; stroke-opacity: 0.18; stroke-width: 0.8; }
+      .grid-major { stroke: #22c55e; stroke-opacity: 0.48; stroke-width: 1.2; }
+      .grid-box { fill: none; stroke: #22c55e; stroke-opacity: 0.48; stroke-width: 1.2; }
+      .grid-dot { fill: #22c55e; fill-opacity: 0.65; }
+      .grid-cross { stroke: #22c55e; stroke-width: 1.5; stroke-linecap: square; }
+    </style>
+  </defs>
+
+  <!-- Minor 4x4 Subdivisions (16x16 grid squares) -->
+  <g class="grid-sub">
+    <line x1="25" y1="0" x2="25" y2="400" />
+    <line x1="0" y1="25" x2="400" y2="25" />
+    <line x1="50" y1="0" x2="50" y2="400" />
+    <line x1="0" y1="50" x2="400" y2="50" />
+    <line x1="75" y1="0" x2="75" y2="400" />
+    <line x1="0" y1="75" x2="400" y2="75" />
+    <line x1="125" y1="0" x2="125" y2="400" />
+    <line x1="0" y1="125" x2="400" y2="125" />
+    <line x1="150" y1="0" x2="150" y2="400" />
+    <line x1="0" y1="150" x2="400" y2="150" />
+    <line x1="175" y1="0" x2="175" y2="400" />
+    <line x1="0" y1="175" x2="400" y2="175" />
+    <line x1="225" y1="0" x2="225" y2="400" />
+    <line x1="0" y1="225" x2="400" y2="225" />
+    <line x1="250" y1="0" x2="250" y2="400" />
+    <line x1="0" y1="250" x2="400" y2="250" />
+    <line x1="275" y1="0" x2="275" y2="400" />
+    <line x1="0" y1="275" x2="400" y2="275" />
+    <line x1="325" y1="0" x2="325" y2="400" />
+    <line x1="0" y1="325" x2="400" y2="325" />
+    <line x1="350" y1="0" x2="350" y2="400" />
+    <line x1="0" y1="350" x2="400" y2="350" />
+    <line x1="375" y1="0" x2="375" y2="400" />
+    <line x1="0" y1="375" x2="400" y2="375" />
+  </g>
+
+  <!-- Major Grid Lines (Interior 4x4 dividers) -->
+  <g class="grid-major">
+    <line x1="100" y1="0" x2="100" y2="400" />
+    <line x1="0" y1="100" x2="400" y2="100" />
+    <line x1="200" y1="0" x2="200" y2="400" />
+    <line x1="0" y1="200" x2="400" y2="200" />
+    <line x1="300" y1="0" x2="300" y2="400" />
+    <line x1="0" y1="300" x2="400" y2="300" />
+  </g>
+
+  <!-- Outer Bounding Box (4x4 Boundary) -->
+  <rect class="grid-box" x="0" y="0" width="400" height="400" />
+
+  <!-- Center Coordinate Dots (1 in each of the 16 major cells) -->
+  <g class="grid-dot">
+    <circle cx="50" cy="50" r="1.8" />
+    <circle cx="50" cy="150" r="1.8" />
+    <circle cx="50" cy="250" r="1.8" />
+    <circle cx="50" cy="350" r="1.8" />
+    <circle cx="150" cy="50" r="1.8" />
+    <circle cx="150" cy="150" r="1.8" />
+    <circle cx="150" cy="250" r="1.8" />
+    <circle cx="150" cy="350" r="1.8" />
+    <circle cx="250" cy="50" r="1.8" />
+    <circle cx="250" cy="150" r="1.8" />
+    <circle cx="250" cy="250" r="1.8" />
+    <circle cx="250" cy="350" r="1.8" />
+    <circle cx="350" cy="50" r="1.8" />
+    <circle cx="350" cy="150" r="1.8" />
+    <circle cx="350" cy="250" r="1.8" />
+    <circle cx="350" cy="350" r="1.8" />
+  </g>
+
+  <!-- Intersection Crosshairs (+) at all 25 major vertices -->
+  <g class="grid-cross">
+    <path d="M -8 0 L 8 0 M 0 -8 L 0 8" />
+    <path d="M -8 100 L 8 100 M 0 92 L 0 108" />
+    <path d="M -8 200 L 8 200 M 0 192 L 0 208" />
+    <path d="M -8 300 L 8 300 M 0 292 L 0 308" />
+    <path d="M -8 400 L 8 400 M 0 392 L 0 408" />
+    <path d="M 92 0 L 108 0 M 100 -8 L 100 8" />
+    <path d="M 92 100 L 108 100 M 100 92 L 100 108" />
+    <path d="M 92 200 L 108 200 M 100 192 L 100 208" />
+    <path d="M 92 300 L 108 300 M 100 292 L 100 308" />
+    <path d="M 92 400 L 108 400 M 100 392 L 100 408" />
+    <path d="M 192 0 L 208 0 M 200 -8 L 200 8" />
+    <path d="M 192 100 L 208 100 M 200 92 L 200 108" />
+    <path d="M 192 200 L 208 200 M 200 192 L 200 208" />
+    <path d="M 192 300 L 208 300 M 200 292 L 200 308" />
+    <path d="M 192 400 L 208 400 M 200 392 L 200 408" />
+    <path d="M 292 0 L 308 0 M 300 -8 L 300 8" />
+    <path d="M 292 100 L 308 100 M 300 92 L 300 108" />
+    <path d="M 292 200 L 308 200 M 300 192 L 300 208" />
+    <path d="M 292 300 L 308 300 M 300 292 L 300 308" />
+    <path d="M 292 400 L 308 400 M 300 392 L 300 408" />
+    <path d="M 392 0 L 408 0 M 400 -8 L 400 8" />
+    <path d="M 392 100 L 408 100 M 400 92 L 400 108" />
+    <path d="M 392 200 L 408 200 M 400 192 L 400 208" />
+    <path d="M 392 300 L 408 300 M 400 292 L 400 308" />
+    <path d="M 392 400 L 408 400 M 400 392 L 400 408" />
+  </g>
+</svg>

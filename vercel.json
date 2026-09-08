@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/editor", "destination": "/editor.html" },
+    { "source": "/demo", "destination": "/demo.html" }
+  ]
+}

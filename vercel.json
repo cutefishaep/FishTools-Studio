@@ -1,23 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "functions": {
-    "server.js": {
-      "includeFiles": [
-        "assets/**",
-        "css/**",
-        "js/**",
-        "effects/**",
-        "vendor/**",
-        "Shape/**",
-        "*.html"
-      ]
-    }
-  },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
-    }
-  ]
+  "cleanUrls": true,
+  "trailingSlash": false
 }

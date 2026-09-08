@@ -2,11 +2,11 @@
   "name": "openfishtools-studio",
   "version": "0.1.0-pre-alpha",
   "description": "OpenFishTools Studio - Next Generation Marine Research Tooling",
+  "main": "server.js",
   "scripts": {
-    "build": "echo Static site ready",
-    "dev": "node dev-server.js",
-    "tunnel": "node dev-server.js --tunnel",
-    "start": "node dev-server.js",
+    "dev": "node server.js",
+    "tunnel": "node server.js --tunnel",
+    "start": "node server.js",
     "serve": "npx serve ."
   },
   "keywords": [

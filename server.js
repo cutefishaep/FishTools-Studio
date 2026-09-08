@@ -1,9 +1,9 @@
 /**
  * OpenFishTools Studio - Live Server & Cloudflare Tunnel
- * - Clean URLs (/demo -> demo.html, /editor -> editor.html, / -> index.html)
- * - Auto Live Reload via Server-Sent Events (SSE) on file changes
- * - Built-in Cloudflare Tunnel support (--tunnel)
- * - Zero external dependencies (uses native Node.js http, fs, path, child_process)
+ * - Runs standalone locally via `run.bat` or `node server.js`
+ * - Built-in Cloudflare Tunnel support (`--tunnel`)
+ * - Works on Vercel Serverless Function with full static file resolution
+ * - Zero external dependencies
  */
 
 const http = require('http');
@@ -11,8 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-const PORT = 3000;
-const ROOT = process.cwd();
+const PORT = process.env.PORT || 3000;
+const ROOT = __dirname;
 const ENABLE_TUNNEL = process.argv.includes('--tunnel');
 
 const MIME_TYPES = {
@@ -29,7 +29,8 @@ const MIME_TYPES = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
-  '.wasm': 'application/wasm'
+  '.wasm': 'application/wasm',
+  '.xml': 'application/xml; charset=utf-8'
 };
 
 const SSE_INJECTION = `
@@ -43,9 +44,7 @@ const SSE_INJECTION = `
         window.location.reload();
       }
     };
-    es.onerror = function() {
-      // Reconnect automatically handled by EventSource
-    };
+    es.onerror = function() {};
   })();
 </script>
 `;
@@ -60,33 +59,34 @@ function notifyClients() {
   });
 }
 
-// Watch workspace files with debounce
-let debounceTimer = null;
-try {
-  fs.watch(ROOT, { recursive: true }, (eventType, filename) => {
-    if (!filename) return;
-    const normalized = filename.replace(/\\/g, '/');
-    if (
-      normalized.includes('node_modules') ||
-      normalized.includes('.git') ||
-      normalized.includes('.gemini') ||
-      normalized.includes('.system_generated') ||
-      normalized.startsWith('.')
-    ) {
-      return;
-    }
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      console.log(`[DevServer] Change detected in ${filename} -> Triggering Live Reload`);
-      notifyClients();
-    }, 120);
-  });
-} catch (err) {
-  console.warn('[DevServer] File watch warning:', err.message);
+// File watcher for local dev auto-reload
+if (!process.env.VERCEL) {
+  let debounceTimer = null;
+  try {
+    fs.watch(ROOT, { recursive: true }, (eventType, filename) => {
+      if (!filename) return;
+      const normalized = filename.replace(/\\/g, '/');
+      if (
+        normalized.includes('node_modules') ||
+        normalized.includes('.git') ||
+        normalized.includes('.gemini') ||
+        normalized.includes('.system_generated') ||
+        normalized.startsWith('.')
+      ) {
+        return;
+      }
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log(`[DevServer] Change detected in ${filename} -> Triggering Live Reload`);
+        notifyClients();
+      }, 120);
+    });
+  } catch (err) {}
 }
 
-const server = http.createServer((req, res) => {
-  const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
+function handleRequest(req, res) {
+  const host = req.headers.host || `localhost:${PORT}`;
+  const parsedUrl = new URL(req.url, `http://${host}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
 
   // SSE Live Reload stream
@@ -105,7 +105,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Resolve target file with clean URL support
+  // Resolve target file
   let filePath = path.join(ROOT, pathname);
 
   // If path is directory or root, check for index.html
@@ -134,8 +134,8 @@ const server = http.createServer((req, res) => {
   try {
     let content = fs.readFileSync(filePath);
 
-    // Inject SSE live reload script into HTML responses
-    if (ext === '.html') {
+    // Inject SSE live reload script into HTML responses (only in local dev)
+    if (ext === '.html' && !process.env.VERCEL) {
       let htmlStr = content.toString('utf-8');
       if (htmlStr.includes('</body>')) {
         htmlStr = htmlStr.replace('</body>', `${SSE_INJECTION}\n</body>`);
@@ -147,7 +147,7 @@ const server = http.createServer((req, res) => {
 
     res.writeHead(200, {
       'Content-Type': contentType,
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Cache-Control': process.env.VERCEL ? 'public, max-age=3600' : 'no-store, no-cache, must-revalidate',
       'Access-Control-Allow-Origin': '*'
     });
     res.end(content);
@@ -155,7 +155,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end('500 Internal Server Error: ' + err.message);
   }
-});
+}
 
 function findCloudflared() {
   const localExe = path.join(ROOT, 'cloudflared.exe');
@@ -226,21 +226,30 @@ function startCloudflareTunnel() {
   process.on('exit', cleanExit);
 }
 
-server.listen(PORT, () => {
-  console.log('===================================================');
-  console.log(`  OpenFishTools Studio - Live Server Running`);
-  console.log(`  Local URL: http://localhost:${PORT}`);
-  console.log(`  Routes:`);
-  console.log(`    - Home:   http://localhost:${PORT}/`);
-  console.log(`    - Demo:   http://localhost:${PORT}/demo`);
-  console.log(`    - Editor: http://localhost:${PORT}/editor`);
-  console.log('  Live Reload: ACTIVE (Watching file changes)');
-  if (!ENABLE_TUNNEL) {
-    console.log('  Tip: Jalankan dengan --tunnel untuk public link Cloudflare');
-  }
-  console.log('===================================================');
+const server = http.createServer(handleRequest);
 
-  if (ENABLE_TUNNEL) {
-    startCloudflareTunnel();
-  }
-});
+// Standalone start (local dev)
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log('===================================================');
+    console.log(`  OpenFishTools Studio - Live Server Running`);
+    console.log(`  Local URL: http://localhost:${PORT}`);
+    console.log(`  Routes:`);
+    console.log(`    - Home:   http://localhost:${PORT}/`);
+    console.log(`    - Demo:   http://localhost:${PORT}/demo`);
+    console.log(`    - Editor: http://localhost:${PORT}/editor`);
+    console.log('  Live Reload: ACTIVE (Watching file changes)');
+    if (!ENABLE_TUNNEL) {
+      console.log('  Tip: Jalankan dengan --tunnel untuk public link Cloudflare');
+    }
+    console.log('===================================================');
+
+    if (ENABLE_TUNNEL) {
+      startCloudflareTunnel();
+    }
+  });
+}
+
+// Export for Vercel Serverless Function
+module.exports = server;
+module.exports.default = server;

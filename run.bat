@@ -24,7 +24,7 @@ if not exist "cloudflared.exe" (
   )
 )
 
-node dev-server.js --tunnel
+node server.js --tunnel
 if %ERRORLEVEL% neq 0 (
   echo.
   echo [Info] Menjalankan via npm run tunnel...

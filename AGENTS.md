@@ -61,8 +61,8 @@ Boundaries: code/commits/PRs written normal.
 - **NO Premature Logic / Workflows**: When the user requests adding a button, icon, control, or UI component (e.g., "tambah tombol +"), the agent MUST strictly implement ONLY the visual layout, HTML structure, CSS styling, and hover/press states.
 - **Explicit Request Required for Actions**: NEVER invent, assume, or attach unrequested business logic, operational mechanisms, or data mutations (e.g., do NOT auto-create layer additions, deletions, or data side-effects) unless the user explicitly commands what the button must execute.
 
-## XML-Based Effects Architecture (`effects/`) - MANDATORY
-- **Dedicated XML Definition Files**: All layer effects MUST be defined as standalone `.xml` files inside the `effects/` directory (e.g. `effects/<id>.xml`) and registered in `effects/manifest.xml`.
-- **No Hardcoded Effect Logic in Engine**: Effects must never be hardcoded into the core engine or UI. The effects engine and gallery must dynamically parse XML via `DOMParser`, extracting parameter ranges, defaults, units, filter formulas, and rendering pipelines.
-- **Unified Parameter & Keyframe Binding**: Every parameter defined in XML must automatically wire to the Effects Rack UI (scrubbers, badges, labels) and timeline keyframing under the standard `${effectInstanceId}:${paramId}` identifier.
+## Modular JS Effects Architecture (`effects/`) - MANDATORY
+- **Pure Modular JS Plugin Files**: All layer effects MUST be defined as standalone `.js` files inside the `effects/` directory (e.g. `effects/<id>.js`). No `.xml` files needed.
+- **Direct Registry Pattern**: Effects register directly via `FishEffectsRegistry.register({...})` with their own `id`, `name`, `category`, `params`, and rendering logic (`filter`, `render`, or `renderPost`).
+- **Unified Parameter & Keyframe Binding**: Every parameter defined in `params` automatically wires to the Effects Rack UI (scrubbers, badges, labels) and timeline keyframing under the standard `${effectInstanceId}:${paramId}` identifier.
 

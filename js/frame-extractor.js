@@ -67,6 +67,12 @@
       this._flushTimer = null;
       this._rafProgressBarScheduled = false;
 
+      this._interpCache = new Map();
+      this._ofCanvas0 = null;
+      this._ofCtx0 = null;
+      this._ofCanvas1 = null;
+      this._ofCtx1 = null;
+
       if (typeof window !== 'undefined') {
         window.addEventListener('beforeunload', () => {
           this._flushSaveQueue();
@@ -689,13 +695,15 @@
       const durSec = (layer.durationSec !== undefined && layer.durationSec > 0)
         ? layer.durationSec
         : ((layer.widthPx || 320) / pixelsPerSec);
+      const effSpeed = (layer.speed !== undefined && layer.speed > 0) ? layer.speed : 1.0;
+      const videoDurationConsumed = durSec * effSpeed;
       const startIdx = Math.floor(offsetSec * fps);
       const sourceKey = this._getSourceKey(layer);
       const source = this.sources.get(sourceKey);
       const trueMediaDur = (source && isFinite(source.duration) && source.duration > 0)
         ? source.duration
-        : (layer.mediaDuration && isFinite(layer.mediaDuration) && layer.mediaDuration > 0 ? layer.mediaDuration : (offsetSec + durSec));
-      let endIdx = Math.floor((offsetSec + durSec) * fps) - 1;
+        : (layer.mediaDuration && isFinite(layer.mediaDuration) && layer.mediaDuration > 0 ? layer.mediaDuration : (offsetSec + videoDurationConsumed));
+      let endIdx = Math.floor((offsetSec + videoDurationConsumed) * fps) + 1;
       if (trueMediaDur > 0) {
         const maxVideoFrame = Math.max(0, Math.floor(trueMediaDur * fps) - 1);
         endIdx = Math.min(endIdx, maxVideoFrame);
@@ -719,8 +727,347 @@
         ? (window.getLayerEffectivePropsAtTime(layer, currentSec).speed || layer.speed || 1.0)
         : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
       const timeInClip = Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - start) * effSpeed);
-      const fIdx = Math.round(timeInClip * source.fps);
+      const rawFrame = timeInClip * source.fps;
+
+      const interp = layer.speedInterpolation || 'none';
+      if (interp === 'blend' || interp === 'optical_flow') {
+        const f0 = Math.floor(rawFrame);
+        const f1 = f0 + 1;
+        const has0 = source.frames.has(f0) || (source.cachedFrameIndices && source.cachedFrameIndices.has(f0));
+        const has1 = source.frames.has(f1) || (source.cachedFrameIndices && source.cachedFrameIndices.has(f1));
+        return has0 && has1;
+      }
+
+      const fIdx = Math.round(rawFrame);
       return source.frames.has(fIdx) || (source.cachedFrameIndices && source.cachedFrameIndices.has(fIdx));
+    }
+
+    /**
+     * Clear all synthesized sub-frame interpolation buffers
+     */
+    clearInterpolationCache() {
+      if (this._interpCache) {
+        this._interpCache.clear();
+      }
+    }
+
+    /**
+     * Get or synthesize an interpolated video frame between integer frames
+     * @param {Object} source - Video source cache entry
+     * @param {number} timeInClip - Sub-frame time inside media clip
+     * @param {string} mode - 'none' | 'blend' | 'optical_flow'
+     * @param {number} targetW - Canvas width
+     * @param {number} targetH - Canvas height
+     */
+    getInterpolatedFrame(source, timeInClip, mode = 'none', targetW = null, targetH = null) {
+      if (!source || !source.frames) return null;
+      const fps = source.fps || 60;
+      const rawFrame = Math.max(0, timeInClip * fps);
+      const f0 = Math.floor(rawFrame);
+      const f1 = f0 + 1;
+      const alpha = rawFrame - f0;
+
+      // Nearest-neighbor if mode is none or at integer boundaries
+      if (mode === 'none' || mode === 'nearest' || alpha < 0.02) {
+        return source.frames.get(Math.round(rawFrame)) || source.frames.get(f0) || null;
+      }
+      if (alpha > 0.98) {
+        return source.frames.get(f1) || source.frames.get(Math.round(rawFrame)) || null;
+      }
+
+      const frame0 = source.frames.get(f0);
+      const frame1 = source.frames.get(f1);
+
+      // Trigger asynchronous fetch from IndexedDB if in DB but not in RAM
+      if (!frame0 && source.cachedFrameIndices && source.cachedFrameIndices.has(f0)) {
+        this.fetchFrameFromDB(source, f0);
+      }
+      if (!frame1 && source.cachedFrameIndices && source.cachedFrameIndices.has(f1)) {
+        this.fetchFrameFromDB(source, f1);
+      }
+
+      // If one of the frames is missing from RAM, fallback to available
+      if (!frame0 && !frame1) return null;
+      if (!frame0) return frame1;
+      if (!frame1) return frame0;
+
+      // Discretize sub-frame alpha into steps (5% precision -> 20 sub-steps) for instant cache hit
+      const stepAlpha = Math.round(alpha * 20) / 20;
+      if (stepAlpha <= 0) return frame0;
+      if (stepAlpha >= 1) return frame1;
+
+      const cacheKey = `${source.sourceKey}_${f0}_${Math.round(stepAlpha * 100)}_${mode}`;
+      if (!this._interpCache) this._interpCache = new Map();
+      if (this._interpCache.has(cacheKey)) {
+        return this._interpCache.get(cacheKey);
+      }
+
+      const fw = (frame0.width || targetW || 960);
+      const fh = (frame0.height || targetH || 540);
+
+      let resultCanvas = null;
+      if (mode === 'optical_flow') {
+        resultCanvas = this._synthesizeOpticalFlow(frame0, frame1, stepAlpha, fw, fh);
+      } else {
+        // Default to frame blend
+        resultCanvas = this._synthesizeFrameBlend(frame0, frame1, stepAlpha, fw, fh);
+      }
+
+      if (resultCanvas) {
+        if (this._interpCache.size >= 150) {
+          const firstKey = this._interpCache.keys().next().value;
+          this._interpCache.delete(firstKey);
+        }
+        this._interpCache.set(cacheKey, resultCanvas);
+        return resultCanvas;
+      }
+
+      return frame0;
+    }
+
+    /**
+     * Synthesize a linear frame blend between two consecutive video frames
+     */
+    _synthesizeFrameBlend(frame0, frame1, alpha, fw, fh) {
+      const canvas = document.createElement('canvas');
+      canvas.width = fw;
+      canvas.height = fh;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) return frame0;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      ctx.globalAlpha = 1.0;
+      try {
+        ctx.drawImage(frame0, 0, 0, fw, fh);
+      } catch (_) {
+        return frame1;
+      }
+
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      try {
+        ctx.drawImage(frame1, 0, 0, fw, fh);
+      } catch (_) {}
+      ctx.globalAlpha = 1.0;
+
+      return canvas;
+    }
+
+    /**
+     * Synthesize an optical flow motion-interpolated frame between two video frames
+     * Uses block-based motion estimation with 3x3 median filtering and seamless patch blending
+     */
+    _synthesizeOpticalFlow(frame0, frame1, alpha, fw, fh) {
+      const canvas = document.createElement('canvas');
+      canvas.width = fw;
+      canvas.height = fh;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) return frame0;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // 1. Draw base blend as foundation (guarantees zero missing patches / zero artifacts)
+      ctx.globalAlpha = 1.0;
+      try {
+        ctx.drawImage(frame0, 0, 0, fw, fh);
+      } catch (_) {
+        return frame1;
+      }
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      try {
+        ctx.drawImage(frame1, 0, 0, fw, fh);
+      } catch (_) {}
+      ctx.globalAlpha = 1.0;
+
+      // 2. Downscaled analysis grid for motion vector estimation
+      const AW = 160;
+      const AH = 90;
+      if (!this._ofCanvas0) {
+        this._ofCanvas0 = document.createElement('canvas');
+        this._ofCanvas0.width = AW;
+        this._ofCanvas0.height = AH;
+        this._ofCtx0 = this._ofCanvas0.getContext('2d', { willReadFrequently: true });
+      }
+      if (!this._ofCanvas1) {
+        this._ofCanvas1 = document.createElement('canvas');
+        this._ofCanvas1.width = AW;
+        this._ofCanvas1.height = AH;
+        this._ofCtx1 = this._ofCanvas1.getContext('2d', { willReadFrequently: true });
+      }
+
+      const ctxA0 = this._ofCtx0;
+      const ctxA1 = this._ofCtx1;
+      if (!ctxA0 || !ctxA1) return canvas;
+
+      try {
+        ctxA0.drawImage(frame0, 0, 0, AW, AH);
+        ctxA1.drawImage(frame1, 0, 0, AW, AH);
+      } catch (_) {
+        return canvas;
+      }
+
+      let imgData0, imgData1;
+      try {
+        imgData0 = ctxA0.getImageData(0, 0, AW, AH).data;
+        imgData1 = ctxA1.getImageData(0, 0, AW, AH).data;
+      } catch (_) {
+        return canvas;
+      }
+
+      // 3. Grayscale luminance arrays
+      const totalPixels = AW * AH;
+      const lum0 = new Uint8Array(totalPixels);
+      const lum1 = new Uint8Array(totalPixels);
+      for (let i = 0, p = 0; i < totalPixels; i++, p += 4) {
+        lum0[i] = (imgData0[p] * 77 + imgData0[p + 1] * 150 + imgData0[p + 2] * 29) >> 8;
+        lum1[i] = (imgData1[p] * 77 + imgData1[p + 1] * 150 + imgData1[p + 2] * 29) >> 8;
+      }
+
+      // 4. Block-based motion vector estimation
+      const BS = 16;
+      const maxSearchX = 10;
+      const maxSearchY = 6;
+      const numBlocksX = Math.floor(AW / BS);
+      const numBlocksY = Math.floor(AH / BS);
+
+      const vx = new Int16Array(numBlocksX * numBlocksY);
+      const vy = new Int16Array(numBlocksX * numBlocksY);
+      const hasMotion = new Uint8Array(numBlocksX * numBlocksY);
+
+      for (let by = 0; by < numBlocksY; by++) {
+        for (let bx = 0; bx < numBlocksX; bx++) {
+          const bIdx = by * numBlocksX + bx;
+          const startX = bx * BS;
+          const startY = by * BS;
+
+          // Compute SAD for static (0, 0)
+          let sad00 = 0;
+          for (let y = 0; y < BS; y++) {
+            const row0 = (startY + y) * AW;
+            for (let x = 0; x < BS; x++) {
+              const idx = row0 + (startX + x);
+              sad00 += Math.abs(lum0[idx] - lum1[idx]);
+            }
+          }
+
+          // Static block: base blend is already optimal
+          if (sad00 < BS * BS * 3.5) continue;
+
+          let bestSad = sad00;
+          let bestDx = 0;
+          let bestDy = 0;
+
+          for (let dy = -maxSearchY; dy <= maxSearchY; dy += 2) {
+            const targetY = startY + dy;
+            if (targetY < 0 || targetY + BS > AH) continue;
+
+            for (let dx = -maxSearchX; dx <= maxSearchX; dx += 2) {
+              const targetX = startX + dx;
+              if (targetX < 0 || targetX + BS > AW) continue;
+
+              let curSad = 0;
+              let earlyBreak = false;
+
+              for (let y = 0; y < BS; y++) {
+                const r0 = (startY + y) * AW + startX;
+                const r1 = (targetY + y) * AW + targetX;
+                for (let x = 0; x < BS; x++) {
+                  curSad += Math.abs(lum0[r0 + x] - lum1[r1 + x]);
+                }
+                if (curSad >= bestSad) {
+                  earlyBreak = true;
+                  break;
+                }
+              }
+
+              if (!earlyBreak && curSad < bestSad) {
+                bestSad = curSad;
+                bestDx = dx;
+                bestDy = dy;
+              }
+            }
+          }
+
+          if ((bestDx !== 0 || bestDy !== 0) && bestSad < sad00 * 0.85) {
+            vx[bIdx] = bestDx;
+            vy[bIdx] = bestDy;
+            hasMotion[bIdx] = 1;
+          }
+        }
+      }
+
+      // 5. Spatial median filter on motion vectors to eliminate rogue vector spikes
+      const smoothVx = new Int16Array(vx);
+      const smoothVy = new Int16Array(vy);
+
+      for (let by = 0; by < numBlocksY; by++) {
+        for (let bx = 0; bx < numBlocksX; bx++) {
+          const bIdx = by * numBlocksX + bx;
+          if (!hasMotion[bIdx]) continue;
+
+          const neighborsX = [];
+          const neighborsY = [];
+          for (let ny = Math.max(0, by - 1); ny <= Math.min(numBlocksY - 1, by + 1); ny++) {
+            for (let nx = Math.max(0, bx - 1); nx <= Math.min(numBlocksX - 1, bx + 1); nx++) {
+              const nIdx = ny * numBlocksX + nx;
+              if (hasMotion[nIdx]) {
+                neighborsX.push(vx[nIdx]);
+                neighborsY.push(vy[nIdx]);
+              }
+            }
+          }
+
+          if (neighborsX.length >= 3) {
+            neighborsX.sort((a, b) => a - b);
+            neighborsY.sort((a, b) => a - b);
+            const mid = Math.floor(neighborsX.length / 2);
+            smoothVx[bIdx] = neighborsX[mid];
+            smoothVy[bIdx] = neighborsY[mid];
+          }
+        }
+      }
+
+      // 6. Fast, lightweight 9-argument block patch rendering
+      const scaleX = fw / AW;
+      const scaleY = fh / AH;
+
+      for (let by = 0; by < numBlocksY; by++) {
+        for (let bx = 0; bx < numBlocksX; bx++) {
+          const bIdx = by * numBlocksX + bx;
+          if (!hasMotion[bIdx]) continue;
+
+          const dx = smoothVx[bIdx];
+          const dy = smoothVy[bIdx];
+          if (dx === 0 && dy === 0) continue;
+
+          const sx = Math.floor(bx * BS * scaleX);
+          const sy = Math.floor(by * BS * scaleY);
+          const sw = Math.ceil(BS * scaleX);
+          const sh = Math.ceil(BS * scaleY);
+
+          const shiftX0 = Math.round(dx * scaleX * alpha);
+          const shiftY0 = Math.round(dy * scaleY * alpha);
+          const shiftX1 = Math.round(-dx * scaleX * (1 - alpha));
+          const shiftY1 = Math.round(-dy * scaleY * (1 - alpha));
+
+          const dstX0 = Math.max(0, Math.min(fw - sw, sx + shiftX0));
+          const dy0 = Math.max(0, Math.min(fh - sh, sy + shiftY0));
+          const dstX1 = Math.max(0, Math.min(fw - sw, sx + shiftX1));
+          const dy1 = Math.max(0, Math.min(fh - sh, sy + shiftY1));
+
+          try {
+            ctx.globalAlpha = 1.0 - alpha;
+            ctx.drawImage(frame0, sx, sy, sw, sh, dstX0, dy0, sw, sh);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(frame1, sx, sy, sw, sh, dstX1, dy1, sw, sh);
+          } catch (_) {}
+        }
+      }
+
+      ctx.globalAlpha = 1.0;
+      return canvas;
     }
 
     /**
@@ -767,8 +1114,9 @@
       if (layer.mediaDuration && (!source.duration || source.duration <= 0)) {
         source.duration = layer.mediaDuration;
       }
-      const effectiveFps = Math.max(this.targetFps, layer.mediaFps || 0);
-      if (!source.fps || source.fps < effectiveFps) {
+      const nativeFps = (layer.mediaFps && layer.mediaFps >= 10 && layer.mediaFps <= 240) ? layer.mediaFps : null;
+      const effectiveFps = nativeFps || (parseInt(window.currentProjectState && window.currentProjectState.fps, 10) || this.targetFps || 60);
+      if (!source.fps || (nativeFps && source.fps !== nativeFps)) {
         source.fps = effectiveFps;
       }
 
@@ -869,8 +1217,9 @@
         if (vl.mediaDuration && (!source.duration || source.duration <= 0)) {
           source.duration = vl.mediaDuration;
         }
-        const effectiveFps = Math.max(this.targetFps, vl.mediaFps || 0);
-        if (!source.fps || source.fps < effectiveFps) {
+        const nativeFps = (vl.mediaFps && vl.mediaFps >= 10 && vl.mediaFps <= 240) ? vl.mediaFps : null;
+        const effectiveFps = nativeFps || (parseInt(window.currentProjectState && window.currentProjectState.fps, 10) || this.targetFps || 60);
+        if (!source.fps || (nativeFps && source.fps !== nativeFps)) {
           source.fps = effectiveFps;
         }
         if (!source.isDbLoaded) {

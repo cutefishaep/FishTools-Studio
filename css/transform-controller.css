@@ -747,6 +747,33 @@
   cursor: default;
 }
 
+/* Multi-Selected Keyframe Marker via Marquee */
+.timeline-keyframe-marker.is-selected-kf {
+  background-color: var(--color-primary) !important;
+  border: 1.5px solid var(--text-primary) !important;
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.4) !important;
+  z-index: 20 !important;
+  cursor: grab !important;
+}
+
+.timeline-keyframe-marker.is-selected-kf.is-dragging {
+  cursor: grabbing !important;
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.5) !important;
+}
+
+/* Timeline Keyframe Marquee Selection Box (Pure Flat Theme Token) */
+.timeline-keyframe-marquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px dashed var(--color-primary);
+  background-color: var(--color-primary);
+  opacity: 0.18;
+  border-radius: 4px;
+  z-index: 100;
+  display: none;
+  box-sizing: border-box;
+}
+
 /* Keyframe button in transform navigation column */
 .transform-nav-btn.is-active {
   background-color: var(--color-primary);

@@ -576,9 +576,10 @@
       window.addEventListener('scroll', onActivity, { passive: true });
     }
 
-    scheduleIdleCheck() {
+    scheduleIdleCheck(immediate = false) {
       if (!this.idleCacheEnabled) return;
       if (this.idleTimer) clearTimeout(this.idleTimer);
+      const delay = immediate ? 50 : 600;
       this.idleTimer = setTimeout(() => {
         if (!this.idleCacheEnabled) return;
         if (window.isTimelinePlaying || window.isTransformInteracting) return;
@@ -588,7 +589,21 @@
         if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) return;
         if (document.querySelector('.modal-backdrop.is-open, .modal-backdrop.active')) return;
         this.startIdleWorker();
-      }, 600);
+      }, delay);
+    }
+
+    /**
+     * Force immediate background recache for a specific time range or whole active composition
+     */
+    forceRecache(startSec = null, endSec = null) {
+      if (startSec !== null && endSec !== null && isFinite(startSec) && isFinite(endSec)) {
+        this.invalidateRange(startSec, endSec);
+      } else {
+        this.clearAll('current');
+      }
+      this.idleCacheEnabled = true;
+      this.stopIdleWorker();
+      this.scheduleIdleCheck(true);
     }
 
     startIdleWorker() {

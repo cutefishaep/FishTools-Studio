@@ -26,8 +26,10 @@
 }
 
 html, body {
-  width: 100vw;
+  width: 100%;
+  height: 100%;
   height: 100vh;
+  height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -36,11 +38,16 @@ html, body {
   background-color: var(--bg-canvas);
   font-family: var(--font-brand);
   color: var(--text-primary);
+  position: fixed;
+  inset: 0;
 }
 
 .editor-viewport {
-  width: 100vw;
+  width: 100%;
+  height: 100%;
   height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -48,6 +55,8 @@ html, body {
   border: none;
   outline: none;
   background-color: var(--bg-canvas);
+  box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ==========================================================================
@@ -661,10 +670,10 @@ html, body {
   }
 
   .editor-header {
-    height: 56px;
+    height: 50px;
     width: 100%;
     background-color: var(--bg-panel);
-    border-bottom-right-radius: 32px;
+    border-bottom-right-radius: 28px;
     border-bottom-left-radius: 0;
     display: flex;
     align-items: center;
@@ -680,32 +689,36 @@ html, body {
     min-height: 0;
     width: 100%;
     position: relative;
+    overflow: hidden;
   }
 
   .editor-left-pane {
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-height: 0;
+    min-height: 100px;
     width: 100%;
     position: relative;
+    overflow: hidden;
   }
 
   .editor-preview {
     flex: 1;
-    min-height: 140px;
+    min-height: 60px;
     background-color: var(--bg-canvas);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     overflow: hidden;
+    padding: 6px;
+    box-sizing: border-box;
   }
 
   .editor-controller {
-    height: 54px;
+    height: 48px;
     background-color: var(--bg-panel);
-    border-top-left-radius: 36px;
+    border-top-left-radius: 28px;
     border-top-right-radius: 0;
     display: flex;
     align-items: center;
@@ -714,27 +727,49 @@ html, body {
     z-index: 10;
   }
 
-  /* Timeline Mobile: Penutup Corner Aktif */
+  /* Timeline Mobile: Flexible, adaptive split - never overflows */
   .editor-timeline-wrapper {
     background-color: var(--bg-panel);
     width: 100%;
-    height: 48vh;
-    min-height: 220px;
-    flex-shrink: 0;
+    flex: 1.15;
+    min-height: 140px;
+    height: auto;
+    flex-shrink: 1;
     position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .editor-timeline {
     width: 100%;
     height: 100%;
+    flex: 1;
+    min-height: 0;
     background-color: var(--bg-panel-hover);
-    border-top-right-radius: 48px;
+    border-top-right-radius: 36px;
     border-top-left-radius: 0;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
     z-index: 2;
+  }
+
+  .timeline-layers-viewport {
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .timeline-layers-viewport.has-drawer-open,
+  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
+    padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .timeline-fab-add {
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    width: 42px;
+    height: 42px;
   }
 
   /* Vertical split handle is strictly hidden on mobile */
@@ -2266,10 +2301,10 @@ html, body {
 
 @media (max-width: 600px) {
   .timeline-fab-add {
-    right: 16px;
-    bottom: 16px;
-    width: 44px;
-    height: 44px;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    width: 42px;
+    height: 42px;
   }
 }
 

@@ -28,9 +28,13 @@
 .drawer-container.is-global {
   position: fixed;
   inset: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   z-index: 1050;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
 }
 
 /* Active State Container */
@@ -80,6 +84,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 2;
   transform: translate3d(0, 100%, 0);
   transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);

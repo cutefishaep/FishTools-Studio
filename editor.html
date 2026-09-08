@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>OpenFishTools Studio - Editor</title>
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
   
@@ -937,6 +937,10 @@
                           <div class="effects-category-card-overlay"></div>
                           <span class="effects-category-name">Movement</span>
                         </div>
+                        <div class="effects-category-card" role="button" tabindex="0" data-category="layer" title="Layer">
+                          <div class="effects-category-card-overlay"></div>
+                          <span class="effects-category-name">Layer</span>
+                        </div>
                       </div>
 
                       <!-- 2. Category Effects Items View (Inside "Lightning") -->
@@ -1017,6 +1021,24 @@
                             </div>
                             <span class="effects-gallery-item-name">Rays</span>
                           </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="tint" data-category="lightning" title="Tint">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Tint" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Tint</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="lumia" data-category="lightning" title="Lumia">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Lumia" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Lumia</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="curve" data-category="lightning" title="Curve">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Curve" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Curve</span>
+                          </div>
                           <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="tile" data-category="warp" title="Tile">
                             <div class="effects-gallery-item-thumb">
                               <img src="assets/FXPH.svg" alt="Tile" class="effects-gallery-item-img" loading="lazy">
@@ -1052,6 +1074,30 @@
                               <img src="assets/FXPH.svg" alt="Swing" class="effects-gallery-item-img" loading="lazy">
                             </div>
                             <span class="effects-gallery-item-name">Swing</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="drop-shadow" data-category="layer" title="Drop Shadow">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Drop Shadow" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Drop Shadow</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="fill" data-category="layer" title="Fill">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Fill" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Fill</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="fast-box-blur" data-category="layer" title="Fast Box Blur">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Fast Box Blur" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Fast Box Blur</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="camera-lens-blur" data-category="layer" title="Camera Lens Blur">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Camera Lens Blur" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Camera Lens Blur</span>
                           </div>
                         </div>
                       </div>
@@ -2116,6 +2162,13 @@
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>
   <script src="effects/swing.js"></script>
+  <script src="effects/tint.js"></script>
+  <script src="effects/lumia.js"></script>
+  <script src="effects/curve.js"></script>
+  <script src="effects/drop_shadow.js"></script>
+  <script src="effects/fill.js"></script>
+  <script src="effects/fast_box_blur.js"></script>
+  <script src="effects/camera_lens_blur.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/fishtools-adapter.js?v=4"></script>
@@ -2206,7 +2259,8 @@
       recordSnapshot() {
         if (this.isApplying) return;
         const layersCopy = JSON.parse(JSON.stringify(currentProjectState.layers || []));
-        const serialized = JSON.stringify(layersCopy);
+        const beatmarksCopy = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
+        const serialized = JSON.stringify({ layers: layersCopy, beatmarks: beatmarksCopy });
 
         // Avoid duplicate consecutive states
         if (this.index >= 0 && this.index < this.stack.length) {
@@ -2220,6 +2274,7 @@
 
         this.stack.push({
           layers: layersCopy,
+          beatmarks: beatmarksCopy,
           serialized
         });
 
@@ -2257,7 +2312,13 @@
         if (!snapshot) return;
         this.isApplying = true;
         try {
-          currentProjectState.layers = JSON.parse(JSON.stringify(snapshot.layers));
+          currentProjectState.layers = JSON.parse(JSON.stringify(snapshot.layers || []));
+          if (Array.isArray(snapshot.beatmarks)) {
+            currentProjectState.beatmarks = [...snapshot.beatmarks];
+          }
+          if (typeof window.renderTimelineBeatmarks === 'function') {
+            window.renderTimelineBeatmarks();
+          }
           if (typeof window.renderTimelineLayers === 'function') {
             window.renderTimelineLayers();
           }
@@ -3248,8 +3309,15 @@
             const sourceKey = (window.VideoFrameExtractor && window.VideoFrameExtractor._getSourceKey) ? window.VideoFrameExtractor._getSourceKey(child) : (child.mediaId || child.dataUrl || child.id);
             const cachedSource = (!isExport && window.VideoFrameExtractor) ? window.VideoFrameExtractor.getSourceCache(sourceKey) : null;
             if (!isExport && cachedSource) {
-              const fIdx = Math.round(timeInClip * cachedSource.fps);
-              const cachedFrame = cachedSource.frames.get(fIdx);
+              const childInterp = child.speedInterpolation || 'none';
+              let cachedFrame = null;
+              if (childInterp !== 'none' && window.VideoFrameExtractor && typeof window.VideoFrameExtractor.getInterpolatedFrame === 'function') {
+                cachedFrame = window.VideoFrameExtractor.getInterpolatedFrame(cachedSource, timeInClip, childInterp, child.mediaWidth, child.mediaHeight);
+              }
+              if (!cachedFrame) {
+                const fIdx = Math.round(timeInClip * cachedSource.fps);
+                cachedFrame = cachedSource.frames.get(fIdx);
+              }
               if (cachedFrame) childEl = cachedFrame;
             }
           }
@@ -3690,13 +3758,22 @@
             const hasBakedFrames = !!(cachedSource && ((cachedSource.cachedFrameIndices && cachedSource.cachedFrameIndices.size > 0) || (cachedSource.frames && cachedSource.frames.size > 0)));
 
             if (cachedSource) {
-              const fIdx = Math.round(timeInClip * cachedSource.fps);
-              let cachedFrame = cachedSource.frames.get(fIdx);
+              const fIdx = Math.round(timeInClip * (cachedSource.fps || 60));
+              const interpMode = layer.speedInterpolation || 'none';
+              let cachedFrame = null;
 
-              // Missing exact frame from RAM cache -> trigger async fetch from IndexedDB
-              if (!cachedFrame && cachedSource.cachedFrameIndices && cachedSource.cachedFrameIndices.has(fIdx)) {
-                if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.fetchFrameFromDB === 'function') {
-                  window.VideoFrameExtractor.fetchFrameFromDB(cachedSource, fIdx);
+              if (interpMode !== 'none' && window.VideoFrameExtractor && typeof window.VideoFrameExtractor.getInterpolatedFrame === 'function') {
+                cachedFrame = window.VideoFrameExtractor.getInterpolatedFrame(cachedSource, timeInClip, interpMode, layer.mediaWidth, layer.mediaHeight);
+              }
+
+              if (!cachedFrame) {
+                cachedFrame = cachedSource.frames.get(fIdx);
+
+                // Missing exact frame from RAM cache -> trigger async fetch from IndexedDB
+                if (!cachedFrame && cachedSource.cachedFrameIndices && cachedSource.cachedFrameIndices.has(fIdx)) {
+                  if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.fetchFrameFromDB === 'function') {
+                    window.VideoFrameExtractor.fetchFrameFromDB(cachedSource, fIdx);
+                  }
                 }
               }
 
@@ -8240,10 +8317,51 @@
           }
         }
 
+        if (window.VideoFrameExtractor) {
+          if (typeof window.VideoFrameExtractor.clearInterpolationCache === 'function') {
+            window.VideoFrameExtractor.clearInterpolationCache();
+          }
+          if (layer.type === 'video' && typeof window.VideoFrameExtractor.extractLayerRange === 'function') {
+            window.VideoFrameExtractor.extractLayerRange(layer);
+          }
+        }
+
         invalidatePreviewCacheForLayer(layer);
+        if (window.PreviewCacheManager) {
+          const pps = window.currentPixelsPerSecond || 80;
+          const lStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const lDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+          if (typeof window.PreviewCacheManager.forceRecache === 'function') {
+            window.PreviewCacheManager.forceRecache(lStart, lStart + lDur);
+          } else if (typeof window.PreviewCacheManager.scheduleIdleCheck === 'function') {
+            window.PreviewCacheManager.scheduleIdleCheck(true);
+          }
+        }
+
         if (typeof redrawComposition === 'function') {
           redrawComposition('layer-speed-change');
         }
+      }
+
+      if (speedBadge) {
+        speedBadge.style.cursor = 'pointer';
+        speedBadge.title = 'Click to enter exact speed value';
+        speedBadge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+          const curSpd = layer.speed !== undefined ? layer.speed : 1.0;
+          const input = prompt('Enter Speed (0.1x to 8.0x):', curSpd);
+          if (input !== null) {
+            const parsed = parseFloat(input);
+            if (!isNaN(parsed) && parsed > 0) {
+              applySpeedValue(parsed);
+              if (typeof saveCurrentProjectLayers === 'function') {
+                saveCurrentProjectLayers(true);
+              }
+            }
+          }
+        });
       }
 
       if (sliderContainer) {
@@ -8282,7 +8400,25 @@
             window.isTransformInteracting = false;
             const curL = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
             if (curL) {
+              if (window.VideoFrameExtractor) {
+                if (typeof window.VideoFrameExtractor.clearInterpolationCache === 'function') {
+                  window.VideoFrameExtractor.clearInterpolationCache();
+                }
+                if (curL.type === 'video' && typeof window.VideoFrameExtractor.extractLayerRange === 'function') {
+                  window.VideoFrameExtractor.extractLayerRange(curL);
+                }
+              }
               invalidatePreviewCacheForLayer(curL);
+              if (window.PreviewCacheManager) {
+                const pps = window.currentPixelsPerSecond || 80;
+                const lStart = curL.startSec !== undefined ? curL.startSec : ((curL.startPx || 0) / pps);
+                const lDur = curL.durationSec !== undefined ? curL.durationSec : ((curL.widthPx || 400) / pps);
+                if (typeof window.PreviewCacheManager.forceRecache === 'function') {
+                  window.PreviewCacheManager.forceRecache(lStart, lStart + lDur);
+                } else if (typeof window.PreviewCacheManager.scheduleIdleCheck === 'function') {
+                  window.PreviewCacheManager.scheduleIdleCheck(true);
+                }
+              }
             }
             if (typeof saveCurrentProjectLayers === 'function') {
               saveCurrentProjectLayers(true);
@@ -8309,7 +8445,43 @@
               b.classList.toggle('is-active', active);
               b.setAttribute('aria-checked', active ? 'true' : 'false');
             });
+
+            // 1. Clear interpolation synthesis cache & ensure video frames extracted
+            if (window.VideoFrameExtractor) {
+              if (typeof window.VideoFrameExtractor.clearInterpolationCache === 'function') {
+                window.VideoFrameExtractor.clearInterpolationCache();
+              }
+              if (layer.type === 'video' && typeof window.VideoFrameExtractor.extractLayerRange === 'function') {
+                window.VideoFrameExtractor.extractLayerRange(layer);
+              }
+            }
+
+            // 2. Invalidate RAM preview cache for layer's active span
             invalidatePreviewCacheForLayer(layer);
+
+            // 3. Auto recache composition in RAM preview buffer
+            if (window.PreviewCacheManager) {
+              const pps = window.currentPixelsPerSecond || 80;
+              const lStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+              const lDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+              if (typeof window.PreviewCacheManager.forceRecache === 'function') {
+                window.PreviewCacheManager.forceRecache(lStart, lStart + lDur);
+              } else if (typeof window.PreviewCacheManager.scheduleIdleCheck === 'function') {
+                window.PreviewCacheManager.scheduleIdleCheck(true);
+              }
+            }
+
+            // 4. Redraw composition immediately with new interpolation
+            if (typeof redrawComposition === 'function') {
+              redrawComposition('speed-interpolation-change');
+            }
+
+            // 5. Toast notice
+            const modeLabels = { 'none': 'None', 'blend': 'Frame Blend', 'optical_flow': 'Optical Flow' };
+            if (typeof showEffectsRackToast === 'function') {
+              showEffectsRackToast(`Interpolation: ${modeLabels[mode] || mode} (Recaching)`);
+            }
+
             if (typeof saveCurrentProjectLayers === 'function') {
               saveCurrentProjectLayers(true);
             }
@@ -11363,7 +11535,14 @@
         { id: 'warp', name: 'Warp', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'transform', name: 'Transform', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'oscillate', name: 'Oscillate', category: 'movement', icon: 'assets/FXPH.svg' },
-        { id: 'swing', name: 'Swing', category: 'movement', icon: 'assets/FXPH.svg' }
+        { id: 'swing', name: 'Swing', category: 'movement', icon: 'assets/FXPH.svg' },
+        { id: 'tint', name: 'Tint', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'lumia', name: 'Lumia', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'curve', name: 'Curve', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'drop-shadow', name: 'Drop Shadow', category: 'layer', icon: 'assets/FXPH.svg' },
+        { id: 'fill', name: 'Fill', category: 'layer', icon: 'assets/FXPH.svg' },
+        { id: 'fast-box-blur', name: 'Fast Box Blur', category: 'layer', icon: 'assets/FXPH.svg' },
+        { id: 'camera-lens-blur', name: 'Camera Lens Blur', category: 'layer', icon: 'assets/FXPH.svg' }
       ];
     }
     window.getAllAvailableEffects = getAllAvailableEffects;
@@ -13167,6 +13346,43 @@
           scheduleRender();
         }
       }
+      window.updateTimelinePosition = updateTimelinePosition;
+
+      // Multi-Keyframe Selection State & Helpers
+      window.selectedKeyframes = [];
+      window.clearSelectedKeyframes = function() {
+        window.selectedKeyframes = [];
+        document.querySelectorAll('.timeline-keyframe-marker.is-selected-kf').forEach(m => {
+          m.classList.remove('is-selected-kf');
+        });
+      };
+
+      window.deleteSelectedKeyframes = function() {
+        if (!Array.isArray(window.selectedKeyframes) || window.selectedKeyframes.length === 0) return;
+        const targets = [...window.selectedKeyframes];
+        window.clearSelectedKeyframes();
+
+        let didMutate = false;
+        targets.forEach(item => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === item.layerId) || item.layer;
+          if (!layer || !layer.keyframes || !Array.isArray(layer.keyframes[item.prop])) return;
+          const origLen = layer.keyframes[item.prop].length;
+          layer.keyframes[item.prop] = layer.keyframes[item.prop].filter(k => 
+            Math.abs(k.time - item.time) >= 0.001
+          );
+          if (layer.keyframes[item.prop].length !== origLen) {
+            didMutate = true;
+          }
+        });
+
+        if (didMutate) {
+          saveCurrentProjectLayers();
+          renderTimelineLayers();
+          if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+          if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
+          if (typeof redrawComposition === 'function') redrawComposition('delete-selected-keyframes');
+        }
+      };
 
       function seekTimelineToTime(sec, immediate = true) {
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
@@ -13248,6 +13464,25 @@
       }
       window.renderTimelineBeatmarks = renderTimelineBeatmarks;
 
+      let saveBeatmarksDebounceTimer = null;
+      function saveCurrentProjectBeatmarks() {
+        if (saveBeatmarksDebounceTimer) {
+          clearTimeout(saveBeatmarksDebounceTimer);
+        }
+        saveBeatmarksDebounceTimer = setTimeout(async () => {
+          saveBeatmarksDebounceTimer = null;
+          if (!window.FishDatabase || !currentProjectState.id) return;
+          try {
+            const prj = await window.FishDatabase.getProject(currentProjectState.id);
+            if (prj) {
+              prj.beatmarks = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
+              await window.FishDatabase.saveProject(prj);
+            }
+          } catch (_) {}
+        }, 100);
+      }
+      window.saveCurrentProjectBeatmarks = saveCurrentProjectBeatmarks;
+
       function toggleBeatmarkAtCurrentTime() {
         if (!Array.isArray(currentProjectState.beatmarks)) {
           currentProjectState.beatmarks = [];
@@ -13268,9 +13503,10 @@
 
         renderTimelineBeatmarks();
         updateTimeBadgeBeatmarkState();
-        if (typeof saveCurrentProjectLayers === 'function') {
-          saveCurrentProjectLayers();
+        if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+          window.UndoRedoManager.recordSnapshot();
         }
+        saveCurrentProjectBeatmarks();
       }
       window.toggleBeatmarkAtCurrentTime = toggleBeatmarkAtCurrentTime;
 
@@ -13281,9 +13517,10 @@
           currentProjectState.beatmarks.splice(idx, 1);
           renderTimelineBeatmarks();
           updateTimeBadgeBeatmarkState();
-          if (typeof saveCurrentProjectLayers === 'function') {
-            saveCurrentProjectLayers();
+          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+            window.UndoRedoManager.recordSnapshot();
           }
+          saveCurrentProjectBeatmarks();
         }
       }
       window.deleteBeatmark = deleteBeatmark;
@@ -16280,6 +16517,15 @@
                   marker.title = `${propLabel} Keyframe: ${kf.time.toFixed(2)}s`;
                   marker.dataset.prop = prop;
                   marker.dataset.time = kf.time;
+                  marker._kf = kf;
+                  marker._layer = layer;
+                  marker._prop = prop;
+
+                  if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.001)) {
+                    marker.classList.add('is-selected-kf');
+                    const found = window.selectedKeyframes.find(it => it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.001);
+                    if (found) { found.marker = marker; found.kf = kf; found.layer = layer; }
+                  }
 
                   marker.addEventListener('pointerdown', (e) => {
                     e.stopPropagation();
@@ -16312,12 +16558,32 @@
                     let holdTimer = null;
                     const startX = e.clientX;
                     const startY = e.clientY;
+                    const kfInitialTime = kf.time;
+                    let multiDragItems = null;
 
                     holdTimer = setTimeout(() => {
                       isDragging = true;
                       marker.classList.add('is-dragging');
                       try { marker.setPointerCapture(e.pointerId); } catch (_) {}
                       if (navigator.vibrate) try { navigator.vibrate(25); } catch (_) {}
+
+                      // Snapshot initial times for multi-selected keyframes
+                      if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => it.kf === kf)) {
+                        multiDragItems = window.selectedKeyframes.map(it => ({
+                          item: it,
+                          initTime: it.kf ? it.kf.time : it.time
+                        }));
+                        window.selectedKeyframes.forEach(it => {
+                          if (it.marker) it.marker.classList.add('is-dragging');
+                        });
+                      } else {
+                        if (!e.shiftKey) {
+                          if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                        }
+                        marker.classList.add('is-selected-kf');
+                        window.selectedKeyframes = [{ layerId: layer.id, layer, prop, time: kf.time, kf, marker }];
+                        multiDragItems = [{ item: window.selectedKeyframes[0], initTime: kf.time }];
+                      }
                     }, 220);
 
                     function onMarkerPointerMove(ev) {
@@ -16346,10 +16612,27 @@
                       targetRelSec = Math.max(0, Math.min(clipDurSec, targetRelSec));
 
                       const newTime = Number((clipStartSec + targetRelSec).toFixed(4));
-                      kf.time = newTime;
-                      marker.dataset.time = newTime;
-                      marker.style.left = `${(targetRelSec * pps).toFixed(1)}px`;
-                      marker.title = `${prop.toUpperCase()} Keyframe: ${newTime.toFixed(2)}s`;
+                      const deltaTime = newTime - kfInitialTime;
+
+                      if (multiDragItems && multiDragItems.length > 1) {
+                        multiDragItems.forEach(({ item, initTime }) => {
+                          const shifted = Number(Math.max(0, Math.min(clipStartSec + clipDurSec, initTime + deltaTime)).toFixed(4));
+                          if (item.kf) item.kf.time = shifted;
+                          item.time = shifted;
+                          if (item.marker) {
+                            item.marker.dataset.time = shifted;
+                            const rPx = (shifted - clipStartSec) * pps;
+                            item.marker.style.left = `${rPx.toFixed(1)}px`;
+                            const pl = item.prop.includes(':') ? item.prop.split(':')[1].toUpperCase() : item.prop.toUpperCase();
+                            item.marker.title = `${pl} Keyframe: ${shifted.toFixed(2)}s`;
+                          }
+                        });
+                      } else {
+                        kf.time = newTime;
+                        marker.dataset.time = newTime;
+                        marker.style.left = `${(targetRelSec * pps).toFixed(1)}px`;
+                        marker.title = `${prop.toUpperCase()} Keyframe: ${newTime.toFixed(2)}s`;
+                      }
 
                       if (typeof seekTimelineToTime === 'function') {
                         seekTimelineToTime(newTime, true);
@@ -16371,7 +16654,15 @@
 
                       if (isDragging) {
                         marker.classList.remove('is-dragging');
-                        if (Array.isArray(layer.keyframes[prop])) {
+                        if (multiDragItems && multiDragItems.length > 1) {
+                          multiDragItems.forEach(({ item }) => {
+                            if (item.marker) item.marker.classList.remove('is-dragging');
+                            const l = item.layer;
+                            if (l && l.keyframes && Array.isArray(l.keyframes[item.prop])) {
+                              l.keyframes[item.prop].sort((a, b) => a.time - b.time);
+                            }
+                          });
+                        } else if (Array.isArray(layer.keyframes[prop])) {
                           layer.keyframes[prop].sort((a, b) => a.time - b.time);
                         }
                         saveCurrentProjectLayers();
@@ -16380,6 +16671,14 @@
                         if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
                         if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
                       } else {
+                        if (!ev.shiftKey) {
+                          if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                        }
+                        marker.classList.add('is-selected-kf');
+                        if (!window.selectedKeyframes) window.selectedKeyframes = [];
+                        if (!window.selectedKeyframes.some(it => it.kf === kf)) {
+                          window.selectedKeyframes.push({ layerId: layer.id, layer, prop, time: kf.time, kf, marker });
+                        }
                         if (typeof seekTimelineToTime === 'function') {
                           seekTimelineToTime(kf.time, true);
                         }
@@ -16422,9 +16721,110 @@
               hasSlid = false;
               hasMenuOpened = false;
 
+              const isSelectedLayer = (layer.id === window.selectedLayerId);
+              let isMarqueeActive = false;
+              let marqueeStartX = 0;
+              let marqueeStartY = 0;
+              let marqueeEl = null;
+              let autoScrollRaf = null;
+              let autoScrollSpeed = 0;
+              let autoScrollDirection = 0;
+              let lastClientX = startPointerX;
+              let lastClientY = startPointerY;
+
+              function updateMarqueeBox(clientX, clientY) {
+                const layersTrack = document.getElementById('timeline-layers-track');
+                if (!layersTrack || !marqueeEl) return;
+                const tr = layersTrack.getBoundingClientRect();
+
+                const currX = clientX - tr.left;
+                const currY = clientY - tr.top;
+
+                const x1 = Math.min(marqueeStartX, currX);
+                const x2 = Math.max(marqueeStartX, currX);
+                const y1 = Math.min(marqueeStartY, currY);
+                const y2 = Math.max(marqueeStartY, currY);
+
+                marqueeEl.style.left = `${x1}px`;
+                marqueeEl.style.top = `${y1}px`;
+                marqueeEl.style.width = `${Math.max(2, x2 - x1)}px`;
+                marqueeEl.style.height = `${Math.max(2, y2 - y1)}px`;
+
+                const markers = clipEl.querySelectorAll('.timeline-keyframe-marker');
+                const selected = [];
+
+                markers.forEach(marker => {
+                  const mr = marker.getBoundingClientRect();
+                  const mx = (mr.left + mr.width / 2) - tr.left;
+                  const my = (mr.top + mr.height / 2) - tr.top;
+
+                  const inX = (mx >= x1 - 8 && mx <= x2 + 8);
+                  const inY = (my >= y1 - 18 && my <= y2 + 18);
+
+                  if (inX && inY) {
+                    marker.classList.add('is-selected-kf');
+                    const prop = marker.dataset.prop;
+                    const time = parseFloat(marker.dataset.time);
+                    const kf = marker._kf || (layer.keyframes && layer.keyframes[prop] && layer.keyframes[prop].find(k => Math.abs(k.time - time) < 0.001));
+                    selected.push({ layerId: layer.id, layer, prop, time, kf, marker });
+                  } else {
+                    marker.classList.remove('is-selected-kf');
+                  }
+                });
+
+                window.selectedKeyframes = selected;
+              }
+
+              function checkAutoScroll(clientX, clientY) {
+                const vp = document.getElementById('timeline-layers-viewport');
+                if (!vp) return;
+                const vpRect = vp.getBoundingClientRect();
+                const EDGE_ZONE = 75;
+
+                if (clientX > vpRect.right - EDGE_ZONE) {
+                  autoScrollDirection = 1;
+                  const factor = Math.min(1, Math.max(0.1, (clientX - (vpRect.right - EDGE_ZONE)) / EDGE_ZONE));
+                  autoScrollSpeed = 6 + factor * 26;
+                } else if (clientX < vpRect.left + EDGE_ZONE) {
+                  autoScrollDirection = -1;
+                  const factor = Math.min(1, Math.max(0.1, ((vpRect.left + EDGE_ZONE) - clientX) / EDGE_ZONE));
+                  autoScrollSpeed = 6 + factor * 26;
+                } else {
+                  autoScrollDirection = 0;
+                  autoScrollSpeed = 0;
+                }
+
+                if (autoScrollDirection !== 0 && !autoScrollRaf) {
+                  runAutoScroll();
+                }
+              }
+
+              function runAutoScroll() {
+                if (!isMarqueeActive || autoScrollDirection === 0) {
+                  autoScrollRaf = null;
+                  return;
+                }
+
+                const currentPan = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+                let newPan = currentPan;
+                if (autoScrollDirection === 1) {
+                  newPan = currentPan - autoScrollSpeed;
+                } else if (autoScrollDirection === -1) {
+                  newPan = Math.min(0, currentPan + autoScrollSpeed);
+                }
+
+                if (typeof window.updateTimelinePosition === 'function') {
+                  window.updateTimelinePosition(newPan, true);
+                }
+
+                updateMarqueeBox(lastClientX, lastClientY);
+
+                autoScrollRaf = requestAnimationFrame(runAutoScroll);
+              }
+
               // Long-press context menu timer (450ms hold without drag -> open context menu popover like right click)
               lpMenuTimer = setTimeout(() => {
-                if (hasSlid) return;
+                if (hasSlid || isMarqueeActive) return;
                 hasMenuOpened = true;
                 isLongPressActive = false;
                 window.isTransformInteracting = false;
@@ -16436,22 +16836,69 @@
                 triggerClipContextMenu(layer, startPointerX, startPointerY);
               }, 450);
 
-              // 200ms timer to prepare horizontal slide
-              lpSlideTimer = setTimeout(() => {
-                if (!hasMenuOpened) {
-                  isLongPressActive = true;
-                  clipEl.classList.add('is-sliding');
-                  try {
-                    clipEl.setPointerCapture(e.pointerId);
-                  } catch (_) {}
-                }
-              }, 200);
+              // 200ms timer to prepare horizontal slide (only for unselected layers)
+              if (!isSelectedLayer) {
+                lpSlideTimer = setTimeout(() => {
+                  if (!hasMenuOpened && !isMarqueeActive) {
+                    isLongPressActive = true;
+                    clipEl.classList.add('is-sliding');
+                    try {
+                      clipEl.setPointerCapture(e.pointerId);
+                    } catch (_) {}
+                  }
+                }, 200);
+              }
 
               function onClipPointerMove(moveEvent) {
                 const dist = Math.hypot(moveEvent.clientX - startPointerX, moveEvent.clientY - startPointerY);
-                if (dist > 6 && lpMenuTimer) {
-                  clearTimeout(lpMenuTimer);
-                  lpMenuTimer = null;
+                if (dist > 5) {
+                  if (lpMenuTimer) {
+                    clearTimeout(lpMenuTimer);
+                    lpMenuTimer = null;
+                  }
+                  if (lpSlideTimer) {
+                    clearTimeout(lpSlideTimer);
+                    lpSlideTimer = null;
+                  }
+                }
+
+                // If layer is selected, drag initiates Marquee Keyframe Selection
+                if (isSelectedLayer) {
+                  if (dist > 5) {
+                    if (!isMarqueeActive) {
+                      isMarqueeActive = true;
+                      window.isTransformInteracting = true;
+                      const layersTrack = document.getElementById('timeline-layers-track');
+                      if (layersTrack) {
+                        marqueeEl = document.getElementById('timeline-keyframe-marquee');
+                        if (!marqueeEl) {
+                          marqueeEl = document.createElement('div');
+                          marqueeEl.id = 'timeline-keyframe-marquee';
+                          marqueeEl.className = 'timeline-keyframe-marquee';
+                          layersTrack.appendChild(marqueeEl);
+                        }
+                        const tr = layersTrack.getBoundingClientRect();
+                        marqueeStartX = startPointerX - tr.left;
+                        marqueeStartY = startPointerY - tr.top;
+                        marqueeEl.style.display = 'block';
+                        marqueeEl.style.left = `${marqueeStartX}px`;
+                        marqueeEl.style.top = `${marqueeStartY}px`;
+                        marqueeEl.style.width = '0px';
+                        marqueeEl.style.height = '0px';
+                      }
+                      try { clipEl.setPointerCapture(e.pointerId); } catch (_) {}
+                    }
+
+                    if (isMarqueeActive) {
+                      moveEvent.preventDefault();
+                      lastClientX = moveEvent.clientX;
+                      lastClientY = moveEvent.clientY;
+                      updateMarqueeBox(lastClientX, lastClientY);
+                      checkAutoScroll(lastClientX, lastClientY);
+                      return;
+                    }
+                  }
+                  return;
                 }
 
                 if (!isLongPressActive || hasMenuOpened) return;
@@ -16526,9 +16973,35 @@
                 window.removeEventListener('pointerup', onClipPointerUp);
                 window.removeEventListener('pointercancel', onClipPointerUp);
 
+                if (isMarqueeActive) {
+                  isMarqueeActive = false;
+                  window.isTransformInteracting = false;
+                  autoScrollDirection = 0;
+                  if (autoScrollRaf) {
+                    cancelAnimationFrame(autoScrollRaf);
+                    autoScrollRaf = null;
+                  }
+                  if (marqueeEl) {
+                    marqueeEl.style.display = 'none';
+                  }
+                  try { clipEl.releasePointerCapture(upEvent.pointerId); } catch (_) {}
+                  justFinishedSlide = true;
+                  setTimeout(() => { justFinishedSlide = false; }, 150);
+                  return;
+                }
+
                 if (hasMenuOpened) {
                   window.isTransformInteracting = false;
                   return;
+                }
+
+                if (isSelectedLayer && !hasSlid) {
+                  const dist = Math.hypot(upEvent.clientX - startPointerX, upEvent.clientY - startPointerY);
+                  if (dist <= 5 && !upEvent.shiftKey) {
+                    if (typeof window.clearSelectedKeyframes === 'function') {
+                      window.clearSelectedKeyframes();
+                    }
+                  }
                 }
 
                 if (isLongPressActive) {
@@ -16545,7 +17018,6 @@
                     redrawComposition();
                     saveCurrentProjectLayers();
                     updateTimelineDuration(true);
-                    // Do not select after sliding: ensure layer is unselected
                     if (typeof deselectTimelineLayer === 'function') {
                       deselectTimelineLayer();
                     }
@@ -17390,6 +17862,10 @@
           return;
         }
         if (e.key === 'Escape') {
+          if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            window.clearSelectedKeyframes();
+            return;
+          }
           if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0) || isSelectorMode) {
             deselectTimelineLayer();
           }
@@ -17397,6 +17873,14 @@
           e.preventDefault();
           selectAllTimelineLayers();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.deleteSelectedKeyframes === 'function') {
+              window.deleteSelectedKeyframes();
+            }
+            return;
+          }
           const idsToDelete = new Set();
           if (selectedLayerId) idsToDelete.add(selectedLayerId);
           if (selectedLayerIds && selectedLayerIds.size > 0) {
@@ -17443,6 +17927,12 @@
           if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0)) {
             e.preventDefault();
             duplicateSelectedLayers();
+          }
+        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm') {
+          // 'M' shortcut: toggle / add beatmark at current playhead position
+          e.preventDefault();
+          if (typeof toggleBeatmarkAtCurrentTime === 'function') {
+            toggleBeatmarkAtCurrentTime();
           }
         }
       });
@@ -18244,12 +18734,35 @@
               const sourceKey = window.VideoFrameExtractor._getSourceKey ? window.VideoFrameExtractor._getSourceKey(vl) : (vl.mediaId || vl.dataUrl || vl.id);
               const source = window.VideoFrameExtractor.getSourceCache(sourceKey);
               if (source) {
-                const fIdx = Math.round(timeInClip * source.fps);
-                if (source.frames && source.frames.has(fIdx)) {
-                  cached = true;
-                } else if (source.cachedFrameIndices && source.cachedFrameIndices.has(fIdx)) {
-                  cached = true;
-                  frameFetches.push(window.VideoFrameExtractor.fetchFrameFromDBAsync(source, fIdx));
+                const interpMode = vl.speedInterpolation || 'none';
+                if (interpMode !== 'none') {
+                  const rawF = timeInClip * (source.fps || 60);
+                  const f0 = Math.floor(rawF);
+                  const f1 = f0 + 1;
+                  let f0Cached = false;
+                  let f1Cached = false;
+
+                  if (source.frames && source.frames.has(f0)) f0Cached = true;
+                  else if (source.cachedFrameIndices && source.cachedFrameIndices.has(f0)) {
+                    frameFetches.push(window.VideoFrameExtractor.fetchFrameFromDBAsync(source, f0));
+                    f0Cached = true;
+                  }
+
+                  if (source.frames && source.frames.has(f1)) f1Cached = true;
+                  else if (source.cachedFrameIndices && source.cachedFrameIndices.has(f1)) {
+                    frameFetches.push(window.VideoFrameExtractor.fetchFrameFromDBAsync(source, f1));
+                    f1Cached = true;
+                  }
+
+                  cached = f0Cached && f1Cached;
+                } else {
+                  const fIdx = Math.round(timeInClip * source.fps);
+                  if (source.frames && source.frames.has(fIdx)) {
+                    cached = true;
+                  } else if (source.cachedFrameIndices && source.cachedFrameIndices.has(fIdx)) {
+                    cached = true;
+                    frameFetches.push(window.VideoFrameExtractor.fetchFrameFromDBAsync(source, fIdx));
+                  }
                 }
               }
             }

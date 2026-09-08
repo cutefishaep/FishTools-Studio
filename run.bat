@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title OpenFishTools Studio - Server + Cloudflare Public Link
+title OpenFishTools Studio - Live Server + Cloudflare Public Link
 cd /d "%~dp0"
 
 echo ===================================================
@@ -24,7 +24,7 @@ if not exist "cloudflared.exe" (
   )
 )
 
-node server.js --tunnel
+node dev-server.js --tunnel
 if %ERRORLEVEL% neq 0 (
   echo.
   echo [Info] Menjalankan via npm run tunnel...

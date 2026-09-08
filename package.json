@@ -3,6 +3,7 @@
   "version": "0.1.0-pre-alpha",
   "description": "OpenFishTools Studio - Next Generation Marine Research Tooling",
   "scripts": {
+    "build": "echo Static site ready",
     "dev": "node dev-server.js",
     "tunnel": "node dev-server.js --tunnel",
     "start": "node dev-server.js",

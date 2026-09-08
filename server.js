@@ -89,6 +89,25 @@ function handleRequest(req, res) {
   const parsedUrl = new URL(req.url, `http://${host}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
 
+  // Debug endpoint for deployment verification
+  if (pathname === '/__debug') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    let rootFiles = [];
+    let cssFiles = [];
+    let jsFiles = [];
+    try { rootFiles = fs.readdirSync(ROOT); } catch (e) {}
+    try { cssFiles = fs.readdirSync(path.join(ROOT, 'css')); } catch (e) {}
+    try { jsFiles = fs.readdirSync(path.join(ROOT, 'js')); } catch (e) {}
+    res.end(JSON.stringify({
+      ROOT: ROOT,
+      cwd: process.cwd(),
+      rootFiles,
+      cssFiles,
+      jsFiles
+    }, null, 2));
+    return;
+  }
+
   // SSE Live Reload stream
   if (pathname === '/__live_reload') {
     res.writeHead(200, {
@@ -106,19 +125,20 @@ function handleRequest(req, res) {
   }
 
   // Resolve target file
-  let filePath = path.join(ROOT, pathname);
+  const relativePath = pathname.replace(/^\/+/, '');
+  let filePath = path.join(ROOT, relativePath);
 
   // If path is directory or root, check for index.html
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-    filePath = path.join(filePath, 'index.html');
+  if (!relativePath || (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory())) {
+    filePath = path.join(ROOT, 'index.html');
   }
 
   // Clean URL mapping (/demo -> demo.html, /editor -> editor.html)
   if (!fs.existsSync(filePath)) {
     if (fs.existsSync(filePath + '.html')) {
       filePath = filePath + '.html';
-    } else if (fs.existsSync(path.join(ROOT, pathname + '.html'))) {
-      filePath = path.join(ROOT, pathname + '.html');
+    } else if (fs.existsSync(path.join(ROOT, relativePath + '.html'))) {
+      filePath = path.join(ROOT, relativePath + '.html');
     }
   }
 

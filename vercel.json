@@ -3,7 +3,15 @@
   "version": 2,
   "functions": {
     "server.js": {
-      "includeFiles": "assets/**,css/**,js/**,effects/**,vendor/**,Shape/**,*.html"
+      "includeFiles": [
+        "assets/**",
+        "css/**",
+        "js/**",
+        "effects/**",
+        "vendor/**",
+        "Shape/**",
+        "*.html"
+      ]
     }
   },
   "routes": [

@@ -1699,27 +1699,66 @@
 
                     <!-- Work Area: Speed Multiplier, Presets, Interpolation, Pitch -->
                     <main class="speed-work-area">
-                      <!-- Section 1: Speed Slider Row -->
-                      <div class="speed-slider-row">
-                        <div class="speed-icon-box" title="Playback Speed">
-                          <svg class="speed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5.5 17.5A8.5 8.5 0 1 1 18.5 17.5" />
-                            <line x1="12" y1="12.5" x2="12" y2="6.5" />
-                            <circle cx="12" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
-                            <line x1="3.5" y1="12" x2="5.5" y2="12" />
-                            <line x1="20.5" y1="12" x2="18.5" y2="12" />
-                            <line x1="6" y1="6.8" x2="7.4" y2="8.2" />
-                            <line x1="18" y1="6.8" x2="16.6" y2="8.2" />
-                            <line x1="12" y1="3.5" x2="12" y2="5.5" />
-                          </svg>
-                        </div>
-                        <div class="speed-slider-container" id="speed-slider-container" role="slider" aria-valuemin="0.1" aria-valuemax="8.0" aria-valuenow="1.0" aria-label="Speed Slider">
-                          <div class="speed-slider-track">
-                            <div class="speed-slider-fill" id="speed-slider-fill" style="width: 50%;"></div>
-                            <div class="speed-slider-thumb" id="speed-slider-thumb" style="left: 50%;"></div>
+                      <!-- Top Mode Toggle: Speed vs Time Remap -->
+                      <div class="speed-type-modes" role="radiogroup" aria-label="Speed Control Mode">
+                        <button type="button" class="speed-type-btn is-active" id="btn-speed-type-speed" data-speed-mode="speed" role="radio" aria-checked="true">
+                          Speed
+                        </button>
+                        <button type="button" class="speed-type-btn" id="btn-speed-type-remap" data-speed-mode="time_remap" role="radio" aria-checked="false">
+                          Time Remap
+                        </button>
+                      </div>
+
+                      <!-- Mode Panel 1: Speed Multiplier Mode -->
+                      <div class="speed-mode-panel" id="panel-speed-multiplier">
+                        <div class="speed-slider-row">
+                          <div class="speed-icon-box" title="Playback Speed">
+                            <svg class="speed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M5.5 17.5A8.5 8.5 0 1 1 18.5 17.5" />
+                              <line x1="12" y1="12.5" x2="12" y2="6.5" />
+                              <circle cx="12" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
+                              <line x1="3.5" y1="12" x2="5.5" y2="12" />
+                              <line x1="20.5" y1="12" x2="18.5" y2="12" />
+                              <line x1="6" y1="6.8" x2="7.4" y2="8.2" />
+                              <line x1="18" y1="6.8" x2="16.6" y2="8.2" />
+                              <line x1="12" y1="3.5" x2="12" y2="5.5" />
+                            </svg>
                           </div>
+                          <div class="speed-slider-container" id="speed-slider-container" role="slider" aria-valuemin="0.1" aria-valuemax="8.0" aria-valuenow="1.0" aria-label="Speed Slider">
+                            <div class="speed-slider-track">
+                              <div class="speed-slider-fill" id="speed-slider-fill" style="width: 50%;"></div>
+                              <div class="speed-slider-thumb" id="speed-slider-thumb" style="left: 50%;"></div>
+                            </div>
+                          </div>
+                          <div class="speed-slider-badge" id="speed-slider-badge" title="Speed (Click to edit)">1.0x</div>
                         </div>
-                        <div class="speed-slider-badge" id="speed-slider-badge">1.0x</div>
+                      </div>
+
+                      <!-- Mode Panel 2: Time Remap Mode (AE-Style) -->
+                      <div class="speed-mode-panel" id="panel-time-remap" style="display: none;">
+                        <div class="speed-slider-row">
+                          <div class="speed-icon-box" title="Source Time">
+                            <svg class="speed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="9"/>
+                              <polyline points="12 7 12 12 15 15"/>
+                            </svg>
+                          </div>
+                          <div class="speed-slider-container" id="timeremap-slider-container" role="slider" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" aria-label="Time Remap Slider">
+                            <div class="speed-slider-track">
+                              <div class="speed-slider-fill" id="timeremap-slider-fill" style="width: 0%;"></div>
+                              <div class="speed-slider-thumb" id="timeremap-slider-thumb" style="left: 0%;"></div>
+                            </div>
+                          </div>
+                          <div class="speed-slider-badge" id="timeremap-slider-badge" title="Source Time (Click to edit)">00:00:00</div>
+                        </div>
+                        <div class="timeremap-actions-row">
+                          <button type="button" class="timeremap-action-btn" id="btn-timeremap-freeze" title="Freeze frame from current playhead to clip end">
+                            Freeze Frame
+                          </button>
+                          <button type="button" class="timeremap-action-btn" id="btn-timeremap-reset" title="Reset to linear 1:1 time mapping">
+                            Reset 1:1
+                          </button>
+                        </div>
                       </div>
 
                       <!-- Section 2: Video Interpolation Mode (Segmented Control) -->
@@ -2505,6 +2544,25 @@
   </div>
 
   <!-- ==========================================================================
+       MEDIA POOL ITEM CONTEXT MENU POPOVER (.is-menu-popover)
+       Triggered via Long-Press (Touch) or Right-Click (PC Mouse)
+       ========================================================================== -->
+  <div class="popover-card is-menu-popover" id="popover-media-item-menu" role="dialog" aria-hidden="true" style="min-width: 175px;">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="popover-menu-list">
+      <button type="button" class="popover-menu-item" id="btn-media-convert-audio">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        <span>Convert to Audio</span>
+      </button>
+      <div class="popover-menu-divider" id="divider-media-convert-audio"></div>
+      <button type="button" class="popover-menu-item is-danger" id="btn-media-delete">
+        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        <span>Delete Media</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
        MODULAR GRAPH EDITOR MORE OPTIONS POPOVER (.is-menu-popover)
        ========================================================================== -->
   <div class="popover-card is-menu-popover" id="popover-graph-more" role="dialog" aria-hidden="true" style="min-width: 190px;">
@@ -3263,13 +3321,21 @@
       if (isFinite(minStart) && isFinite(maxEnd) && minStart <= maxEnd) {
         window.PreviewCacheManager.invalidateRange(Math.max(0, minStart - 0.2), maxEnd + 0.2, fps);
 
-        // If inside precompose, selectively invalidate affected range in parent pool as well
-        if (currentActivePrecomp && compositionStack && compositionStack.length > 0) {
-          const parentCompId = compositionStack[compositionStack.length - 1].parentPrecomp?.id || 'root';
-          const pStart = (currentActivePrecomp.startSec || 0) + minStart - (currentActivePrecomp.sourceOffsetSec || 0);
-          const pEnd = (currentActivePrecomp.startSec || 0) + maxEnd - (currentActivePrecomp.sourceOffsetSec || 0);
-          window.PreviewCacheManager.invalidateRange(Math.max(0, pStart - 0.2), pEnd + 0.2, fps, parentCompId);
-          currentActivePrecomp._precompBufferCanvas = null;
+        if (layer && layer.type === 'precomp') {
+          const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+          window.PreviewCacheManager.invalidateRange(0, dur + 0.2, fps, layer.id);
+        }
+
+        // If inside precompose, selectively invalidate affected range in parent pool and current precomp pool
+        if (currentActivePrecomp) {
+          window.PreviewCacheManager.invalidateRange(Math.max(0, minStart - 0.2), maxEnd + 0.2, fps, currentActivePrecomp.id);
+          if (compositionStack && compositionStack.length > 0) {
+            const parentCompId = compositionStack[compositionStack.length - 1].parentPrecomp?.id || 'root';
+            const pStart = (currentActivePrecomp.startSec || 0) + minStart - (currentActivePrecomp.sourceOffsetSec || 0);
+            const pEnd = (currentActivePrecomp.startSec || 0) + maxEnd - (currentActivePrecomp.sourceOffsetSec || 0);
+            window.PreviewCacheManager.invalidateRange(Math.max(0, pStart - 0.2), pEnd + 0.2, fps, parentCompId);
+            currentActivePrecomp._precompBufferCanvas = null;
+          }
         }
       }
     }
@@ -3302,6 +3368,8 @@
       if (eff.skewY !== undefined) layer.skewY = eff.skewY;
       if (eff.opacity !== undefined) layer.opacity = eff.opacity;
       if (eff.volume !== undefined) layer.volume = eff.volume;
+      if (eff.speed !== undefined) layer.speed = eff.speed;
+      if (eff.timeRemap !== undefined) layer.timeRemap = eff.timeRemap;
       if (Array.isArray(eff.effects) && Array.isArray(layer.effects)) {
         layer.effects.forEach(fx => {
           const effFx = eff.effects.find(f => f.id === fx.id);
@@ -3382,95 +3450,101 @@
               ? compositionStack[0].layers
               : (currentProjectState.layers || []);
 
+            function serializeLayer(l) {
+              if (!l) return null;
+              return {
+                id: l.id,
+                mediaId: l.mediaId,
+                name: l.name,
+                type: l.type,
+                parentId: l.parentId || null,
+                parentBind: l.parentBind ? JSON.parse(JSON.stringify(l.parentBind)) : undefined,
+                startPx: l.startPx,
+                startSec: l.startSec,
+                durationSec: l.durationSec,
+                widthPx: l.widthPx,
+                sourceOffsetSec: l.sourceOffsetSec || 0,
+                mediaDuration: l.mediaDuration || null,
+                isDurationExplicit: !!l.isDurationExplicit,
+                isMuted: !!l.isMuted,
+                normX: l.normX,
+                normY: l.normY,
+                normW: l.normW,
+                normH: l.normH,
+                posX: l.posX,
+                posY: l.posY,
+                posZ: l.posZ,
+                anchorX: l.anchorX || 0,
+                anchorY: l.anchorY || 0,
+                anchorZ: l.anchorZ || 0,
+                scaleW: l.scaleW,
+                scaleH: l.scaleH,
+                rotation: l.rotation,
+                rotX: l.rotX || 0,
+                rotY: l.rotY || 0,
+                rotZ: l.rotZ || 0,
+                skewX: l.skewX,
+                skewY: l.skewY,
+                opacity: l.opacity !== undefined ? l.opacity : 1.0,
+                blendMode: l.blendMode || 'normal',
+                hasBrightnessContrast: !!l.hasBrightnessContrast,
+                brightness: l.brightness !== undefined ? l.brightness : 0,
+                contrast: l.contrast !== undefined ? l.contrast : 0,
+                effectsDisabled: !!l.effectsDisabled,
+                effects: Array.isArray(l.effects) ? JSON.parse(JSON.stringify(l.effects)) : undefined,
+                thumbUrl: l.thumbUrl || '',
+                dataUrl: l.dataUrl || '',
+                mediaWidth: l.mediaWidth || null,
+                mediaHeight: l.mediaHeight || null,
+                _userResized: !!l._userResized,
+                hidden: !!l.hidden,
+                motionBlur: !!l.motionBlur,
+                keyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined,
+                defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
+                _defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
+                // Recursively serialize precompose child layers to prevent DataCloneError and strip temporary canvas buffers
+                layers: Array.isArray(l.layers) ? l.layers.map(serializeLayer).filter(Boolean) : undefined,
+                // Fill & Replaced Media properties
+                fillType: l.fillType || undefined,
+                fillColor: l.fillColor || undefined,
+                fillGradType: l.fillGradType || undefined,
+                fillGradAngle: l.fillGradAngle !== undefined ? l.fillGradAngle : undefined,
+                fillGradColor1: l.fillGradColor1 || undefined,
+                fillGradColor2: l.fillGradColor2 || undefined,
+                fillGradStops: Array.isArray(l.fillGradStops) ? JSON.parse(JSON.stringify(l.fillGradStops)) : undefined,
+                fillMediaId: l.fillMediaId || undefined,
+                fillMediaName: l.fillMediaName || undefined,
+                fillMediaUrl: l.fillMediaUrl || undefined,
+                // Shape specific settings
+                shapeType: l.shapeType || undefined,
+                shapeProps: l.shapeProps ? JSON.parse(JSON.stringify(l.shapeProps)) : undefined,
+                // Text specific settings
+                textProps: l.textProps ? JSON.parse(JSON.stringify(l.textProps)) : undefined,
+                strokeColor: l.strokeColor || undefined,
+                strokeWidth: l.strokeWidth !== undefined ? l.strokeWidth : undefined,
+                // Camera specific settings
+                cameraLens: l.cameraLens !== undefined ? l.cameraLens : undefined,
+                cameraLensPreset: l.cameraLensPreset || undefined,
+                cameraZoom: l.cameraZoom !== undefined ? l.cameraZoom : undefined,
+                cameraBlurEnabled: !!l.cameraBlurEnabled,
+                cameraFocusMode: l.cameraFocusMode || undefined,
+                cameraFocusDistance: l.cameraFocusDistance !== undefined ? l.cameraFocusDistance : undefined,
+                cameraFocusTargetLayerId: l.cameraFocusTargetLayerId || undefined,
+                cameraBlurAmount: l.cameraBlurAmount !== undefined ? l.cameraBlurAmount : undefined,
+                cameraBlurNearFar: l.cameraBlurNearFar !== undefined ? l.cameraBlurNearFar : undefined,
+                cameraBlurBalance: l.cameraBlurBalance !== undefined ? l.cameraBlurBalance : undefined,
+                // Audio & Volume settings
+                volume: l.volume !== undefined ? l.volume : 1.0,
+                audioEffects: Array.isArray(l.audioEffects) ? JSON.parse(JSON.stringify(l.audioEffects)) : undefined,
+                // Speed & Video Interpolation settings
+                speed: l.speed !== undefined ? l.speed : 1.0,
+                speedInterpolation: l.speedInterpolation || 'none',
+                preservePitch: l.preservePitch !== undefined ? l.preservePitch : true
+              };
+            }
+
             // Cleanly clone layers to prevent DataCloneError and keep IDB write ultra-lightweight (<2ms)
-            prj.layers = (layersToSave || []).map(l => ({
-              id: l.id,
-              mediaId: l.mediaId,
-              name: l.name,
-              type: l.type,
-              parentId: l.parentId || null,
-              parentBind: l.parentBind ? JSON.parse(JSON.stringify(l.parentBind)) : undefined,
-              startPx: l.startPx,
-              startSec: l.startSec,
-              durationSec: l.durationSec,
-              widthPx: l.widthPx,
-              sourceOffsetSec: l.sourceOffsetSec || 0,
-              mediaDuration: l.mediaDuration || null,
-              isDurationExplicit: !!l.isDurationExplicit,
-              isMuted: !!l.isMuted,
-              normX: l.normX,
-              normY: l.normY,
-              normW: l.normW,
-              normH: l.normH,
-              posX: l.posX,
-              posY: l.posY,
-              posZ: l.posZ,
-              anchorX: l.anchorX || 0,
-              anchorY: l.anchorY || 0,
-              anchorZ: l.anchorZ || 0,
-              scaleW: l.scaleW,
-              scaleH: l.scaleH,
-              rotation: l.rotation,
-              rotX: l.rotX || 0,
-              rotY: l.rotY || 0,
-              rotZ: l.rotZ || 0,
-              skewX: l.skewX,
-              skewY: l.skewY,
-              opacity: l.opacity !== undefined ? l.opacity : 1.0,
-              blendMode: l.blendMode || 'normal',
-              hasBrightnessContrast: !!l.hasBrightnessContrast,
-              brightness: l.brightness !== undefined ? l.brightness : 0,
-              contrast: l.contrast !== undefined ? l.contrast : 0,
-              effectsDisabled: !!l.effectsDisabled,
-              effects: Array.isArray(l.effects) ? JSON.parse(JSON.stringify(l.effects)) : undefined,
-              thumbUrl: l.thumbUrl || '',
-              dataUrl: l.dataUrl || '',
-              mediaWidth: l.mediaWidth || null,
-              mediaHeight: l.mediaHeight || null,
-              _userResized: !!l._userResized,
-              hidden: !!l.hidden,
-              motionBlur: !!l.motionBlur,
-              keyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined,
-              defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
-              _defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
-              layers: Array.isArray(l.layers) ? JSON.parse(JSON.stringify(l.layers)) : undefined,
-              // Fill & Replaced Media properties
-              fillType: l.fillType || undefined,
-              fillColor: l.fillColor || undefined,
-              fillGradType: l.fillGradType || undefined,
-              fillGradAngle: l.fillGradAngle !== undefined ? l.fillGradAngle : undefined,
-              fillGradColor1: l.fillGradColor1 || undefined,
-              fillGradColor2: l.fillGradColor2 || undefined,
-              fillGradStops: Array.isArray(l.fillGradStops) ? JSON.parse(JSON.stringify(l.fillGradStops)) : undefined,
-              fillMediaId: l.fillMediaId || undefined,
-              fillMediaName: l.fillMediaName || undefined,
-              fillMediaUrl: l.fillMediaUrl || undefined,
-              // Shape specific settings
-              shapeType: l.shapeType || undefined,
-              shapeProps: l.shapeProps ? JSON.parse(JSON.stringify(l.shapeProps)) : undefined,
-              // Text specific settings
-              textProps: l.textProps ? JSON.parse(JSON.stringify(l.textProps)) : undefined,
-              strokeColor: l.strokeColor || undefined,
-              strokeWidth: l.strokeWidth !== undefined ? l.strokeWidth : undefined,
-              // Camera specific settings
-              cameraLens: l.cameraLens !== undefined ? l.cameraLens : undefined,
-              cameraLensPreset: l.cameraLensPreset || undefined,
-              cameraZoom: l.cameraZoom !== undefined ? l.cameraZoom : undefined,
-              cameraBlurEnabled: !!l.cameraBlurEnabled,
-              cameraFocusMode: l.cameraFocusMode || undefined,
-              cameraFocusDistance: l.cameraFocusDistance !== undefined ? l.cameraFocusDistance : undefined,
-              cameraFocusTargetLayerId: l.cameraFocusTargetLayerId || undefined,
-              cameraBlurAmount: l.cameraBlurAmount !== undefined ? l.cameraBlurAmount : undefined,
-              cameraBlurNearFar: l.cameraBlurNearFar !== undefined ? l.cameraBlurNearFar : undefined,
-              cameraBlurBalance: l.cameraBlurBalance !== undefined ? l.cameraBlurBalance : undefined,
-              // Audio & Volume settings
-              volume: l.volume !== undefined ? l.volume : 1.0,
-              audioEffects: Array.isArray(l.audioEffects) ? JSON.parse(JSON.stringify(l.audioEffects)) : undefined,
-              // Speed & Video Interpolation settings
-              speed: l.speed !== undefined ? l.speed : 1.0,
-              speedInterpolation: l.speedInterpolation || 'none',
-              preservePitch: l.preservePitch !== undefined ? l.preservePitch : true
-            }));
+            prj.layers = (layersToSave || []).map(serializeLayer).filter(Boolean);
             if (typeof window.getProjectTotalDuration === 'function') {
               prj.duration = window.getProjectTotalDuration();
               currentProjectState.duration = prj.duration;
@@ -3482,6 +3556,17 @@
               prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
             }
             await window.FishDatabase.saveProject(prj);
+
+            // Guarantee URL always has project ID so F5 refresh never loses project
+            if (prj.id) {
+              try {
+                const url = new URL(window.location.href);
+                if (url.searchParams.get('id') !== prj.id) {
+                  url.searchParams.set('id', prj.id);
+                  window.history.replaceState({}, '', url.toString());
+                }
+              } catch (_) {}
+            }
           }
         } catch (err) {
           console.warn('Failed saving project layers to DB:', err);
@@ -4074,6 +4159,8 @@
       if (!pctx) return;
       const pw = targetW || targetCanvas.width || precompLayer.mediaWidth || Math.round(Math.abs(precompLayer.scaleW)) || 1920;
       const ph = targetH || targetCanvas.height || precompLayer.mediaHeight || Math.round(Math.abs(precompLayer.scaleH)) || 1080;
+      const baseW = Math.round(Math.abs(precompLayer.mediaWidth || precompLayer.scaleW || pw || 1920));
+      const baseH = Math.round(Math.abs(precompLayer.mediaHeight || precompLayer.scaleH || ph || 1080));
       pctx.clearRect(0, 0, pw, ph);
 
       // Fast Path: Check if this precompose already has this frame cached in its pool
@@ -4318,9 +4405,14 @@
         }
       });
 
-      // Precompose frames are cached when active inside the precompose, or composited directly
-      // into the active composition cache. Eliminating redundant synchronous double-caching prevents
-      // GPU createImageBitmap contention and browser thread stalls during playback and scrubbing.
+      // LIVE PRECOMPOSE RAM PREVIEW CACHING:
+      // Cache rendered precomp frame into its own pool (precompLayer.id)
+      // Enables fast-path blit during playback outside precompose and updates timeline precomp clip progress
+      if (window.PreviewCacheManager && !isExport && triggerSource !== 'export-video' && triggerSource !== 'prebake' && targetCanvas && targetCanvas.width > 0 && targetCanvas.height > 0) {
+        if (!window.isTimelinePlaying || (window.PreviewCacheManager._inFlightFrames && window.PreviewCacheManager._inFlightFrames.size <= 2)) {
+          window.PreviewCacheManager.setFrameFromCanvas(fInner, targetCanvas, false, precompLayer.id);
+        }
+      }
     }
 
     // Render Canvas Content (Background, Time-Filtered Active Layers, Center-Aligned Grid Overlay)
@@ -4388,8 +4480,14 @@
             if (!sc || sc.isExtracting) {
               const start = vl.startSec !== undefined ? vl.startSec : ((vl.startPx || 0) / pixelsPerSecond);
               const vlEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(vl, currentSec) : vl;
-              const effSpeed = (vlEff && vlEff.speed !== undefined) ? vlEff.speed : (vl.speed !== undefined && vl.speed > 0 ? vl.speed : 1);
-              const timeInClip = Math.max(0, (vl.sourceOffsetSec || 0) + (currentSec - start) * effSpeed);
+              let timeInClip = 0;
+              if (vl.speedMode === 'time_remap') {
+                timeInClip = Math.max(0, vlEff && vlEff.timeRemap !== undefined ? vlEff.timeRemap : ((currentSec - start) * (vl.speed || 1)));
+              } else {
+                timeInClip = (typeof getLayerIntegratedSpeedTime === 'function')
+                  ? getLayerIntegratedSpeedTime(vl, currentSec)
+                  : Math.max(0, (vl.sourceOffsetSec || 0) + (currentSec - start) * (vl.speed || 1.0));
+              }
               const fIdx = Math.round(timeInClip * (sc && sc.fps ? sc.fps : (currentProjectState.fps || 60)));
               if (!sc || !sc.frames.has(fIdx)) {
                 isVideoReady = false;
@@ -4730,10 +4828,17 @@
             layer._precompBufferCanvas.height = ph;
           }
           const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-          const effSpeed = (typeof getLayerEffectivePropsAtTime === 'function')
-            ? (getLayerEffectivePropsAtTime(layer, currentSec).speed || layer.speed || 1.0)
-            : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
-          const innerSec = Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - clipStart) * effSpeed);
+          let innerSec = 0;
+          if (layer.speedMode === 'time_remap') {
+            const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
+              ? getLayerEffectivePropsAtTime(layer, currentSec)
+              : layer;
+            innerSec = Math.max(0, effProps.timeRemap !== undefined ? effProps.timeRemap : ((currentSec - clipStart) * (layer.speed || 1.0)));
+          } else {
+            innerSec = (typeof getLayerIntegratedSpeedTime === 'function')
+              ? getLayerIntegratedSpeedTime(layer, currentSec)
+              : Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - clipStart) * (layer.speed || 1.0));
+          }
           renderPrecompToCanvas(layer, layer._precompBufferCanvas, innerSec, pw, ph, triggerSource);
           el = layer._precompBufferCanvas;
           layer.mediaWidth = pw;
@@ -4746,10 +4851,17 @@
           el = media.el;
           if (layer.type === 'video') {
             const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-            const effSpeed = (typeof getLayerEffectivePropsAtTime === 'function')
-              ? (getLayerEffectivePropsAtTime(layer, currentSec).speed || layer.speed || 1.0)
-              : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
-            const timeInClip = Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - start) * effSpeed);
+            let timeInClip = 0;
+            if (layer.speedMode === 'time_remap') {
+              const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
+                ? getLayerEffectivePropsAtTime(layer, currentSec)
+                : layer;
+              timeInClip = Math.max(0, effProps.timeRemap !== undefined ? effProps.timeRemap : ((currentSec - start) * (layer.speed || 1.0)));
+            } else {
+              timeInClip = (typeof getLayerIntegratedSpeedTime === 'function')
+                ? getLayerIntegratedSpeedTime(layer, currentSec)
+                : Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - start) * (layer.speed || 1.0));
+            }
 
             let useProxySequence = false;
 
@@ -4806,12 +4918,10 @@
                     cachedFrame = cachedSource.frames.get(1);
                   }
                 }
-                // If the entire video layer is already baked (or cached in DB), never show unready placeholder:
-                // pick the nearest baked frame in RAM while the exact frame loads from IndexedDB
-                if (!cachedFrame && (layer._extractComplete || (layer._extractProgress >= 0.99) || (cachedSource.cachedFrameIndices && cachedSource.cachedFrameIndices.has(fIdx)))) {
+                // If exact frame is missing from RAM, pick closest available frame in RAM sequence (instant 0ms fallback)
+                if (!cachedFrame && cachedSource.frames.size > 0) {
                   let minDiff = Infinity;
                   let nearestF = null;
-                  const maxAllowedDiff = (fIdx === 0) ? 3 : 60;
                   for (const availIdx of cachedSource.frames.keys()) {
                     const diff = Math.abs(availIdx - fIdx);
                     if (diff < minDiff) {
@@ -4819,14 +4929,20 @@
                       nearestF = availIdx;
                     }
                   }
-                  if (nearestF !== null && minDiff <= maxAllowedDiff) {
+                  if (nearestF !== null) {
                     cachedFrame = cachedSource.frames.get(nearestF);
                   }
+                }
+
+                // Anti-flicker hold: hold last successfully rendered frame for this layer while next frame decodes
+                if (!cachedFrame && layer._lastRenderedFrame) {
+                  cachedFrame = layer._lastRenderedFrame;
                 }
               }
 
               if (cachedFrame) {
                 el = cachedFrame;
+                layer._lastRenderedFrame = cachedFrame;
                 useProxySequence = true;
               }
             }
@@ -4838,10 +4954,18 @@
                 return;
               }
               const videoEl = media && media.el;
-              const placeholderW = layer.mediaWidth || (videoEl && videoEl.videoWidth > 0 ? videoEl.videoWidth : 1920);
-              const placeholderH = layer.mediaHeight || (videoEl && videoEl.videoHeight > 0 ? videoEl.videoHeight : 1080);
-              el = getMediaNotReadyPlaceholder(placeholderW, placeholderH, layer._extractProgress || 0);
-              useProxySequence = false;
+              if (videoEl && videoEl.videoWidth > 0 && videoEl.readyState >= 2) {
+                el = videoEl;
+                useProxySequence = true;
+              } else if (layer._lastRenderedFrame) {
+                el = layer._lastRenderedFrame;
+                useProxySequence = true;
+              } else {
+                const placeholderW = layer.mediaWidth || (videoEl && videoEl.videoWidth > 0 ? videoEl.videoWidth : 1920);
+                const placeholderH = layer.mediaHeight || (videoEl && videoEl.videoHeight > 0 ? videoEl.videoHeight : 1080);
+                el = getMediaNotReadyPlaceholder(placeholderW, placeholderH, layer._extractProgress || 0);
+                useProxySequence = false;
+              }
             }
           }
         }
@@ -5751,7 +5875,6 @@
             if (selectedLayer.type === 'camera') {
               syncLayerWithEffectiveProps(selectedLayer);
               window.isTransformInteracting = true;
-              invalidatePreviewCacheForLayer(selectedLayer);
 
               activeOp = 'scale';
               activeHandleType = hitH.type;
@@ -5773,7 +5896,6 @@
 
             syncLayerWithEffectiveProps(selectedLayer);
             window.isTransformInteracting = true;
-            invalidatePreviewCacheForLayer(selectedLayer);
 
             activeOp = 'scale';
             activeHandleType = hitH.type;
@@ -5857,7 +5979,6 @@
           if (isAnchorHit || (isAnchorMode && isBodyHit) || isBodyHit) {
             syncLayerWithEffectiveProps(selectedLayer);
             window.isTransformInteracting = true;
-            invalidatePreviewCacheForLayer(selectedLayer);
 
             const isMoveAnchor = isAnchorMode;
             activeOp = isMoveAnchor ? 'moveAnchor' : 'move';
@@ -5907,7 +6028,6 @@
             }
             syncLayerWithEffectiveProps(l);
             window.isTransformInteracting = true;
-            invalidatePreviewCacheForLayer(l);
 
             activeOp = 'move';
             activeHandleType = 'move';
@@ -5944,7 +6064,6 @@
         if (selectedLayer && selectedLayer.type === 'camera') {
           syncLayerWithEffectiveProps(selectedLayer);
           window.isTransformInteracting = true;
-          invalidatePreviewCacheForLayer(selectedLayer);
 
           activeOp = 'move';
           activeHandleType = 'move';
@@ -6356,7 +6475,7 @@
         hasMoved = false;
         window.activeSnapGuides = null;
         window.isTransformInteracting = false;
-        if (finishedLayer) {
+        if (finishedLayer && didMove) {
           invalidatePreviewCacheForLayer(finishedLayer);
         }
         redrawComposition();
@@ -6476,6 +6595,11 @@
           speed: layer.speed !== undefined ? layer.speed : (eff.speed !== undefined ? eff.speed : 1.0)
         };
       }
+      if (prop === 'timeRemap') {
+        return {
+          timeRemap: layer.timeRemap !== undefined ? layer.timeRemap : (eff.timeRemap !== undefined ? eff.timeRemap : 0)
+        };
+      }
       if (prop.includes(':')) {
         const colonIdx = prop.indexOf(':');
         const fxId = prop.slice(0, colonIdx);
@@ -6568,6 +6692,7 @@
         opacity: layer.opacity !== undefined ? layer.opacity : 1.0,
         volume: layer.volume !== undefined ? layer.volume : 1.0,
         speed: layer.speed !== undefined ? layer.speed : 1.0,
+        timeRemap: layer.timeRemap !== undefined ? layer.timeRemap : 0,
         cameraLens: layer.cameraLens !== undefined ? layer.cameraLens : (layer.cameraLensPreset === 'wide' ? 24 : (layer.cameraLensPreset === 'tele' ? 85 : 50)),
         cameraZoom: layer.cameraZoom !== undefined ? layer.cameraZoom : 100,
         cameraBlurEnabled: layer.cameraBlurEnabled !== undefined ? layer.cameraBlurEnabled : false,
@@ -6587,7 +6712,7 @@
       }
 
       if (layer.keyframes) {
-        const propKeys = ['move', 'rotate', 'scale', 'skew', 'opacity', 'volume', 'speed', 'cameraLens', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurNearFar', 'cameraBlurAmount', 'cameraBlurBalance'];
+        const propKeys = ['move', 'rotate', 'scale', 'skew', 'opacity', 'volume', 'speed', 'timeRemap', 'cameraLens', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurNearFar', 'cameraBlurAmount', 'cameraBlurBalance'];
         for (const prop of propKeys) {
           const list = layer.keyframes[prop];
           if (!list || list.length === 0) continue;
@@ -6825,6 +6950,80 @@
     }
     window.getLayerEffectivePropsAtTime = getLayerEffectivePropsAtTime;
 
+    // Helper: Fast numerical integration for cubic bezier speed curve
+    // Guarantees strictly monotonic forward progress and eliminates deceleration backward jitter
+    function integrateBezierSpeedSegment(s0, s1, easing, span, currentDt) {
+      if (currentDt <= 0) return 0;
+      const clampedDt = Math.min(span, currentDt);
+      const steps = 16;
+      const dt = clampedDt / steps;
+      let sum = 0;
+      const e = easing || [0.42, 0.0, 0.58, 1.0];
+      for (let j = 0; j < steps; j++) {
+        const tA = (j * dt) / span;
+        const tB = ((j + 1) * dt) / span;
+        const vA = s0 + (s1 - s0) * evaluateCubicBezier(e[0], e[1], e[2], e[3], tA);
+        const vB = s0 + (s1 - s0) * evaluateCubicBezier(e[0], e[1], e[2], e[3], tB);
+        sum += (vA + vB) * 0.5 * dt;
+      }
+      return sum;
+    }
+
+    // Helper: Compute forward-only integrated source time from speed keyframes (eliminates maju-mundur in Twixtor)
+    function getLayerIntegratedSpeedTime(layer, currentSec) {
+      if (!layer) return 0;
+      const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+      const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+      const srcOffset = layer.sourceOffsetSec || 0;
+
+      if (currentSec <= start) return Math.max(0, srcOffset);
+
+      const kfs = (layer.keyframes && Array.isArray(layer.keyframes.speed)) ? layer.keyframes.speed : null;
+      if (!kfs || kfs.length === 0) {
+        const spd = (layer.speed !== undefined && layer.speed > 0) ? layer.speed : 1.0;
+        return Math.max(0, srcOffset + (currentSec - start) * spd);
+      }
+
+      const sorted = [...kfs].sort((a, b) => a.time - b.time);
+      if (currentSec <= sorted[0].time) {
+        const firstSpd = (sorted[0].value && sorted[0].value.speed !== undefined) ? sorted[0].value.speed : (layer.speed || 1.0);
+        return Math.max(0, srcOffset + (currentSec - start) * firstSpd);
+      }
+
+      let accumulated = (sorted[0].time - start) * ((sorted[0].value && sorted[0].value.speed !== undefined) ? sorted[0].value.speed : (layer.speed || 1.0));
+      if (accumulated < 0) accumulated = 0;
+
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const k0 = sorted[i];
+        const k1 = sorted[i + 1];
+        const s0 = (k0.value && k0.value.speed !== undefined) ? k0.value.speed : (layer.speed || 1.0);
+        const s1 = (k1.value && k1.value.speed !== undefined) ? k1.value.speed : (layer.speed || 1.0);
+        const span = k1.time - k0.time;
+        if (span <= 0) continue;
+        const easing = k0.easing || [0.42, 0.0, 0.58, 1.0];
+
+        if (currentSec >= k1.time) {
+          if (k0._cachedIntegratedSpan === undefined || k0._cachedSpan !== span || k0._cachedS0 !== s0 || k0._cachedS1 !== s1) {
+            k0._cachedSpan = span;
+            k0._cachedS0 = s0;
+            k0._cachedS1 = s1;
+            k0._cachedIntegratedSpan = integrateBezierSpeedSegment(s0, s1, easing, span, span);
+          }
+          accumulated += k0._cachedIntegratedSpan;
+        } else {
+          const partialDt = currentSec - k0.time;
+          accumulated += integrateBezierSpeedSegment(s0, s1, easing, span, partialDt);
+          return Math.max(0, srcOffset + accumulated);
+        }
+      }
+
+      const lastKf = sorted[sorted.length - 1];
+      const lastSpd = (lastKf.value && lastKf.value.speed !== undefined) ? lastKf.value.speed : (layer.speed || 1.0);
+      accumulated += (currentSec - lastKf.time) * lastSpd;
+      return Math.max(0, srcOffset + accumulated);
+    }
+    window.getLayerIntegratedSpeedTime = getLayerIntegratedSpeedTime;
+
     // Helper to find keyframe at given time within tolerance
     function getKeyframeAtTime(layer, prop, time, tolerance = 0.05) {
       if (!layer || !layer.keyframes || !layer.keyframes[prop]) return null;
@@ -6932,6 +7131,7 @@
       if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
       if (typeof updateVolumeKeyframeBtnState === 'function') updateVolumeKeyframeBtnState();
       if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
+      if (typeof syncSpeedControllerValues === 'function') syncSpeedControllerValues();
       if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
       if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
       if (typeof redrawComposition === 'function') redrawComposition('toggleKeyframe');
@@ -6973,6 +7173,7 @@
         if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
         if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
         if (typeof updateVolumeKeyframeBtnState === 'function') updateVolumeKeyframeBtnState();
+        if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
         if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
         if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
         if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
@@ -7187,7 +7388,8 @@
           history.pushState({ drawerSubview: 'volume' }, '');
         } catch (_) {}
       } else if (subviewName === 'speed') {
-        window.activeKeyframeProperty = 'speed';
+        const curL = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        window.activeKeyframeProperty = (curL && curL.speedMode === 'time_remap') ? 'timeRemap' : 'speed';
         if (typeof syncSpeedControllerValues === 'function') {
           syncSpeedControllerValues();
         }
@@ -9602,10 +9804,16 @@
         layer.volume = roundedVal;
 
         // Live audio gain sync
-        if (window.FishAudioEngine && (layer.type === 'video' || layer.type === 'audio')) {
-          const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
-          if (media && media.el) {
-            window.FishAudioEngine.setElementGain(media.el, roundedVal);
+        if (window.FishAudioEngine) {
+          if (layer.type === 'video' || layer.type === 'audio') {
+            const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
+            if (media && media.el) {
+              window.FishAudioEngine.setElementGain(media.el, roundedVal);
+            }
+          } else if (layer.type === 'precomp') {
+            const pps = window.currentPixelsPerSecond || 80;
+            const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+            window.FishAudioEngine.syncPlayback(currentProjectState.layers || [], currentSec, pps);
           }
         }
 
@@ -9929,30 +10137,78 @@
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer) return;
 
+      const isRemapMode = layer.speedMode === 'time_remap';
+
+      // 1. Sync mode switcher buttons
+      const btnModeSpeed = document.getElementById('btn-speed-type-speed');
+      const btnModeRemap = document.getElementById('btn-speed-type-remap');
+      if (btnModeSpeed) {
+        btnModeSpeed.classList.toggle('is-active', !isRemapMode);
+        btnModeSpeed.setAttribute('aria-checked', !isRemapMode ? 'true' : 'false');
+      }
+      if (btnModeRemap) {
+        btnModeRemap.classList.toggle('is-active', isRemapMode);
+        btnModeRemap.setAttribute('aria-checked', isRemapMode ? 'true' : 'false');
+      }
+
+      // 2. Toggle panels
+      const panelSpeed = document.getElementById('panel-speed-multiplier');
+      const panelRemap = document.getElementById('panel-time-remap');
+      if (panelSpeed) panelSpeed.style.display = isRemapMode ? 'none' : 'block';
+      if (panelRemap) panelRemap.style.display = isRemapMode ? 'block' : 'none';
+
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
       const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
         ? getLayerEffectivePropsAtTime(layer, currentSec)
         : null;
 
-      const spd = (effProps && effProps.speed !== undefined) ? effProps.speed : (layer.speed !== undefined ? layer.speed : 1.0);
-      const interp = layer.speedInterpolation || 'none';
-      const pitch = layer.preservePitch !== undefined ? layer.preservePitch : true;
+      if (!isRemapMode) {
+        // Speed Multiplier Mode
+        const spd = (effProps && effProps.speed !== undefined) ? effProps.speed : (layer.speed !== undefined ? layer.speed : 1.0);
+        const fillEl = document.getElementById('speed-slider-fill');
+        const thumbEl = document.getElementById('speed-slider-thumb');
+        const badgeEl = document.getElementById('speed-slider-badge');
+        const containerEl = document.getElementById('speed-slider-container');
 
-      const fillEl = document.getElementById('speed-slider-fill');
-      const thumbEl = document.getElementById('speed-slider-thumb');
-      const badgeEl = document.getElementById('speed-slider-badge');
-      const containerEl = document.getElementById('speed-slider-container');
+        const ratio = Math.max(0, Math.min(1, speedToRatio(spd)));
+        const pct = (ratio * 100).toFixed(2);
 
-      const ratio = Math.max(0, Math.min(1, speedToRatio(spd)));
-      const pct = (ratio * 100).toFixed(2);
+        if (fillEl) fillEl.style.width = pct + '%';
+        if (thumbEl) thumbEl.style.left = pct + '%';
+        if (badgeEl) badgeEl.textContent = `${spd}x`;
+        if (containerEl) containerEl.setAttribute('aria-valuenow', spd);
+      } else {
+        // Time Remap Mode (Source Time)
+        const remapSec = (effProps && effProps.timeRemap !== undefined)
+          ? effProps.timeRemap
+          : (layer.timeRemap !== undefined ? layer.timeRemap : 0);
+        const maxSec = Math.max(0.1, layer.mediaDuration || layer.durationSec || ((layer.widthPx || 400) / pps));
+        const remapRatio = Math.max(0, Math.min(1, remapSec / maxSec));
+        const remapPct = (remapRatio * 100).toFixed(2);
 
-      if (fillEl) fillEl.style.width = pct + '%';
-      if (thumbEl) thumbEl.style.left = pct + '%';
-      if (badgeEl) badgeEl.textContent = `${spd}x`;
-      if (containerEl) containerEl.setAttribute('aria-valuenow', spd);
+        const remapFill = document.getElementById('timeremap-slider-fill');
+        const remapThumb = document.getElementById('timeremap-slider-thumb');
+        const remapBadge = document.getElementById('timeremap-slider-badge');
+        const remapContainer = document.getElementById('timeremap-slider-container');
+
+        if (remapFill) remapFill.style.width = remapPct + '%';
+        if (remapThumb) remapThumb.style.left = remapPct + '%';
+        if (remapBadge) {
+          if (typeof window.formatTimecode === 'function') {
+            remapBadge.textContent = window.formatTimecode(Math.round(remapSec * 1000));
+          } else {
+            remapBadge.textContent = `${remapSec.toFixed(2)}s`;
+          }
+        }
+        if (remapContainer) {
+          remapContainer.setAttribute('aria-valuenow', remapSec.toFixed(3));
+          remapContainer.setAttribute('aria-valuemax', maxSec.toFixed(3));
+        }
+      }
 
       // Sync interpolation buttons highlight
+      const interp = layer.speedInterpolation || 'none';
       const modeBtns = document.querySelectorAll('.speed-mode-btn');
       modeBtns.forEach(btn => {
         const mode = btn.getAttribute('data-interpolation');
@@ -9962,6 +10218,7 @@
       });
 
       // Sync pitch toggle
+      const pitch = layer.preservePitch !== undefined ? layer.preservePitch : true;
       const pitchSwitch = document.getElementById('speed-preserve-pitch-toggle');
       if (pitchSwitch) {
         pitchSwitch.classList.toggle('is-active', !!pitch);
@@ -9984,7 +10241,8 @@
       }
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
-      const kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, 'speed', currentSec) : null;
+      const prop = (layer.speedMode === 'time_remap') ? 'timeRemap' : 'speed';
+      const kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, prop, currentSec) : null;
       btn.classList.toggle('is-active', !!kf);
     }
     window.updateSpeedKeyframeBtnState = updateSpeedKeyframeBtnState;
@@ -9999,25 +10257,187 @@
         });
       }
 
-      // 2. Keyframe button: Add / Remove Keyframe for Speed
+      // 2. Keyframe button: Add / Remove Keyframe for Speed or Time Remap
       const btnSpeedKeyframe = document.getElementById('btn-speed-keyframe');
       if (btnSpeedKeyframe) {
         btnSpeedKeyframe.addEventListener('click', (e) => {
           e.stopPropagation();
-          window.activeKeyframeProperty = 'speed';
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const prop = (layer && layer.speedMode === 'time_remap') ? 'timeRemap' : 'speed';
+          window.activeKeyframeProperty = prop;
           toggleKeyframeAtCurrentTime();
           updateSpeedKeyframeBtnState();
+          syncSpeedControllerValues();
         });
       }
 
-      // 3. Graph button: Speed -> Graph Editor
+      // 3. Graph button: Speed / Time Remap -> Graph Editor
       const btnSpeedGraph = document.getElementById('btn-speed-graph');
       if (btnSpeedGraph) {
         btnSpeedGraph.addEventListener('click', (e) => {
           e.stopPropagation();
-          window.activeKeyframeProperty = 'speed';
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const prop = (layer && layer.speedMode === 'time_remap') ? 'timeRemap' : 'speed';
+          window.activeKeyframeProperty = prop;
           window.previousDrawerSubview = 'speed';
           switchLayerDrawerSubview('graph');
+        });
+      }
+
+      // Helper: Initialize Time Remap with 2 boundary AE keyframes (clip start & clip end)
+      function initTimeRemapForLayer(layer, forceReset = false) {
+        if (!layer) return;
+        layer.speedMode = 'time_remap';
+        if (!layer.keyframes) layer.keyframes = {};
+
+        if (forceReset || !Array.isArray(layer.keyframes.timeRemap) || layer.keyframes.timeRemap.length === 0) {
+          const pps = window.currentPixelsPerSecond || 80;
+          const clipStartSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const clipDurSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+          const srcOffset = layer.sourceOffsetSec || 0;
+          const endVal = srcOffset + clipDurSec;
+
+          layer.keyframes.timeRemap = [
+            {
+              time: Number(clipStartSec.toFixed(3)),
+              value: { timeRemap: Number(srcOffset.toFixed(3)) },
+              easing: [0.0, 0.0, 1.0, 1.0]
+            },
+            {
+              time: Number((clipStartSec + clipDurSec).toFixed(3)),
+              value: { timeRemap: Number(endVal.toFixed(3)) },
+              easing: [0.0, 0.0, 1.0, 1.0]
+            }
+          ];
+          layer.timeRemap = srcOffset;
+        }
+      }
+      window.initTimeRemapForLayer = initTimeRemapForLayer;
+
+      // Helper: Freeze frame from current playhead to clip end
+      function freezeFrameAtCurrentTime() {
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        if (!layer) return;
+        if (layer.speedMode !== 'time_remap') {
+          initTimeRemapForLayer(layer, false);
+        }
+        const pps = window.currentPixelsPerSecond || 80;
+        const currentSec = Number((Math.abs(window.timelinePanX || 0) / pps).toFixed(3));
+        const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+        const clipEnd = Number((clipStart + clipDur).toFixed(3));
+
+        const eff = (typeof getLayerEffectivePropsAtTime === 'function')
+          ? getLayerEffectivePropsAtTime(layer, currentSec)
+          : layer;
+        const freezeVal = Number((eff.timeRemap !== undefined ? eff.timeRemap : (layer.timeRemap || 0)).toFixed(3));
+
+        if (!layer.keyframes) layer.keyframes = {};
+        if (!Array.isArray(layer.keyframes.timeRemap)) layer.keyframes.timeRemap = [];
+
+        // Filter out keyframes >= currentSec
+        layer.keyframes.timeRemap = layer.keyframes.timeRemap.filter(kf => kf.time < currentSec - 0.001);
+
+        // Add keyframe at currentSec
+        layer.keyframes.timeRemap.push({
+          time: currentSec,
+          value: { timeRemap: freezeVal },
+          easing: [0.0, 0.0, 1.0, 1.0]
+        });
+
+        // Add keyframe at clipEnd with the same value so it holds freeze
+        if (clipEnd > currentSec + 0.001) {
+          layer.keyframes.timeRemap.push({
+            time: clipEnd,
+            value: { timeRemap: freezeVal },
+            easing: [0.0, 0.0, 1.0, 1.0]
+          });
+        }
+
+        layer.keyframes.timeRemap.sort((a, b) => a.time - b.time);
+        layer.timeRemap = freezeVal;
+
+        syncSpeedControllerValues();
+        updateSpeedKeyframeBtnState();
+        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+        if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+        invalidatePreviewCacheForLayer(layer);
+        if (typeof redrawComposition === 'function') redrawComposition('timeremap-freeze');
+        if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+        if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Frame Frozen');
+      }
+      window.freezeFrameAtCurrentTime = freezeFrameAtCurrentTime;
+
+      // Helper: Reset Time Remap to 1:1 linear playback
+      function resetTimeRemapLinear() {
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        if (!layer) return;
+        initTimeRemapForLayer(layer, true);
+        syncSpeedControllerValues();
+        updateSpeedKeyframeBtnState();
+        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+        if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+        invalidatePreviewCacheForLayer(layer);
+        if (typeof redrawComposition === 'function') redrawComposition('timeremap-reset');
+        if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+        if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Time Remap Reset 1:1');
+      }
+      window.resetTimeRemapLinear = resetTimeRemapLinear;
+
+      // 4. Mode switcher buttons: Speed Multiplier vs Time Remap
+      const btnSpeedTypeSpeed = document.getElementById('btn-speed-type-speed');
+      const btnSpeedTypeRemap = document.getElementById('btn-speed-type-remap');
+
+      if (btnSpeedTypeSpeed) {
+        btnSpeedTypeSpeed.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+          layer.speedMode = 'speed';
+          window.activeKeyframeProperty = 'speed';
+          syncSpeedControllerValues();
+          updateSpeedKeyframeBtnState();
+          if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+          invalidatePreviewCacheForLayer(layer);
+          if (typeof redrawComposition === 'function') redrawComposition('speed-mode-speed');
+          if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+        });
+      }
+
+      if (btnSpeedTypeRemap) {
+        btnSpeedTypeRemap.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+          layer.speedMode = 'time_remap';
+          initTimeRemapForLayer(layer, false);
+          window.activeKeyframeProperty = 'timeRemap';
+          syncSpeedControllerValues();
+          updateSpeedKeyframeBtnState();
+          if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+          invalidatePreviewCacheForLayer(layer);
+          if (typeof redrawComposition === 'function') redrawComposition('speed-mode-remap');
+          if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+        });
+      }
+
+      // Freeze button
+      const btnRemapFreeze = document.getElementById('btn-timeremap-freeze');
+      if (btnRemapFreeze) {
+        btnRemapFreeze.addEventListener('click', (e) => {
+          e.stopPropagation();
+          freezeFrameAtCurrentTime();
+        });
+      }
+
+      // Reset button
+      const btnRemapReset = document.getElementById('btn-timeremap-reset');
+      if (btnRemapReset) {
+        btnRemapReset.addEventListener('click', (e) => {
+          e.stopPropagation();
+          resetTimeRemapLinear();
         });
       }
 
@@ -10073,6 +10493,25 @@
           }
           if (layer.type === 'video' && typeof window.VideoFrameExtractor.extractLayerRange === 'function') {
             window.VideoFrameExtractor.extractLayerRange(layer);
+          }
+        }
+
+        if (layer.type === 'precomp') {
+          if (window.PreviewCacheManager) {
+            if (typeof window.PreviewCacheManager.cancelPrecompPrebake === 'function') {
+              window.PreviewCacheManager.cancelPrecompPrebake(layer.id);
+            }
+            if (typeof window.PreviewCacheManager.deletePool === 'function') {
+              window.PreviewCacheManager.deletePool(layer.id);
+            }
+            if (typeof window.PreviewCacheManager.prebakePrecomp === 'function') {
+              window.PreviewCacheManager.prebakePrecomp(layer);
+            }
+          }
+          if (window.FishAudioEngine) {
+            const pps = window.currentPixelsPerSecond || 80;
+            const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+            window.FishAudioEngine.syncPlayback(currentProjectState.layers || [], currentSec, pps);
           }
         }
 
@@ -10181,7 +10620,175 @@
         });
       }
 
-      // 3. Video Interpolation Modes
+      // 5. Time Remap Slider Drag & Direct Input Interaction
+      function applyTimeRemapValue(remapVal) {
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        if (!layer) return;
+
+        const pps = window.currentPixelsPerSecond || 80;
+        const currentSec = Number((Math.abs(window.timelinePanX || 0) / pps).toFixed(3));
+        const roundedVal = Math.max(0, Number(Number(remapVal).toFixed(3)));
+
+        layer.timeRemap = roundedVal;
+
+        // Auto-record keyframe if keyframes exist on timeRemap
+        if (!layer.keyframes) layer.keyframes = {};
+        if (!Array.isArray(layer.keyframes.timeRemap)) layer.keyframes.timeRemap = [];
+
+        const existingKf = (typeof getKeyframeAtTime === 'function')
+          ? getKeyframeAtTime(layer, 'timeRemap', currentSec)
+          : layer.keyframes.timeRemap.find(k => Math.abs(k.time - currentSec) < 0.04);
+
+        if (existingKf) {
+          existingKf.value = { timeRemap: roundedVal };
+        } else {
+          const defaultEasing = (layer._defaultEasing && layer._defaultEasing.timeRemap) ? layer._defaultEasing.timeRemap : [0.0, 0.0, 1.0, 1.0];
+          layer.keyframes.timeRemap.push({
+            time: currentSec,
+            value: { timeRemap: roundedVal },
+            easing: [...defaultEasing]
+          });
+          layer.keyframes.timeRemap.sort((a, b) => a.time - b.time);
+        }
+
+        // Update slider fill & thumb & badge
+        const maxSec = Math.max(0.1, layer.mediaDuration || layer.durationSec || ((layer.widthPx || 400) / pps));
+        const ratio = Math.max(0, Math.min(1, roundedVal / maxSec));
+        const pct = (ratio * 100).toFixed(2);
+
+        const fillEl = document.getElementById('timeremap-slider-fill');
+        const thumbEl = document.getElementById('timeremap-slider-thumb');
+        const badgeEl = document.getElementById('timeremap-slider-badge');
+        const containerEl = document.getElementById('timeremap-slider-container');
+
+        if (fillEl) fillEl.style.width = pct + '%';
+        if (thumbEl) thumbEl.style.left = pct + '%';
+        if (badgeEl) {
+          if (typeof window.formatTimecode === 'function') {
+            badgeEl.textContent = window.formatTimecode(Math.round(roundedVal * 1000));
+          } else {
+            badgeEl.textContent = `${roundedVal.toFixed(2)}s`;
+          }
+        }
+        if (containerEl) containerEl.setAttribute('aria-valuenow', roundedVal);
+
+        updateSpeedKeyframeBtnState();
+
+        if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.clearInterpolationCache === 'function') {
+          window.VideoFrameExtractor.clearInterpolationCache();
+        }
+
+        if (layer.type === 'precomp') {
+          if (window.PreviewCacheManager) {
+            if (typeof window.PreviewCacheManager.cancelPrecompPrebake === 'function') {
+              window.PreviewCacheManager.cancelPrecompPrebake(layer.id);
+            }
+            if (typeof window.PreviewCacheManager.deletePool === 'function') {
+              window.PreviewCacheManager.deletePool(layer.id);
+            }
+            if (typeof window.PreviewCacheManager.prebakePrecomp === 'function') {
+              window.PreviewCacheManager.prebakePrecomp(layer);
+            }
+          }
+          if (window.FishAudioEngine) {
+            window.FishAudioEngine.syncPlayback(currentProjectState.layers || [], currentSec, pps);
+          }
+        }
+
+        invalidatePreviewCacheForLayer(layer);
+        if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+        if (typeof redrawComposition === 'function') redrawComposition('layer-timeremap-change');
+      }
+      window.applyTimeRemapValue = applyTimeRemapValue;
+
+      const remapSliderContainer = document.getElementById('timeremap-slider-container');
+      const remapSliderBadge = document.getElementById('timeremap-slider-badge');
+
+      if (remapSliderBadge) {
+        remapSliderBadge.style.cursor = 'pointer';
+        remapSliderBadge.title = 'Click to enter exact source time';
+        remapSliderBadge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+          const pps = window.currentPixelsPerSecond || 80;
+          const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+          const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec) : layer;
+          const curVal = eff.timeRemap !== undefined ? eff.timeRemap : (layer.timeRemap || 0);
+          const input = prompt('Enter Source Time in seconds (e.g. 1.25):', curVal.toFixed(2));
+          if (input !== null) {
+            const parsed = parseFloat(input);
+            if (!isNaN(parsed) && parsed >= 0) {
+              applyTimeRemapValue(parsed);
+              if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+            }
+          }
+        });
+      }
+
+      if (remapSliderContainer) {
+        function updateTimeRemapFromPointer(e) {
+          const rect = remapSliderContainer.getBoundingClientRect();
+          if (!rect.width) return;
+          const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+          const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const pps = window.currentPixelsPerSecond || 80;
+          const maxSec = layer ? Math.max(0.1, layer.mediaDuration || layer.durationSec || ((layer.widthPx || 400) / pps)) : 10;
+          const calculatedRemap = ratio * maxSec;
+          applyTimeRemapValue(calculatedRemap);
+        }
+
+        remapSliderContainer.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          try { remapSliderContainer.setPointerCapture(e.pointerId); } catch (_) {}
+
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (layer) {
+            syncLayerWithEffectiveProps(layer);
+            window.isTransformInteracting = true;
+            invalidatePreviewCacheForLayer(layer);
+          }
+
+          updateTimeRemapFromPointer(e);
+
+          function onPointerMove(ev) {
+            updateTimeRemapFromPointer(ev);
+          }
+
+          function onPointerUp(ev) {
+            try { remapSliderContainer.releasePointerCapture(ev.pointerId); } catch (_) {}
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+            window.isTransformInteracting = false;
+            const curL = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (curL) {
+              invalidatePreviewCacheForLayer(curL);
+              if (window.PreviewCacheManager) {
+                const pps = window.currentPixelsPerSecond || 80;
+                const lStart = curL.startSec !== undefined ? curL.startSec : ((curL.startPx || 0) / pps);
+                const lDur = curL.durationSec !== undefined ? curL.durationSec : ((curL.widthPx || 400) / pps);
+                if (typeof window.PreviewCacheManager.forceRecache === 'function') {
+                  window.PreviewCacheManager.forceRecache(lStart, lStart + lDur);
+                } else if (typeof window.PreviewCacheManager.scheduleIdleCheck === 'function') {
+                  window.PreviewCacheManager.scheduleIdleCheck(true);
+                }
+              }
+            }
+            if (typeof saveCurrentProjectLayers === 'function') {
+              saveCurrentProjectLayers(true);
+            }
+          }
+
+          window.addEventListener('pointermove', onPointerMove);
+          window.addEventListener('pointerup', onPointerUp);
+          window.addEventListener('pointercancel', onPointerUp);
+        });
+      }
+
+      // 6. Video Interpolation Modes
       const modeBtns = document.querySelectorAll('.speed-mode-btn');
       modeBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -15505,6 +16112,11 @@
                 if (!l.mediaWidth && m.width) l.mediaWidth = m.width;
                 if (!l.mediaHeight && m.height) l.mediaHeight = m.height;
               }
+              if (l.type === 'precomp' && m && Array.isArray(m.layers)) {
+                if (!Array.isArray(l.layers) || l.layers.length === 0) {
+                  l.layers = JSON.parse(JSON.stringify(m.layers));
+                }
+              }
               if (l.fillMediaId && mediaMap.has(l.fillMediaId)) {
                 const fm = mediaMap.get(l.fillMediaId);
                 if (!l.fillMediaUrl && (fm.thumbUrl || fm.dataUrl)) l.fillMediaUrl = fm.thumbUrl || fm.dataUrl;
@@ -15512,7 +16124,7 @@
               }
             });
             if (window.layerMediaCache) window.layerMediaCache.clear();
-            if (typeof saveCurrentProjectLayers === 'function') {
+            if (typeof saveCurrentProjectLayers === 'function' && Array.isArray(currentProjectState.layers) && currentProjectState.layers.length > 0) {
               saveCurrentProjectLayers();
             }
           }
@@ -15922,6 +16534,151 @@
       const fileInput = document.getElementById('media-file-input');
       if (!gridEl || !importBtn || !fileInput) return;
 
+      // Delete media item helper — purges media from database and removes all active timeline layers
+      async function deleteMediaItem(item) {
+        if (!item || !item.id) return;
+
+        // 1. Instant optimistic DOM removal (0ms visual latency)
+        document.querySelectorAll(`.media-item-tile[data-media-id="${item.id}"]`).forEach(t => t.remove());
+        document.querySelectorAll(`.fill-media-tile[data-media-id="${item.id}"]`).forEach(t => t.remove());
+
+        if (window.selectedMediaId === item.id) {
+          window.selectedMediaId = null;
+          if (typeof setActivePreviewMedia === 'function') {
+            setActivePreviewMedia(null);
+          }
+        }
+
+        // 2. Background database & cache cleanup
+        try {
+          if (window.FishDatabase) {
+            await window.FishDatabase.deleteMedia(item.id);
+          }
+          if (typeof window.removeTimelineLayersForMedia === 'function') {
+            window.removeTimelineLayersForMedia(item.id, item.dataUrl);
+          }
+          if (window.VideoFrameExtractor) {
+            window.VideoFrameExtractor.clearSource(item.id).catch(() => {});
+            if (item.dataUrl) window.VideoFrameExtractor.clearSource(item.dataUrl).catch(() => {});
+            if (item.name) window.VideoFrameExtractor.clearSource(item.name).catch(() => {});
+          }
+          if (item.type === 'precomp' && item.precompId) {
+            currentProjectState.layers = (currentProjectState.layers || []).filter(l => l.id !== item.precompId && l.mediaId !== item.id);
+            if (selectedLayerId === item.precompId) {
+              selectedLayerId = null;
+              window.selectedLayerId = null;
+            }
+            if (selectedLayerIds) selectedLayerIds.delete(item.precompId);
+            renderTimelineLayers();
+            updateEditorHeaderMode();
+            redrawComposition('deleteMedia');
+            saveCurrentProjectLayers();
+          }
+        } catch (err) {
+          console.warn('[MediaPool] Error during media deletion:', err);
+        } finally {
+          await renderMediaGrid();
+          if (typeof renderFillMediaPool === 'function') {
+            renderFillMediaPool();
+          }
+        }
+      }
+
+      // Convert Video Media Item to Audio in Media Pool
+      async function convertVideoMediaToAudio(mediaItem) {
+        if (!mediaItem || mediaItem.type !== 'video' || !mediaItem.dataUrl) return;
+        const projectId = currentProjectState.id || (new URLSearchParams(window.location.search).get('id')) || 'default_project';
+
+        try {
+          const res = await fetch(mediaItem.dataUrl);
+          const blob = await res.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) throw new Error('Web Audio API not supported');
+          const audioCtx = new AudioCtx();
+          let decodedBuffer = null;
+          try {
+            decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+          } finally {
+            try { audioCtx.close(); } catch (_) {}
+          }
+
+          if (!decodedBuffer || decodedBuffer.numberOfChannels === 0) {
+            alert('Video tidak memiliki track audio.');
+            return;
+          }
+
+          const wavFunc = (typeof window.audioBufferToWav === 'function') ? window.audioBufferToWav : (typeof audioBufferToWav === 'function' ? audioBufferToWav : null);
+          if (!wavFunc) throw new Error('audioBufferToWav function unavailable');
+          const wavBlob = wavFunc(decodedBuffer);
+
+          const wavDataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(wavBlob);
+          });
+
+          const cleanBaseName = (mediaItem.name || 'Video').replace(/\.[^/.]+$/, '');
+          const audioItemName = cleanBaseName + ' (Audio)';
+          const audioDur = decodedBuffer.duration || 5;
+
+          const audioMediaItem = {
+            id: 'med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            projectId: projectId,
+            name: audioItemName,
+            type: 'audio',
+            mimeType: 'audio/wav',
+            size: wavBlob.size || wavDataUrl.length,
+            dataUrl: wavDataUrl,
+            thumbUrl: '',
+            duration: audioDur,
+            createdAt: new Date().toISOString()
+          };
+
+          if (window.FishDatabase) {
+            await window.FishDatabase.saveMedia(audioMediaItem);
+            await renderMediaGrid();
+            if (typeof renderFillMediaPool === 'function') {
+              renderFillMediaPool();
+            }
+          }
+        } catch (err) {
+          console.error('[MediaPool] Failed to convert video to audio:', err);
+          alert('Gagal mengonversi video ke audio.');
+        }
+      }
+
+      // Bind actions on #popover-media-item-menu once
+      const popoverMediaMenu = document.getElementById('popover-media-item-menu');
+      if (popoverMediaMenu && !popoverMediaMenu._eventsBound) {
+        popoverMediaMenu._eventsBound = true;
+        const btnDelete = popoverMediaMenu.querySelector('#btn-media-delete');
+        const btnConvertAudio = popoverMediaMenu.querySelector('#btn-media-convert-audio');
+
+        if (btnDelete) {
+          btnDelete.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = window._activeMediaPoolItem;
+            if (window.Popover) window.Popover.close(false);
+            if (item) deleteMediaItem(item);
+          });
+        }
+
+        if (btnConvertAudio) {
+          btnConvertAudio.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = window._activeMediaPoolItem;
+            if (window.Popover) window.Popover.close(false);
+            if (item && item.type === 'video') convertVideoMediaToAudio(item);
+          });
+        }
+      }
+
+      window.deleteMediaItem = deleteMediaItem;
+      window.convertVideoMediaToAudio = convertVideoMediaToAudio;
+
       // 1. Render all stored media for current project
       async function renderMediaGrid() {
         const projectId = currentProjectState.id;
@@ -16007,9 +16764,76 @@
             </button>
           `;
 
-          // Click tile to import/add a new layer instance of this media onto timeline
+          let longPressTimer = null;
+          let startX = 0;
+          let startY = 0;
+
+          const openMediaItemPopover = (anchor) => {
+            if (!window.Popover) return;
+            window._activeMediaPoolItem = item;
+            window._activeMediaPoolTile = tile;
+
+            const popoverEl = document.getElementById('popover-media-item-menu');
+            if (popoverEl) {
+              const btnConvert = popoverEl.querySelector('#btn-media-convert-audio');
+              const divider = popoverEl.querySelector('#divider-media-convert-audio');
+              if (btnConvert && divider) {
+                const isVid = (item.type === 'video');
+                btnConvert.style.display = isVid ? 'flex' : 'none';
+                divider.style.display = isVid ? 'block' : 'none';
+              }
+            }
+            window.Popover.open(anchor, 'popover-media-item-menu');
+          };
+
+          // 1. Desktop: Right-Click (contextmenu)
+          tile.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openMediaItemPopover(tile);
+          });
+
+          // 2. Mobile & Touch: Long-Press (500ms)
+          tile.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return; // Only primary button
+            startX = e.clientX;
+            startY = e.clientY;
+
+            if (longPressTimer) clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+              tile._suppressClick = true;
+              longPressTimer = null;
+              if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                try { navigator.vibrate(40); } catch (_) {}
+              }
+              openMediaItemPopover(tile);
+            }, 500);
+          });
+
+          tile.addEventListener('pointermove', (e) => {
+            if (!longPressTimer) return;
+            if (Math.hypot(e.clientX - startX, e.clientY - startY) > 10) {
+              clearTimeout(longPressTimer);
+              longPressTimer = null;
+            }
+          });
+
+          const cancelLongPress = () => {
+            if (longPressTimer) {
+              clearTimeout(longPressTimer);
+              longPressTimer = null;
+            }
+          };
+          tile.addEventListener('pointerup', cancelLongPress);
+          tile.addEventListener('pointercancel', cancelLongPress);
+
+          // 3. Click tile to import/add a new layer instance of this media onto timeline
           tile.addEventListener('click', (e) => {
             if (e.target.closest('.media-item-delete-btn')) return;
+            if (tile._suppressClick) {
+              tile._suppressClick = false;
+              return;
+            }
             window.selectedMediaId = item.id;
             gridEl.querySelectorAll('.media-item-tile').forEach(t => t.classList.remove('is-selected'));
             tile.classList.add('is-selected');
@@ -16025,52 +16849,7 @@
             delBtn.addEventListener('click', async (e) => {
               e.stopPropagation();
               e.preventDefault();
-
-              // 1. Instant optimistic DOM removal (0ms visual latency)
-              tile.remove();
-              document.querySelectorAll(`.media-item-tile[data-media-id="${item.id}"]`).forEach(t => t.remove());
-              document.querySelectorAll(`.fill-media-tile[data-media-id="${item.id}"]`).forEach(t => t.remove());
-
-              if (window.selectedMediaId === item.id) {
-                window.selectedMediaId = null;
-                if (typeof setActivePreviewMedia === 'function') {
-                  setActivePreviewMedia(null);
-                }
-              }
-
-              // 2. Background database & cache cleanup
-              try {
-                if (window.FishDatabase) {
-                  await window.FishDatabase.deleteMedia(item.id);
-                }
-                if (typeof window.removeTimelineLayersForMedia === 'function') {
-                  window.removeTimelineLayersForMedia(item.id, item.dataUrl);
-                }
-                if (window.VideoFrameExtractor) {
-                  window.VideoFrameExtractor.clearSource(item.id).catch(() => {});
-                  if (item.dataUrl) window.VideoFrameExtractor.clearSource(item.dataUrl).catch(() => {});
-                  if (item.name) window.VideoFrameExtractor.clearSource(item.name).catch(() => {});
-                }
-                if (item.type === 'precomp' && item.precompId) {
-                  currentProjectState.layers = (currentProjectState.layers || []).filter(l => l.id !== item.precompId && l.mediaId !== item.id);
-                  if (selectedLayerId === item.precompId) {
-                    selectedLayerId = null;
-                    window.selectedLayerId = null;
-                  }
-                  if (selectedLayerIds) selectedLayerIds.delete(item.precompId);
-                  renderTimelineLayers();
-                  updateEditorHeaderMode();
-                  redrawComposition('deleteMedia');
-                  saveCurrentProjectLayers();
-                }
-              } catch (err) {
-                console.warn('[MediaPool] Error during media deletion:', err);
-              } finally {
-                await renderMediaGrid();
-                if (typeof renderFillMediaPool === 'function') {
-                  renderFillMediaPool();
-                }
-              }
+              await deleteMediaItem(item);
             });
           }
 
@@ -16827,6 +17606,13 @@
         return `00:${mins}:${secs}:${ff}`;
       }
       window.formatTimecode = formatTimecode;
+
+      function getCurrentPlayheadTime() {
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const curPan = window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0);
+        return Math.max(0, -curPan / pps);
+      }
+      window.getCurrentPlayheadTime = getCurrentPlayheadTime;
 
       function renderTimeline() {
         rafScheduled = false;
@@ -17870,13 +18656,16 @@
         const targetSec = (currentFrame + framesElapsed) / fps;
         let nextSec = targetSec;
 
-        if (window.FishAudioEngine && _playTickCount > 30) {
+        if (window.FishAudioEngine && _playTickCount > 15) {
           const masterSec = window.FishAudioEngine.getMasterAudioTime(layers, currentSec, pixelsPerSecond);
           if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec > 0.05) {
-            const drift = masterSec - targetSec;
-            if (Math.abs(drift) > 0.6) {
-              // Large drift (> 600ms): user scrubbed, jumped, or hard seek -> align to master audio
-              nextSec = masterSec;
+            const audioDrift = masterSec - targetSec;
+            // Gentle Phase-Locked Loop: softly steer timeline clock toward master audio hardware time
+            // Strictly monotonic: timeline NEVER jumps backward, preventing any timeline or audio jerk
+            if (audioDrift > 0.005 && audioDrift < 0.3) {
+              nextSec = targetSec + Math.min(0.004, audioDrift * 0.15);
+            } else if (audioDrift < -0.005 && audioDrift > -0.3) {
+              nextSec = Math.max(currentSec, targetSec - Math.min(0.004, -audioDrift * 0.15));
             }
           }
         }
@@ -19358,7 +20147,7 @@
         renderTimelineLayers();
         updateEditorHeaderMode();
         redrawComposition('precompose');
-        saveCurrentProjectLayers();
+        saveCurrentProjectLayers(true);
 
         return precompLayer;
       }
@@ -20608,11 +21397,23 @@
                         if (typeof syncEffectsRackUI === 'function') syncEffectsRackUI();
                         if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
                       }
+                      if ((prop === 'speed' || prop === 'timeRemap') && currentDrawerSubview === 'speed') {
+                        window.activeKeyframeProperty = prop;
+                        if (typeof syncSpeedControllerValues === 'function') syncSpeedControllerValues();
+                        if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
+                        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+                      }
                       if (typeof seekTimelineToTime === 'function') {
                         seekTimelineToTime(kf.time, true);
                       }
                       if (typeof updateTransformKeyframeBtnState === 'function') {
                         updateTransformKeyframeBtnState();
+                      }
+                      if (typeof updateSpeedKeyframeBtnState === 'function') {
+                        updateSpeedKeyframeBtnState();
+                      }
+                      if (typeof syncSpeedControllerValues === 'function') {
+                        syncSpeedControllerValues();
                       }
                       if (typeof syncEffectsKeyframeState === 'function') {
                         syncEffectsKeyframeState(layer);
@@ -20742,6 +21543,8 @@
                         saveCurrentProjectLayers();
                         renderTimelineLayers();
                         if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+                        if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
+                        if (typeof syncSpeedControllerValues === 'function') syncSpeedControllerValues();
                         if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
                         if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
                       } else {
@@ -20757,6 +21560,8 @@
                           seekTimelineToTime(kf.time, true);
                         }
                         if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+                        if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
+                        if (typeof syncSpeedControllerValues === 'function') syncSpeedControllerValues();
                         if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
                       }
                     }
@@ -21647,10 +22452,15 @@
         // Auto-start frame extraction for video layers range
         if (window.VideoFrameExtractor && currentProjectState.layers) {
           currentProjectState.layers.forEach(l => {
-            if (l.type === 'video' && (l.dataUrl || l.mediaId)) {
+            if (l.type === 'video' && (l.dataUrl || l.mediaId) && !l._extractComplete) {
               window.VideoFrameExtractor.extractLayerRange(l);
             }
           });
+        }
+
+        // Auto-start background prebaking for precomposition layers (autonomous pipeline like video)
+        if (window.PreviewCacheManager && currentProjectState.layers) {
+          window.PreviewCacheManager.prebakeAllPrecomps(currentProjectState.layers);
         }
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
@@ -22566,38 +23376,36 @@
 
         const currentLayer = layer || (window.selectedLayerId ? (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId) : null);
 
-        // Check if layer supports audio / video
-        const isAudioOrVideo = !!(currentLayer && (
+        // Speed supported for video, audio, and precomp layers
+        const supportsSpeed = !!(currentLayer && (
           currentLayer.type === 'video' ||
           currentLayer.type === 'audio' ||
-          (currentLayer.type === 'precomp' && Array.isArray(currentLayer.layers) && currentLayer.layers.some(l => l.type === 'video' || l.type === 'audio'))
+          currentLayer.type === 'precomp'
+        ));
+
+        // Volume supported for video, audio, and precomp layers
+        const supportsVolume = !!(currentLayer && (
+          currentLayer.type === 'video' ||
+          currentLayer.type === 'audio' ||
+          currentLayer.type === 'precomp'
         ));
 
         const volumeIcon = btnVolume.querySelector('.svg-icon');
 
-        if (!isAudioOrVideo) {
-          // Non-audio / non-video (e.g. image/photo, color, shape, text, camera, null, or no layer selected)
-          btnSpeed.disabled = true;
-          btnSpeed.classList.add('is-disabled');
-          btnSpeed.title = currentLayer ? 'Speed (Hanya untuk Video / Audio)' : 'Speed';
+        btnSpeed.disabled = !supportsSpeed;
+        btnSpeed.classList.toggle('is-disabled', !supportsSpeed);
+        btnSpeed.title = supportsSpeed ? 'Speed' : (currentLayer ? 'Speed (Hanya untuk Precomp / Video / Audio)' : 'Speed');
 
-          btnVolume.disabled = true;
-          btnVolume.classList.add('is-disabled');
-          btnVolume.title = currentLayer ? 'Volume (Hanya untuk Video / Audio)' : 'Volume';
+        btnVolume.disabled = !supportsVolume;
+        btnVolume.classList.toggle('is-disabled', !supportsVolume);
+        btnVolume.title = supportsVolume ? 'Volume' : (currentLayer ? 'Volume (Hanya untuk Precomp / Video / Audio)' : 'Volume');
 
+        if (!supportsVolume) {
           if (volumeIcon) {
             volumeIcon.className = 'svg-icon svg-icon-volume-mute';
           }
           return;
         }
-
-        // Layer IS audio or video
-        btnSpeed.disabled = false;
-        btnSpeed.classList.remove('is-disabled');
-        btnSpeed.title = 'Speed';
-
-        btnVolume.disabled = false;
-        btnVolume.classList.remove('is-disabled');
 
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
         const currentSec = Math.abs(window.timelinePanX || 0) / pps;
@@ -22608,7 +23416,7 @@
           ? effProps.volume
           : (currentLayer.volume !== undefined ? currentLayer.volume : 1.0);
 
-        const isMuted = (currentVol <= 0.001 || currentLayer.muted === true);
+        const isMuted = (currentVol <= 0.001 || currentLayer.muted === true || currentLayer.isMuted === true);
 
         if (isMuted) {
           if (volumeIcon) volumeIcon.className = 'svg-icon svg-icon-volume-mute';

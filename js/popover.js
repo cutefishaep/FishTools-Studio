@@ -244,8 +244,8 @@ const Popover = (function () {
     }
 
     // Mutually exclusive: Close active modal drawers before opening popover,
-    // but preserve timeline-layer-drawer so active layer selection is not disrupted
-    if (window.Drawer && window.Drawer.activeDrawer && window.Drawer.activeDrawer.id !== 'timeline-layer-drawer') {
+    // but preserve timeline-layer-drawer and timeline-add-drawer so in-drawer popovers do not close their parent drawer
+    if (window.Drawer && window.Drawer.activeDrawer && window.Drawer.activeDrawer.id !== 'timeline-layer-drawer' && window.Drawer.activeDrawer.id !== 'timeline-add-drawer') {
       window.Drawer.close(false);
     }
 
@@ -261,7 +261,7 @@ const Popover = (function () {
     activePopover = popoverEl;
 
     // Push popstate history for native back button / Android gesture support (exclude in-drawer popovers)
-    if (popoverEl.id !== 'popover-graph-more' && popoverEl.id !== 'popover-graph-delete-confirm' && (!window.history.state || !window.history.state.popoverOpen)) {
+    if (popoverEl.id !== 'popover-graph-more' && popoverEl.id !== 'popover-graph-delete-confirm' && popoverEl.id !== 'popover-media-item-menu' && (!window.history.state || !window.history.state.popoverOpen)) {
       window.history.pushState({ popoverOpen: true, popoverId: popoverEl.id }, '');
     }
 
@@ -309,7 +309,7 @@ const Popover = (function () {
     window.removeEventListener('resize', scheduleUpdate);
     window.removeEventListener('scroll', scheduleUpdate);
 
-    if (triggerPopstate && elToClose.id !== 'popover-graph-more' && window.history.state && window.history.state.popoverOpen) {
+    if (triggerPopstate && elToClose.id !== 'popover-graph-more' && elToClose.id !== 'popover-media-item-menu' && window.history.state && window.history.state.popoverOpen) {
       popstateAwaited++;
       window._popoverClosingHistoryBack = true;
       window.history.back();

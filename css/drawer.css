@@ -1433,6 +1433,93 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Speed Control Mode Switch (Speed vs Time Remap) */
+.speed-type-modes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.speed-type-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 10px;
+  background-color: var(--bg-dashboard);
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-panel);
+  outline: none;
+  border-radius: 6px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.speed-type-btn:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--border-subtle);
+  color: var(--color-primary-hover) !important;
+}
+
+.speed-type-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.speed-mode-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.timeremap-actions-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.timeremap-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--bg-dashboard);
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-panel);
+  outline: none;
+  border-radius: 6px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  user-select: none;
+}
+
+.timeremap-action-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary) !important;
+}
+
+.timeremap-action-btn:active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas) !important;
+}
+
 .speed-slider-row {
   display: flex;
   align-items: center;

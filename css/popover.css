@@ -7,7 +7,7 @@
 /* Popover Floating Surface Card */
 .popover-card {
   position: fixed;
-  z-index: 1000;
+  z-index: 2000;
   background-color: var(--bg-panel);
   color: var(--text-primary);
   border-radius: 12px;
@@ -161,6 +161,24 @@
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.popover-menu-item.is-danger {
+  color: var(--color-danger);
+}
+
+.popover-menu-item.is-danger svg {
+  fill: currentColor;
+}
+
+.popover-menu-item.is-danger:hover {
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.popover-menu-item.is-danger:active {
+  background-color: var(--color-danger-hover);
+  color: var(--color-danger-text);
 }
 
 .popover-menu-divider {

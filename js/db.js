@@ -132,6 +132,28 @@ window.FishDatabase = (function () {
   function saveLocalProjects(list) {
     if (!list || !Array.isArray(list)) return;
 
+    function sanitizeLayer(l) {
+      if (!l) return l;
+      var lClone = Object.assign({}, l);
+      // Strip all heavy base64 / blob / frame data from localStorage mirror (full data safely stored in IndexedDB)
+      if (lClone.dataUrl && (lClone.dataUrl.startsWith('data:') || lClone.dataUrl.length > 100)) lClone.dataUrl = '';
+      if (lClone.thumbUrl && (lClone.thumbUrl.startsWith('data:') || lClone.thumbUrl.length > 100)) lClone.thumbUrl = '';
+      if (lClone.fillMediaUrl && (lClone.fillMediaUrl.startsWith('data:') || lClone.fillMediaUrl.length > 100)) lClone.fillMediaUrl = '';
+      if (Array.isArray(lClone.videoFrames)) lClone.videoFrames = [];
+      delete lClone._shapeBufferCanvas;
+      delete lClone._precompBufferCanvas;
+      delete lClone._fillBufferCanvas;
+      delete lClone._textBufferCanvas;
+      delete lClone._fillMediaImg;
+      delete lClone._alphaHitCanvas;
+      delete lClone._alphaHitCtx;
+      delete lClone._canvasBounds;
+      if (Array.isArray(lClone.layers)) {
+        lClone.layers = lClone.layers.map(sanitizeLayer);
+      }
+      return lClone;
+    }
+
     function sanitizeProject(p) {
       if (!p) return p;
       var pClone = Object.assign({}, p);
@@ -142,16 +164,7 @@ window.FishDatabase = (function () {
         pClone.thumbnail = '';
       }
       if (Array.isArray(p.layers)) {
-        pClone.layers = p.layers.map(function (l) {
-          if (!l) return l;
-          var lClone = Object.assign({}, l);
-          // Strip all heavy base64 / blob / frame data from localStorage mirror (full data safely stored in IndexedDB)
-          if (lClone.dataUrl && (lClone.dataUrl.startsWith('data:') || lClone.dataUrl.length > 100)) lClone.dataUrl = '';
-          if (lClone.thumbUrl && (lClone.thumbUrl.startsWith('data:') || lClone.thumbUrl.length > 100)) lClone.thumbUrl = '';
-          if (lClone.fillMediaUrl && (lClone.fillMediaUrl.startsWith('data:') || lClone.fillMediaUrl.length > 100)) lClone.fillMediaUrl = '';
-          if (Array.isArray(lClone.videoFrames)) lClone.videoFrames = [];
-          return lClone;
-        });
+        pClone.layers = p.layers.map(sanitizeLayer);
       }
       return pClone;
     }
@@ -161,10 +174,13 @@ window.FishDatabase = (function () {
       localStorage.setItem(PROJECTS_KEY, JSON.stringify(sanitized));
       return;
     } catch (e1) {
-      // Stage 2 fallback: If localStorage quota is exceeded, store project metadata only (no heavy layer trees)
+      // Stage 2 fallback: If localStorage quota is exceeded, keep full layers on the newest project and strip heavy layers on older projects
       try {
-        var metadataOnly = list.map(function (p) {
+        var partialSanitized = list.map(function (p, idx) {
           if (!p) return p;
+          if (idx === 0) {
+            return sanitizeProject(p);
+          }
           return {
             id: p.id,
             name: p.name,
@@ -175,10 +191,11 @@ window.FishDatabase = (function () {
             duration: p.duration,
             updatedAt: p.updatedAt,
             createdAt: p.createdAt,
+            layers: Array.isArray(p.layers) ? p.layers.map(function (l) { return { id: l.id, name: l.name, type: l.type }; }) : [],
             layerCount: Array.isArray(p.layers) ? p.layers.length : 0
           };
         });
-        localStorage.setItem(PROJECTS_KEY, JSON.stringify(metadataOnly));
+        localStorage.setItem(PROJECTS_KEY, JSON.stringify(partialSanitized));
         return;
       } catch (e2) {
         // Stage 3 fallback: Purge redundant media key from localStorage to reclaim space

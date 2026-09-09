@@ -487,6 +487,462 @@ window.FishToolsBridge = (function () {
       }
       return 'true';
     }
+    // --- Toolbox & Layer Helpers ---
+    function mirrorLayers(alter = false) {
+      const selected = getSelectedLayers();
+      if (selected.length === 0) {
+        return JSON.stringify({
+          error: true,
+          tool: 'Mirror',
+          type: 'warn',
+          message: 'Please select at least one layer to mirror.'
+        });
+      }
+      const [baseW, baseH] = getResolutionDims();
+      selected.forEach(layer => {
+        const dims = getLayerDimensions(layer, baseW, baseH);
+        if (layer.scaleW === undefined) layer.scaleW = dims.w;
+        if (layer.scaleH === undefined) layer.scaleH = dims.h;
+        if (alter) {
+          layer.scaleH = -layer.scaleH;
+        } else {
+          layer.scaleW = -layer.scaleW;
+        }
+        if (typeof window.recordLayerPropertyChange === 'function') {
+          window.recordLayerPropertyChange(layer, 'transform');
+        }
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(layer);
+        }
+      });
+      commitChanges('mirror');
+      return 'true';
+    }
+
+    function applyEffectSafely(effectId) {
+      const selected = getSelectedLayers();
+      if (selected.length === 0) {
+        return JSON.stringify({
+          error: true,
+          tool: effectId,
+          type: 'warn',
+          message: 'Please select at least one layer.'
+        });
+      }
+      if (typeof window.applyEffectToSelectedLayers === 'function') {
+        window.applyEffectToSelectedLayers(effectId);
+      }
+      return 'true';
+    }
+
+    function getActiveBeatMarkers(layer) {
+      const pps = window.currentPixelsPerSecond || 80;
+      const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+      const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+      const clipEnd = clipStart + clipDur;
+
+      let markers = [];
+      if (Array.isArray(layer.markers) && layer.markers.length > 0) {
+        markers = layer.markers.map(m => (typeof m === 'number' ? m : (m.time || 0)));
+      }
+      const pState = window.currentProjectState;
+      if (pState && Array.isArray(pState.beatmarks) && pState.beatmarks.length > 0) {
+        const inRange = pState.beatmarks.filter(b => b >= clipStart - 0.02 && b <= clipEnd + 0.02);
+        markers = markers.concat(inRange);
+      }
+
+      let unique = Array.from(new Set(markers.map(m => Number(m.toFixed(3))))).sort((a, b) => a - b);
+      unique = unique.filter(t => t >= clipStart - 0.02 && t <= clipEnd + 0.02);
+
+      if (unique.length < 2) {
+        unique = [];
+        const step = 0.6;
+        for (let t = clipStart; t <= clipEnd - 0.05; t += step) {
+          unique.push(Number(t.toFixed(3)));
+        }
+        if (unique.length < 2) {
+          unique = [Number(clipStart.toFixed(3)), Number(((clipStart + clipEnd) / 2).toFixed(3)), Number(clipEnd.toFixed(3))];
+        }
+      }
+      return unique;
+    }
+
+    // --- Velocity Card Helpers (AMV Beat Curves + Optical Flow) ---
+    function applyTwixtorVelocity() {
+      const selected = getSelectedLayers();
+      if (selected.length === 0) {
+        return JSON.stringify({
+          error: true,
+          tool: 'Twixtor',
+          type: 'warn',
+          message: 'Please select at least one layer to apply Twixtor velocity.'
+        });
+      }
+
+      const pps = window.currentPixelsPerSecond || 80;
+      selected.forEach(layer => {
+        layer.speedMode = 'speed';
+        layer.speedInterpolation = 'optical_flow';
+        layer.speed = 1.0;
+
+        const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+        const clipEnd = clipStart + clipDur;
+        const markers = getActiveBeatMarkers(layer);
+
+        if (!layer.keyframes) layer.keyframes = {};
+        const kfs = [];
+
+        if (markers[0] > clipStart + 0.05) {
+          kfs.push({
+            time: Number(clipStart.toFixed(3)),
+            value: { speed: 1.0 },
+            easing: [0.42, 0.0, 0.58, 1.0]
+          });
+        }
+
+        for (let i = 0; i < markers.length; i++) {
+          const t = markers[i];
+          kfs.push({
+            time: Number(t.toFixed(3)),
+            value: { speed: 1.0 },
+            easing: [0.42, 0.0, 0.58, 1.0]
+          });
+          if (i < markers.length - 1) {
+            const nextT = markers[i + 1];
+            const midT = (t + nextT) / 2;
+            kfs.push({
+              time: Number(midT.toFixed(3)),
+              value: { speed: 0.2 },
+              easing: [0.42, 0.0, 0.58, 1.0]
+            });
+          }
+        }
+
+        if (markers[markers.length - 1] < clipEnd - 0.05) {
+          kfs.push({
+            time: Number(clipEnd.toFixed(3)),
+            value: { speed: 1.0 },
+            easing: [0.42, 0.0, 0.58, 1.0]
+          });
+        }
+
+        kfs.sort((a, b) => a.time - b.time);
+        layer.keyframes.speed = kfs;
+
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(layer);
+        }
+      });
+
+      window.activeKeyframeProperty = 'speed';
+      if (typeof window.syncSpeedControllerValues === 'function') window.syncSpeedControllerValues();
+      if (typeof window.updateSpeedKeyframeBtnState === 'function') window.updateSpeedKeyframeBtnState();
+      commitChanges('velocity_twixtor');
+      return 'true';
+    }
+
+    function applyTimeRemapVelocity() {
+      const selected = getSelectedLayers();
+      if (selected.length === 0) {
+        return JSON.stringify({
+          error: true,
+          tool: 'Time Remap',
+          type: 'warn',
+          message: 'Please select at least one layer to apply Time Remap velocity.'
+        });
+      }
+
+      const pps = window.currentPixelsPerSecond || 80;
+      selected.forEach(layer => {
+        layer.speedMode = 'time_remap';
+        layer.speedInterpolation = 'optical_flow';
+
+        const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+        const clipEnd = clipStart + clipDur;
+        const srcOffset = layer.sourceOffsetSec || 0;
+        const markers = getActiveBeatMarkers(layer);
+
+        if (!layer.keyframes) layer.keyframes = {};
+        const kfs = [];
+
+        // Classic AMV S-Curve easing: fast on beat impact, smooth slow-mo in midpoint, fast accelerating into next beat
+        const S_CURVE_EASE = [0.20, 0.70, 0.80, 0.30];
+
+        if (markers[0] > clipStart + 0.05) {
+          kfs.push({
+            time: Number(clipStart.toFixed(3)),
+            value: { timeRemap: Number(srcOffset.toFixed(3)) },
+            easing: [...S_CURVE_EASE]
+          });
+        }
+
+        for (let i = 0; i < markers.length; i++) {
+          const t = markers[i];
+          const sourceTime = srcOffset + (t - clipStart);
+          kfs.push({
+            time: Number(t.toFixed(3)),
+            value: { timeRemap: Number(sourceTime.toFixed(3)) },
+            easing: [...S_CURVE_EASE]
+          });
+        }
+
+        if (markers[markers.length - 1] < clipEnd - 0.05) {
+          kfs.push({
+            time: Number(clipEnd.toFixed(3)),
+            value: { timeRemap: Number((srcOffset + clipDur).toFixed(3)) },
+            easing: [...S_CURVE_EASE]
+          });
+        }
+
+        kfs.sort((a, b) => a.time - b.time);
+        layer.keyframes.timeRemap = kfs;
+        layer.timeRemap = srcOffset;
+
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(layer);
+        }
+      });
+
+      window.activeKeyframeProperty = 'timeRemap';
+      if (typeof window.syncSpeedControllerValues === 'function') window.syncSpeedControllerValues();
+      if (typeof window.updateSpeedKeyframeBtnState === 'function') window.updateSpeedKeyframeBtnState();
+      commitChanges('velocity_timeremap');
+      return 'true';
+    }
+
+    // --- Beat Effects Helpers ---
+    function applyBeatKeyframes(type) {
+      const selected = getSelectedLayers();
+      if (selected.length === 0) {
+        return JSON.stringify({
+          error: true,
+          tool: type,
+          type: 'warn',
+          message: 'Please select at least one layer.'
+        });
+      }
+
+      const [baseW, baseH] = getResolutionDims();
+
+      selected.forEach(layer => {
+        const dims = getLayerDimensions(layer, baseW, baseH);
+        const origPosX = layer.posX !== undefined ? layer.posX : (baseW / 2);
+        const origPosY = layer.posY !== undefined ? layer.posY : (baseH / 2);
+        const origScaleW = layer.scaleW !== undefined ? layer.scaleW : dims.w;
+        const origScaleH = layer.scaleH !== undefined ? layer.scaleH : dims.h;
+
+        const markers = getActiveBeatMarkers(layer);
+        if (!layer.keyframes) layer.keyframes = {};
+
+        if (type === 'Y_BEAT' || type === 'Y_FLIP') {
+          const kfs = [];
+          markers.forEach((t, idx) => {
+            const delta = (type === 'Y_FLIP' && idx % 2 === 1) ? -60 : 60;
+            kfs.push({
+              time: Number(t.toFixed(3)),
+              value: { posX: origPosX, posY: Number((origPosY + delta).toFixed(2)) },
+              easing: [0.15, 0.85, 0.20, 1.0]
+            });
+            kfs.push({
+              time: Number((t + 0.20).toFixed(3)),
+              value: { posX: origPosX, posY: origPosY },
+              easing: [0.15, 0.85, 0.20, 1.0]
+            });
+          });
+          kfs.sort((a, b) => a.time - b.time);
+          layer.keyframes.move = kfs;
+          window.activeKeyframeProperty = 'move';
+        } else if (type === 'X_BEAT' || type === 'X_FLIP') {
+          const kfs = [];
+          markers.forEach((t, idx) => {
+            const delta = (type === 'X_FLIP' && idx % 2 === 1) ? -60 : 60;
+            kfs.push({
+              time: Number(t.toFixed(3)),
+              value: { posX: Number((origPosX + delta).toFixed(2)), posY: origPosY },
+              easing: [0.15, 0.85, 0.20, 1.0]
+            });
+            kfs.push({
+              time: Number((t + 0.20).toFixed(3)),
+              value: { posX: origPosX, posY: origPosY },
+              easing: [0.15, 0.85, 0.20, 1.0]
+            });
+          });
+          kfs.sort((a, b) => a.time - b.time);
+          layer.keyframes.move = kfs;
+          window.activeKeyframeProperty = 'move';
+        } else if (type === 'SCALE_BEAT') {
+          const kfs = [];
+          markers.forEach(t => {
+            kfs.push({
+              time: Number(t.toFixed(3)),
+              value: { scaleW: Math.round(origScaleW * 1.18), scaleH: Math.round(origScaleH * 1.18) },
+              easing: [0.15, 0.85, 0.20, 1.0]
+            });
+            kfs.push({
+              time: Number((t + 0.20).toFixed(3)),
+              value: { scaleW: origScaleW, scaleH: origScaleH },
+              easing: [0.15, 0.85, 0.20, 1.0]
+            });
+          });
+          kfs.sort((a, b) => a.time - b.time);
+          layer.keyframes.scale = kfs;
+          window.activeKeyframeProperty = 'scale';
+        } else if (type === 'SCALE_OVERLAP') {
+          const kfs = [];
+          markers.forEach(t => {
+            kfs.push({
+              time: Number(t.toFixed(3)),
+              value: { scaleW: Math.round(origScaleW * 1.25), scaleH: Math.round(origScaleH * 1.25) },
+              easing: [0.12, 0.88, 0.15, 1.0]
+            });
+            kfs.push({
+              time: Number((t + 0.12).toFixed(3)),
+              value: { scaleW: Math.round(origScaleW * 0.96), scaleH: Math.round(origScaleH * 0.96) },
+              easing: [0.20, 0.80, 0.20, 1.0]
+            });
+            kfs.push({
+              time: Number((t + 0.25).toFixed(3)),
+              value: { scaleW: origScaleW, scaleH: origScaleH },
+              easing: [0.20, 0.80, 0.20, 1.0]
+            });
+          });
+          kfs.sort((a, b) => a.time - b.time);
+          layer.keyframes.scale = kfs;
+          window.activeKeyframeProperty = 'scale';
+        } else if (type === 'EXPO') {
+          let fx = (layer.effects || []).find(f => f.type === 'exposure-gamma' || f.name === 'exposure-gamma');
+          if (!fx) {
+            if (typeof window.applyEffectToSelectedLayers === 'function') {
+              window.applyEffectToSelectedLayers('exposure-gamma');
+              fx = (layer.effects || []).find(f => f.type === 'exposure-gamma' || f.name === 'exposure-gamma');
+            }
+          }
+          if (fx) {
+            const scopedKey = `${fx.id}:exposure`;
+            const kfs = [];
+            markers.forEach(t => {
+              kfs.push({
+                time: Number(t.toFixed(3)),
+                value: { exposure: 1.5 },
+                easing: [0.1, 0.9, 0.2, 1.0]
+              });
+              kfs.push({
+                time: Number((t + 0.15).toFixed(3)),
+                value: { exposure: 0.0 },
+                easing: [0.1, 0.9, 0.2, 1.0]
+              });
+            });
+            kfs.sort((a, b) => a.time - b.time);
+            layer.keyframes[scopedKey] = kfs;
+            layer.keyframes.exposure = kfs;
+            window.activeKeyframeProperty = scopedKey;
+          }
+        }
+
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(layer);
+        }
+      });
+
+      commitChanges('beat_' + type);
+      return 'true';
+    }
+
+    function applyPanningKeyframes(type) {
+      const selected = getSelectedLayers();
+      if (selected.length === 0) {
+        return JSON.stringify({
+          error: true,
+          tool: type,
+          type: 'warn',
+          message: 'Please select at least one layer.'
+        });
+      }
+
+      const pps = window.currentPixelsPerSecond || 80;
+      const [baseW, baseH] = getResolutionDims();
+
+      selected.forEach(layer => {
+        const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+        const clipEnd = clipStart + clipDur;
+
+        const dims = getLayerDimensions(layer, baseW, baseH);
+        const origPosX = layer.posX !== undefined ? layer.posX : (baseW / 2);
+        const origPosY = layer.posY !== undefined ? layer.posY : (baseH / 2);
+        const origRotZ = layer.rotZ !== undefined ? layer.rotZ : (layer.rotation || 0);
+        const origScaleW = layer.scaleW !== undefined ? layer.scaleW : dims.w;
+        const origScaleH = layer.scaleH !== undefined ? layer.scaleH : dims.h;
+
+        if (!layer.keyframes) layer.keyframes = {};
+
+        const hasPos = (type === 'PANNING_POS' || type === 'PANNING_MIX_PR' || type === 'PANNING_MIX_ALL');
+        const hasRot = (type === 'PANNING_ROT' || type === 'PANNING_MIX_PR' || type === 'PANNING_MIX_ALL');
+        const hasScale = (type === 'PANNING_SCALE' || type === 'PANNING_MIX_ALL');
+
+        if (hasPos) {
+          layer.keyframes.move = [
+            {
+              time: Number(clipStart.toFixed(3)),
+              value: { posX: Number((origPosX - 40).toFixed(2)), posY: Number((origPosY - 20).toFixed(2)) },
+              easing: [0.4, 0.0, 0.2, 1.0]
+            },
+            {
+              time: Number(clipEnd.toFixed(3)),
+              value: { posX: Number((origPosX + 40).toFixed(2)), posY: Number((origPosY + 20).toFixed(2)) },
+              easing: [0.4, 0.0, 0.2, 1.0]
+            }
+          ];
+        }
+
+        if (hasRot) {
+          layer.keyframes.rotate = [
+            {
+              time: Number(clipStart.toFixed(3)),
+              value: { rotZ: Number((origRotZ - 4).toFixed(2)), rotation: Number((origRotZ - 4).toFixed(2)) },
+              easing: [0.4, 0.0, 0.2, 1.0]
+            },
+            {
+              time: Number(clipEnd.toFixed(3)),
+              value: { rotZ: Number((origRotZ + 4).toFixed(2)), rotation: Number((origRotZ + 4).toFixed(2)) },
+              easing: [0.4, 0.0, 0.2, 1.0]
+            }
+          ];
+        }
+
+        if (hasScale) {
+          layer.keyframes.scale = [
+            {
+              time: Number(clipStart.toFixed(3)),
+              value: { scaleW: origScaleW, scaleH: origScaleH },
+              easing: [0.4, 0.0, 0.2, 1.0]
+            },
+            {
+              time: Number(clipEnd.toFixed(3)),
+              value: { scaleW: Math.round(origScaleW * 1.18), scaleH: Math.round(origScaleH * 1.18) },
+              easing: [0.4, 0.0, 0.2, 1.0]
+            }
+          ];
+        }
+
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(layer);
+        }
+      });
+
+      commitChanges('panning_' + type);
+      return 'true';
+    }
+
+    // --- Toolbox: Layers ---
+    if (toolName === 'FRZ') {
+      if (typeof window.freezeFrameAtCurrentTime === 'function') {
+        window.freezeFrameAtCurrentTime();
+      }
+      return 'true';
+    }
     if (toolName === 'FIT') {
       const selected = getSelectedLayers();
       if (selected.length > 0) {
@@ -511,11 +967,27 @@ window.FishToolsBridge = (function () {
       }
       return 'true';
     }
-    if (toolName === 'PNG') {
-      if (typeof window.exportCurrentFrameAsPNG === 'function') {
-        window.exportCurrentFrameAsPNG({ keepPopoverOpen: true });
+    if (toolName === 'DSH') {
+      return applyEffectSafely('drop-shadow');
+    }
+    if (toolName === 'MIR') {
+      return mirrorLayers(args[0] === true);
+    }
+
+    // --- Toolbox: Create ---
+    if (toolName === 'SHA') {
+      if (typeof window.addShapeLayer === 'function') {
+        window.addShapeLayer('rectangle');
       }
-      return JSON.stringify({ error: false, type: 'info', message: 'Screenshot saved successfully!' });
+      return 'true';
+    }
+    if (toolName === 'SOL') {
+      if (typeof window.addSolidLayer === 'function') {
+        window.addSolidLayer();
+      } else if (typeof window.addShapeLayer === 'function') {
+        window.addShapeLayer('rectangle');
+      }
+      return 'true';
     }
     if (toolName === 'CAM') {
       if (typeof window.addCameraLayer === 'function') {
@@ -535,11 +1007,90 @@ window.FishToolsBridge = (function () {
       }
       return 'true';
     }
-    if (toolName === 'SOL') {
-      if (typeof window.addSolidLayer === 'function') {
-        window.addSolidLayer();
+
+    // --- Toolbox: Effects ---
+    if (toolName === 'FILL') {
+      return applyEffectSafely('fill');
+    }
+    if (toolName === 'TINT') {
+      return applyEffectSafely('tint');
+    }
+    if (toolName === 'BLUR') {
+      const effectId = (args[0] === true) ? 'camera-lens-blur' : 'fast-box-blur';
+      return applyEffectSafely(effectId);
+    }
+    if (toolName === 'LUM') {
+      return applyEffectSafely('brightness-contrast');
+    }
+    if (toolName === 'CURV') {
+      return applyEffectSafely('curve');
+    }
+    if (toolName === 'HUE') {
+      return applyEffectSafely('hue-shift');
+    }
+
+    // --- Velocity Card ---
+    if (toolName === 'TWIX') {
+      return applyTwixtorVelocity();
+    }
+    if (toolName === 'TMRE') {
+      return applyTimeRemapVelocity();
+    }
+
+    // --- Beat Effects: Disabled S_Shake ---
+    if (toolName === 'SHKE') {
+      return JSON.stringify({
+        error: true,
+        tool: 'S_Shake',
+        type: 'warn',
+        message: 'S_Shake is temporarily disabled.'
+      });
+    }
+
+    // --- Beat Effects: Current ---
+    if (toolName === 'GHST') {
+      return applyEffectSafely('rgb-split');
+    }
+    if (toolName === 'WARP') {
+      return applyEffectSafely('wave-warp');
+    }
+    if (toolName === 'FISHEYE') {
+      return applyEffectSafely('warp');
+    }
+    if (toolName === 'MIDWAVE') {
+      return applyEffectSafely('wave-warp');
+    }
+    if (toolName === 'HUESPIN') {
+      return applyEffectSafely('hue-shift');
+    }
+
+    // --- Beat Effects: Continuous ---
+    if (toolName === 'EXPO') {
+      return applyBeatKeyframes('EXPO');
+    }
+    if (toolName === 'LENS') {
+      return applyEffectSafely('camera-lens-blur');
+    }
+    if (toolName === 'OSCILLATE') {
+      return applyEffectSafely('oscillate');
+    }
+    if (toolName === 'SWING') {
+      return applyEffectSafely('swing');
+    }
+    if (toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' || toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP') {
+      return applyBeatKeyframes(toolName);
+    }
+
+    // --- Beat Effects: Panning ---
+    if (typeof toolName === 'string' && toolName.indexOf('PANNING') === 0) {
+      return applyPanningKeyframes(toolName);
+    }
+
+    if (toolName === 'PNG') {
+      if (typeof window.exportCurrentFrameAsPNG === 'function') {
+        window.exportCurrentFrameAsPNG({ keepPopoverOpen: true });
       }
-      return 'true';
+      return JSON.stringify({ error: false, type: 'info', message: 'Screenshot saved successfully!' });
     }
 
     console.log('[FishToolsBridge] Tool not yet handled:', toolName, args);
@@ -665,7 +1216,19 @@ window.FishToolsAdapter = (function () {
       const osEl = doc.getElementById('info-os');
       if (osEl) osEl.textContent = 'Browser';
 
-      // 6. Convert all Relative URLs in <link>, <script>, <img> to GitHub CDN Absolute URLs
+      // 6. Disable S_Shake button (no replacement effect yet)
+      const shakeBtn = doc.querySelector('.tool-btn[data-tool="SHKE"]');
+      if (shakeBtn) {
+        shakeBtn.setAttribute('disabled', 'disabled');
+        shakeBtn.setAttribute('aria-disabled', 'true');
+        shakeBtn.setAttribute('title', 'S_Shake is temporarily disabled (replacement in development)');
+        shakeBtn.style.setProperty('opacity', '0.35', 'important');
+        shakeBtn.style.setProperty('pointer-events', 'none', 'important');
+        shakeBtn.style.setProperty('filter', 'grayscale(1)', 'important');
+        shakeBtn.style.setProperty('cursor', 'not-allowed', 'important');
+      }
+
+      // 7. Convert all Relative URLs in <link>, <script>, <img> to GitHub CDN Absolute URLs
       const CLIENT_BASE = CDN_BASE;
 
       doc.querySelectorAll('link[href]').forEach(el => {
@@ -1237,6 +1800,14 @@ window.FishToolsAdapter = (function () {
         .tool-btn--active span,
         .tool-btn--active div > span {
           color: #000000 !important;
+        }
+        .tool-btn[data-tool="SHKE"],
+        .tool-btn[data-tool="SHKE"]:hover,
+        .tool-btn[data-tool="SHKE"]:active {
+          opacity: 0.35 !important;
+          pointer-events: none !important;
+          filter: grayscale(1) !important;
+          cursor: not-allowed !important;
         }
         .anchor-cell {
           border-color: var(--border, #2a3321) !important;

@@ -74,10 +74,34 @@
       this._ofCtx1 = null;
 
       if (typeof window !== 'undefined') {
+        const markInteraction = () => {
+          window._lastUserInteractionTime = Date.now();
+        };
+        window.addEventListener('pointerdown', markInteraction, { passive: true, capture: true });
+        window.addEventListener('pointermove', (e) => {
+          if (e.buttons > 0) markInteraction();
+        }, { passive: true, capture: true });
+        window.addEventListener('wheel', markInteraction, { passive: true, capture: true });
+        window.addEventListener('keydown', markInteraction, { passive: true, capture: true });
+
         window.addEventListener('beforeunload', () => {
           this._flushSaveQueue();
         });
       }
+    }
+
+    /**
+     * Check if user is actively interacting (playing, scrubbing, dragging, or recent pointer activity)
+     */
+    _isUserInteracting() {
+      if (typeof window === 'undefined') return false;
+      if (window.isTimelinePlaying) return true;
+      if (window.isTimelineScrubbing || window.isTimelinePanning) return true;
+      if (window.isUserInteracting) return true;
+      if (window._lastUserInteractionTime && (Date.now() - window._lastUserInteractionTime < 300)) {
+        return true;
+      }
+      return false;
     }
 
     /**
@@ -128,6 +152,8 @@
 
       for (const fIdx of source.frames.keys()) {
         if (fIdx === protectIdx) continue;
+        // Never evict frame 0: it is the primary opening anchor for the layer
+        if (fIdx === 0 && source.frames.size > 1) continue;
 
         let score;
         if (fIdx < curFIdx) {
@@ -366,7 +392,7 @@
                 this._evictOldestFrame(source, frameIdx);
                 loadedBmp = bmp;
                 const curPlayheadFIdx = this._getVideoFrameForPlayhead(source);
-                if (Math.abs(frameIdx - curPlayheadFIdx) <= 1 && typeof window.redrawComposition === 'function' && !window.isTimelinePlaying && !window.isExporting) {
+                if (Math.abs(frameIdx - curPlayheadFIdx) <= 15 && typeof window.redrawComposition === 'function' && !window.isTimelinePlaying && !window.isExporting) {
                   window.redrawComposition('frameReady');
                 }
               } else if (bmp && typeof bmp.close === 'function') {
@@ -411,8 +437,9 @@
       if (source._isStreamingPrefetch) return;
 
       const missing = [];
+      const startFIdx = Math.max(0, currentFIdx - Math.round(windowSize / 3));
       const endFIdx = currentFIdx + windowSize;
-      for (let f = currentFIdx; f <= endFIdx; f++) {
+      for (let f = startFIdx; f <= endFIdx; f++) {
         if (source.cachedFrameIndices.has(f) && (!source.frames || !source.frames.has(f))) {
           if (!source._fetchingFrames || !source._fetchingFrames.has(f)) {
             missing.push(f);
@@ -470,6 +497,9 @@
         })));
       } finally {
         source._isStreamingPrefetch = false;
+        if (typeof window.redrawComposition === 'function' && !window.isTimelinePlaying && !window.isExporting) {
+          window.redrawComposition('playbackFramesBatchLoaded');
+        }
       }
     }
 
@@ -695,15 +725,44 @@
       const durSec = (layer.durationSec !== undefined && layer.durationSec > 0)
         ? layer.durationSec
         : ((layer.widthPx || 320) / pixelsPerSec);
-      const effSpeed = (layer.speed !== undefined && layer.speed > 0) ? layer.speed : 1.0;
-      const videoDurationConsumed = durSec * effSpeed;
-      const startIdx = Math.floor(offsetSec * fps);
+
+      let minTimeSec = offsetSec;
+      let maxTimeSec = offsetSec;
+
+      if (layer.speedMode === 'time_remap') {
+        if (layer.keyframes && Array.isArray(layer.keyframes.timeRemap) && layer.keyframes.timeRemap.length > 0) {
+          const remapVals = layer.keyframes.timeRemap.map(k => (k.value && k.value.timeRemap !== undefined ? k.value.timeRemap : 0));
+          minTimeSec = Math.min(...remapVals);
+          maxTimeSec = Math.max(...remapVals);
+        } else {
+          minTimeSec = 0;
+          maxTimeSec = durSec;
+        }
+      } else if (layer.keyframes && Array.isArray(layer.keyframes.speed) && layer.keyframes.speed.length > 0) {
+        const pps = window.currentPixelsPerSecond || 80;
+        const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        if (typeof window.getLayerIntegratedSpeedTime === 'function') {
+          minTimeSec = window.getLayerIntegratedSpeedTime(layer, start);
+          maxTimeSec = window.getLayerIntegratedSpeedTime(layer, start + durSec);
+        } else {
+          minTimeSec = offsetSec;
+          maxTimeSec = offsetSec + durSec * 4.0;
+        }
+      } else {
+        const effSpeed = (layer.speed !== undefined && layer.speed > 0) ? layer.speed : 1.0;
+        const videoDurationConsumed = durSec * effSpeed;
+        minTimeSec = offsetSec;
+        maxTimeSec = offsetSec + videoDurationConsumed;
+      }
+
       const sourceKey = this._getSourceKey(layer);
       const source = this.sources.get(sourceKey);
       const trueMediaDur = (source && isFinite(source.duration) && source.duration > 0)
         ? source.duration
-        : (layer.mediaDuration && isFinite(layer.mediaDuration) && layer.mediaDuration > 0 ? layer.mediaDuration : (offsetSec + videoDurationConsumed));
-      let endIdx = Math.floor((offsetSec + videoDurationConsumed) * fps) + 1;
+        : (layer.mediaDuration && isFinite(layer.mediaDuration) && layer.mediaDuration > 0 ? layer.mediaDuration : maxTimeSec);
+
+      const startIdx = Math.max(0, Math.floor(minTimeSec * fps));
+      let endIdx = Math.ceil(maxTimeSec * fps) + 2;
       if (trueMediaDur > 0) {
         const maxVideoFrame = Math.max(0, Math.floor(trueMediaDur * fps) - 1);
         endIdx = Math.min(endIdx, maxVideoFrame);
@@ -723,10 +782,17 @@
 
       const pixelsPerSec = window.currentPixelsPerSecond || 80;
       const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSec);
-      const effSpeed = (typeof window.getLayerEffectivePropsAtTime === 'function')
-        ? (window.getLayerEffectivePropsAtTime(layer, currentSec).speed || layer.speed || 1.0)
-        : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
-      const timeInClip = Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - start) * effSpeed);
+      let timeInClip = 0;
+      if (layer.speedMode === 'time_remap') {
+        const eff = (typeof window.getLayerEffectivePropsAtTime === 'function')
+          ? window.getLayerEffectivePropsAtTime(layer, currentSec)
+          : layer;
+        timeInClip = Math.max(0, eff.timeRemap !== undefined ? eff.timeRemap : ((currentSec - start) * (layer.speed || 1.0)));
+      } else {
+        timeInClip = (typeof window.getLayerIntegratedSpeedTime === 'function')
+          ? window.getLayerIntegratedSpeedTime(layer, currentSec)
+          : Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - start) * (layer.speed || 1.0));
+      }
       const rawFrame = timeInClip * source.fps;
 
       const interp = layer.speedInterpolation || 'none';
@@ -1075,6 +1141,14 @@
      */
     async extractLayerRange(layer) {
       if (!layer || layer.type !== 'video') return;
+      if (layer._extractComplete) {
+        const sourceKey = this._getSourceKey(layer);
+        const source = this.sources.get(sourceKey);
+        if (source && source.frames.size > 0) {
+          this.updateLayerProgressBar(layer);
+          return;
+        }
+      }
 
       // Ensure layer.mediaId and fresh layer.dataUrl from FishDatabase before resolving sourceKey
       if (window.FishDatabase && window.currentProjectState && window.currentProjectState.id) {
@@ -1148,7 +1222,6 @@
         layer._extractProgress = 1;
         layer._extractComplete = true;
         this.updateLayerProgressBar(layer);
-        this._notifyLayersForSource(source.sourceKey, true);
         return;
       }
 
@@ -1326,7 +1399,7 @@
      */
     _seekVideo(video, targetTime) {
       return new Promise(resolve => {
-        if (Math.abs(video.currentTime - targetTime) < 0.003) {
+        if (!video.seeking && Math.abs(video.currentTime - targetTime) < 0.003) {
           resolve(true);
           return;
         }
@@ -1343,7 +1416,7 @@
             cleanup();
             resolve(false);
           }
-        }, 400);
+        }, 700);
 
         const onSeek = () => {
           if (resolved) return;
@@ -1489,19 +1562,56 @@
           // If source was cleared or cancelled, abort
           if (!this.sources.has(source.sourceKey) || !source.isExtracting) break;
 
-          // Pause background extraction only while exporting unless priority extraction was requested
+          // Pause background extraction while exporting unless priority extraction was requested
           if (window.isExporting && !source._forceExtraction) {
             await new Promise(r => setTimeout(r, 120));
             continue;
           }
 
-          // Extract strictly in ascending numerical order (from start to end of clip).
-          // This guarantees the visual loading bar grows left-to-right matching exactly
-          // the contiguous baked frames without any gaps or forward frame pop-in.
+          // Point 1: Auto-pause while user is actively interacting (playback, scrubbing, dragging)
+          if (!source._forceExtraction && this._isUserInteracting()) {
+            await new Promise(r => setTimeout(r, 80));
+            continue;
+          }
+
+          // Point 2: Pick next frame with Playhead-Proximity Priority
           let targetIdx = -1;
-          for (const idx of source.pendingFrames) {
-            if (targetIdx === -1 || idx < targetIdx) {
-              targetIdx = idx;
+
+          if (source._forceExtraction) {
+            // Strictly ascending order during export cache verification
+            for (const idx of source.pendingFrames) {
+              if (targetIdx === -1 || idx < targetIdx) {
+                targetIdx = idx;
+              }
+            }
+          } else {
+            // Playhead-Proximity Priority for live interactive editing
+            const anchorFrame = this._getVideoFrameForPlayhead(source);
+            const fps = source.fps || 60;
+            const lookahead = Math.round(fps * 1.5);
+            const lookbehind = Math.round(fps * 0.75);
+
+            let bestTier = 99;
+            for (const idx of source.pendingFrames) {
+              let tier = 4;
+              if (idx >= anchorFrame && idx <= anchorFrame + lookahead) {
+                tier = 1; // Immediate forward playback window
+              } else if (idx >= anchorFrame - lookbehind && idx < anchorFrame) {
+                tier = 2; // Immediate reverse scrub window
+              } else if (idx > anchorFrame + lookahead) {
+                tier = 3; // Remaining forward frames
+              } else {
+                tier = 4; // Remaining backward frames
+              }
+
+              if (tier < bestTier) {
+                bestTier = tier;
+                targetIdx = idx;
+              } else if (tier === bestTier) {
+                if (targetIdx === -1 || idx < targetIdx) {
+                  targetIdx = idx;
+                }
+              }
             }
           }
 
@@ -1572,6 +1682,7 @@
             source.frames.set(targetIdx, bmp);
             if (!source.cachedFrameIndices) source.cachedFrameIndices = new Set();
             source.cachedFrameIndices.add(targetIdx);
+            source._hasNewExtractedFrames = true;
             this._evictOldestFrame(source, targetIdx);
           }
 
@@ -1768,7 +1879,7 @@
       }
 
       // 2. Selectively redraw composition during extraction (throttled) and on completion
-      if (typeof window.redrawComposition === 'function' && !window.isTimelinePlaying) {
+      if (typeof window.redrawComposition === 'function' && !this._isUserInteracting()) {
         if (isComplete) {
           window.redrawComposition('frameExtractorComplete');
         } else {
@@ -1782,8 +1893,10 @@
         }
       }
 
-      // 3. Invalidate PreviewCacheManager when extraction completed
-      if (window.PreviewCacheManager && isComplete) {
+      // 3. Invalidate PreviewCacheManager only when extraction actually completed new frames
+      const source = this.sources.get(sourceKey);
+      if (window.PreviewCacheManager && isComplete && source && source._hasNewExtractedFrames) {
+        source._hasNewExtractedFrames = false;
         const pps = window.currentPixelsPerSecond || 80;
         const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
         const hasMatching = layers.some(l => l.type === 'video' && !l.hidden && this._getSourceKey(l) === sourceKey);

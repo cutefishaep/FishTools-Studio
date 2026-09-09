@@ -672,10 +672,17 @@
                 const sourceKey = vfe._getSourceKey ? vfe._getSourceKey(layer) : (layer.mediaId || layer.dataUrl || layer.id);
                 const source = vfe.getSourceCache ? vfe.getSourceCache(sourceKey) : null;
                 if (source) {
-                  const effSpeed = (typeof window.getLayerEffectivePropsAtTime === 'function')
-                    ? (window.getLayerEffectivePropsAtTime(layer, targetSec).speed || layer.speed || 1.0)
-                    : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
-                  const timeInClip = Math.max(0, (layer.sourceOffsetSec || 0) + (targetSec - start) * effSpeed);
+                  let timeInClip = 0;
+                  if (layer.speedMode === 'time_remap') {
+                    const eff = (typeof window.getLayerEffectivePropsAtTime === 'function')
+                      ? window.getLayerEffectivePropsAtTime(layer, targetSec)
+                      : layer;
+                    timeInClip = Math.max(0, eff.timeRemap !== undefined ? eff.timeRemap : ((targetSec - start) * (layer.speed || 1.0)));
+                  } else {
+                    timeInClip = (typeof window.getLayerIntegratedSpeedTime === 'function')
+                      ? window.getLayerIntegratedSpeedTime(layer, targetSec)
+                      : Math.max(0, (layer.sourceOffsetSec || 0) + (targetSec - start) * (layer.speed || 1.0));
+                  }
                   const fIdx = Math.round(timeInClip * source.fps);
                   if (!source.frames.has(fIdx) && source.cachedFrameIndices && source.cachedFrameIndices.has(fIdx)) {
                     if (typeof vfe.fetchFrameFromDBAsync === 'function') {
@@ -718,6 +725,183 @@
       };
 
       renderNext();
+    }
+
+    /**
+     * Progressive Auto-Prebake for Precomposition Layers
+     * Autonomous background pipeline (mirrors VideoFrameExtractor):
+     * - Auto-triggered when precomp is created, loaded, or timeline renders
+     * - Proxy resolution (max 960px) for high quality + 1ms ImageBitmap encode
+     * - Cooperative yielding via requestIdleCallback/setTimeout
+     * - Zero-delay pause during live playback/scrubbing to ensure 60fps
+     * - Real-time green loading bar update on timeline clip
+     */
+    prebakePrecomp(layer) {
+      if (!layer || layer.type !== 'precomp') return;
+      if (!Array.isArray(layer.layers) || layer.layers.length === 0) {
+        layer._precompCacheProgress = 1;
+        layer._precompCacheComplete = true;
+        if (typeof window.updatePrecompClipProgress === 'function') {
+          window.updatePrecompClipProgress(layer);
+        }
+        return;
+      }
+
+      if (!this._precompBakers) this._precompBakers = new Map();
+      if (this._precompBakers.has(layer.id)) {
+        return;
+      }
+
+      const pool = this.getPool(layer.id);
+      const fps = this.fps || 60;
+      const pps = window.currentPixelsPerSecond || 80;
+      const dur = (layer.durationSec !== undefined && layer.durationSec > 0)
+        ? layer.durationSec
+        : ((layer.widthPx || 320) / pps);
+      const effSpeed = (layer.speed !== undefined && layer.speed > 0) ? layer.speed : 1.0;
+      let totalDur = (layer.mediaDuration && layer.mediaDuration > 0)
+        ? layer.mediaDuration
+        : Math.max(1, (dur * effSpeed) + (layer.sourceOffsetSec || 0));
+      if (layer.speedMode === 'time_remap' && layer.keyframes && Array.isArray(layer.keyframes.timeRemap)) {
+        let maxRemap = 0;
+        layer.keyframes.timeRemap.forEach(kf => {
+          const v = (kf && kf.value && typeof kf.value.timeRemap === 'number') ? kf.value.timeRemap : (typeof kf.value === 'number' ? kf.value : 0);
+          if (v > maxRemap) maxRemap = v;
+        });
+        if (maxRemap > 0) {
+          totalDur = Math.max(totalDur, maxRemap + 1);
+        }
+      }
+      const totalFrames = Math.max(1, Math.ceil(totalDur * fps));
+
+      const missing = [];
+      for (let f = 0; f < totalFrames; f++) {
+        if (!pool.has(f)) missing.push(f);
+      }
+
+      if (missing.length === 0) {
+        layer._precompCacheProgress = 1;
+        layer._precompCacheComplete = true;
+        if (typeof window.updatePrecompClipProgress === 'function') {
+          window.updatePrecompClipProgress(layer);
+        }
+        return;
+      }
+
+      const bakerState = {
+        isCancelled: false,
+        missing,
+        totalFrames,
+        timer: null
+      };
+      this._precompBakers.set(layer.id, bakerState);
+
+      const baseW = Math.round(Math.abs(layer.mediaWidth || layer.scaleW || 1920));
+      const baseH = Math.round(Math.abs(layer.mediaHeight || layer.scaleH || 1080));
+      const maxDim = 960;
+      const scale = Math.min(1, maxDim / Math.max(baseW, baseH));
+      const bakeW = Math.max(160, Math.round(baseW * scale));
+      const bakeH = Math.max(90, Math.round(baseH * scale));
+
+      let offCanvas = null;
+      try {
+        if (typeof OffscreenCanvas !== 'undefined') {
+          offCanvas = new OffscreenCanvas(bakeW, bakeH);
+        } else {
+          offCanvas = document.createElement('canvas');
+          offCanvas.width = bakeW;
+          offCanvas.height = bakeH;
+        }
+      } catch (_) {
+        offCanvas = document.createElement('canvas');
+        offCanvas.width = bakeW;
+        offCanvas.height = bakeH;
+      }
+
+      const step = async () => {
+        if (bakerState.isCancelled || !this._precompBakers.has(layer.id)) {
+          this._precompBakers.delete(layer.id);
+          return;
+        }
+
+        // Pause during playback, dragging, or scrubbing
+        if (window.isTimelinePlaying || window.isTransformInteracting || window.isExporting || (typeof isPanning !== 'undefined' && isPanning)) {
+          bakerState.timer = setTimeout(step, 200);
+          return;
+        }
+
+        if (missing.length === 0) {
+          this._precompBakers.delete(layer.id);
+          layer._precompCacheProgress = 1;
+          layer._precompCacheComplete = true;
+          if (typeof window.updatePrecompClipProgress === 'function') {
+            window.updatePrecompClipProgress(layer);
+          }
+          return;
+        }
+
+        const targetFrame = missing.shift();
+        const innerSec = targetFrame / fps;
+
+        if (typeof window.renderPrecompToCanvas === 'function') {
+          window.renderPrecompToCanvas(layer, offCanvas, innerSec, bakeW, bakeH, 'prebake');
+          try {
+            const bitmap = await createImageBitmap(offCanvas);
+            pool.set(targetFrame, {
+              bitmap,
+              isDraft: false,
+              width: bakeW,
+              height: bakeH
+            });
+          } catch (_) {}
+        }
+
+        const progress = Math.min(1, pool.size / totalFrames);
+        layer._precompCacheProgress = progress;
+        if (typeof window.updatePrecompClipProgress === 'function') {
+          window.updatePrecompClipProgress(layer);
+        }
+
+        if (missing.length > 0) {
+          if (typeof requestIdleCallback === 'function') {
+            bakerState.timer = requestIdleCallback(step, { timeout: 100 });
+          } else {
+            bakerState.timer = setTimeout(step, 16);
+          }
+        } else {
+          this._precompBakers.delete(layer.id);
+          layer._precompCacheProgress = 1;
+          layer._precompCacheComplete = true;
+          if (typeof window.updatePrecompClipProgress === 'function') {
+            window.updatePrecompClipProgress(layer);
+          }
+        }
+      };
+
+      if (typeof requestIdleCallback === 'function') {
+        bakerState.timer = requestIdleCallback(step, { timeout: 100 });
+      } else {
+        bakerState.timer = setTimeout(step, 16);
+      }
+    }
+
+    cancelPrecompPrebake(layerId) {
+      if (!this._precompBakers || !this._precompBakers.has(layerId)) return;
+      const b = this._precompBakers.get(layerId);
+      b.isCancelled = true;
+      if (b.timer) {
+        if (typeof cancelIdleCallback === 'function') cancelIdleCallback(b.timer);
+        else clearTimeout(b.timer);
+      }
+      this._precompBakers.delete(layerId);
+    }
+
+    prebakeAllPrecomps(layers) {
+      (layers || []).forEach(l => {
+        if (l && l.type === 'precomp' && !l._precompCacheComplete) {
+          this.prebakePrecomp(l);
+        }
+      });
     }
   }
 

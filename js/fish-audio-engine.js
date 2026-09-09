@@ -370,7 +370,7 @@
       }
     }
 
-    _flattenPlayableLayers(layers, parentOffsetSec = 0, parentSpeed = 1.0, parentMuted = false, parentGain = 1.0, pixelsPerSecond = 80) {
+    _flattenPlayableLayers(layers, parentOffsetSec = 0, parentSpeed = 1.0, parentMuted = false, parentGain = 1.0, pixelsPerSecond = 80, parentLayer = null) {
       const result = [];
       (layers || []).forEach(layer => {
         if (layer.hidden) return;
@@ -380,9 +380,19 @@
         const layerVol = (layer.volume !== undefined ? layer.volume : 1.0);
         const effectiveGain = parentGain * layerVol;
 
+        const lStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+        const lDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
+
         if (layer.type === 'video' || layer.type === 'audio') {
+          const rootStartSec = parentOffsetSec + (lStart / parentSpeed);
+          const rootDurSec = lDur / parentSpeed;
           result.push({
             layer,
+            parentLayer,
+            rootStartSec,
+            rootDurSec,
+            rootEndSec: rootStartSec + rootDurSec,
+            sourceOffsetSec: layer.sourceOffsetSec || 0,
             parentOffsetSec,
             parentSpeed,
             effectiveSpeed,
@@ -390,9 +400,8 @@
             effectiveGain
           });
         } else if (layer.type === 'precomp' && Array.isArray(layer.layers)) {
-          const pStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-          const pOffset = parentOffsetSec + pStart - (layer.sourceOffsetSec || 0);
-          const nested = this._flattenPlayableLayers(layer.layers, pOffset, effectiveSpeed, isMuted, effectiveGain, pixelsPerSecond);
+          const precompRootStart = parentOffsetSec + ((lStart - (layer.sourceOffsetSec || 0)) / parentSpeed);
+          const nested = this._flattenPlayableLayers(layer.layers, precompRootStart, effectiveSpeed, isMuted, effectiveGain, pixelsPerSecond, layer);
           nested.forEach(item => result.push(item));
         }
       });
@@ -406,27 +415,24 @@
         const item = flatItems[i];
         const layer = item.layer;
         if (item.isMuted) continue;
+        // Only pure 1.0x audio layers can serve as audio clock (video layers and speed-ramped tracks must never dictate timeline clock)
+        if (layer.type !== 'audio') continue;
+        if (layer.speedMode === 'time_remap' || (item.parentLayer && item.parentLayer.speedMode === 'time_remap')) continue;
+        if (layer.keyframes && layer.keyframes.speed && layer.keyframes.speed.length > 0) continue;
+        if (item.effectiveSpeed !== 1.0) continue;
+
         const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
         if (!media || !media.el) continue;
         const el = media.el;
         if (el.paused || el.seeking || el.readyState < 2) continue;
 
-        const startSec = (layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond)) + item.parentOffsetSec;
-        const durSec = (layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond)) / (item.parentSpeed || 1.0);
-        const endSec = startSec + durSec;
-
-        const effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
-          ? window.getLayerEffectivePropsAtTime(layer, currentSec - item.parentOffsetSec)
-          : null;
-        const currentSpeed = (effProps && effProps.speed !== undefined)
-          ? effProps.speed * (item.parentSpeed || 1.0)
-          : item.effectiveSpeed;
-
-        const timeInClip = el.currentTime - (layer.sourceOffsetSec || 0);
-        const timelineSec = startSec + (timeInClip / currentSpeed);
+        const startSec = item.rootStartSec;
+        const endSec = item.rootEndSec;
+        const timeInClip = el.currentTime - (item.sourceOffsetSec || 0);
+        const timelineSec = startSec + timeInClip;
 
         if (timelineSec >= startSec - 0.15 && timelineSec <= endSec + 0.25) {
-          if (Math.abs(timelineSec - currentSec) <= 0.6) {
+          if (Math.abs(timelineSec - currentSec) <= 0.4) {
             return timelineSec;
           }
         }
@@ -450,7 +456,7 @@
       const flatItems = this._flattenPlayableLayers(layers, 0, 1.0, false, 1.0, pixelsPerSecond);
 
       flatItems.forEach(item => {
-        const { layer, parentOffsetSec, parentSpeed, effectiveSpeed, isMuted, effectiveGain } = item;
+        const { layer, parentLayer, rootStartSec, rootEndSec, sourceOffsetSec, parentOffsetSec, parentSpeed, effectiveSpeed, isMuted, effectiveGain } = item;
         const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
         if (!media || !media.el) return;
 
@@ -468,23 +474,92 @@
           this.attachMediaElement(el);
         }
 
-        const lStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const lDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
-        const startSec = lStart + parentOffsetSec;
-        const durSec = lDur / (parentSpeed || 1.0);
-        const endSec = startSec + durSec;
+        if (currentSec >= rootStartSec && currentSec < rootEndSec) {
+          const layerEvalTime = (parentOffsetSec === 0 && (parentSpeed || 1.0) === 1.0)
+            ? currentSec
+            : ((currentSec - parentOffsetSec) * (parentSpeed || 1.0));
 
-        if (currentSec >= startSec && currentSec < endSec) {
-          // Evaluate effective volume & speed (supports keyframing)
-          const effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
-            ? window.getLayerEffectivePropsAtTime(layer, currentSec - parentOffsetSec)
-            : null;
-          const currentVol = ((effProps && effProps.volume !== undefined)
+          let effProps = null;
+          let targetTime = 0;
+          let currentSpeed = effectiveSpeed;
+          let isFreezeOrReverse = false;
+
+          if (layer.speedMode === 'time_remap') {
+            effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(layer, layerEvalTime)
+              : null;
+            const r0 = (effProps && effProps.timeRemap !== undefined) ? effProps.timeRemap : (layer.timeRemap || 0);
+            targetTime = Math.max(0, r0);
+
+            // Compute smooth central derivative dR/dt for true slow motion / fast motion speed
+            const dt = 0.02;
+            const t0 = Math.max(0, layerEvalTime - dt);
+            const t1 = layerEvalTime + dt;
+            const p0 = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(layer, t0) : null;
+            const p1 = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(layer, t1) : null;
+            const rPrev = (p0 && p0.timeRemap !== undefined) ? p0.timeRemap : r0;
+            const rNext = (p1 && p1.timeRemap !== undefined) ? p1.timeRemap : r0;
+            const slope = (t1 > t0) ? ((rNext - rPrev) / (t1 - t0)) : 1.0;
+
+            if (slope <= 0.005) {
+              isFreezeOrReverse = true;
+              currentSpeed = 0.0625;
+            } else {
+              currentSpeed = Math.max(0.0625, Math.min(8.0, slope * (parentSpeed || 1.0)));
+            }
+          } else if (parentLayer && parentLayer.speedMode === 'time_remap') {
+            // Nested inside a time-remapped precomposition
+            const pEff = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(parentLayer, currentSec)
+              : null;
+            const pRemap0 = (pEff && pEff.timeRemap !== undefined) ? pEff.timeRemap : 0;
+            
+            const dt = 0.02;
+            const t0 = Math.max(0, currentSec - dt);
+            const t1 = currentSec + dt;
+            const pEff0 = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(parentLayer, t0) : null;
+            const pEff1 = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(parentLayer, t1) : null;
+            const pRemapPrev = (pEff0 && pEff0.timeRemap !== undefined) ? pEff0.timeRemap : pRemap0;
+            const pRemapNext = (pEff1 && pEff1.timeRemap !== undefined) ? pEff1.timeRemap : pRemap0;
+            const parentSlope = (t1 > t0) ? ((pRemapNext - pRemapPrev) / (t1 - t0)) : 1.0;
+
+            const childInnerSec = pRemap0;
+            const childStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+            effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(layer, childInnerSec)
+              : null;
+            const childSpeed = (effProps && effProps.speed !== undefined) ? effProps.speed : (layer.speed || 1.0);
+            targetTime = Math.max(0, (sourceOffsetSec || 0) + (childInnerSec - childStart) * childSpeed);
+
+            if (parentSlope <= 0.005) {
+              isFreezeOrReverse = true;
+              currentSpeed = 0.0625;
+            } else {
+              currentSpeed = Math.max(0.0625, Math.min(8.0, parentSlope * childSpeed));
+            }
+          } else {
+            effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
+              ? window.getLayerEffectivePropsAtTime(layer, layerEvalTime)
+              : null;
+            currentSpeed = (effProps && effProps.speed !== undefined)
+              ? (effProps.speed * (parentSpeed || 1.0))
+              : effectiveSpeed;
+            targetTime = (typeof window.getLayerIntegratedSpeedTime === 'function')
+              ? window.getLayerIntegratedSpeedTime(layer, currentSec)
+              : Math.max(0, (sourceOffsetSec || 0) + (currentSec - rootStartSec) * currentSpeed);
+          }
+
+          let currentVol = ((effProps && effProps.volume !== undefined)
             ? effProps.volume
             : (layer.volume !== undefined ? layer.volume : 1.0)) * (effectiveGain || 1.0);
-          const currentSpeed = (effProps && effProps.speed !== undefined)
-            ? (effProps.speed * (parentSpeed || 1.0))
-            : effectiveSpeed;
+
+          if (isFreezeOrReverse) {
+            currentVol = 0; // Mute audio on freeze frame or reverse to prevent stuttering
+          }
 
           if (layer.type === 'video') {
             const vfe = window.VideoFrameExtractor;
@@ -492,7 +567,7 @@
               const srcId = vfe._getSourceKey ? vfe._getSourceKey(layer) : (layer.sourceVideoId || layer.mediaId || layer.dataUrl || layer.id);
               const source = vfe.getSourceCache ? vfe.getSourceCache(srcId) : null;
               if (source) {
-                const targetFIdx = Math.max(0, Math.round(((layer.sourceOffsetSec || 0) + (currentSec - startSec) * currentSpeed) * (source.fps || 60)));
+                const targetFIdx = Math.max(0, Math.round(targetTime * (source.fps || 60)));
                 vfe.ensurePlaybackFrames(source, targetFIdx, 90);
               }
             }
@@ -503,21 +578,24 @@
             this.applyAudioEffects(el, layer.audioEffects);
           }
 
-          const targetTime = Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - startSec) * currentSpeed);
           if (!activeElementTargets.has(el)) {
             activeElementTargets.set(el, {
               targetTime,
               currentSpeed,
+              isFreezeOrReverse,
               preservePitch: layer.preservePitch !== false
             });
           }
         }
       });
 
-      // Play and synchronize active elements with rock-solid rate stability (no pitch-shifting jitter!)
+      // Play and synchronize active elements with rock-solid rate stability
+      const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
       activeElementTargets.forEach((info, el) => {
-        const { targetTime, currentSpeed, preservePitch } = info;
+        const { targetTime, currentSpeed, isFreezeOrReverse, preservePitch } = info;
         try {
+          // Keep pitch preservation setting constant — never dynamically toggle during playback to avoid loud clicks/pops
           if (el.preservesPitch !== preservePitch) {
             el.preservesPitch = preservePitch;
             if ('webkitPreservesPitch' in el) el.webkitPreservesPitch = preservePitch;
@@ -525,25 +603,74 @@
           }
         } catch (_) {}
 
-        // Keep playbackRate strictly at currentSpeed to eliminate WSOLA buffer churn
-        if (Math.abs(el.playbackRate - currentSpeed) > 0.005) {
-          try { el.playbackRate = currentSpeed; } catch (_) {}
+        if (isFreezeOrReverse) {
+          if (!el.paused) {
+            try { el.pause(); } catch (_) {}
+          }
+          return;
         }
 
         if (el.paused) {
           try {
             el.currentTime = targetTime;
+            el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
+            el._lastRateSteerTime = nowMs;
+            el._lastSteeredRate = currentSpeed;
+            el._baseSpeed = currentSpeed;
             el.play().catch(() => {});
           } catch (_) {}
-        } else if (!el.seeking) {
-          const drift = el.currentTime - targetTime;
-          // HTML5 audio currentTime has natural ±50-100ms variance from OS audio buffering.
-          // Only hard-seek for large drift (>400ms) = user scrubbed or jumped playhead.
-          // Never micro-correct via playbackRate — causes WSOLA pitch artifacts + choppy audio.
-          if (Math.abs(drift) > 0.4) {
+          return;
+        }
+
+        if (!el.seeking) {
+          const drift = el.currentTime - targetTime; // positive: audio leads; negative: audio lags
+          const absDrift = Math.abs(drift);
+
+          // 1. Hard seek ONLY on massive divergence (user jumped playhead/scrubbed > 1.5s)
+          // Never hard seek on minor playback drift — hard seek pauses audio and causes severe stutter!
+          if (absDrift > 1.5) {
             try {
               el.currentTime = targetTime;
+              el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
+              el._lastRateSteerTime = nowMs;
+              el._lastSteeredRate = currentSpeed;
+              el._baseSpeed = currentSpeed;
             } catch (_) {}
+            return;
+          }
+
+          // 2. DEADBAND ZONE (+/- 80ms): Audio is in clean lockstep with timeline.
+          // Audio buffer chunking in browsers is 30-50ms. Never alter playbackRate inside deadband.
+          if (absDrift <= 0.08) {
+            if (el._lastSteeredRate !== undefined && Math.abs(el._lastSteeredRate - currentSpeed) > 0.01) {
+              if (!el._lastRateSteerTime || (nowMs - el._lastRateSteerTime >= 200)) {
+                try {
+                  el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
+                  el._lastSteeredRate = currentSpeed;
+                  el._lastRateSteerTime = nowMs;
+                } catch (_) {}
+              }
+            }
+            return;
+          }
+
+          // 3. THROTTLED & GENTLE RATE STEERING:
+          // Throttle adjustments to at most once every 200ms to allow audio buffers to settle
+          const baseSpeedChanged = Math.abs((el._baseSpeed || currentSpeed) - currentSpeed) > 0.03;
+          if (!el._lastRateSteerTime || (nowMs - el._lastRateSteerTime >= 200) || baseSpeedChanged) {
+            el._lastRateSteerTime = nowMs;
+            el._baseSpeed = currentSpeed;
+
+            // Gentle proportional correction: max +/- 4% speed adjustment
+            const steerAdjustment = Math.max(-0.04, Math.min(0.04, -drift * 0.25));
+            const steeredRate = Math.max(0.0625, Math.min(8.0, currentSpeed + steerAdjustment));
+
+            if (Math.abs((el.playbackRate || 1.0) - steeredRate) > 0.012) {
+              try {
+                el.playbackRate = steeredRate;
+                el._lastSteeredRate = steeredRate;
+              } catch (_) {}
+            }
           }
         }
       });
@@ -566,6 +693,9 @@
           try {
             el.preservesPitch = true;
             el.playbackRate = 1.0;
+            el._lastRateSteerTime = 0;
+            el._lastSteeredRate = 1.0;
+            el._baseSpeed = 1.0;
             if (!el.paused) el.pause();
           } catch (_) {}
         }

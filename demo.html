@@ -4264,6 +4264,128 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       </div>
     </section>
 
+    <!-- 18. Modular Audio Beatmark Controller Showcase -->
+    <section class="showcase-card" id="demo-audio-beatmark">
+      <header class="showcase-card-header">
+        <div class="showcase-card-title-group">
+          <h2 class="showcase-card-title">18. Audio Beatmark Controller (.beatmark-controller-layout)</h2>
+          <p class="showcase-card-desc">Dedicated subview for audio layers in drawer: waveform visualization at the top with playhead needle &amp; beatmark pins, and a giant central button for tactile beatmarking.</p>
+        </div>
+        <span class="showcase-card-badge">MODULAR</span>
+      </header>
+
+      <div class="showcase-card-body">
+        <article class="showcase-item">
+          <div class="showcase-item-info">
+            <h3 class="showcase-item-title">Interactive Audio Beatmark Subview</h3>
+            <p class="showcase-item-desc">Tap the giant button to drop beatmarks at the needle. Click or drag on the waveform to scrub. Pure flat styling, zero blur, zero gradient, 100% theme token bound.</p>
+          </div>
+
+          <div class="showcase-preview-area" style="flex-direction: column; gap: 16px; align-items: stretch; background-color: var(--bg-dashboard); padding: 16px; border-radius: 8px;">
+            <div class="drawer-card" style="width: 100%; max-width: 480px; margin: 0 auto; background-color: var(--bg-panel); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-panel);">
+              <div class="beatmark-controller-layout" style="height: 250px;">
+                <!-- Left Navigation Column -->
+                <aside class="transform-nav-col">
+                  <div class="transform-nav-group-top">
+                    <button type="button" class="transform-nav-btn" id="demo-btn-beatmark-back" title="Back" aria-label="Back">
+                      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                    </button>
+                    <button type="button" class="transform-nav-btn" id="demo-btn-beatmark-play" title="Play / Pause" aria-label="Play / Pause">
+                      <svg viewBox="0 0 24 24" fill="currentColor" id="demo-beatmark-play-icon"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                  </div>
+                  <div class="transform-nav-group-bottom">
+                    <button type="button" class="transform-nav-btn" id="demo-btn-beatmark-delete" title="Delete Beatmark" aria-label="Delete Beatmark">
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    </button>
+                  </div>
+                </aside>
+
+                <!-- Work Area -->
+                <main class="beatmark-work-area">
+                  <div class="beatmark-waveform-card">
+                    <div class="beatmark-waveform-header">
+                      <div class="beatmark-audio-info">
+                        <span class="beatmark-audio-name">Retro_Synth_Wave.mp3</span>
+                        <span class="beatmark-count-badge" id="demo-beatmark-count">2 beatmarks</span>
+                      </div>
+                      <div class="beatmark-time-display" id="demo-beatmark-time">00:00:01:12</div>
+                    </div>
+                    <div class="beatmark-waveform-wrapper" id="demo-beatmark-waveform-wrapper">
+                      <canvas class="beatmark-waveform-canvas" id="demo-beatmark-waveform-canvas"></canvas>
+                      <div class="beatmark-waveform-needle" id="demo-beatmark-waveform-needle" style="left: 35%;"></div>
+                      <div class="beatmark-waveform-pins" id="demo-beatmark-waveform-pins">
+                        <div class="beatmark-wf-pin" style="left: 20%;" title="Beatmark: 00:00:00:15"></div>
+                        <div class="beatmark-wf-pin" style="left: 55%;" title="Beatmark: 00:00:02:05"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="beatmark-center-action">
+                    <button type="button" class="beatmark-giant-btn" id="demo-btn-add-beatmark-giant" aria-label="Add Beatmark">
+                      <div class="beatmark-giant-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="beatmark-giant-svg">
+                          <path d="M4 3h16v8.5l-8 9-8-9V3zm3 3v4.25l5 5.62 5-5.62V6H7z"/>
+                        </svg>
+                      </div>
+                      <span class="beatmark-giant-label">Add Beatmark</span>
+                      <span class="beatmark-giant-hint">Tap on beat</span>
+                    </button>
+                  </div>
+                </main>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-snippet">
+            <div class="code-snippet-header">
+              <span class="code-snippet-title">HTML Boilerplate</span>
+              <button type="button" class="btn-copy-code" data-target="code-beatmark-controller">Copy Code</button>
+            </div>
+            <pre class="code-snippet-body"><code id="code-beatmark-controller">&lt;!-- Audio Beatmark Controller Subview in Layer Drawer --&gt;
+&lt;div class="drawer-subview" id="layer-drawer-beatmark-view"&gt;
+  &lt;div class="beatmark-controller-layout" id="beatmark-controller"&gt;
+    &lt;aside class="transform-nav-col"&gt;
+      &lt;div class="transform-nav-group-top"&gt;
+        &lt;button type="button" class="transform-nav-btn" id="btn-beatmark-back" title="Back"&gt;...&lt;/button&gt;
+        &lt;button type="button" class="transform-nav-btn" id="btn-beatmark-play" title="Play/Pause"&gt;...&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div class="transform-nav-group-bottom"&gt;
+        &lt;button type="button" class="transform-nav-btn" id="btn-beatmark-delete" title="Delete Beatmark"&gt;...&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/aside&gt;
+    &lt;main class="beatmark-work-area"&gt;
+      &lt;div class="beatmark-waveform-card"&gt;
+        &lt;div class="beatmark-waveform-header"&gt;
+          &lt;div class="beatmark-audio-info"&gt;
+            &lt;span class="beatmark-audio-name"&gt;Audio Track&lt;/span&gt;
+            &lt;span class="beatmark-count-badge"&gt;0 beatmarks&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class="beatmark-time-display"&gt;00:00:00:00&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="beatmark-waveform-wrapper"&gt;
+          &lt;canvas class="beatmark-waveform-canvas"&gt;&lt;/canvas&gt;
+          &lt;div class="beatmark-waveform-needle"&gt;&lt;/div&gt;
+          &lt;div class="beatmark-waveform-pins"&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class="beatmark-center-action"&gt;
+        &lt;button type="button" class="beatmark-giant-btn" id="btn-add-beatmark-giant"&gt;
+          &lt;svg viewBox="0 0 24 24" fill="currentColor" class="beatmark-giant-svg"&gt;
+            &lt;path d="M4 3h16v8.5l-8 9-8-9V3zm3 3v4.25l5 5.62 5-5.62V6H7z"/&gt;
+          &lt;/svg&gt;
+          &lt;span class="beatmark-giant-label"&gt;Add Beatmark&lt;/span&gt;
+          &lt;span class="beatmark-giant-hint"&gt;Tap on beat&lt;/span&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/main&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+          </div>
+        </article>
+      </div>
+    </section>
+
   </div>
 
   <!-- Modular Modal Component HTML -->
@@ -6474,6 +6596,146 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
           }
         });
       }
+    })();
+
+    // Mount Audio Beatmark Controller Showcase
+    (function() {
+      const canvas = document.getElementById('demo-beatmark-waveform-canvas');
+      const wrapper = document.getElementById('demo-beatmark-waveform-wrapper');
+      const needle = document.getElementById('demo-beatmark-waveform-needle');
+      const pins = document.getElementById('demo-beatmark-waveform-pins');
+      const btnAdd = document.getElementById('demo-btn-add-beatmark-giant');
+      const btnPlay = document.getElementById('demo-btn-beatmark-play');
+      const btnDelete = document.getElementById('demo-btn-beatmark-delete');
+      const countBadge = document.getElementById('demo-beatmark-count');
+      const timeDisplay = document.getElementById('demo-beatmark-time');
+      const playIcon = document.getElementById('demo-beatmark-play-icon');
+
+      if (!canvas || !wrapper || !needle) return;
+
+      let currentPct = 35;
+      let demoPins = [20, 55];
+      let isPlaying = false;
+      let playTimer = null;
+
+      function renderWaveform() {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const numBars = 72;
+        const step = canvas.width / numBars;
+        const barWidth = step * 0.65;
+        const midY = canvas.height / 2;
+        const activeIdx = Math.floor((currentPct / 100) * numBars);
+
+        const cs = getComputedStyle(canvas);
+        const primaryColor = cs.getPropertyValue('--color-primary').trim() || '#98ce7b';
+        const mutedColor = cs.getPropertyValue('--border-panel').trim() || '#2a3321';
+
+        for (let i = 0; i < numBars; i++) {
+          const t = i / numBars;
+          const peak = 0.2 + 0.7 * Math.abs(Math.sin(t * 16) * Math.cos(t * 7 + 1.2));
+          const h = Math.max(3 * dpr, peak * canvas.height * 0.8);
+          const x = i * step + (step - barWidth) / 2;
+          ctx.fillStyle = (i <= activeIdx) ? primaryColor : mutedColor;
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x, midY - h / 2, barWidth, h, 2 * dpr);
+          } else {
+            ctx.rect(x, midY - h / 2, barWidth, h);
+          }
+          ctx.fill();
+        }
+      }
+
+      function updateUI() {
+        needle.style.left = `${currentPct}%`;
+        const totalSec = 10;
+        const curSec = (currentPct / 100) * totalSec;
+        const m = Math.floor(curSec / 60);
+        const s = Math.floor(curSec % 60);
+        const f = Math.floor((curSec % 1) * 60);
+        if (timeDisplay) {
+          timeDisplay.textContent = `00:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`;
+        }
+        if (countBadge) {
+          countBadge.textContent = `${demoPins.length} beatmark${demoPins.length === 1 ? '' : 's'}`;
+        }
+        if (pins) {
+          pins.innerHTML = demoPins.map(p => `<div class="beatmark-wf-pin" style="left: ${p}%;"></div>`).join('');
+        }
+        renderWaveform();
+      }
+
+      let isDragging = false;
+      function seekAtEvent(e) {
+        const rect = wrapper.getBoundingClientRect();
+        const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+        currentPct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        updateUI();
+      }
+
+      wrapper.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        try { wrapper.setPointerCapture(e.pointerId); } catch (_) {}
+        seekAtEvent(e);
+      });
+      wrapper.addEventListener('pointermove', (e) => {
+        if (isDragging) seekAtEvent(e);
+      });
+      const endDrag = (e) => {
+        if (isDragging) {
+          isDragging = false;
+          try { wrapper.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+      };
+      wrapper.addEventListener('pointerup', endDrag);
+      wrapper.addEventListener('pointercancel', endDrag);
+
+      btnAdd?.addEventListener('click', () => {
+        btnAdd.classList.add('is-pressed');
+        setTimeout(() => btnAdd.classList.remove('is-pressed'), 120);
+        const rounded = Math.round(currentPct * 10) / 10;
+        const exists = demoPins.findIndex(p => Math.abs(p - rounded) <= 2);
+        if (exists === -1) {
+          demoPins.push(rounded);
+          demoPins.sort((a, b) => a - b);
+        }
+        updateUI();
+      });
+
+      btnDelete?.addEventListener('click', () => {
+        const rounded = Math.round(currentPct * 10) / 10;
+        const idx = demoPins.findIndex(p => Math.abs(p - rounded) <= 3);
+        if (idx !== -1) {
+          demoPins.splice(idx, 1);
+          updateUI();
+        }
+      });
+
+      btnPlay?.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          if (playIcon) playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+          playTimer = setInterval(() => {
+            currentPct += 0.8;
+            if (currentPct >= 100) currentPct = 0;
+            updateUI();
+          }, 33);
+        } else {
+          if (playIcon) playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+          clearInterval(playTimer);
+        }
+      });
+
+      window.addEventListener('resize', renderWaveform);
+      setTimeout(updateUI, 100);
     })();
 
     // Mount Template Editor Showcase Helper

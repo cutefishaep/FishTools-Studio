@@ -495,6 +495,12 @@
                         </svg>
                         <span class="layer-action-label">Effects</span>
                       </button>
+                      <button type="button" class="layer-action-btn" id="btn-layer-beatmark" title="Beatmark" style="display: none;">
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
+                          <path d="M4 3h16v8.5l-8 9-8-9V3zm3 3v4.25l5 5.62 5-5.62V6H7z"/>
+                        </svg>
+                        <span class="layer-action-label">Beatmark</span>
+                      </button>
                     </div>
 
                   </div>
@@ -1960,6 +1966,60 @@
                         <div class="text-quick-presets-row" id="text-quick-presets-row" style="display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; width: 100%; box-sizing: border-box;">
                           <!-- Populated via JS -->
                         </div>
+                      </div>
+                    </main>
+                  </div>
+                </div>
+
+                <!-- Subview 13: Audio Beatmark Controller UI -->
+                <div class="drawer-subview" id="layer-drawer-beatmark-view">
+                  <div class="beatmark-controller-layout" id="beatmark-controller">
+                    <!-- Left Navigation Column -->
+                    <aside class="transform-nav-col">
+                      <div class="transform-nav-group-top">
+                        <button type="button" class="transform-nav-btn" id="btn-beatmark-back" title="Back to Layer Actions" aria-label="Back">
+                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                        </button>
+                        <button type="button" class="transform-nav-btn" id="btn-beatmark-play" title="Play / Pause (Space)" aria-label="Play / Pause">
+                          <svg viewBox="0 0 24 24" fill="currentColor" id="beatmark-play-icon"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                      </div>
+                      <div class="transform-nav-group-bottom">
+                        <button type="button" class="transform-nav-btn" id="btn-beatmark-delete" title="Delete Beatmark at Playhead" aria-label="Delete Beatmark">
+                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        </button>
+                      </div>
+                    </aside>
+
+                    <!-- Work Area: Waveform on Top & 1 Giant Button in Center -->
+                    <main class="beatmark-work-area">
+                      <!-- Waveform Card -->
+                      <div class="beatmark-waveform-card">
+                        <div class="beatmark-waveform-header">
+                          <div class="beatmark-audio-info">
+                            <span class="beatmark-audio-name" id="beatmark-audio-name">Audio Track</span>
+                            <span class="beatmark-count-badge" id="beatmark-count-badge">0 beatmarks</span>
+                          </div>
+                          <div class="beatmark-time-display" id="beatmark-time-display">00:00:00:00</div>
+                        </div>
+                        <div class="beatmark-waveform-wrapper" id="beatmark-waveform-wrapper" title="Click or drag to seek audio position">
+                          <canvas class="beatmark-waveform-canvas" id="beatmark-waveform-canvas"></canvas>
+                          <div class="beatmark-waveform-needle" id="beatmark-waveform-needle"></div>
+                          <div class="beatmark-waveform-pins" id="beatmark-waveform-pins"></div>
+                        </div>
+                      </div>
+
+                      <!-- Center: 1 Large Button to Add Beatmark -->
+                      <div class="beatmark-center-action">
+                        <button type="button" class="beatmark-giant-btn" id="btn-add-beatmark-giant" aria-label="Add Beatmark" title="Add Beatmark at Playhead">
+                          <div class="beatmark-giant-icon-wrap">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="beatmark-giant-svg">
+                              <path d="M4 3h16v8.5l-8 9-8-9V3zm3 3v4.25l5 5.62 5-5.62V6H7z"/>
+                            </svg>
+                          </div>
+                          <span class="beatmark-giant-label">Add Beatmark</span>
+                          <span class="beatmark-giant-hint">Tap on beat</span>
+                        </button>
                       </div>
                     </main>
                   </div>
@@ -4252,8 +4312,8 @@
 
       // Calculate current time from timeline playhead or overrideSec
       const pixelsPerSecond = window.currentPixelsPerSecond || 80;
-      const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
-      const currentSec = (overrideSec !== null && overrideSec !== undefined) ? overrideSec : (Math.abs(currentPanX) / pixelsPerSecond);
+      const currentPanX = window.timelinePanX !== undefined ? Math.min(0, window.timelinePanX) : 0;
+      const currentSec = (overrideSec !== null && overrideSec !== undefined) ? Math.max(0, overrideSec) : (Math.max(0, -currentPanX) / pixelsPerSecond);
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
       const frameIndex = Math.round(currentSec * fps);
 
@@ -4711,10 +4771,12 @@
                     }
                   }
                 }
-                // Scrubbing, paused, or stopped: check immediate previous neighbor (max 1 frame)
+                // Scrubbing, paused, or stopped: check immediate neighbors (max 1 frame)
                 if (!cachedFrame) {
                   if (cachedSource.frames.has(fIdx - 1)) {
                     cachedFrame = cachedSource.frames.get(fIdx - 1);
+                  } else if (fIdx === 0 && cachedSource.frames.has(1)) {
+                    cachedFrame = cachedSource.frames.get(1);
                   }
                 }
                 // If the entire video layer is already baked (or cached in DB), never show unready placeholder:
@@ -4722,6 +4784,7 @@
                 if (!cachedFrame && (layer._extractComplete || (layer._extractProgress >= 0.99) || (cachedSource.cachedFrameIndices && cachedSource.cachedFrameIndices.has(fIdx)))) {
                   let minDiff = Infinity;
                   let nearestF = null;
+                  const maxAllowedDiff = (fIdx === 0) ? 3 : 60;
                   for (const availIdx of cachedSource.frames.keys()) {
                     const diff = Math.abs(availIdx - fIdx);
                     if (diff < minDiff) {
@@ -4729,7 +4792,7 @@
                       nearestF = availIdx;
                     }
                   }
-                  if (nearestF !== null && minDiff <= 60) {
+                  if (nearestF !== null && minDiff <= maxAllowedDiff) {
                     cachedFrame = cachedSource.frames.get(nearestF);
                   }
                 }
@@ -5516,15 +5579,15 @@
       window.findSnapTarget = findSnapTarget;
 
       function getActiveLayersAtPlayhead() {
-        const pixelsPerSec = 80;
-        const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
-        const currentSec = Math.abs(currentPanX) / pixelsPerSec;
+        const pixelsPerSec = window.currentPixelsPerSecond || 80;
+        const currentPanX = window.timelinePanX !== undefined ? Math.min(0, window.timelinePanX) : 0;
+        const currentSec = Math.max(0, -currentPanX / pixelsPerSec);
         const layers = currentProjectState.layers || [];
         return layers.filter(layer => {
           if (layer.hidden) return false;
           const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSec);
           const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSec);
-          return currentSec >= start && currentSec < (start + dur);
+          return currentSec >= (start - 0.0001) && currentSec < (start + dur);
         });
       }
 
@@ -6908,7 +6971,7 @@
     window.updateTimelineKeyframeMarkersHighlight = updateTimelineKeyframeMarkersHighlight;
 
     function switchLayerDrawerSubview(subviewName) {
-      const validSubviews = ['main', 'transform', 'graph', 'blend', 'effects', 'effects-gallery', 'camera', 'fill', 'volume', 'speed', 'shape', 'text'];
+      const validSubviews = ['main', 'transform', 'graph', 'blend', 'effects', 'effects-gallery', 'camera', 'fill', 'volume', 'speed', 'shape', 'text', 'beatmark'];
       if (!validSubviews.includes(subviewName)) subviewName = 'main';
 
       const prevSubview = currentDrawerSubview || 'main';
@@ -6936,7 +6999,8 @@
         'volume': document.getElementById('layer-drawer-volume-view'),
         'speed': document.getElementById('layer-drawer-speed-view'),
         'shape': document.getElementById('layer-drawer-shape-view'),
-        'text': document.getElementById('layer-drawer-text-view')
+        'text': document.getElementById('layer-drawer-text-view'),
+        'beatmark': document.getElementById('layer-drawer-beatmark-view')
       };
 
       const drawerCard = document.querySelector('#timeline-layer-drawer .drawer-card');
@@ -7087,6 +7151,13 @@
         }
         try {
           history.pushState({ drawerSubview: 'shape' }, '');
+        } catch (_) {}
+      } else if (subviewName === 'beatmark') {
+        if (typeof syncBeatmarkDrawerUI === 'function') {
+          syncBeatmarkDrawerUI();
+        }
+        try {
+          history.pushState({ drawerSubview: 'beatmark' }, '');
         } catch (_) {}
       }
 
@@ -11724,6 +11795,391 @@
       initShapeController();
       initTextController();
 
+      // ==========================================================================
+      // SUBVIEW 13: AUDIO BEATMARK CONTROLLER UI & ENGINE
+      // ==========================================================================
+      const _audioWaveformPeaksCache = new Map();
+
+      function getTimelineCurrentSec() {
+        const pps = window.currentPixelsPerSecond || 80;
+        const pan = (typeof window.timelinePanX !== 'undefined') ? window.timelinePanX : 0;
+        return Math.max(0, -pan / pps);
+      }
+
+      function formatTimecodeStr(sec) {
+        if (typeof window.formatTimecode === 'function') {
+          return window.formatTimecode(Math.round(sec * 1000));
+        }
+        const fps = 60;
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        const f = Math.floor((sec % 1) * fps);
+        return `00:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`;
+      }
+
+      function getIsTimelinePlaying() {
+        return !!(window.isTimelinePlaying);
+      }
+
+      function generateProceduralPeaks(seedStr, numBars = 120) {
+        const peaks = new Float32Array(numBars);
+        let hash = 0;
+        const s = String(seedStr || 'audio');
+        for (let i = 0; i < s.length; i++) {
+          hash = ((hash << 5) - hash) + s.charCodeAt(i);
+          hash |= 0;
+        }
+        const baseSeed = (Math.abs(hash) % 1000) + 1;
+        for (let i = 0; i < numBars; i++) {
+          const t = i / numBars;
+          const v1 = Math.sin(t * 22 + baseSeed);
+          const v2 = Math.sin(t * 54 + baseSeed * 2.3);
+          const v3 = Math.cos(t * 9 + baseSeed * 3.7);
+          const noise = Math.abs((Math.sin(i * 997 + baseSeed) * 43758.5453) % 1);
+          const raw = Math.abs(v1 * 0.45 + v2 * 0.3 + v3 * 0.15 + noise * 0.1);
+          peaks[i] = Math.max(0.18, Math.min(0.96, raw));
+        }
+        return peaks;
+      }
+
+      async function getAudioPeaksForLayer(layer, numBars = 120) {
+        if (!layer) return generateProceduralPeaks('default', numBars);
+        const cacheKey = layer.mediaId || layer.id || 'audio';
+        if (_audioWaveformPeaksCache.has(cacheKey)) {
+          return _audioWaveformPeaksCache.get(cacheKey);
+        }
+
+        if (!layer.dataUrl) {
+          const procedural = generateProceduralPeaks(layer.id || layer.name || 'audio', numBars);
+          _audioWaveformPeaksCache.set(cacheKey, procedural);
+          return procedural;
+        }
+
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) throw new Error('No AudioContext');
+          const audioCtx = new AudioCtx();
+
+          let arrayBuffer;
+          if (typeof layer.dataUrl === 'string' && layer.dataUrl.startsWith('data:')) {
+            const commaIdx = layer.dataUrl.indexOf(',');
+            const base64Str = commaIdx !== -1 ? layer.dataUrl.slice(commaIdx + 1) : layer.dataUrl;
+            const binaryStr = atob(base64Str);
+            const len = binaryStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binaryStr.charCodeAt(i);
+            }
+            arrayBuffer = bytes.buffer;
+          } else {
+            const response = await fetch(layer.dataUrl);
+            arrayBuffer = await response.arrayBuffer();
+          }
+
+          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+          const channelData = audioBuffer.getChannelData(0);
+          const step = Math.max(1, Math.floor(channelData.length / numBars));
+          const peaks = new Float32Array(numBars);
+
+          for (let i = 0; i < numBars; i++) {
+            let max = 0;
+            const start = i * step;
+            const end = Math.min(channelData.length, start + step);
+            const sampleStride = Math.max(1, Math.floor((end - start) / 64));
+            for (let j = start; j < end; j += sampleStride) {
+              const val = Math.abs(channelData[j]);
+              if (val > max) max = val;
+            }
+            peaks[i] = Math.max(0.12, Math.min(1.0, max));
+          }
+
+          _audioWaveformPeaksCache.set(cacheKey, peaks);
+          try { if (audioCtx.state !== 'closed') audioCtx.close(); } catch (_) {}
+          return peaks;
+        } catch (err) {
+          console.warn('[Beatmark] Audio peak extraction fallback:', err);
+          const fallback = generateProceduralPeaks(layer.id || layer.name || 'audio', numBars);
+          _audioWaveformPeaksCache.set(cacheKey, fallback);
+          return fallback;
+        }
+      }
+
+      function renderBeatmarkWaveform(layer) {
+        const canvas = document.getElementById('beatmark-waveform-canvas');
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+          requestAnimationFrame(() => {
+            if (window.currentDrawerSubview === 'beatmark') {
+              renderBeatmarkWaveform(layer);
+            }
+          });
+          return;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.round(rect.width * dpr);
+        const h = Math.round(rect.height * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, w, h);
+
+        const cacheKey = layer ? (layer.mediaId || layer.id || 'audio') : null;
+        let peaks = cacheKey && _audioWaveformPeaksCache.has(cacheKey) ? _audioWaveformPeaksCache.get(cacheKey) : null;
+        if (!peaks) {
+          peaks = generateProceduralPeaks(layer ? (layer.id || layer.name || 'audio') : 'audio', 120);
+          if (layer && layer.dataUrl) {
+            getAudioPeaksForLayer(layer, 120).then(() => {
+              if (window.currentDrawerSubview === 'beatmark') {
+                renderBeatmarkWaveform(layer);
+              }
+            });
+          }
+        }
+
+        const numBars = peaks.length;
+        const barStep = w / numBars;
+        const barWidth = Math.max(2 * dpr, barStep * 0.65);
+        const midY = h / 2;
+
+        const computedStyle = getComputedStyle(canvas);
+        const primaryColor = computedStyle.getPropertyValue('--color-primary').trim() || '#98ce7b';
+        const playedColor = computedStyle.getPropertyValue('--track-audio').trim() || primaryColor;
+        const unplayedColor = computedStyle.getPropertyValue('--track-audio-dark').trim() || '#648250';
+
+        const currentSec = getTimelineCurrentSec();
+        const layerStart = layer && layer.startSec !== undefined ? layer.startSec : 0;
+        const layerDur = layer && layer.durationSec !== undefined ? layer.durationSec : (layer ? (layer.mediaDuration || 5) : 5);
+        const relProgress = (layerDur > 0) ? (currentSec - layerStart) / layerDur : 0;
+        const activeBarIndex = Math.floor(relProgress * numBars);
+
+        for (let i = 0; i < numBars; i++) {
+          const peak = peaks[i];
+          const barHeight = Math.max(4 * dpr, peak * (h * 0.82));
+          const x = i * barStep + (barStep - barWidth) / 2;
+          const y = midY - barHeight / 2;
+
+          ctx.fillStyle = (i <= activeBarIndex && relProgress > 0) ? playedColor : unplayedColor;
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x, y, barWidth, barHeight, 2 * dpr);
+          } else {
+            ctx.rect(x, y, barWidth, barHeight);
+          }
+          ctx.fill();
+        }
+      }
+
+      function updateBeatmarkPlayheadNeedle() {
+        const needle = document.getElementById('beatmark-waveform-needle');
+        const timeDisplay = document.getElementById('beatmark-time-display');
+        const playSvg = document.getElementById('beatmark-play-icon');
+        if (!needle) return;
+
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        const currentSec = getTimelineCurrentSec();
+        const layerStart = layer && layer.startSec !== undefined ? layer.startSec : 0;
+        const layerDur = layer && layer.durationSec !== undefined ? layer.durationSec : (layer ? (layer.mediaDuration || 5) : 5);
+        const relSec = currentSec - layerStart;
+        const pct = (layerDur > 0) ? Math.max(0, Math.min(100, (relSec / layerDur) * 100)) : 0;
+
+        needle.style.left = `${pct}%`;
+
+        if (timeDisplay) {
+          timeDisplay.textContent = formatTimecodeStr(currentSec);
+        }
+
+        if (playSvg) {
+          const isPlayingNow = getIsTimelinePlaying();
+          if (isPlayingNow) {
+            playSvg.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+          } else {
+            playSvg.innerHTML = '<path d="M8 5v14l11-7z"/>';
+          }
+        }
+      }
+      window.updateBeatmarkPlayheadNeedle = updateBeatmarkPlayheadNeedle;
+
+      function syncBeatmarkDrawerUI() {
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        const audioNameEl = document.getElementById('beatmark-audio-name');
+        const countBadgeEl = document.getElementById('beatmark-count-badge');
+        const pinsContainer = document.getElementById('beatmark-waveform-pins');
+
+        if (audioNameEl) {
+          audioNameEl.textContent = (layer && (layer.name || 'Audio Track')) || 'Audio Track';
+        }
+
+        const layerStart = layer && layer.startSec !== undefined ? layer.startSec : 0;
+        const layerDur = layer && layer.durationSec !== undefined ? layer.durationSec : (layer ? (layer.mediaDuration || 5) : 5);
+        const layerEnd = layerStart + layerDur;
+
+        const beatmarks = Array.isArray(currentProjectState.beatmarks) ? currentProjectState.beatmarks : [];
+        const layerBeatmarks = beatmarks.filter(b => b >= layerStart - 0.01 && b <= layerEnd + 0.01);
+
+        if (countBadgeEl) {
+          countBadgeEl.textContent = `${layerBeatmarks.length} beatmark${layerBeatmarks.length === 1 ? '' : 's'}`;
+        }
+
+        if (pinsContainer) {
+          const frag = document.createDocumentFragment();
+          layerBeatmarks.forEach(bm => {
+            const pct = (layerDur > 0) ? Math.max(0, Math.min(100, ((bm - layerStart) / layerDur) * 100)) : 0;
+            const pin = document.createElement('div');
+            pin.className = 'beatmark-wf-pin';
+            pin.style.left = `${pct}%`;
+            pin.title = `Beatmark: ${formatTimecodeStr(bm)}`;
+            frag.appendChild(pin);
+          });
+          pinsContainer.replaceChildren(frag);
+        }
+
+        updateBeatmarkPlayheadNeedle();
+        renderBeatmarkWaveform(layer);
+      }
+      window.syncBeatmarkDrawerUI = syncBeatmarkDrawerUI;
+
+      function initBeatmarkController() {
+        // 1. Open Beatmark view from Layer Action Button
+        const btnLayerBeatmark = document.getElementById('btn-layer-beatmark');
+        if (btnLayerBeatmark) {
+          btnLayerBeatmark.addEventListener('click', (e) => {
+            e.stopPropagation();
+            switchLayerDrawerSubview('beatmark');
+          });
+        }
+
+        // 2. Back button: Beatmark -> Main
+        const btnBeatmarkBack = document.getElementById('btn-beatmark-back');
+        if (btnBeatmarkBack) {
+          btnBeatmarkBack.addEventListener('click', (e) => {
+            e.stopPropagation();
+            switchLayerDrawerSubview('main');
+          });
+        }
+
+        // 3. Play / Pause button
+        const btnBeatmarkPlay = document.getElementById('btn-beatmark-play');
+        if (btnBeatmarkPlay) {
+          btnBeatmarkPlay.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.FishAudioEngine && !window.FishAudioEngine.isUnlocked) {
+              window.FishAudioEngine.unlock(e);
+            }
+            const playBtn = document.getElementById('editor-btn-play');
+            if (playBtn) playBtn.click();
+            updateBeatmarkPlayheadNeedle();
+          });
+        }
+
+        // 4. Delete beatmark at current playhead
+        const btnBeatmarkDelete = document.getElementById('btn-beatmark-delete');
+        if (btnBeatmarkDelete) {
+          btnBeatmarkDelete.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const currentSec = getTimelineCurrentSec();
+            const tolerance = 0.08;
+            const bms = Array.isArray(currentProjectState.beatmarks) ? currentProjectState.beatmarks : [];
+            const idx = bms.findIndex(b => Math.abs(b - currentSec) <= tolerance);
+            if (idx !== -1) {
+              bms.splice(idx, 1);
+              if (typeof renderTimelineBeatmarks === 'function') renderTimelineBeatmarks();
+              if (typeof saveCurrentProjectBeatmarks === 'function') saveCurrentProjectBeatmarks();
+              syncBeatmarkDrawerUI();
+            }
+          });
+        }
+
+        // 5. Giant center button to add beatmark
+        const btnAddGiant = document.getElementById('btn-add-beatmark-giant');
+        if (btnAddGiant) {
+          const triggerAddBeatmark = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            btnAddGiant.classList.add('is-pressed');
+            setTimeout(() => btnAddGiant.classList.remove('is-pressed'), 120);
+
+            if (typeof navigator.vibrate === 'function') {
+              try { navigator.vibrate(20); } catch (_) {}
+            }
+
+            if (typeof toggleBeatmarkAtCurrentTime === 'function') {
+              toggleBeatmarkAtCurrentTime();
+            }
+
+            syncBeatmarkDrawerUI();
+          };
+
+          btnAddGiant.addEventListener('click', triggerAddBeatmark);
+          btnAddGiant.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              triggerAddBeatmark(e);
+            }
+          });
+        }
+
+        // 6. Waveform scrubbing and seeking
+        const wfWrapper = document.getElementById('beatmark-waveform-wrapper');
+        if (wfWrapper) {
+          let isScrubbingWaveform = false;
+
+          const handleWaveformSeek = (e) => {
+            const rect = wfWrapper.getBoundingClientRect();
+            if (rect.width <= 0) return;
+            const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            const layerStart = layer && layer.startSec !== undefined ? layer.startSec : 0;
+            const layerDur = layer && layer.durationSec !== undefined ? layer.durationSec : (layer ? (layer.mediaDuration || 5) : 5);
+            const targetSec = layerStart + (pct * layerDur);
+
+            if (typeof seekTimelineToTime === 'function') {
+              seekTimelineToTime(targetSec, true);
+            }
+            updateBeatmarkPlayheadNeedle();
+          };
+
+          wfWrapper.addEventListener('pointerdown', (e) => {
+            isScrubbingWaveform = true;
+            try { wfWrapper.setPointerCapture(e.pointerId); } catch (_) {}
+            handleWaveformSeek(e);
+          });
+
+          wfWrapper.addEventListener('pointermove', (e) => {
+            if (!isScrubbingWaveform) return;
+            handleWaveformSeek(e);
+          });
+
+          const stopScrub = (e) => {
+            if (isScrubbingWaveform) {
+              isScrubbingWaveform = false;
+              try { wfWrapper.releasePointerCapture(e.pointerId); } catch (_) {}
+            }
+          };
+
+          wfWrapper.addEventListener('pointerup', stopScrub);
+          wfWrapper.addEventListener('pointercancel', stopScrub);
+        }
+
+        // Window resize observer to adapt waveform canvas
+        window.addEventListener('resize', () => {
+          if (window.currentDrawerSubview === 'beatmark') {
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            renderBeatmarkWaveform(layer);
+          }
+        });
+      }
+
+      initBeatmarkController();
+
       // 6. Camera Lens Focal Length Scrubber (12mm - 300mm)
       let initLensVal = 50;
       bindJogWheel(document.getElementById('jog-camera-lens'), {
@@ -16103,7 +16559,7 @@
         const newPps = Math.max(30, Math.min(360, Math.round(targetPps)));
         if (newPps === oldPps) return;
 
-        const currentSec = Math.abs(panX) / oldPps;
+        const currentSec = Math.max(0, -panX / oldPps);
         pixelsPerSecond = newPps;
         window.currentPixelsPerSecond = newPps;
 
@@ -16145,7 +16601,7 @@
           });
         }
         generateRulerTicks(currentFps, true);
-        const currentMs = Math.round((Math.abs(panX) / pixelsPerSecond) * 1000);
+        const currentMs = Math.round((Math.max(0, -panX) / pixelsPerSecond) * 1000);
         timecodeEl.textContent = formatTimecode(currentMs);
         if (typeof redrawComposition === 'function') {
           redrawComposition('setTimelineFps');
@@ -16171,6 +16627,7 @@
           max: 0
         };
       }
+      window.getTimelineBounds = getTimelineBounds;
 
       // SMPTE Timecode Formatter: 00:MM:SS:FF (Where FF counts 00..FPS-1)
       function formatTimecode(ms) {
@@ -16183,6 +16640,7 @@
         const ff = String(frame).padStart(2, '0');
         return `00:${mins}:${secs}:${ff}`;
       }
+      window.formatTimecode = formatTimecode;
 
       function renderTimeline() {
         rafScheduled = false;
@@ -16195,7 +16653,7 @@
         layersTrack.style.transform = panStr;
 
         // Calculate current timecode in exact milliseconds
-        const currentMs = Math.round((Math.abs(panX) / pixelsPerSecond) * 1000);
+        const currentMs = Math.round((Math.max(0, -panX) / pixelsPerSecond) * 1000);
         if (currentMs !== lastDisplayedMs) {
           lastDisplayedMs = currentMs;
           timecodeEl.textContent = formatTimecode(currentMs);
@@ -16237,9 +16695,15 @@
           if (typeof updateCutBarRowState === 'function') {
             updateCutBarRowState();
           }
+          if (typeof syncBeatmarkDrawerUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'beatmark') {
+            syncBeatmarkDrawerUI();
+          }
         }
         if (typeof updateGraphPlayheadLine === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'graph') {
           updateGraphPlayheadLine();
+        }
+        if (typeof updateBeatmarkPlayheadNeedle === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'beatmark') {
+          updateBeatmarkPlayheadNeedle();
         }
 
         // Live refresh canvas preview to show/hide layers matching playhead timecode
@@ -16326,7 +16790,7 @@
           }
           return;
         }
-        const currentSec = Math.abs(panX) / pixelsPerSecond;
+        const currentSec = Math.max(0, -panX / pixelsPerSecond);
         const beatmarks = currentProjectState.beatmarks || [];
         const isNear = beatmarks.some(b => Math.abs(b - currentSec) <= 0.05);
         if (isNear !== _lastBeatmarkNearState) {
@@ -16454,7 +16918,7 @@
           currentProjectState.beatmarks = [];
         }
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
-        const currentSec = Math.max(0, Math.abs(panX) / pps);
+        const currentSec = Math.max(0, -panX / pps);
         const roundedSec = Math.round(currentSec * 1000) / 1000;
         const tolerance = 0.05;
 
@@ -16580,6 +17044,13 @@
           }
         }
 
+        // 0. Project boundaries (start at 0s and project total duration)
+        addTarget(0, 'project-start');
+        const totalDur = (typeof getProjectTotalDuration === 'function') ? getProjectTotalDuration() : 0;
+        if (totalDur > 0) {
+          addTarget(totalDur, 'project-end');
+        }
+
         // 1. Snap ke beat mark kalau ada beatmark
         const beatmarks = Array.isArray(currentProjectState.beatmarks) ? currentProjectState.beatmarks : [];
         for (let i = 0; i < beatmarks.length; i++) {
@@ -16601,7 +17072,7 @@
 
         // 3. Current Playhead position (for layer slide & trim)
         if (includePlayhead) {
-          const playheadSec = Math.abs(panX || 0) / pps;
+          const playheadSec = Math.max(0, -(panX || 0) / pps);
           addTarget(playheadSec, 'playhead');
         }
 
@@ -16654,7 +17125,7 @@
       function navigateBeatmark(direction) {
         if (isPlaying) pausePlayback();
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
-        const currentSec = Math.max(0, Math.abs(panX) / pps);
+        const currentSec = Math.max(0, -panX / pps);
         const stops = getUnifiedTimelineStops();
 
         if (stops.length === 0) {
@@ -16761,7 +17232,7 @@
       }
 
       function shiftTimelineMs(deltaMs) {
-        const currentMs = Math.round((Math.abs(panX) / pixelsPerSecond) * 1000);
+        const currentMs = Math.round((Math.max(0, -panX) / pixelsPerSecond) * 1000);
         const totalDur = getProjectTotalDuration();
         const targetMs = Math.max(0, Math.min(totalDur * 1000, currentMs + deltaMs));
         const targetPanX = -(targetMs / 1000) * pixelsPerSecond;
@@ -16858,7 +17329,7 @@
       function stepFrame(delta) {
         if (isPlaying) pausePlayback();
         const frameDurationMs = 1000 / currentFps;
-        const currentMs = (Math.abs(panX) / pixelsPerSecond) * 1000;
+        const currentMs = (Math.max(0, -panX) / pixelsPerSecond) * 1000;
         const currentFrame = Math.round(currentMs / frameDurationMs);
         const totalDur = getProjectTotalDuration();
         const targetFrame = Math.max(0, Math.min(Math.round(totalDur * currentFps), currentFrame + delta));
@@ -16999,9 +17470,17 @@
         const deltaY = e.clientY - startY;
 
         let targetPanX = startPanX + deltaX;
+        const bounds = getTimelineBounds();
+
+        // Constrain targetPanX within timeline bounds first (prevent overshoot beyond 0 or max length)
+        if (targetPanX > 0) {
+          targetPanX = 0;
+        } else if (targetPanX < bounds.min) {
+          targetPanX = bounds.min;
+        }
 
         // Snap timeline playhead to beatmarks & start/end of layers
-        const rawPlayheadPx = Math.abs(targetPanX);
+        const rawPlayheadPx = -targetPanX;
         const snapTargets = (typeof getTimelineSnapTargets === 'function') ? getTimelineSnapTargets(null, false) : [];
         const snap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(rawPlayheadPx, snapTargets, 10) : null;
         const needle = document.getElementById('timeline-center-needle');
@@ -17057,7 +17536,7 @@
           window.FishAudioEngine.stopScrub();
         }
 
-        const curSec = Math.abs(panX) / pixelsPerSecond;
+        const curSec = Math.max(0, -panX / pixelsPerSecond);
 
         if (rulerViewport) rulerViewport.classList.remove('is-dragging');
         if (layersViewport) layersViewport.classList.remove('is-dragging');
@@ -17193,7 +17672,7 @@
           return;
         }
 
-        const currentSec = Math.abs(panX) / pixelsPerSecond;
+        const currentSec = Math.max(0, -panX / pixelsPerSecond);
         const currentFrame = Math.round(currentSec * fps);
         const layers = currentProjectState.layers || [];
 
@@ -17317,7 +17796,7 @@
         const layer = (currentProjectState.layers || []).find(l => l.id === layerId);
         if (layer) {
           window.selectedMediaId = layer.mediaId;
-          const currentSec = Math.abs(panX || 0) / pixelsPerSecond;
+          const currentSec = Math.max(0, -(panX || 0) / pixelsPerSecond);
           const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
           const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
           const end = start + dur;
@@ -17335,6 +17814,8 @@
         const btnFill = document.getElementById('btn-layer-fill');
         const btnBlend = document.getElementById('btn-layer-blend');
         const btnEffects = document.getElementById('btn-layer-effects');
+        const btnTransform = document.getElementById('btn-layer-transform');
+        const btnBeatmark = document.getElementById('btn-layer-beatmark');
         const btnEditGroup = document.getElementById('btn-layer-edit-group');
         const btnEditShape = document.getElementById('btn-layer-edit-shape');
         const btnEditText = document.getElementById('btn-layer-edit-text');
@@ -17356,7 +17837,20 @@
           btnEditText.style.display = (layer && layer.type === 'text') ? 'inline-flex' : 'none';
         }
 
-        if (layer && layer.type === 'camera') {
+        if (layer && layer.type === 'audio') {
+          if (btnBeatmark) btnBeatmark.style.display = 'inline-flex';
+          if (btnTransform) btnTransform.style.display = 'none';
+          if (btnCameraSettings) btnCameraSettings.style.display = 'none';
+          if (btnFill) btnFill.style.display = 'none';
+          if (btnBlend) btnBlend.style.display = 'none';
+          if (btnEffects) btnEffects.style.display = 'none';
+          if (actionGrid) actionGrid.classList.remove('is-camera-mode');
+          if (currentDrawerSubview === 'transform' || currentDrawerSubview === 'graph' || currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'effects-gallery' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'camera' || currentDrawerSubview === 'text') {
+            switchLayerDrawerSubview('main');
+          }
+        } else if (layer && layer.type === 'camera') {
+          if (btnBeatmark) btnBeatmark.style.display = 'none';
+          if (btnTransform) btnTransform.style.display = '';
           if (btnCameraSettings) btnCameraSettings.style.display = '';
           if (btnFill) btnFill.style.display = 'none';
           if (btnBlend) btnBlend.style.display = 'none';
@@ -17364,16 +17858,18 @@
           if (actionGrid) {
             actionGrid.classList.add('is-camera-mode');
           }
-          if (currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'effects-gallery' || currentDrawerSubview === 'shape') {
+          if (currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'effects-gallery' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'beatmark') {
             switchLayerDrawerSubview('main');
           }
         } else {
+          if (btnBeatmark) btnBeatmark.style.display = 'none';
+          if (btnTransform) btnTransform.style.display = '';
           if (btnCameraSettings) btnCameraSettings.style.display = 'none';
           if (btnFill) btnFill.style.display = '';
           if (btnBlend) btnBlend.style.display = '';
           if (btnEffects) btnEffects.style.display = '';
           if (actionGrid) actionGrid.classList.remove('is-camera-mode');
-          if (currentDrawerSubview === 'camera' || (currentDrawerSubview === 'shape' && (!layer || layer.type !== 'shape'))) {
+          if (currentDrawerSubview === 'camera' || currentDrawerSubview === 'beatmark' || (currentDrawerSubview === 'shape' && (!layer || layer.type !== 'shape'))) {
             switchLayerDrawerSubview('main');
           }
         }
@@ -18061,7 +18557,7 @@
         if (window.Popover) window.Popover.close();
 
         let curPlayheadSec = (typeof panX === 'number' && typeof pixelsPerSecond === 'number')
-          ? (Math.abs(panX) / pixelsPerSecond)
+          ? (Math.max(0, -panX / pixelsPerSecond))
           : 0;
 
         if (overrideStartSec !== null && typeof overrideStartSec === 'number') {
@@ -20973,7 +21469,7 @@
         if (!item) return;
         currentProjectState.layers = currentProjectState.layers || [];
 
-        const currentSec = Math.abs(panX || 0) / pixelsPerSecond;
+        const currentSec = Math.max(0, -(panX || 0) / pixelsPerSecond);
         const defaultDur = currentProjectState.defaultDuration || 5;
 
         if (item.type === 'precomp') {

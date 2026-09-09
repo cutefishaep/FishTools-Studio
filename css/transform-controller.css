@@ -2012,5 +2012,233 @@
   pointer-events: none;
 }
 
+/* ==========================================================================
+   14. Audio Beatmark Controller Layout & Giant Button UI
+   - Pure flat styling, zero blur, zero box-shadow, zero gradients
+   - Strict CSS token binding from css/theme.css
+   - 100% Cal Sans typography
+   - Simultaneous Foreground Adaptation on active / press states
+   ========================================================================== */
+
+.beatmark-controller-layout {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  width: 100%;
+  height: 250px;
+  min-height: 230px;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.beatmark-work-area {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 14px 12px;
+  box-sizing: border-box;
+  gap: 12px;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Waveform Card at Top of Drawer */
+.beatmark-waveform-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel-inner);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  gap: 8px;
+  user-select: none;
+}
+
+.beatmark-waveform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.beatmark-audio-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.beatmark-audio-name {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.beatmark-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background-color: var(--bg-dashboard);
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid var(--border-subtle);
+}
+
+.beatmark-time-display {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.beatmark-waveform-wrapper {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  background-color: var(--bg-canvas);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  border: 1px solid var(--border-panel);
+}
+
+.beatmark-waveform-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.beatmark-waveform-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-primary);
+  pointer-events: none;
+  left: 0%;
+  transform: translateX(-50%);
+  will-change: left;
+  z-index: 2;
+}
+
+.beatmark-waveform-pins {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.beatmark-wf-pin {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background-color: var(--track-audio, var(--color-primary));
+  transform: translateX(-50%);
+  opacity: 0.9;
+}
+
+.beatmark-wf-pin::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 8px;
+  height: 6px;
+  background-color: var(--track-audio, var(--color-primary));
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* Center Giant Action Button */
+.beatmark-center-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.beatmark-giant-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 320px;
+  height: 100px;
+  background-color: var(--bg-panel-inner);
+  color: var(--text-primary);
+  border: 1px solid var(--border-panel);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease, transform 0.08s ease;
+  user-select: none;
+  touch-action: manipulation;
+  gap: 4px;
+  outline: none;
+}
+
+.beatmark-giant-btn:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+.beatmark-giant-btn:active,
+.beatmark-giant-btn.is-pressed {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+  transform: scale(0.96);
+}
+
+.beatmark-giant-btn:active .beatmark-giant-svg,
+.beatmark-giant-btn.is-pressed .beatmark-giant-svg {
+  fill: var(--bg-canvas) !important;
+}
+
+.beatmark-giant-icon-wrap {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.beatmark-giant-svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+  transition: fill 0.1s ease;
+}
+
+.beatmark-giant-label {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: inherit;
+}
+
+.beatmark-giant-hint {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+  color: inherit;
+}
+
+
 
 

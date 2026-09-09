@@ -827,8 +827,9 @@ html, body {
 
   .editor-timeline.has-layer-drawer-open .timeline-fab-add,
   .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
-    bottom: 160px;
-    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
   }
 
   /* Vertical split handle is strictly hidden on mobile */
@@ -2475,11 +2476,12 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Float FAB above layer action drawer when open */
+/* Hide FAB when layer action drawer is open to prevent overlap */
 .editor-timeline.has-layer-drawer-open .timeline-fab-add,
 .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
-  bottom: 200px;
-  bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .timeline-fab-add .svg-icon {

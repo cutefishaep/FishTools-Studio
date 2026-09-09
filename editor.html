@@ -535,11 +535,6 @@
                           </svg>
                         </button>
                       </div>
-                      <div class="transform-nav-group-bottom">
-                        <button type="button" class="transform-nav-btn" id="btn-transform-more" title="More Options" aria-label="More">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-                        </button>
-                      </div>
                     </aside>
 
                     <!-- Center Work Area -->
@@ -2573,6 +2568,11 @@
           <svg viewBox="0 0 24 24" fill="currentColor" id="svg-chk-graph-overshoot" style="display: none;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
         </span>
         <span>Enable Overshoot</span>
+      </button>
+      <div class="popover-menu-divider"></div>
+      <button type="button" class="popover-menu-item" id="btn-graph-copy-to-all" title="Copy curve to all keyframes of this property">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        <span>Copy to all keyframes</span>
       </button>
     </div>
   </div>
@@ -7127,6 +7127,10 @@
         layer.keyframes[prop].sort((a, b) => a.time - b.time);
       }
 
+      if (typeof invalidatePreviewCacheForLayer === 'function') {
+        invalidatePreviewCacheForLayer(layer);
+      }
+
       if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
       if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
       if (typeof updateVolumeKeyframeBtnState === 'function') updateVolumeKeyframeBtnState();
@@ -7231,9 +7235,11 @@
       currentDrawerSubview = subviewName;
       window.currentDrawerSubview = subviewName;
 
-      // Deselect any selected keyframes when switching or navigating back
-      if (typeof window.clearSelectedKeyframes === 'function') {
-        window.clearSelectedKeyframes();
+      // Deselect any selected keyframes when switching or navigating back (preserve selection between transform and graph)
+      if (subviewName !== 'graph' && prevSubview !== 'graph') {
+        if (typeof window.clearSelectedKeyframes === 'function') {
+          window.clearSelectedKeyframes();
+        }
       }
 
       // Determine animation direction
@@ -7701,6 +7707,7 @@
       const btnGraphSnap = document.getElementById('btn-graph-snap');
       const btnGraphMore = document.getElementById('btn-graph-more');
       const btnToggleOvershoot = document.getElementById('btn-toggle-overshoot');
+      const btnCopyToAll = document.getElementById('btn-graph-copy-to-all');
       const chkOvershoot = document.getElementById('chk-graph-overshoot');
       const svgChkOvershoot = document.getElementById('svg-chk-graph-overshoot');
       const btnSavePreset = document.getElementById('btn-graph-save-preset');
@@ -7795,12 +7802,32 @@
         const hasSelectedKfs = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
         if (hasSelectedKfs) {
           const matched = window.selectedKeyframes.find(it => it.layerId === window.selectedLayerId && (it.prop === prop || !prop));
-          if (matched && matched.kf && matched.kf.easing && Array.isArray(matched.kf.easing) && matched.kf.easing.length === 4) {
-            return matched.kf.easing;
+          if (matched && matched.kf) {
+            const l = matched.layer || (currentProjectState.layers || []).find(ly => ly.id === matched.layerId) || layer;
+            if (l && l.keyframes && Array.isArray(l.keyframes[matched.prop])) {
+              const kfList = l.keyframes[matched.prop];
+              const idx = kfList.indexOf(matched.kf);
+              if (idx === kfList.length - 1 && idx > 0 && kfList[idx - 1].easing) {
+                return kfList[idx - 1].easing;
+              }
+            }
+            if (matched.kf.easing && Array.isArray(matched.kf.easing) && matched.kf.easing.length === 4) {
+              return matched.kf.easing;
+            }
           }
           const anyMatched = window.selectedKeyframes[0];
-          if (anyMatched && anyMatched.kf && anyMatched.kf.easing && Array.isArray(anyMatched.kf.easing) && anyMatched.kf.easing.length === 4) {
-            return anyMatched.kf.easing;
+          if (anyMatched && anyMatched.kf) {
+            const l = anyMatched.layer || (currentProjectState.layers || []).find(ly => ly.id === anyMatched.layerId) || layer;
+            if (l && l.keyframes && Array.isArray(l.keyframes[anyMatched.prop])) {
+              const kfList = l.keyframes[anyMatched.prop];
+              const idx = kfList.indexOf(anyMatched.kf);
+              if (idx === kfList.length - 1 && idx > 0 && kfList[idx - 1].easing) {
+                return kfList[idx - 1].easing;
+              }
+            }
+            if (anyMatched.kf.easing && Array.isArray(anyMatched.kf.easing) && anyMatched.kf.easing.length === 4) {
+              return anyMatched.kf.easing;
+            }
           }
         }
 
@@ -7838,13 +7865,31 @@
         const hasSelectedKfs = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
         if (hasSelectedKfs) {
           let didUpdateKf = false;
+          const affectedLayers = new Set();
           window.selectedKeyframes.forEach(item => {
             if (item.kf) {
               item.kf.easing = [...rounded];
               didUpdateKf = true;
+              const l = item.layer || (currentProjectState.layers || []).find(ly => ly.id === item.layerId) || layer;
+              if (l) {
+                affectedLayers.add(l);
+                // If this is the last keyframe, also update preceding keyframe easing so segment transition is affected
+                if (l.keyframes && Array.isArray(l.keyframes[item.prop])) {
+                  const kfList = l.keyframes[item.prop];
+                  const idx = kfList.indexOf(item.kf);
+                  if (idx === kfList.length - 1 && idx > 0) {
+                    kfList[idx - 1].easing = [...rounded];
+                  }
+                }
+              }
             }
           });
           if (didUpdateKf) {
+            affectedLayers.forEach(l => {
+              if (typeof invalidatePreviewCacheForLayer === 'function') {
+                invalidatePreviewCacheForLayer(l);
+              }
+            });
             saveCurrentProjectLayers();
             redrawComposition('setActiveEasing:selectedKeyframes');
             return;
@@ -7855,12 +7900,18 @@
         const { prevKf } = getSurroundingKeyframes(layer, prop, currentSec);
         if (prevKf) {
           prevKf.easing = rounded;
+          if (typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(layer);
+          }
           saveCurrentProjectLayers();
           redrawComposition('setActiveEasing:prevKf');
         } else {
           if (!layer.defaultEasing) layer.defaultEasing = {};
           layer.defaultEasing[prop] = rounded;
           layer._defaultEasing = layer.defaultEasing;
+          if (typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(layer);
+          }
           saveCurrentProjectLayers();
           redrawComposition('setActiveEasing:defaultEasing');
         }
@@ -8247,6 +8298,70 @@
         });
       }
 
+      if (btnCopyToAll) {
+        btnCopyToAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const currentEasing = getActiveEasing();
+          const rounded = [
+            Number(currentEasing[0].toFixed(3)),
+            Number(currentEasing[1].toFixed(3)),
+            Number(currentEasing[2].toFixed(3)),
+            Number(currentEasing[3].toFixed(3))
+          ];
+
+          const prop = window.activeKeyframeProperty || 'move';
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const targetLayers = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
+            ? (currentProjectState.layers || []).filter(l => window.selectedLayerIds.has(l.id))
+            : (layer ? [layer] : []);
+
+          let appliedCount = 0;
+          targetLayers.forEach(tgtL => {
+            if (tgtL.keyframes) {
+              if (Array.isArray(tgtL.keyframes[prop])) {
+                tgtL.keyframes[prop].forEach(kf => {
+                  kf.easing = [...rounded];
+                  appliedCount++;
+                });
+              }
+              if (prop.includes(':')) {
+                const parts = prop.split(':');
+                const rawParam = parts[1];
+                if (rawParam && Array.isArray(tgtL.keyframes[rawParam])) {
+                  tgtL.keyframes[rawParam].forEach(kf => {
+                    kf.easing = [...rounded];
+                    appliedCount++;
+                  });
+                }
+              }
+            }
+            if (!tgtL.defaultEasing) tgtL.defaultEasing = {};
+            tgtL.defaultEasing[prop] = [...rounded];
+            tgtL._defaultEasing = tgtL.defaultEasing;
+
+            if (typeof invalidatePreviewCacheForLayer === 'function') {
+              invalidatePreviewCacheForLayer(tgtL);
+            }
+          });
+
+          if (Array.isArray(window.selectedKeyframes)) {
+            window.selectedKeyframes.forEach(item => {
+              if (item.prop === prop && item.kf) {
+                item.kf.easing = [...rounded];
+              }
+            });
+          }
+
+          saveCurrentProjectLayers();
+          updateGraphUI();
+          if (typeof redrawComposition === 'function') {
+            redrawComposition('copy-easing-to-all-keyframes');
+          }
+          if (window.Popover) window.Popover.close(false);
+          if (navigator.vibrate) try { navigator.vibrate(30); } catch (_) {}
+        });
+      }
+
       function getSvgPoint(svg, clientX, clientY) {
         if (!svg) return { x: 0, y: 0 };
         try {
@@ -8273,6 +8388,11 @@
           e.preventDefault();
           try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
           handleEl.classList.add('is-dragging');
+          window.isTransformInteracting = true;
+          const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (curLayer && typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(curLayer);
+          }
 
           let isDragging = true;
           let currentEasing = [...getActiveEasing()];
@@ -8363,6 +8483,7 @@
 
           function onPointerUp(ev) {
             isDragging = false;
+            window.isTransformInteracting = false;
             if (autoScrollRaf) {
               cancelAnimationFrame(autoScrollRaf);
               autoScrollRaf = null;
@@ -8372,8 +8493,15 @@
             window.removeEventListener('pointermove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
+            const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (curLayer && typeof invalidatePreviewCacheForLayer === 'function') {
+              invalidatePreviewCacheForLayer(curLayer);
+            }
             if (typeof saveCurrentProjectLayers === 'function') {
               saveCurrentProjectLayers(true);
+            }
+            if (typeof redrawComposition === 'function') {
+              redrawComposition('graph-handle-pointerup');
             }
           }
 
@@ -17718,6 +17846,7 @@
         window.clearSelectedKeyframes();
 
         let didMutate = false;
+        const mutatedLayers = new Set();
         targets.forEach(item => {
           const layer = (currentProjectState.layers || []).find(l => l.id === item.layerId) || item.layer;
           if (!layer || !layer.keyframes || !Array.isArray(layer.keyframes[item.prop])) return;
@@ -17727,10 +17856,14 @@
           );
           if (layer.keyframes[item.prop].length !== origLen) {
             didMutate = true;
+            mutatedLayers.add(layer);
           }
         });
 
         if (didMutate) {
+          if (typeof invalidatePreviewCacheForLayer === 'function') {
+            mutatedLayers.forEach(l => invalidatePreviewCacheForLayer(l));
+          }
           saveCurrentProjectLayers();
           renderTimelineLayers();
           if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
@@ -20304,6 +20437,9 @@
             delete layer.keyframes;
           }
 
+          if (typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(layer);
+          }
           renderTimelineLayers();
           redrawComposition('overlap');
           saveCurrentProjectLayers(true);
@@ -21432,6 +21568,7 @@
                       if (isDragging) return;
                       clearTimeout(holdTimer);
                       isDragging = true;
+                      window.isTransformInteracting = true;
                       marker.classList.add('is-dragging');
                       try { marker.setPointerCapture(pointerId); } catch (_) {}
                       if (navigator.vibrate) try { navigator.vibrate(25); } catch (_) {}
@@ -21512,6 +21649,9 @@
                         }
                       }
 
+                      if (typeof invalidatePreviewCacheForLayer === 'function') {
+                        invalidatePreviewCacheForLayer(layer);
+                      }
                       if (typeof updateGraphEditorUI === 'function') {
                         updateGraphEditorUI();
                       }
@@ -21529,16 +21669,25 @@
 
                       if (isDragging) {
                         marker.classList.remove('is-dragging');
+                        window.isTransformInteracting = false;
+                        const affectedLayers = new Set();
                         if (multiDragItems && multiDragItems.length > 1) {
                           multiDragItems.forEach(({ item }) => {
                             if (item.marker) item.marker.classList.remove('is-dragging');
-                            const l = item.layer;
+                            const l = item.layer || (currentProjectState.layers || []).find(ly => ly.id === item.layerId);
                             if (l && l.keyframes && Array.isArray(l.keyframes[item.prop])) {
                               l.keyframes[item.prop].sort((a, b) => a.time - b.time);
+                              affectedLayers.add(l);
                             }
                           });
-                        } else if (Array.isArray(layer.keyframes[prop])) {
-                          layer.keyframes[prop].sort((a, b) => a.time - b.time);
+                        } else {
+                          if (Array.isArray(layer.keyframes[prop])) {
+                            layer.keyframes[prop].sort((a, b) => a.time - b.time);
+                          }
+                          affectedLayers.add(layer);
+                        }
+                        if (typeof invalidatePreviewCacheForLayer === 'function') {
+                          affectedLayers.forEach(l => invalidatePreviewCacheForLayer(l));
                         }
                         saveCurrentProjectLayers();
                         renderTimelineLayers();
@@ -21547,6 +21696,7 @@
                         if (typeof syncSpeedControllerValues === 'function') syncSpeedControllerValues();
                         if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
                         if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
+                        if (typeof redrawComposition === 'function') redrawComposition('keyframe-drag-end');
                       } else {
                         if (!ev.shiftKey) {
                           if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();

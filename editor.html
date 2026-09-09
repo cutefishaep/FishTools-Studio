@@ -4259,11 +4259,11 @@
       let selectedWireframeBounds = null;
       let cachedBitmap = null;
       let hasUnreadyMedia = false;
-      const isScrubbing = !!(typeof isPanning !== 'undefined' && isPanning);
-      const isInteracting = !!(window.isTransformInteracting || (typeof activeOp !== 'undefined' && activeOp) || isScrubbing);
-      // RAM preview cache is strictly used during active playback to hit 60fps.
-      // Paused / stopped / scrubbing / editing always renders live composition layers to prevent black frames or stale cache.
-      if (!isExport && !isIdleCache && !isInteracting && window.isTimelinePlaying && window.PreviewCacheManager) {
+      const isScrubbing = !!(window.isTimelineScrubbing || window.isTimelinePanning || (typeof isPanning !== 'undefined' && isPanning));
+      const isTransformDragging = !!(window.isTransformInteracting || (typeof activeOp !== 'undefined' && activeOp));
+      // RAM preview cache: used during playback, scrubbing, and frame park for instant 60fps blit.
+      // Canvas wireframe transform interaction bypasses cache to track cursor movements live.
+      if (!isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager) {
         let isVideoReady = true;
         if (activeVideos.length > 0 && window.VideoFrameExtractor) {
           for (let vi = 0; vi < activeVideos.length; vi++) {
@@ -5126,13 +5126,12 @@
           return false;
         });
 
-        // LIVE PLAYBACK FRAME CACHING (After Effects RAM Preview Style)
+        // LIVE FRAME CACHING (After Effects RAM Preview Style)
         // STRICT RULE: only cache when the exact video frame is available (hasExtractingVideo = false).
-        // Caching with neighboring/fallback video frames stores WRONG content \u2014 causes bad re-play.
-        // Cache fills naturally as video extraction completes. On second play, full 60fps from cache.
-        if (!hasExtractingVideo && !isExport && !isIdleCache && !isInteracting && window.isTimelinePlaying && window.PreviewCacheManager) {
+        // Caching during playback, scrubbing, and frame park ensures subsequent scrubbing is instant 60fps.
+        if (!hasExtractingVideo && !isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager) {
           window.PreviewCacheManager.setFrameFromCanvas(frameIndex, canvas);
-          // NEVER delete cached frames during extraction \u2014 was causing patchy cache bar!
+          // NEVER delete cached frames during extraction — was causing patchy cache bar!
         }
 
       }

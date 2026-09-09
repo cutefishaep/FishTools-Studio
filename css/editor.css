@@ -819,16 +819,16 @@ html, body {
   }
 
   .timeline-fab-add {
-    right: 14px;
-    bottom: 14px;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    width: 42px;
-    height: 42px;
+    right: 16px;
+    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 56px;
+    height: 56px;
   }
 
   .timeline-fab-add .svg-icon {
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
   }
 
   .editor-timeline.has-drawer-open .timeline-fab-add,
@@ -2527,16 +2527,16 @@ body.has-active-drawer .timeline-fab-add {
 
 @media (max-width: 600px) {
   .timeline-fab-add {
-    right: 14px;
-    bottom: 14px;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    width: 42px;
-    height: 42px;
+    right: 16px;
+    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 56px;
+    height: 56px;
   }
 
   .timeline-fab-add .svg-icon {
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
   }
 
   .editor-timeline.has-drawer-open .timeline-fab-add,

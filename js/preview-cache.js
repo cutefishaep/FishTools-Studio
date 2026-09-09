@@ -148,8 +148,7 @@
       if (expectedWidth && expectedHeight && entry.width && entry.height) {
         const entryAspect = entry.width / entry.height;
         const expectedAspect = expectedWidth / expectedHeight;
-        if (Math.abs(entryAspect - expectedAspect) > 0.05 || Math.abs(entry.width - expectedWidth) / expectedWidth > 0.35) {
-          this.deleteFrame(frameIndex, false, compId);
+        if (Math.abs(entryAspect - expectedAspect) > 0.15) {
           return false;
         }
       }
@@ -167,8 +166,7 @@
       if (expectedWidth && expectedHeight && entry.width && entry.height) {
         const entryAspect = entry.width / entry.height;
         const expectedAspect = expectedWidth / expectedHeight;
-        if (Math.abs(entryAspect - expectedAspect) > 0.05 || Math.abs(entry.width - expectedWidth) / expectedWidth > 0.35) {
-          this.deleteFrame(frameIndex, false, compId);
+        if (Math.abs(entryAspect - expectedAspect) > 0.15) {
           return null;
         }
       }

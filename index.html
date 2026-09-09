@@ -274,6 +274,39 @@
   </div>
 
   <!-- ==========================================================================
+       MODULAR POP-UP: DELETE PROJECT CONFIRMATION MODAL
+       - Simple full-width layout, clean non-hyperbolic text
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-delete-project" role="dialog" aria-modal="true" aria-label="Delete Project Confirmation">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title" style="color: var(--color-danger);">Delete Project</h3>
+        <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-delete-project')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p class="delete-prompt-simple" id="delete-project-prompt">
+          Hapus proyek <strong id="delete-target-name">"New_Project"</strong>?
+        </p>
+        <input type="hidden" id="delete-project-id">
+      </div>
+
+      <footer class="modal-footer" style="gap: 8px;">
+        <button type="button" class="modal-btn-danger" id="btn-confirm-delete-project" onclick="confirmDeleteProjectAction()">
+          <span>Delete Project</span>
+        </button>
+        <button type="button" class="modal-btn-cancel-full" onclick="Modal.close('modal-delete-project')">
+          <span>Cancel</span>
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
        MODULAR POP-UP: WELCOME / PRE-ALPHA NOTICE MODAL
        ========================================================================== -->
   <div class="modal-backdrop" id="modal-welcome" role="dialog" aria-modal="true" aria-label="Welcome Notice Dialog">

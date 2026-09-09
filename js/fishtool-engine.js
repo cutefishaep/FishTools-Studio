@@ -11,6 +11,16 @@
   const NEAR_PLANE = 20.0;        // Near clip plane: object clips out when within 20px of camera lens
   const MAX_Z = CAMERA_DISTANCE - NEAR_PLANE; // 980.0px: threshold where layer exits camera view
 
+  function hexToRgba(hex, alpha) {
+    let c = (hex || '#000000').replace('#', '');
+    if (c.length === 3) c = c.split('').map(ch => ch + ch).join('');
+    const num = parseInt(c, 16) || 0;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+  }
+
   // 1. Minimal Vertex & Fragment Shaders
   const VS_SOURCE = `
     attribute vec2 a_position;
@@ -293,40 +303,29 @@
       if (!Array.isArray(layer.effects) || layer.effects.length === 0) {
         return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
       }
-      const activeFx = layer.effects.filter(f => f && !f.disabled && f.type !== 'tile' && f.type !== 'rgb-split');
+      const activeFx = layer.effects.filter(f => f && !f.disabled && f.type !== 'tile' && f.type !== 'rgb-split' && f.type !== 'drop-shadow');
       if (activeFx.length === 0) {
         return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
-      }
-
-      const hasShadow = activeFx.some(f => f.type === 'drop-shadow');
-      let pad = 0;
-      if (hasShadow) {
-        const ds = activeFx.find(f => f.type === 'drop-shadow');
-        const dist = ds.distance !== undefined ? ds.distance : 15;
-        const blur = ds.blur !== undefined ? ds.blur : 10;
-        pad = Math.ceil(dist + blur * 2 + 10);
       }
 
       const nw = (el.naturalWidth || el.videoWidth || el.width || Math.abs(bounds.w) || 500);
       const nh = (el.naturalHeight || el.videoHeight || el.height || Math.abs(bounds.h) || 500);
       const w = Math.max(1, Math.round(nw));
       const h = Math.max(1, Math.round(nh));
-      const bufW = w + pad * 2;
-      const bufH = h + pad * 2;
 
       if (!this._fxCanvas) {
         this._fxCanvas = document.createElement('canvas');
         this._fxCtx = this._fxCanvas.getContext('2d');
       }
-      if (this._fxCanvas.width !== bufW || this._fxCanvas.height !== bufH) {
-        this._fxCanvas.width = bufW;
-        this._fxCanvas.height = bufH;
+      if (this._fxCanvas.width !== w || this._fxCanvas.height !== h) {
+        this._fxCanvas.width = w;
+        this._fxCanvas.height = h;
       }
-      this._fxCtx.clearRect(0, 0, bufW, bufH);
+      this._fxCtx.clearRect(0, 0, w, h);
 
       const fakeLayer = Object.assign({}, layer, { effects: activeFx });
-      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: pad, y: pad, w, h });
-      return { el: this._fxCanvas, padX: pad, padY: pad, origW: w, origH: h };
+      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: 0, y: 0, w, h });
+      return { el: this._fxCanvas, padX: 0, padY: 0, origW: w, origH: h };
     }
 
     /**
@@ -1131,6 +1130,40 @@
           ? layer.effects.find(f => f.type === 'rgb-split' && !f.disabled && ((f.distance !== undefined ? f.distance : 8) > 0))
           : null;
 
+        const dsFx = Array.isArray(layer.effects)
+          ? layer.effects.find(f => f && !f.disabled && f.type === 'drop-shadow')
+          : null;
+
+        if (dsFx) {
+          const op = Math.max(0, Math.min(1, (dsFx.opacity !== undefined ? dsFx.opacity : 75) / 100));
+          const angle = ((dsFx.angle !== undefined ? dsFx.angle : 135) * Math.PI) / 180;
+          const dist = (dsFx.distance !== undefined ? dsFx.distance : 15) * bufferScale;
+          const blur = Math.max(0, (dsFx.blur !== undefined ? dsFx.blur : 10) * bufferScale);
+          const ox = Math.cos(angle) * dist;
+          const oy = Math.sin(angle) * dist;
+          const color = dsFx.color || '#000000';
+
+          if (op > 0 && (blur > 0 || dist > 0)) {
+            ctx.save();
+            ctx.shadowColor = hexToRgba(color, op);
+            ctx.shadowBlur = blur;
+            ctx.shadowOffsetX = ox;
+            ctx.shadowOffsetY = oy;
+            if (rgbSplitFx) {
+              const offX = vw + blur * 2 + Math.abs(ox);
+              ctx.shadowOffsetX = ox + offX;
+              ctx.drawImage(this.glCanvas, -offX, 0);
+            } else {
+              ctx.drawImage(this.glCanvas, 0, 0);
+            }
+            ctx.restore();
+          } else if (!rgbSplitFx) {
+            ctx.drawImage(this.glCanvas, 0, 0);
+          }
+        } else if (!rgbSplitFx) {
+          ctx.drawImage(this.glCanvas, 0, 0);
+        }
+
         if (rgbSplitFx && window.FishEffects && typeof window.FishEffects.renderRGBSplit === 'function') {
           if (!this._copyCanvas) {
             this._copyCanvas = document.createElement('canvas');
@@ -1143,8 +1176,6 @@
           this._copyCtx.clearRect(0, 0, vw, vh);
           this._copyCtx.drawImage(this.glCanvas, 0, 0);
           window.FishEffects.renderRGBSplit(ctx, this._copyCanvas, layer, { x: 0, y: 0, w: vw, h: vh }, rgbSplitFx);
-        } else {
-          ctx.drawImage(this.glCanvas, 0, 0);
         }
 
         if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {

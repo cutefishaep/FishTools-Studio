@@ -3338,11 +3338,6 @@
         if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
           window.UndoRedoManager.recordSnapshot();
         }
-        // AE-style Selective Cache Invalidation
-        const selectedL = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
-        if (selectedL) {
-          invalidatePreviewCacheForLayer(selectedL);
-        }
         // Safety net: check all layers for timing/duration shifts against cached spans
         (currentProjectState.layers || []).forEach(l => {
           const pps = window.currentPixelsPerSecond || 80;
@@ -3436,6 +3431,8 @@
               hidden: !!l.hidden,
               motionBlur: !!l.motionBlur,
               keyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined,
+              defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
+              _defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
               layers: Array.isArray(l.layers) ? JSON.parse(JSON.stringify(l.layers)) : undefined,
               // Fill & Replaced Media properties
               fillType: l.fillType || undefined,
@@ -3480,6 +3477,9 @@
             }
             if (currentProjectState.motionBlur) {
               prj.motionBlur = JSON.parse(JSON.stringify(currentProjectState.motionBlur));
+            }
+            if (currentProjectState.customEasingPresets) {
+              prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
             }
             await window.FishDatabase.saveProject(prj);
           }
@@ -7588,15 +7588,32 @@
         const prop = window.activeKeyframeProperty || 'move';
         const pps = window.currentPixelsPerSecond || 80;
         const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+
+        // Priority 1: If keyframe(s) are selected in timeline, reflect selected keyframe easing
+        const hasSelectedKfs = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
+        if (hasSelectedKfs) {
+          const matched = window.selectedKeyframes.find(it => it.layerId === window.selectedLayerId && (it.prop === prop || !prop));
+          if (matched && matched.kf && matched.kf.easing && Array.isArray(matched.kf.easing) && matched.kf.easing.length === 4) {
+            return matched.kf.easing;
+          }
+          const anyMatched = window.selectedKeyframes[0];
+          if (anyMatched && anyMatched.kf && anyMatched.kf.easing && Array.isArray(anyMatched.kf.easing) && anyMatched.kf.easing.length === 4) {
+            return anyMatched.kf.easing;
+          }
+        }
+
         const { prevKf } = getSurroundingKeyframes(layer, prop, currentSec);
         if (prevKf) {
           if (!prevKf.easing || !Array.isArray(prevKf.easing) || prevKf.easing.length !== 4) {
-            prevKf.easing = (layer && layer._defaultEasing && layer._defaultEasing[prop]) ? [...layer._defaultEasing[prop]] : [0.42, 0.0, 0.58, 1.0];
+            const defEas = (layer && (layer.defaultEasing || layer._defaultEasing) && (layer.defaultEasing || layer._defaultEasing)[prop])
+              ? (layer.defaultEasing || layer._defaultEasing)[prop]
+              : [0.42, 0.0, 0.58, 1.0];
+            prevKf.easing = [...defEas];
           }
           return prevKf.easing;
         }
-        if (layer && layer._defaultEasing && layer._defaultEasing[prop]) {
-          return layer._defaultEasing[prop];
+        if (layer && (layer.defaultEasing || layer._defaultEasing) && (layer.defaultEasing || layer._defaultEasing)[prop]) {
+          return (layer.defaultEasing || layer._defaultEasing)[prop];
         }
         return [0.42, 0.0, 0.58, 1.0];
       }
@@ -7608,22 +7625,45 @@
         const prop = window.activeKeyframeProperty || 'move';
         const pps = window.currentPixelsPerSecond || 80;
         const currentSec = Math.abs(window.timelinePanX || 0) / pps;
-        const { prevKf } = getSurroundingKeyframes(layer, prop, currentSec);
         const rounded = [
           Number(newEasing[0].toFixed(3)),
           Number(newEasing[1].toFixed(3)),
           Number(newEasing[2].toFixed(3)),
           Number(newEasing[3].toFixed(3))
         ];
+
+        // 1. If keyframe(s) are selected in timeline, update all selected keyframes
+        const hasSelectedKfs = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
+        if (hasSelectedKfs) {
+          let didUpdateKf = false;
+          window.selectedKeyframes.forEach(item => {
+            if (item.kf) {
+              item.kf.easing = [...rounded];
+              didUpdateKf = true;
+            }
+          });
+          if (didUpdateKf) {
+            saveCurrentProjectLayers();
+            redrawComposition('setActiveEasing:selectedKeyframes');
+            return;
+          }
+        }
+
+        // 2. Surrounding keyframe
+        const { prevKf } = getSurroundingKeyframes(layer, prop, currentSec);
         if (prevKf) {
           prevKf.easing = rounded;
           saveCurrentProjectLayers();
-          redrawComposition();
+          redrawComposition('setActiveEasing:prevKf');
         } else {
-          if (!layer._defaultEasing) layer._defaultEasing = {};
-          layer._defaultEasing[prop] = rounded;
+          if (!layer.defaultEasing) layer.defaultEasing = {};
+          layer.defaultEasing[prop] = rounded;
+          layer._defaultEasing = layer.defaultEasing;
+          saveCurrentProjectLayers();
+          redrawComposition('setActiveEasing:defaultEasing');
         }
       }
+      window.setActiveEasing = setActiveEasing;
 
       function getMatchingPreset(easing) {
         const tol = 0.05;
@@ -7749,16 +7789,28 @@
         try {
           const raw = localStorage.getItem('fishtool_custom_easing_presets');
           const parsed = raw ? JSON.parse(raw) : [];
-          return Array.isArray(parsed) ? parsed : [];
-        } catch (_) {
-          return [];
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (_) {}
+        if (window.currentProjectState && Array.isArray(window.currentProjectState.customEasingPresets) && window.currentProjectState.customEasingPresets.length > 0) {
+          return window.currentProjectState.customEasingPresets;
         }
+        return [];
       }
 
       function saveCustomPresets(list) {
+        if (!Array.isArray(list)) return;
         try {
           localStorage.setItem('fishtool_custom_easing_presets', JSON.stringify(list));
         } catch (_) {}
+        if (window.FishDatabase && typeof window.FishDatabase.saveCustomEasingPresets === 'function') {
+          window.FishDatabase.saveCustomEasingPresets(list).catch(() => {});
+        }
+        if (window.currentProjectState) {
+          window.currentProjectState.customEasingPresets = list;
+          if (typeof saveCurrentProjectLayers === 'function') {
+            saveCurrentProjectLayers();
+          }
+        }
       }
 
       let pendingDeleteCustomIdx = null;
@@ -8118,6 +8170,9 @@
             window.removeEventListener('pointermove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
+            if (typeof saveCurrentProjectLayers === 'function') {
+              saveCurrentProjectLayers(true);
+            }
           }
 
           window.addEventListener('pointermove', onPointerMove);
@@ -8129,6 +8184,23 @@
       setupHandleDrag(handle1, 1);
       setupHandleDrag(handle2, 2);
       renderCustomPresetsUI();
+
+      if (window.FishDatabase && typeof window.FishDatabase.getCustomEasingPresets === 'function') {
+        window.FishDatabase.getCustomEasingPresets().then(dbList => {
+          if (Array.isArray(dbList) && dbList.length > 0) {
+            const localList = getCustomPresets();
+            const merged = [...localList];
+            dbList.forEach(item => {
+              if (!merged.some(m => m.name === item.name && JSON.stringify(m.easing) === JSON.stringify(item.easing))) {
+                merged.push(item);
+              }
+            });
+            try { localStorage.setItem('fishtool_custom_easing_presets', JSON.stringify(merged)); } catch (_) {}
+            renderCustomPresetsUI();
+            updateGraphUI();
+          }
+        }).catch(() => {});
+      }
 
       if (typeof ResizeObserver !== 'undefined' && graphFrame) {
         const ro = new ResizeObserver(() => {
@@ -12219,7 +12291,7 @@
 
           btnAddGiant.addEventListener('click', triggerAddBeatmark);
           btnAddGiant.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
+            if (e.key === 'Enter') {
               triggerAddBeatmark(e);
             }
           });
@@ -14555,7 +14627,7 @@
           openGalleryCategory(catName, cat);
         });
         card.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === 'Enter') {
             e.preventDefault();
             openGalleryCategory(catName, cat);
           }
@@ -14611,7 +14683,7 @@
           addEffectToLayer(fxId);
         });
         effectsItemsGrid.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === 'Enter') {
             const card = e.target.closest('.effects-gallery-item-card');
             if (!card) return;
             e.preventDefault();
@@ -15371,6 +15443,20 @@
           currentProjectState.motionBlur.enabled = true;
         }
       }
+      if (currentProject && Array.isArray(currentProject.customEasingPresets)) {
+        currentProjectState.customEasingPresets = currentProject.customEasingPresets;
+        try {
+          const raw = localStorage.getItem('fishtool_custom_easing_presets');
+          const localList = raw ? JSON.parse(raw) : [];
+          const merged = Array.isArray(localList) ? [...localList] : [];
+          currentProject.customEasingPresets.forEach(item => {
+            if (!merged.some(m => m.name === item.name && JSON.stringify(m.easing) === JSON.stringify(item.easing))) {
+              merged.push(item);
+            }
+          });
+          localStorage.setItem('fishtool_custom_easing_presets', JSON.stringify(merged));
+        } catch (_) {}
+      }
 
       // Sanitize dangling parentId references to non-existent layers
       const existingLayerIdSet = new Set(currentProjectState.layers.map(l => l.id));
@@ -16002,7 +16088,7 @@
 
       // 2. Keyboard accessibility on import label (+ box)
       importBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === 'Enter') {
           e.preventDefault();
           fileInput.click();
         }
@@ -17265,7 +17351,7 @@
           toggleBeatmarkAtCurrentTime();
         });
         timeBadgeEl.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === 'Enter') {
             e.preventDefault();
             toggleBeatmarkAtCurrentTime();
           }
@@ -18669,10 +18755,21 @@
 
         window.selectedKeyframes = pastedList;
 
+        if (typeof invalidatePreviewCacheForLayer === 'function') {
+          invalidatePreviewCacheForLayer(targetLayer);
+        }
+        if (typeof syncLayerWithEffectiveProps === 'function') {
+          syncLayerWithEffectiveProps(targetLayer);
+        }
+
         saveCurrentProjectLayers();
         renderTimelineLayers();
         if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+        if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
         if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(targetLayer);
+        if (typeof syncTransformControllerValues === 'function') syncTransformControllerValues();
+        if (typeof syncEffectsRackUI === 'function') syncEffectsRackUI();
+        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
         if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
         if (typeof redrawComposition === 'function') redrawComposition('pasteKeyframes');
 
@@ -20498,6 +20595,14 @@
                     const canDrag = isPropActiveNow && (layer.id === window.selectedLayerId) && !!(currentActiveProp && prop === currentActiveProp);
 
                     if (!canDrag) {
+                      if (!e.shiftKey) {
+                        if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                      }
+                      marker.classList.add('is-selected-kf');
+                      if (!window.selectedKeyframes) window.selectedKeyframes = [];
+                      if (!window.selectedKeyframes.some(it => it.kf === kf)) {
+                        window.selectedKeyframes.push({ layerId: layer.id, layer, prop, time: kf.time, kf, marker });
+                      }
                       if (prop.includes(':') && currentDrawerSubview === 'effects') {
                         window.activeKeyframeProperty = prop;
                         if (typeof syncEffectsRackUI === 'function') syncEffectsRackUI();
@@ -21940,6 +22045,90 @@
         }
       }
 
+      function isTextInputElement(el) {
+        if (!el) return false;
+        const tag = el.tagName ? el.tagName.toLowerCase() : '';
+        if (tag === 'textarea') return true;
+        if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') return true;
+        if (tag === 'input') {
+          const type = (el.type || '').toLowerCase();
+          return ['text', 'search', 'password', 'url', 'email', 'tel', 'number'].includes(type);
+        }
+        return false;
+      }
+
+      // STRICT SPACE KEYBOARD LOCK: Guarantees Space ONLY controls timeline playback, NEVER clicks buttons or triggers UI controllers
+      window.addEventListener('keydown', (e) => {
+        const isSpace = (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32);
+        if (!isSpace) return;
+        if (e.ctrlKey || e.metaKey) return; // Ctrl+Space handled separately for Quick Effects Search
+
+        const activeEl = document.activeElement;
+        const targetEl = e.target;
+        if (isTextInputElement(targetEl) || isTextInputElement(activeEl)) {
+          return; // Let user type spaces in real text input fields
+        }
+
+        // If any modal/popup card is active, suppress Space so background timeline does not play and modal buttons don't fire
+        const hasOpenModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop.active, .modal-backdrop.is-open, .modal-card.is-active');
+        if (hasOpenModal) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+          return;
+        }
+
+        // Lock Space exclusively to timeline playback
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {
+          e.stopImmediatePropagation();
+        }
+
+        // Defocus any button, slider, or UI controller that retained keyboard focus
+        if (activeEl && typeof activeEl.blur === 'function' && !isTextInputElement(activeEl)) {
+          activeEl.blur();
+        }
+
+        const playBtn = document.getElementById('editor-btn-play');
+        if (playBtn) {
+          playBtn.click();
+        }
+      }, true); // STRICT CAPTURE PHASE!
+
+      // Intercept Space keyup in capture phase to prevent browser from firing native .click() on focused buttons
+      window.addEventListener('keyup', (e) => {
+        const isSpace = (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32);
+        if (!isSpace) return;
+        if (e.ctrlKey || e.metaKey) return;
+
+        const activeEl = document.activeElement;
+        const targetEl = e.target;
+        if (isTextInputElement(targetEl) || isTextInputElement(activeEl)) {
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {
+          e.stopImmediatePropagation();
+        }
+      }, true); // STRICT CAPTURE PHASE!
+
+      // Global safety: automatically blur buttons, sliders, switches on pointerup so they don't trap focus
+      document.addEventListener('pointerup', (e) => {
+        const btn = e.target && typeof e.target.closest === 'function'
+          ? e.target.closest('button, [role="button"], input[type="range"], input[type="checkbox"], input[type="radio"]')
+          : null;
+        if (btn && typeof btn.blur === 'function') {
+          setTimeout(() => {
+            if (document.activeElement === btn) {
+              btn.blur();
+            }
+          }, 30);
+        }
+      }, { capture: true, passive: true });
+
       // Keyboard Shortcuts: Escape to deselect, Ctrl+A to select all, Delete to remove, Ctrl+C/V/D for clipboard
       window.addEventListener('keydown', (e) => {
         if (e.target && typeof e.target.closest === 'function' && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
@@ -21955,13 +22144,6 @@
               openQuickEffectsSearch();
             }
           }
-          return;
-        }
-
-        if (!e.ctrlKey && !e.metaKey && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32)) {
-          e.preventDefault();
-          const playBtn = document.getElementById('editor-btn-play');
-          if (playBtn) playBtn.click();
           return;
         }
         if (e.key === 'Escape') {

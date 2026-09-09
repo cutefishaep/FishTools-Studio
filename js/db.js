@@ -27,6 +27,7 @@ window.FishDatabase = (function () {
       },
       customPalettes: [],
       toolboxPresets: {},
+      customEasingPresets: [],
       recentColors: []
     };
   }
@@ -1053,10 +1054,35 @@ window.FishDatabase = (function () {
     init().catch(function () {});
   }
 
+  async function getCustomEasingPresets() {
+    try {
+      const s = await getSettings();
+      if (s && Array.isArray(s.customEasingPresets) && s.customEasingPresets.length > 0) {
+        return s.customEasingPresets;
+      }
+      const raw = localStorage.getItem('fishtool_custom_easing_presets');
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function saveCustomEasingPresets(list) {
+    if (!Array.isArray(list)) return;
+    try {
+      localStorage.setItem('fishtool_custom_easing_presets', JSON.stringify(list));
+      const s = await getSettings();
+      s.customEasingPresets = list;
+      await saveSettings(s);
+    } catch (_) {}
+  }
+
   return {
     init: init,
     getSettings: getSettings,
     saveSettings: saveSettings,
+    getCustomEasingPresets: getCustomEasingPresets,
+    saveCustomEasingPresets: saveCustomEasingPresets,
     getSyncSettings: getSyncSettings,
     saveSyncSettings: saveSyncSettings,
     getProjects: getProjects,

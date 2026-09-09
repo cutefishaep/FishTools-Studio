@@ -142,6 +142,10 @@ async function initProjectsFetcher() {
 
   // Project item left-click navigation (delegated)
   listContainer.addEventListener('click', (e) => {
+    const swipeBox = e.target.closest('.project-swipe-container');
+    if (swipeBox && swipeBox._hasSwiped) {
+      return;
+    }
     const item = e.target.closest('.project-item');
     if (!item) return;
     const projectId = item.dataset.id;
@@ -159,11 +163,7 @@ async function initProjectsFetcher() {
         {
           label: 'Save as .ofts',
           icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
-          action: async () => {
-            if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
-              await window.FishDatabase.exportProjectToOFTS(projectId);
-            }
-          }
+          action: () => exportProjectAction(projectId, projectName)
         },
         {
           label: 'Rename',
@@ -185,12 +185,7 @@ async function initProjectsFetcher() {
           label: 'Remove project',
           icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
           danger: true,
-          action: async () => {
-            if (window.FishDatabase) {
-              await window.FishDatabase.deleteProject(projectId);
-              await loadAndRender();
-            }
-          }
+          action: () => openDeleteModal(projectId, projectName)
         }
       ];
     });
@@ -199,7 +194,7 @@ async function initProjectsFetcher() {
 
 
 /**
- * Renders project cards inside the Your Project list
+ * Renders project cards inside the Your Project list with swipe actions
  */
 function renderProjects(projects, container, countBadge) {
   if (countBadge) {
@@ -230,18 +225,220 @@ function renderProjects(projects, container, countBadge) {
     const specs = `${escapeHtml(project.resolution || '1080p')} • ${escapeHtml(project.fps || '60')} fps`;
 
     return `
-      <article class="project-item" data-id="${escapeHtml(project.id)}" tabindex="0" role="button" aria-label="Project: ${escapeHtml(name)}">
-        <div class="project-row-main">
-          <span class="project-name">${escapeHtml(name)}</span>
-          <span class="project-size">${escapeHtml(size)}</span>
+      <div class="project-swipe-container" data-id="${escapeHtml(project.id)}" data-name="${escapeHtml(name)}">
+        <!-- Slide RIGHT reveals Delete (Left side) -->
+        <div class="project-swipe-action action-delete" aria-hidden="true" title="Slide right to delete">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+          </svg>
+          <span>Delete</span>
         </div>
-        <div class="project-row-sub">
-          <span class="project-saved">${escapeHtml(savedTime)}</span>
-          <span class="project-specs">${specs}</span>
+
+        <!-- Slide LEFT reveals Export to .ofts (Right side) -->
+        <div class="project-swipe-action action-export" aria-hidden="true" title="Slide left to export">
+          <span>Export .ofts</span>
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
         </div>
-      </article>
+
+        <!-- Top Layer Project Item Card -->
+        <article class="project-item" data-id="${escapeHtml(project.id)}" tabindex="0" role="button" aria-label="Project: ${escapeHtml(name)}">
+          <div class="project-row-main">
+            <span class="project-name">${escapeHtml(name)}</span>
+            <span class="project-size">${escapeHtml(size)}</span>
+          </div>
+          <div class="project-row-sub">
+            <span class="project-saved">${escapeHtml(savedTime)}</span>
+            <span class="project-specs">${specs}</span>
+          </div>
+        </article>
+      </div>
     `;
   }).join('');
+
+  bindProjectSwipeGestures(container);
+}
+
+/**
+ * Binds touch & pointer swipe gestures for project cards:
+ * Slide RIGHT -> Delete project
+ * Slide LEFT  -> Export project to .ofts
+ */
+function bindProjectSwipeGestures(container) {
+  const swipeContainers = container.querySelectorAll('.project-swipe-container');
+
+  swipeContainers.forEach(swipeBox => {
+    const itemEl = swipeBox.querySelector('.project-item');
+    const deleteAction = swipeBox.querySelector('.action-delete');
+    const exportAction = swipeBox.querySelector('.action-export');
+    if (!itemEl) return;
+
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let isPointerDown = false;
+    let isDragging = false;
+    let isLockedDirection = false;
+    let isVerticalScroll = false;
+    let activePointerId = null;
+
+    const SWIPE_TRIGGER_THRESHOLD = 75; // px to trigger action
+    const MAX_DRAG_DISTANCE = 140; // max visual drag boundary
+
+    const onPointerDown = (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      currentX = 0;
+      isPointerDown = true;
+      isDragging = false;
+      isLockedDirection = false;
+      isVerticalScroll = false;
+      activePointerId = e.pointerId;
+
+      itemEl.style.transition = 'none';
+    };
+
+    const onPointerMove = (e) => {
+      if (!isPointerDown || e.pointerId !== activePointerId) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (!isLockedDirection) {
+        if (Math.hypot(dx, dy) >= 6) {
+          isLockedDirection = true;
+          if (Math.abs(dy) > Math.abs(dx)) {
+            isVerticalScroll = true;
+            return;
+          } else {
+            isDragging = true;
+            try {
+              itemEl.setPointerCapture(e.pointerId);
+            } catch (err) {}
+          }
+        } else {
+          return;
+        }
+      }
+
+      if (isVerticalScroll || !isDragging) return;
+
+      e.preventDefault();
+
+      // Non-linear drag resistance beyond 85px
+      let targetX = dx;
+      if (Math.abs(targetX) > 85) {
+        const excess = Math.abs(targetX) - 85;
+        const sign = targetX > 0 ? 1 : -1;
+        targetX = sign * (85 + excess * 0.35);
+      }
+      currentX = Math.max(-MAX_DRAG_DISTANCE, Math.min(MAX_DRAG_DISTANCE, targetX));
+      itemEl.style.transform = `translateX(${currentX}px)`;
+
+      // Dynamic action reveal feedback
+      if (currentX > 0) {
+        // Swiping RIGHT -> Delete
+        if (deleteAction) {
+          deleteAction.style.opacity = '1';
+          if (currentX >= SWIPE_TRIGGER_THRESHOLD) {
+            deleteAction.classList.add('is-ready');
+          } else {
+            deleteAction.classList.remove('is-ready');
+          }
+        }
+        if (exportAction) exportAction.style.opacity = '0';
+      } else if (currentX < 0) {
+        // Swiping LEFT -> Export
+        if (exportAction) {
+          exportAction.style.opacity = '1';
+          if (Math.abs(currentX) >= SWIPE_TRIGGER_THRESHOLD) {
+            exportAction.classList.add('is-ready');
+          } else {
+            exportAction.classList.remove('is-ready');
+          }
+        }
+        if (deleteAction) deleteAction.style.opacity = '0';
+      } else {
+        if (deleteAction) deleteAction.style.opacity = '0';
+        if (exportAction) exportAction.style.opacity = '0';
+      }
+    };
+
+    const onPointerEnd = (e) => {
+      if (!isPointerDown || (e.pointerId !== activePointerId && activePointerId !== null)) return;
+      isPointerDown = false;
+
+      try {
+        if (itemEl.hasPointerCapture(e.pointerId)) {
+          itemEl.releasePointerCapture(e.pointerId);
+        }
+      } catch (err) {}
+
+      if (isDragging) {
+        swipeBox._hasSwiped = true;
+        setTimeout(() => {
+          swipeBox._hasSwiped = false;
+        }, 320);
+
+        const finalX = currentX;
+
+        // Animate snap-back to origin
+        itemEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+        itemEl.style.transform = 'translateX(0px)';
+
+        if (finalX >= SWIPE_TRIGGER_THRESHOLD) {
+          // Slide RIGHT -> Delete confirmation modal
+          const projectId = swipeBox.dataset.id;
+          const projectName = swipeBox.dataset.name;
+          openDeleteModal(projectId, projectName);
+        } else if (finalX <= -SWIPE_TRIGGER_THRESHOLD) {
+          // Slide LEFT -> Export to .ofts
+          const projectId = swipeBox.dataset.id;
+          const projectName = swipeBox.dataset.name;
+          exportProjectAction(projectId, projectName);
+        }
+
+        setTimeout(() => {
+          if (deleteAction) {
+            deleteAction.style.opacity = '';
+            deleteAction.classList.remove('is-ready');
+          }
+          if (exportAction) {
+            exportAction.style.opacity = '';
+            exportAction.classList.remove('is-ready');
+          }
+          itemEl.style.transition = '';
+        }, 240);
+      }
+
+      activePointerId = null;
+      isDragging = false;
+      isLockedDirection = false;
+      isVerticalScroll = false;
+    };
+
+    itemEl.addEventListener('pointerdown', onPointerDown);
+    itemEl.addEventListener('pointermove', onPointerMove);
+    itemEl.addEventListener('pointerup', onPointerEnd);
+    itemEl.addEventListener('pointercancel', onPointerEnd);
+
+    // Direct click fallback on revealed actions
+    if (deleteAction) {
+      deleteAction.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDeleteModal(swipeBox.dataset.id, swipeBox.dataset.name);
+      });
+    }
+    if (exportAction) {
+      exportAction.addEventListener('click', (e) => {
+        e.stopPropagation();
+        exportProjectAction(swipeBox.dataset.id, swipeBox.dataset.name);
+      });
+    }
+  });
 }
 
 /**
@@ -295,6 +492,105 @@ async function saveRenameProjectAction() {
   if (window.Modal) {
     window.Modal.close();
   }
+}
+
+/**
+ * Opens the Delete Project Confirmation Modal
+ */
+function openDeleteModal(projectId, currentName) {
+  const modal = document.getElementById('modal-delete-project');
+  const idInput = document.getElementById('delete-project-id');
+  const targetNameEl = document.getElementById('delete-target-name');
+  const promptEl = document.getElementById('delete-project-prompt');
+  if (!modal || !idInput) return;
+
+  idInput.value = projectId || '';
+  const displayName = `"${currentName || 'Untitled'}"`;
+  if (targetNameEl) {
+    targetNameEl.textContent = displayName;
+  } else if (promptEl) {
+    promptEl.textContent = `Hapus proyek ${displayName}?`;
+  }
+
+  if (window.Modal) {
+    window.Modal.open('modal-delete-project');
+  }
+}
+
+/**
+ * Confirms deletion of project from modal
+ */
+async function confirmDeleteProjectAction() {
+  const idInput = document.getElementById('delete-project-id');
+  const projectId = idInput ? idInput.value : '';
+
+  if (projectId && window.FishDatabase) {
+    try {
+      await window.FishDatabase.deleteProject(projectId);
+      showDashboardToast('Proyek berhasil dihapus');
+    } catch (e) {
+      console.warn('Delete project error:', e);
+    }
+  }
+
+  if (window.Modal) {
+    window.Modal.close('modal-delete-project');
+  }
+
+  // Refresh project list
+  const listContainer = document.getElementById('projects-container');
+  const countBadge = document.getElementById('project-count-badge');
+  if (listContainer && window.FishDatabase) {
+    try {
+      const projects = await window.FishDatabase.getProjects();
+      renderProjects(projects, listContainer, countBadge);
+    } catch (_) {}
+  }
+}
+
+/**
+ * Exports project as .ofts package
+ */
+async function exportProjectAction(projectId, projectName) {
+  if (!projectId) return;
+
+  showDashboardToast(`Mengekspor ${projectName || 'proyek'}...`);
+
+  if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
+    try {
+      await window.FishDatabase.exportProjectToOFTS(projectId);
+      showDashboardToast('Ekspor .ofts selesai');
+    } catch (err) {
+      console.warn('Export project error:', err);
+      showDashboardToast('Gagal mengekspor file .ofts');
+    }
+  }
+}
+
+let dashboardToastTimer = null;
+
+/**
+ * Displays a non-intrusive dashboard toast notification
+ */
+function showDashboardToast(text, duration = 2400) {
+  let toast = document.getElementById('dashboard-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'dashboard-toast';
+    toast.className = 'dashboard-toast';
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = text;
+  toast.classList.add('is-visible');
+
+  if (dashboardToastTimer) {
+    clearTimeout(dashboardToastTimer);
+  }
+
+  dashboardToastTimer = setTimeout(() => {
+    toast.classList.remove('is-visible');
+  }, duration);
 }
 
 /**
@@ -590,3 +886,15 @@ function toggleQrisDisplay() {
     if (arrow) arrow.classList.remove('is-open');
   }
 }
+
+// Global exposes for HTML onclick handlers & module interop
+window.openDeleteModal = openDeleteModal;
+window.confirmDeleteProjectAction = confirmDeleteProjectAction;
+window.exportProjectAction = exportProjectAction;
+window.showDashboardToast = showDashboardToast;
+window.openRenameModal = openRenameModal;
+window.saveRenameProjectAction = saveRenameProjectAction;
+window.createNewProjectAction = createNewProjectAction;
+window.closeWelcomeModal = closeWelcomeModal;
+window.openDonateFromWelcome = openDonateFromWelcome;
+window.toggleQrisDisplay = toggleQrisDisplay;

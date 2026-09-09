@@ -38,9 +38,10 @@
   --color-primary-active: #7fb862;      /* Deep Leaf Matcha Active */
   --color-accent: #7fb862;              /* Secondary Matcha Accent */
   --color-accent-subtle: #5c6e4e;       /* Earthy Herbal Green */
-  --color-danger: #f87171;              /* Destructive Red Token */
-  --color-danger-hover: #ef4444;        /* Destructive Red Hover */
+  --color-danger: #ef4444;              /* Destructive Red Token */
+  --color-danger-hover: #dc2626;        /* Destructive Red Hover */
   --color-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-danger-text: #ffffff;         /* Crisp High-Contrast Text on Danger */
 
   /* --- Surface & Background Colors (Matcha Canvas & Surfaces) --- */
   --bg-canvas: #0d1109;                 /* Deep Herbal Tea Dark Canvas (#0d1109) */
@@ -91,6 +92,15 @@
   --shadow-button-glow: none;
   --shadow-active: none;
 
+  /* --- Dedicated Keyframe Theme Tokens (100% Theme-Native & High-Contrast) --- */
+  --kf-default-bg: #151a0f;            /* Dark surface core */
+  --kf-default-border: #a5b39a;        /* Soft sage outline */
+  --kf-active-bg: #98ce7b;             /* Fresh matcha solid diamond */
+  --kf-active-border: #0d1109;         /* Sharp dark perimeter outline */
+  --kf-selected-bg: #ffffff;           /* Luminous clean white diamond - 100% pops without foreign colors */
+  --kf-selected-border: #0d1109;       /* Solid dark border for needle-sharp definition */
+  --kf-selected-dot: #98ce7b;          /* Vibrant matcha green center anchor dot */
+
   /* --- Font Families --- */
   --font-brand: 'Cal Sans', sans-serif;
   --font-mono: 'Cal Sans', sans-serif;
@@ -107,6 +117,7 @@
   --color-danger: #ff5370;
   --color-danger-hover: #ff3355;
   --color-danger-bg: rgba(255, 83, 112, 0.15);
+  --color-danger-text: #ffffff;
 
   /* Surfaces & Containers */
   --bg-canvas: #040d14;
@@ -151,6 +162,15 @@
   --border-panel: #144f69;
   --border-subtle: rgba(0, 229, 255, 0.22);
   --border-focus: #00e5ff;
+
+  /* Dedicated Keyframe Theme Tokens */
+  --kf-default-bg: #0a1e28;
+  --kf-default-border: #7dd3fc;
+  --kf-active-bg: #00e5ff;
+  --kf-active-border: #040d14;
+  --kf-selected-bg: #ffffff;
+  --kf-selected-border: #040d14;
+  --kf-selected-dot: #00e5ff;
 }
 
 [data-theme="amber-terminal"] {
@@ -163,6 +183,7 @@
   --color-danger: #ff5252;
   --color-danger-hover: #e04848;
   --color-danger-bg: rgba(255, 82, 82, 0.15);
+  --color-danger-text: #ffffff;
 
   /* Surfaces & Containers */
   --bg-canvas: #120b02;
@@ -207,4 +228,13 @@
   --border-panel: #54360e;
   --border-subtle: rgba(255, 170, 0, 0.22);
   --border-focus: #ffaa00;
+
+  /* Dedicated Keyframe Theme Tokens */
+  --kf-default-bg: #241605;
+  --kf-default-border: #fcd34d;
+  --kf-active-bg: #ffaa00;
+  --kf-active-border: #120b02;
+  --kf-selected-bg: #ffffff;
+  --kf-selected-border: #120b02;
+  --kf-selected-dot: #ffaa00;
 }

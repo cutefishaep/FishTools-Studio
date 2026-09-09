@@ -941,39 +941,67 @@
   touch-action: none;
 }
 
-/* Active Property Keyframe (Highlighted: Solid Theme Primary Color on Selected Layer) */
+/* Other Property Keyframe (Hollow Outline Only) - High Contrast Against Any Layer Color */
+.timeline-keyframe-marker.is-other-prop {
+  background-color: var(--kf-default-bg, #151a0f);
+  border: 1.5px solid var(--kf-default-border, #a5b39a);
+  opacity: 0.85;
+  cursor: default;
+}
+
+/* Active Property Keyframe (Solid Theme Diamond with Dark Outline on Selected Layer) */
 .timeline-keyframe-marker.is-active-prop {
-  background-color: var(--color-primary);
-  border: 1.5px solid var(--bg-canvas);
+  background-color: var(--kf-active-bg, var(--color-primary));
+  border: 1.5px solid var(--kf-active-border, var(--bg-canvas));
+  opacity: 1;
   cursor: grab;
+  z-index: 6;
+}
+
+/* On unselected (bright) layer blocks: invert active keyframe so it does not camouflage on bright layers */
+.timeline-clip-block:not(.is-selected) .timeline-keyframe-marker.is-active-prop {
+  background-color: var(--bg-canvas);
+  border: 1.5px solid #ffffff;
+}
+
+.timeline-clip-block:not(.is-selected) .timeline-keyframe-marker.is-other-prop {
+  background-color: var(--bg-canvas);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
 }
 
 /* Dragging / Holding Keyframe State */
 .timeline-keyframe-marker.is-dragging {
   transform: translate(-50%, -50%) rotate(45deg) scale(1.35) !important;
   cursor: grabbing !important;
-  z-index: 10 !important;
+  z-index: 15 !important;
 }
 
-/* Other Property Keyframe (Hollow Outline Only) - Adapts to Layer (Dark on Bright, Bright on Dark) */
-.timeline-keyframe-marker.is-other-prop {
-  background-color: transparent;
-  border: 1.5px solid var(--kf-outline-color, var(--bg-canvas));
-  cursor: default;
-}
-
-/* Multi-Selected Keyframe Marker via Marquee */
+/* Selected Keyframe Marker via Marquee or Click (Luminous White Diamond + Brand Core Dot + Dark Border) */
 .timeline-keyframe-marker.is-selected-kf {
-  background-color: var(--color-primary) !important;
-  border: 1.5px solid var(--text-primary) !important;
-  transform: translate(-50%, -50%) rotate(45deg) scale(1.4) !important;
-  z-index: 20 !important;
+  background-color: var(--kf-selected-bg, #ffffff) !important;
+  border: 1.5px solid var(--kf-selected-border, var(--bg-canvas)) !important;
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.45) !important;
+  opacity: 1 !important;
+  z-index: 25 !important;
   cursor: grab !important;
+}
+
+.timeline-keyframe-marker.is-selected-kf::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  transform: translate(-50%, -50%);
+  background-color: var(--kf-selected-dot, var(--color-primary));
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .timeline-keyframe-marker.is-selected-kf.is-dragging {
   cursor: grabbing !important;
-  transform: translate(-50%, -50%) rotate(45deg) scale(1.5) !important;
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.6) !important;
 }
 
 /* Timeline Keyframe Marquee Selection Box (Pure Flat Theme Token, Strictly Confined Inside Layer Clip) */

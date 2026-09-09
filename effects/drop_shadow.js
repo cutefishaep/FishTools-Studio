@@ -42,22 +42,12 @@
       const color = fx.color || '#000000';
 
       ctx.save();
-      // 1. Draw drop shadow behind layer
       if (op > 0 && (blur > 0 || dist > 0)) {
-        ctx.save();
         ctx.shadowColor = hexToRgba(color, op);
         ctx.shadowBlur = blur;
-        // Bounded offscreen offset: avoid exceeding max GPU texture limits (8192px)
-        const FAR_OFFSET = 3000;
-        ctx.shadowOffsetX = ox + FAR_OFFSET;
+        ctx.shadowOffsetX = ox;
         ctx.shadowOffsetY = oy;
-        try {
-          ctx.drawImage(el, x - FAR_OFFSET, y, w, h);
-        } catch (_) {}
-        ctx.restore();
       }
-
-      // 2. Draw front sharp layer on top
       try {
         ctx.drawImage(el, x, y, w, h);
       } catch (_) {}

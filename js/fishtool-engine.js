@@ -242,7 +242,7 @@
     }
 
     _getOrCreateTexture(el) {
-      if (!this._hasValidDimensions(el)) return null;
+      if (!this._hasValidDimensions(el) || el === this.glCanvas) return null;
       const gl = this.gl;
       let tex = this.textureCache.get(el);
 
@@ -254,13 +254,14 @@
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         // Pre-initialize with a 1x1 transparent RGBA pixel so texture is never incomplete (avoids solid white glitch)
-        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
         this.textureCache.set(el, tex);
       }
 
       gl.bindTexture(gl.TEXTURE_2D, tex);
       try {
+        if (el.tagName === 'CANVAS' && (el.width <= 0 || el.height <= 0)) return tex;
         const isStaticImg = (el.tagName === 'IMG');
         const src = el.src || '';
         if (!isStaticImg || tex._uploadedSrc !== src) {
@@ -282,6 +283,50 @@
         return Math.min(0.0, -((camLens - 50) / 250) * 0.08);
       }
       return 0.0;
+    }
+
+    _getEffectProcessedElement(el, layer, bounds) {
+      if (!el || typeof document === 'undefined') return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
+      if (!window.FishEffects || typeof window.FishEffects.renderLayer !== 'function') {
+        return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
+      }
+      if (!Array.isArray(layer.effects) || layer.effects.length === 0) {
+        return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
+      }
+      const activeFx = layer.effects.filter(f => f && !f.disabled && f.type !== 'tile' && f.type !== 'rgb-split');
+      if (activeFx.length === 0) {
+        return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
+      }
+
+      const hasShadow = activeFx.some(f => f.type === 'drop-shadow');
+      let pad = 0;
+      if (hasShadow) {
+        const ds = activeFx.find(f => f.type === 'drop-shadow');
+        const dist = ds.distance !== undefined ? ds.distance : 15;
+        const blur = ds.blur !== undefined ? ds.blur : 10;
+        pad = Math.ceil(dist + blur * 2 + 10);
+      }
+
+      const nw = (el.naturalWidth || el.videoWidth || el.width || Math.abs(bounds.w) || 500);
+      const nh = (el.naturalHeight || el.videoHeight || el.height || Math.abs(bounds.h) || 500);
+      const w = Math.max(1, Math.round(nw));
+      const h = Math.max(1, Math.round(nh));
+      const bufW = w + pad * 2;
+      const bufH = h + pad * 2;
+
+      if (!this._fxCanvas) {
+        this._fxCanvas = document.createElement('canvas');
+        this._fxCtx = this._fxCanvas.getContext('2d');
+      }
+      if (this._fxCanvas.width !== bufW || this._fxCanvas.height !== bufH) {
+        this._fxCanvas.width = bufW;
+        this._fxCanvas.height = bufH;
+      }
+      this._fxCtx.clearRect(0, 0, bufW, bufH);
+
+      const fakeLayer = Object.assign({}, layer, { effects: activeFx });
+      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: pad, y: pad, w, h });
+      return { el: this._fxCanvas, padX: pad, padY: pad, origW: w, origH: h };
     }
 
     /**
@@ -933,9 +978,28 @@
         return;
       }
 
+      // Pre-process 2D effects (such as Drop Shadow, Fill, Blur) onto local offscreen canvas before 3D perspective projection
+      const processed = this._getEffectProcessedElement(el, layer, bounds);
+      const sourceEl = processed.el;
+
       // Calculate Full 4x4 MVP Matrix
-      const mvp = this._computeMVP(bounds, vw, vh, 0, camera);
+      let mvp = this._computeMVP(bounds, vw, vh, 0, camera);
       if (!mvp) return;
+
+      if (processed.padX > 0 || processed.padY > 0) {
+        const sX = (processed.origW + processed.padX * 2) / processed.origW;
+        const sY = (processed.origH + processed.padY * 2) / processed.origH;
+        const scaledMVP = new Float32Array(mvp);
+        scaledMVP[0] *= sX;
+        scaledMVP[1] *= sX;
+        scaledMVP[2] *= sX;
+        scaledMVP[3] *= sX;
+        scaledMVP[4] *= sY;
+        scaledMVP[5] *= sY;
+        scaledMVP[6] *= sY;
+        scaledMVP[7] *= sY;
+        mvp = scaledMVP;
+      }
 
       const gl = this.gl;
       if (this.glCanvas.width !== vw || this.glCanvas.height !== vh) {
@@ -962,7 +1026,7 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
 
       // Upload/Bind texture
-      const tex = this._getOrCreateTexture(el);
+      const tex = this._getOrCreateTexture(sourceEl);
       if (!tex) return;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -1068,7 +1132,17 @@
           : null;
 
         if (rgbSplitFx && window.FishEffects && typeof window.FishEffects.renderRGBSplit === 'function') {
-          window.FishEffects.renderRGBSplit(ctx, this.glCanvas, layer, { x: 0, y: 0, w: vw, h: vh }, rgbSplitFx);
+          if (!this._copyCanvas) {
+            this._copyCanvas = document.createElement('canvas');
+            this._copyCtx = this._copyCanvas.getContext('2d');
+          }
+          if (this._copyCanvas.width !== vw || this._copyCanvas.height !== vh) {
+            this._copyCanvas.width = vw;
+            this._copyCanvas.height = vh;
+          }
+          this._copyCtx.clearRect(0, 0, vw, vh);
+          this._copyCtx.drawImage(this.glCanvas, 0, 0);
+          window.FishEffects.renderRGBSplit(ctx, this._copyCanvas, layer, { x: 0, y: 0, w: vw, h: vh }, rgbSplitFx);
         } else {
           ctx.drawImage(this.glCanvas, 0, 0);
         }
@@ -1218,7 +1292,7 @@
      * @returns {boolean} True if successfully rendered via WebGL
      */
     renderRGBSplit(ctx, el, bounds, fx) {
-      if (!this.isReady || !this.rgbSplitProgram || !this.gl || !el || !this._hasValidDimensions(el)) return false;
+      if (!this.isReady || !this.rgbSplitProgram || !this.gl || !el || !this._hasValidDimensions(el) || el === this.glCanvas) return false;
       const gl = this.gl;
       const dist = fx && fx.distance !== undefined ? fx.distance : 8;
       if (dist <= 0) return false;

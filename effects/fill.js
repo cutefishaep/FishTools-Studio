@@ -97,6 +97,10 @@
         return;
       }
 
+      // Safety guard: never wipe the entire viewport with source-atop during full-screen post passes
+      const isViewportPass = bounds && (bounds.x === 0 && bounds.y === 0 && bounds.w >= (ctx.canvas ? ctx.canvas.width - 2 : 1000));
+      if (isViewportPass) return;
+
       const op = Math.max(0, Math.min(1, (fx.opacity !== undefined ? fx.opacity : 100) / 100));
       if (op <= 0) return;
 

@@ -39,11 +39,10 @@
     badgeColor: '#1a2215',
     badgePaddingX: 20,
     badgePaddingY: 10,
-    badgeRadius: 8,
-    animation: 'bounce_pop',    // legacy alias for animIn
+    animation: 'bounce_1',      // legacy alias for animIn
     animSpeed: 1.0,
     animDuration: 0.8,          // legacy alias for animInDuration
-    animIn: 'bounce_pop',       // 'none' | 'bounce_pop' | 'bounce_drop' | 'overshoot_slide' | 'elastic_wobble' | 'typewriter' | 'wave' | 'fade_up' | 'glitch'
+    animIn: 'bounce_1',         // 'none' | 'bounce_1' | 'bounce_2' | 'bounce_3' | 'bounce_4' | 'typewriter' | 'wave' | 'fade_up' | 'glitch'
     animInDuration: 0.8,        // in seconds
     animOut: 'none',            // 'none' | 'bounce_out' | 'slide_out' | 'fade_down' | 'shrink_drop'
     animOutDuration: 0.6,       // in seconds
@@ -182,8 +181,8 @@
         longShadowLength: 16,
         longShadowAngle: 45,
         badgeEnabled: false,
-        animation: 'pop_in',
-        animDuration: 1.8
+        animation: 'bounce_2',
+        animDuration: 1.2
       }
     },
     {
@@ -209,17 +208,25 @@
     }
   ];
 
+  function normalizeAnimIn(anim) {
+    if (!anim || anim === 'none') return 'none';
+    if (anim === 'bounce_1' || anim === 'bounce_pop') return 'bounce_1';
+    if (anim === 'bounce_2' || anim === 'pop_in' || anim === 'bounce_drop') return 'bounce_2';
+    if (anim === 'bounce_3' || anim === 'overshoot_slide') return 'bounce_3';
+    if (anim === 'bounce_4' || anim === 'elastic_wobble') return 'bounce_4';
+    return anim;
+  }
+
   const ANIMATION_IN_TYPES = [
-    { id: 'none', label: 'None', desc: 'Static crisp typography' },
-    { id: 'bounce_pop', label: 'Bounce Pop', desc: 'AE Inertia Spring Overshoot Pop' },
-    { id: 'bounce_drop', label: 'Drop Bounce', desc: 'Gravity drop with floor squash & bounce' },
-    { id: 'overshoot_slide', label: 'Overshoot Slide', desc: 'Snappy inertia slide with overshoot' },
-    { id: 'elastic_wobble', label: 'Jelly Wobble', desc: 'Elastic jelly rubber oscillation' },
-    { id: 'typewriter', label: 'Typewriter', desc: 'Sequential character typing with cursor' },
+    { id: 'bounce_1', label: 'Bounce 1 (Stagger 20ms)', desc: 'AE Cosine Pop: delay 20ms, freq 3, decay 7, amp 50' },
+    { id: 'bounce_2', label: 'Bounce 2 (Inertial 0.10s)', desc: 'AE Linear Spring: dur 0.10s, frame retard, freq 2, decay 9' },
+    { id: 'bounce_3', label: 'Bounce 3 (Stagger 60ms)', desc: 'AE Cosine Pop: delay 60ms, freq 2, decay 8, amp 50' },
+    { id: 'bounce_4', label: 'Bounce 4 (Inertial 0.25s)', desc: 'AE Linear Spring: dur 0.25s, frame retard, freq 1, decay 8' },
     { id: 'wave', label: 'Kinetic Wave', desc: 'Fluid sinusoidal wave motion' },
+    { id: 'typewriter', label: 'Typewriter', desc: 'Sequential character typing with cursor' },
     { id: 'fade_up', label: 'Fade Up', desc: 'Smooth vertical cascade fade-in' },
-    { id: 'pop_in', label: 'Pop In', desc: 'Elastic bouncy character pop' },
-    { id: 'glitch', label: 'Glitch', desc: 'High-energy digital displacement' }
+    { id: 'glitch', label: 'Glitch', desc: 'High-energy digital displacement' },
+    { id: 'none', label: 'None', desc: 'Static crisp typography' }
   ];
 
   const ANIMATION_OUT_TYPES = [
@@ -284,7 +291,124 @@
     }
 
     /**
-     * Render Text to an offscreen buffer canvas.
+     * Calculate dynamic tight bounding dimensions for text layer (no fixed box locking).
+     */
+    static getNaturalSize(layer) {
+      if (!layer) return { width: 320, height: 100 };
+      const p = Object.assign({}, DEFAULT_TEXT_PROPS, layer.textProps || {});
+      const font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + (p.fontSize || 64) + 'px ' + (p.fontFamily || 'Cal Sans');
+      
+      if (!this._measureCanvas) {
+        this._measureCanvas = document.createElement('canvas');
+        this._measureCtx = this._measureCanvas.getContext('2d');
+      }
+      const ctx = this._measureCtx;
+      const measure = this.measureText(ctx, p.text || 'Text', font, p.letterSpacing || 0, p.lineHeight || 1.15);
+
+      const padX = p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24;
+      const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
+      const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
+
+      const w = Math.max(40, Math.ceil(measure.width + padX + shadowPad * 2));
+      const h = Math.max(30, Math.ceil(measure.height + padY + shadowPad * 2));
+
+      return {
+        width: w,
+        height: h,
+        textWidth: measure.width,
+        textHeight: measure.height,
+        lines: measure.lines,
+        lineHeight: measure.lineHeight
+      };
+    }
+
+    /**
+     * Authentic After Effects inertia decay bounce & spring expressions.
+     * Evaluates live scale, squash & stretch, translation offset, and alpha at localSec.
+     */
+    static getAnimTransform(layer, localSec = 0, clipDur = 5) {
+      const p = Object.assign({}, DEFAULT_TEXT_PROPS, layer.textProps || {});
+      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_pop');
+      const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
+      const effectiveAnimOut = p.animOut || 'none';
+      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+      const clipDuration = Math.max(0.5, Number(clipDur) || 5.0);
+      const outStartSec = Math.max(inDur, clipDuration - outDur);
+
+      let scaleX = 1.0;
+      let scaleY = 1.0;
+      let offX = 0;
+      let offY = 0;
+      let alpha = 1.0;
+
+      // 1. IN ANIMATION (Intro)
+      if (localSec < inDur && effectiveAnimIn !== 'none') {
+        const pIn = Math.min(1.0, Math.max(0, localSec / inDur));
+        const normalizedIn = normalizeAnimIn(effectiveAnimIn);
+
+        if (normalizedIn === 'fade_up') {
+          const ease = 1 - Math.pow(1 - pIn, 2);
+          offY = (1 - ease) * 36;
+          alpha = ease;
+        } else if (normalizedIn.startsWith('bounce_') || normalizedIn === 'wave' || normalizedIn === 'typewriter' || normalizedIn === 'glitch') {
+          // Staggered character-level animations are evaluated per-glyph inside drawText,
+          // preserving layer layout and typography without whole-box distortion.
+          scaleX = 1.0;
+          scaleY = 1.0;
+          offX = 0;
+          offY = 0;
+          alpha = 1.0;
+        }
+      }
+      // 2. OUT ANIMATION (Outro)
+      else if (localSec >= outStartSec && effectiveAnimOut !== 'none') {
+        const tOut = localSec - outStartSec;
+        const pOut = Math.min(1.0, Math.max(0, tOut / outDur));
+
+        if (effectiveAnimOut === 'bounce_out') {
+          // AE Windup Crouch then Explosive Collapse
+          if (pOut < 0.25) {
+            const u = pOut / 0.25;
+            const squash = Math.sin(u * Math.PI);
+            scaleX = 1.0 + squash * 0.24;
+            scaleY = 1.0 - squash * 0.22;
+            offY = squash * 14;
+            alpha = 1.0;
+          } else {
+            const u = (pOut - 0.25) / 0.75;
+            const launch = Math.pow(u, 2.5);
+            scaleX = Math.max(0, (1 - launch) * 0.82);
+            scaleY = Math.max(0, (1 - launch) * 1.45);
+            offY = -launch * 80;
+            alpha = Math.max(0, 1 - u * 1.6);
+          }
+        } else if (effectiveAnimOut === 'slide_out') {
+          if (pOut < 0.20) {
+            const u = pOut / 0.20;
+            offX = -Math.sin(u * Math.PI) * 18;
+            alpha = 1.0;
+          } else {
+            const u = (pOut - 0.20) / 0.80;
+            offX = Math.pow(u, 2) * 240;
+            alpha = Math.max(0, 1 - u * 1.5);
+          }
+        } else if (effectiveAnimOut === 'fade_down') {
+          offY = Math.pow(pOut, 2) * 50;
+          alpha = Math.max(0, 1 - pOut);
+        } else if (effectiveAnimOut === 'shrink_drop') {
+          const s = Math.max(0, 1 - Math.pow(pOut, 2));
+          scaleX = s;
+          scaleY = s;
+          offY = pOut * 60;
+          alpha = Math.max(0, 1 - pOut);
+        }
+      }
+
+      return { scaleX, scaleY, offX, offY, alpha };
+    }
+
+    /**
+     * Render Text to an offscreen buffer canvas with dynamic resolution.
      */
     static renderTextToCanvas(layer, canvas, targetW, targetH, localSec = 0, clipDur = 5) {
       if (!canvas || typeof canvas.getContext !== 'function' || !layer) return canvas;
@@ -294,14 +418,14 @@
       const p = Object.assign({}, DEFAULT_TEXT_PROPS, layer.textProps || {});
 
       const font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + (p.fontSize || 64) + 'px ' + (p.fontFamily || 'Cal Sans');
-      const measure = this.measureText(ctx, p.text, font, p.letterSpacing, p.lineHeight);
+      const measure = this.measureText(ctx, p.text || 'Text', font, p.letterSpacing, p.lineHeight);
 
-      const padX = p.badgeEnabled ? (p.badgePaddingX * 2 + 30) : 40;
-      const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 30) : 40;
-      const shadowPad = p.longShadow ? (p.longShadowLength + 20) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 10) : 0);
+      const padX = p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24;
+      const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
+      const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
 
-      const reqW = Math.max(targetW, measure.width + padX + shadowPad * 2);
-      const reqH = Math.max(targetH, measure.height + padY + shadowPad * 2);
+      const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width + padX + shadowPad * 2));
+      const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2));
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
         canvas.width = reqW;
@@ -350,10 +474,6 @@
 
       const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_pop');
       const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
-      const effectiveAnimOut = p.animOut || 'none';
-      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
-      const clipDuration = Math.max(0.5, Number(clipDur) || 5.0);
-      const outStartSec = Math.max(inDur, clipDuration - outDur);
 
       // Calculate typewriter progress if active
       let isTypewriter = (effectiveAnimIn === 'typewriter' || p.animation === 'typewriter');
@@ -389,193 +509,175 @@
             continue;
           }
 
-          // Character animation displacement & transforms
           let offX = 0;
           let offY = 0;
           let scaleX = 1.0;
           let scaleY = 1.0;
           let charAlpha = 1.0;
 
-          // ==================================================================
-          // 1. IN ANIMATION (localSec < inDur)
-          // ==================================================================
-          if (localSec < inDur && effectiveAnimIn !== 'none') {
-            const charDelay = (charIndex / totalChars) * (inDur * 0.45);
-            const tChar = Math.max(0, localSec - charDelay);
-            const pChar = Math.min(1.0, tChar / (inDur * 0.55));
+          const normIn = normalizeAnimIn(effectiveAnimIn);
 
-            // A. AE Inertia Spring Overshoot Pop
-            if (effectiveAnimIn === 'bounce_pop' || effectiveAnimIn === 'pop_in') {
-              if (pChar < 1.0) {
-                const amp = 0.42;
-                const freq = 3.6;
-                const decay = 5.2;
-                const osc = Math.sin(pChar * freq * Math.PI * 2) * Math.exp(-decay * pChar) * amp;
-                const base = 1 - Math.pow(1 - pChar, 3);
-                const s = Math.max(0, base + osc * (1 - pChar * 0.5));
-                scaleX = s;
-                scaleY = s;
-                charAlpha = Math.min(1.0, pChar * 4);
-              }
+          if (normIn === 'bounce_1') {
+            // Expression 1:
+            // delay = .020 ;
+            // myDelay = delay*textIndex;
+            // t = (time - inPoint) - myDelay;
+            // if (t >= 0){
+            //   freq =3;
+            //   amplitude = 50;
+            //   decay = 7.0;
+            //   s = amplitude*Math.cos(freq*t*2*Math.PI)/Math.exp(decay*t);
+            //   [s,s]
+            // }else{
+            //   value
+            // }
+            const delay = 0.020;
+            const myDelay = delay * charIndex;
+            const t = localSec - myDelay;
+            if (t < 0) {
+              scaleX = 0;
+              scaleY = 0;
+              charAlpha = 0;
+            } else {
+              const freq = 3;
+              const amplitude = 50;
+              const decay = 7.0;
+              const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
+              const rise = Math.min(1.0, t / 0.025);
+              const sc = Math.max(0, rise * (1.0 + (s / 100)));
+              scaleX = sc;
+              scaleY = sc;
+              charAlpha = Math.min(1.0, sc * 2.5);
             }
-            // B. AE Gravity Drop with Floor Bounce & Squash/Stretch
-            else if (effectiveAnimIn === 'bounce_drop') {
-              if (pChar < 1.0) {
-                charAlpha = Math.min(1.0, pChar * 5);
-                if (pChar < 0.36) {
-                  const u = pChar / 0.36;
-                  offY = -110 * (1 - u * u);
-                  scaleX = 0.92;
-                  scaleY = 1.15;
-                } else if (pChar < 0.44) {
-                  // Floor impact squash
-                  const u = (pChar - 0.36) / 0.08;
-                  const squash = Math.sin(u * Math.PI);
-                  scaleX = 1 + squash * 0.30;
-                  scaleY = 1 - squash * 0.25;
-                  offY = 0;
-                } else if (pChar < 0.70) {
-                  // First bounce arc
-                  const u = (pChar - 0.44) / 0.26;
-                  const arc = Math.sin(u * Math.PI);
-                  offY = -34 * arc;
-                  scaleX = 1 - arc * 0.1;
-                  scaleY = 1 + arc * 0.12;
-                } else if (pChar < 0.78) {
-                  // Secondary smaller squash
-                  const u = (pChar - 0.70) / 0.08;
-                  const squash = Math.sin(u * Math.PI);
-                  scaleX = 1 + squash * 0.14;
-                  scaleY = 1 - squash * 0.10;
-                  offY = 0;
-                } else if (pChar < 0.92) {
-                  // Second minor bounce
-                  const u = (pChar - 0.78) / 0.14;
-                  const arc = Math.sin(u * Math.PI);
-                  offY = -10 * arc;
-                  scaleX = 1.0;
-                  scaleY = 1.0;
-                } else {
-                  offY = 0;
-                  scaleX = 1.0;
-                  scaleY = 1.0;
-                }
-              }
+          } else if (normIn === 'bounce_2') {
+            // Expression 2:
+            // freq = 2;
+            // decay = 9;
+            // duration = 0.10;
+            // retard = textIndex*thisComp.frameDuration*1;
+            // t = time - (inPoint + retard);
+            // startVal = [100,100,100];endVal = [0,0,0];
+            // if (t < duration){
+            //   linear(t,0,duration,startVal,endVal);
+            // }else{
+            //   amp = (endVal - startVal)/duration;
+            //   w = freq*Math.PI*2;
+            //   endVal + amp*(Math.sin((t-duration)*w)/Math.exp(decay*(t-duration))/w);
+            // }
+            const fps = (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+            const frameDuration = 1.0 / (fps || 60);
+            const retard = charIndex * frameDuration * 1.0;
+            const t = localSec - retard;
+            const duration = 0.10;
+            if (t < 0) {
+              scaleX = 0;
+              scaleY = 0;
+              charAlpha = 0;
+            } else if (t < duration) {
+              const u = t / duration;
+              scaleX = u;
+              scaleY = u;
+              charAlpha = Math.min(1.0, u * 2.5);
+            } else {
+              const freq = 2;
+              const decay = 9;
+              const amp = (0 - 100) / duration;
+              const w = freq * Math.PI * 2;
+              const tPost = t - duration;
+              const val = 0 + amp * (Math.sin(tPost * w) / (Math.exp(decay * tPost) * w));
+              const sc = Math.max(0, (100 - val) / 100);
+              scaleX = sc;
+              scaleY = sc;
+              charAlpha = 1.0;
             }
-            // C. AE Overshoot Slide (Snap-in with inertia overshoot)
-            else if (effectiveAnimIn === 'overshoot_slide') {
-              if (pChar < 1.0) {
-                charAlpha = Math.min(1.0, pChar * 3.5);
-                const amp = 0.35;
-                const freq = 3.0;
-                const decay = 4.8;
-                const osc = Math.sin(pChar * freq * Math.PI * 2) * Math.exp(-decay * pChar) * amp;
-                const base = 1 - Math.pow(1 - pChar, 3);
-                const factor = 1 - (base + osc * (1 - pChar * 0.5));
-                offX = factor * 90;
-                scaleX = 1 + Math.abs(factor) * 0.15;
-                scaleY = 1 - Math.abs(factor) * 0.08;
-              }
+          } else if (normIn === 'bounce_3') {
+            // Expression 3:
+            // delay = .060 ;
+            // myDelay = delay*textIndex;
+            // t = (time - inPoint) - myDelay;
+            // if (t >= 0){
+            //   freq =2;
+            //   amplitude = 50;
+            //   decay = 8.0;
+            //   s = amplitude*Math.cos(freq*t*2*Math.PI)/Math.exp(decay*t);
+            //   [s,s]
+            // }else{
+            //   value
+            // }
+            const delay = 0.060;
+            const myDelay = delay * charIndex;
+            const t = localSec - myDelay;
+            if (t < 0) {
+              scaleX = 0;
+              scaleY = 0;
+              charAlpha = 0;
+            } else {
+              const freq = 2;
+              const amplitude = 50;
+              const decay = 8.0;
+              const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
+              const rise = Math.min(1.0, t / 0.035);
+              const sc = Math.max(0, rise * (1.0 + (s / 100)));
+              scaleX = sc;
+              scaleY = sc;
+              charAlpha = Math.min(1.0, sc * 2.5);
             }
-            // D. AE Elastic Wobble / Jelly (asymmetric X/Y spring)
-            else if (effectiveAnimIn === 'elastic_wobble') {
-              if (pChar < 1.0) {
-                charAlpha = Math.min(1.0, pChar * 4);
-                const decay = 4.5;
-                const freq = 3.8;
-                const wobble = Math.sin(pChar * freq * Math.PI * 2) * Math.exp(-decay * pChar) * 0.45;
-                scaleX = 1 + wobble;
-                scaleY = 1 - wobble * 0.85;
-                offY = -Math.sin(pChar * Math.PI) * 12 * (1 - pChar);
-              }
+          } else if (normIn === 'bounce_4') {
+            // Expression 4:
+            // freq = 1;
+            // decay = 8;
+            // duration = 0.25;
+            // retard = textIndex*thisComp.frameDuration*1;
+            // t = time - (inPoint + retard);
+            // startVal = [100,100,100];
+            // endVal = [0,0,0];
+            // if (t < duration){
+            //   linear(t,0,duration,startVal,endVal);
+            // }else{
+            //   amp = (endVal - startVal)/duration;
+            //   w = freq*Math.PI*2;
+            //   endVal + amp*(Math.sin((t-duration)*w)/Math.exp(decay*(t-duration))/w);
+            // }
+            const fps = (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+            const frameDuration = 1.0 / (fps || 60);
+            const retard = charIndex * frameDuration * 1.0;
+            const t = localSec - retard;
+            const duration = 0.25;
+            if (t < 0) {
+              scaleX = 0;
+              scaleY = 0;
+              charAlpha = 0;
+            } else if (t < duration) {
+              const u = t / duration;
+              scaleX = u;
+              scaleY = u;
+              charAlpha = Math.min(1.0, u * 2.5);
+            } else {
+              const freq = 1;
+              const decay = 8;
+              const amp = (0 - 100) / duration;
+              const w = freq * Math.PI * 2;
+              const tPost = t - duration;
+              const val = 0 + amp * (Math.sin(tPost * w) / (Math.exp(decay * tPost) * w));
+              const sc = Math.max(0, (100 - val) / 100);
+              scaleX = sc;
+              scaleY = sc;
+              charAlpha = 1.0;
             }
-            // E. Kinetic Sinusoidal Wave
-            else if (effectiveAnimIn === 'wave') {
-              const freq = 5.0 * (p.animSpeed || 1.0);
-              const phase = charIndex * 0.45;
-              offY = Math.sin(localSec * freq + phase) * 10;
-            }
-            // F. Smooth Fade Up
-            else if (effectiveAnimIn === 'fade_up') {
-              const ease = 1 - (1 - pChar) * (1 - pChar);
-              offY = (1 - ease) * 30;
-              charAlpha = ease;
-            }
-            // G. Digital Glitch
-            else if (effectiveAnimIn === 'glitch') {
-              const quant = Math.floor(localSec * 12);
-              const hash = Math.sin(quant * 9999 + charIndex * 1337);
-              if (Math.abs(hash) > 0.75) {
-                offX = (hash > 0 ? 1 : -1) * (Math.abs(hash) * 6);
-                offY = (Math.cos(quant) * 3);
-              }
-            }
-          }
-          // ==================================================================
-          // 2. OUT ANIMATION (localSec >= outStartSec)
-          // ==================================================================
-          else if (localSec >= outStartSec && effectiveAnimOut !== 'none') {
-            const tOut = localSec - outStartSec;
-            const charDelay = (charIndex / totalChars) * (outDur * 0.4);
-            const tCharOut = Math.max(0, tOut - charDelay);
-            const pCharOut = Math.min(1.0, tCharOut / (outDur * 0.6));
-
-            // A. AE Spring Bounce Out (Windup anticipation & snap collapse)
-            if (effectiveAnimOut === 'bounce_out') {
-              if (pCharOut < 0.22) {
-                const u = pCharOut / 0.22;
-                const squash = Math.sin(u * Math.PI);
-                scaleX = 1 + squash * 0.18;
-                scaleY = 1 + squash * 0.18;
-                offY = -squash * 10;
-                charAlpha = 1.0;
-              } else {
-                const u = (pCharOut - 0.22) / 0.78;
-                const s = Math.max(0, 1 - Math.pow(u, 2.5));
-                scaleX = s;
-                scaleY = s;
-                offY = u * 45;
-                charAlpha = Math.max(0, 1 - u * 1.4);
-              }
-            }
-            // B. AE Snappy Slide Out
-            else if (effectiveAnimOut === 'slide_out') {
-              if (pCharOut < 0.20) {
-                const u = pCharOut / 0.20;
-                offX = -Math.sin(u * Math.PI) * 10;
-                charAlpha = 1.0;
-              } else {
-                const u = (pCharOut - 0.20) / 0.80;
-                offX = Math.pow(u, 2) * 120;
-                charAlpha = Math.max(0, 1 - u * 1.5);
-              }
-            }
-            // C. Smooth Fade Down
-            else if (effectiveAnimOut === 'fade_down') {
-              offY = Math.pow(pCharOut, 2) * 45;
-              charAlpha = Math.max(0, 1 - pCharOut);
-            }
-            // D. Shrink & Drop through Floor
-            else if (effectiveAnimOut === 'shrink_drop') {
-              const s = Math.max(0, 1 - pCharOut);
-              scaleX = s;
-              scaleY = s;
-              offY = pCharOut * 50;
-              charAlpha = Math.max(0, 1 - pCharOut);
-            }
-          }
-          // ==================================================================
-          // 3. MIDDLE SETTLED / AMBIENT MOTION
-          // ==================================================================
-          else {
-            if (effectiveAnimIn === 'wave') {
-              const freq = 5.0 * (p.animSpeed || 1.0);
-              const phase = charIndex * 0.45;
-              offY = Math.sin(localSec * freq + phase) * 8;
+          } else if (normIn === 'wave' || p.animation === 'wave') {
+            const freq = 5.0 * (p.animSpeed || 1.0);
+            const phase = charIndex * 0.45;
+            offY = Math.sin(localSec * freq + phase) * 8;
+          } else if (normIn === 'glitch') {
+            const quant = Math.floor(localSec * 12);
+            const hash = Math.sin(quant * 9999 + charIndex * 1337);
+            if (Math.abs(hash) > 0.75) {
+              offX = (hash > 0 ? 1 : -1) * (Math.abs(hash) * 6);
+              offY = (Math.cos(quant) * 3);
             }
           }
 
-          if (charAlpha <= 0.01) {
+          if (charAlpha <= 0.001 || scaleX <= 0.001 || scaleY <= 0.001) {
             curX += chW;
             continue;
           }

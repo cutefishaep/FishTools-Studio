@@ -811,8 +811,9 @@ html, body {
   }
 
   .timeline-layers-viewport.has-drawer-open,
+  .editor-timeline.has-drawer-open .timeline-layers-viewport,
   .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
-  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
+  .editor-timeline:has(.drawer-container.is-active) .timeline-layers-viewport {
     padding-bottom: 130px;
     padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px));
   }
@@ -825,11 +826,21 @@ html, body {
     height: 42px;
   }
 
+  .timeline-fab-add .svg-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .editor-timeline.has-drawer-open .timeline-fab-add,
   .editor-timeline.has-layer-drawer-open .timeline-fab-add,
-  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
+  .editor-timeline:has(.drawer-container.is-active) .timeline-fab-add,
+  .showcase-live-widget:has(.drawer-container.is-active) .timeline-fab-add,
+  :root:has(.drawer-container.is-active) .timeline-fab-add,
+  body.has-active-drawer .timeline-fab-add {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transform: scale(0.6) !important;
   }
 
   /* Vertical split handle is strictly hidden on mobile */
@@ -2469,19 +2480,24 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 120;
+  z-index: 90;
   padding: 0;
   box-shadow: none;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease, bottom 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.18s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Hide FAB when layer action drawer is open to prevent overlap */
+/* Hide FAB when ANY drawer is open to prevent overlap */
+.editor-timeline.has-drawer-open .timeline-fab-add,
 .editor-timeline.has-layer-drawer-open .timeline-fab-add,
-.editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
-  opacity: 0;
-  pointer-events: none;
-  visibility: hidden;
+.editor-timeline:has(.drawer-container.is-active) .timeline-fab-add,
+.showcase-live-widget:has(.drawer-container.is-active) .timeline-fab-add,
+:root:has(.drawer-container.is-active) .timeline-fab-add,
+body.has-active-drawer .timeline-fab-add {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: scale(0.6) !important;
 }
 
 .timeline-fab-add .svg-icon {
@@ -2518,10 +2534,21 @@ html, body {
     height: 42px;
   }
 
+  .timeline-fab-add .svg-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .editor-timeline.has-drawer-open .timeline-fab-add,
   .editor-timeline.has-layer-drawer-open .timeline-fab-add,
-  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
-    bottom: 160px;
-    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+  .editor-timeline:has(.drawer-container.is-active) .timeline-fab-add,
+  .showcase-live-widget:has(.drawer-container.is-active) .timeline-fab-add,
+  :root:has(.drawer-container.is-active) .timeline-fab-add,
+  body.has-active-drawer .timeline-fab-add {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transform: scale(0.6) !important;
   }
 }
 

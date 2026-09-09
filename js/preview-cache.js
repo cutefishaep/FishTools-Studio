@@ -141,11 +141,17 @@
       const pool = this.getPool(compId || this.activeCompId);
       const entry = pool.get(frameIndex);
       if (!entry) return false;
-      if (entry.isDraft !== this.isDraftMode ||
-          (expectedWidth && entry.width !== expectedWidth) ||
-          (expectedHeight && entry.height !== expectedHeight)) {
+      if (entry.isDraft !== this.isDraftMode) {
         this.deleteFrame(frameIndex, false, compId);
         return false;
+      }
+      if (expectedWidth && expectedHeight && entry.width && entry.height) {
+        const entryAspect = entry.width / entry.height;
+        const expectedAspect = expectedWidth / expectedHeight;
+        if (Math.abs(entryAspect - expectedAspect) > 0.05 || Math.abs(entry.width - expectedWidth) / expectedWidth > 0.35) {
+          this.deleteFrame(frameIndex, false, compId);
+          return false;
+        }
       }
       return true;
     }
@@ -154,24 +160,35 @@
       const pool = this.getPool(compId || this.activeCompId);
       const entry = pool.get(frameIndex);
       if (!entry) return null;
-      if (entry.isDraft !== this.isDraftMode ||
-          (expectedWidth && entry.width !== expectedWidth) ||
-          (expectedHeight && entry.height !== expectedHeight)) {
+      if (entry.isDraft !== this.isDraftMode) {
         this.deleteFrame(frameIndex, false, compId);
         return null;
+      }
+      if (expectedWidth && expectedHeight && entry.width && entry.height) {
+        const entryAspect = entry.width / entry.height;
+        const expectedAspect = expectedWidth / expectedHeight;
+        if (Math.abs(entryAspect - expectedAspect) > 0.05 || Math.abs(entry.width - expectedWidth) / expectedWidth > 0.35) {
+          this.deleteFrame(frameIndex, false, compId);
+          return null;
+        }
       }
       return entry.bitmap;
     }
 
     /**
      * Evict the single worst frame from the current pool when over maxFrames limit.
-     * Strategy: evict frames behind the playhead first (already played), then far-lookahead.
-     * This mirrors AE RAM preview eviction and keeps the cache useful for smooth playback.
+     * Strategy: protect the active composition playback range so the timeline bar stays solid.
+     * Furthest frames from playhead outside the project loop are evicted first.
      */
     _evictIfNeeded(compId = null) {
       const targetComp = compId || this.activeCompId;
       const pool = this.getPool(targetComp);
-      if (!this.maxFrames || pool.size <= this.maxFrames) return;
+      const totalDur = (typeof window !== 'undefined' && typeof window.getProjectTotalDuration === 'function')
+        ? window.getProjectTotalDuration()
+        : 0;
+      const totalProjectFrames = Math.ceil((totalDur || 10) * this.fps);
+      const effectiveMax = Math.max(this.maxFrames || 1200, totalProjectFrames + 120);
+      if (pool.size <= effectiveMax) return;
 
       const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) ? window.currentPixelsPerSecond : 80;
       const curSec = (typeof window !== 'undefined' && typeof window.getCurrentPlayheadTime === 'function')
@@ -185,17 +202,11 @@
       for (const fIdx of pool.keys()) {
         const inFlightKey = `${targetComp}:${fIdx}`;
         if (this._inFlightFrames && this._inFlightFrames.has(inFlightKey)) continue; // never evict in-flight
-        const dist = fIdx - curFrame;
-        let score;
-        if (dist < 0) {
-          // Behind playhead: evict first — already rendered, no longer needed
-          score = (-dist) + 1000000;
-        } else if (dist > 360) {
-          // Far ahead (>6s at 60fps): evict — too far to be immediately useful
-          score = dist + 1000;
-        } else {
-          // Lookahead window [0, 6s ahead]: protect — needed for smooth forward playback
-          score = dist * 0.01;
+        const dist = Math.abs(fIdx - curFrame);
+        // Frames outside project duration bounds are purged first, otherwise furthest from playhead
+        let score = dist;
+        if (fIdx < 0 || fIdx > totalProjectFrames) {
+          score += 100000;
         }
         if (score > worstScore) {
           worstScore = score;
@@ -254,8 +265,8 @@
       if (!this._pendingFrames) this._pendingFrames = new Set();
       if (!this._inFlightFrames) this._inFlightFrames = new Set();
       const inFlightKey = `${targetComp}:${frameIndex}`;
-      // Guard against GPU overload during 60fps playback (max 2 concurrent createImageBitmap)
-      if (this._inFlightFrames.size >= 2) return;
+      // Guard against excessive GPU memory pressure (allow up to 8 in-flight frames for 60fps playback)
+      if (this._inFlightFrames.size >= 8) return;
       if (this._pendingFrames.has(inFlightKey) || this._inFlightFrames.has(inFlightKey)) return;
       this._pendingFrames.add(inFlightKey);
       this._inFlightFrames.add(inFlightKey);
@@ -272,7 +283,7 @@
         });
         // Evict oldest frame if over limit (LRU — keeps playback smooth without OOM)
         this._evictIfNeeded(targetComp);
-        // Throttled ruler update — prevents ruler flickering during rapid idle cache fills (250ms batch)
+        // Throttled ruler update — prevents ruler flickering during rapid idle cache fills (120ms batch)
         this._scheduleRulerUpdate();
       } catch (_) {}
       finally {
@@ -437,7 +448,8 @@
 
       let runStart = -1;
       for (let f = 0; f <= totalFrames; f++) {
-        const isCached = this.frames.has(f);
+        // Bridge single-frame micro gaps during live playback to maintain solid green bar
+        const isCached = this.frames.has(f) || (f > 0 && f < totalFrames && this.frames.has(f - 1) && this.frames.has(f + 1));
         if (isCached) {
           if (runStart === -1) runStart = f;
         } else {
@@ -476,6 +488,24 @@
       window.addEventListener('scroll', onActivity, { passive: true });
     }
 
+    _hasExtractingVideoInActiveComp() {
+      const projectState = (typeof window !== 'undefined') ? window.currentProjectState : null;
+      if (!projectState || !Array.isArray(projectState.layers)) return false;
+      const vfe = (typeof window !== 'undefined') ? window.VideoFrameExtractor : null;
+      if (!vfe) return false;
+      const targetLayers = (this.activeCompId && this.activeCompId !== 'root' && window.currentActivePrecomp && Array.isArray(window.currentActivePrecomp.layers))
+        ? window.currentActivePrecomp.layers
+        : projectState.layers;
+      for (const layer of targetLayers) {
+        if (layer && layer.type === 'video' && !layer.hidden) {
+          const sk = (typeof vfe._getSourceKey === 'function') ? vfe._getSourceKey(layer) : (layer.mediaId || layer.dataUrl || layer.id);
+          const sc = (typeof vfe.getSourceCache === 'function') ? vfe.getSourceCache(sk) : (vfe.sources ? vfe.sources.get(sk) : null);
+          if (sc && sc.isExtracting) return true;
+        }
+      }
+      return false;
+    }
+
     scheduleIdleCheck(immediate = false) {
       if (!this.idleCacheEnabled) return;
       if (this.idleTimer) clearTimeout(this.idleTimer);
@@ -483,10 +513,8 @@
       this.idleTimer = setTimeout(() => {
         if (!this.idleCacheEnabled) return;
         if (window.isTimelinePlaying || window.isTransformInteracting) return;
-        // Only run idle cache after video extraction fully completes.
-        // isTimeReadyToCache() checks per-frame video readiness, but idle cache rendering
-        // with neighboring/fallback frames would store wrong content in the bitmap cache.
-        if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) return;
+        // Only pause idle cache if an active video layer in this composition is currently extracting
+        if (this._hasExtractingVideoInActiveComp()) return;
         if (document.querySelector('.modal-backdrop.is-open, .modal-backdrop.active')) return;
         this.startIdleWorker();
       }, delay);
@@ -508,7 +536,7 @@
 
     startIdleWorker() {
       if (this.isIdleRunning || !this.idleCacheEnabled || window.isTimelinePlaying || window.isTransformInteracting) return;
-      if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) return;
+      if (this._hasExtractingVideoInActiveComp()) return;
       this.isIdleRunning = true;
       this.runIdleStep();
     }
@@ -562,9 +590,8 @@
         this.stopIdleWorker();
         return;
       }
-      // Wait for video extraction to fully complete before idle-caching.
-      // Idle cache with incomplete video would store neighboring/wrong frames as bitmaps.
-      if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor.isAnySourceExtracting === 'function' && window.VideoFrameExtractor.isAnySourceExtracting()) {
+      // Wait only for video layers in the active composition to complete extraction
+      if (this._hasExtractingVideoInActiveComp()) {
         this.stopIdleWorker();
         return;
       }
@@ -584,16 +611,16 @@
       // Fill cache OUTWARD from playhead in both directions simultaneously.
       // Forward: currentFrame, +1, +2, +3...
       // Backward: currentFrame-1, -2, -3...
-      // Alternating forward/backward ensures frames immediately around playhead are cached first,
-      // matching After Effects RAM Preview behavior.
       let targetFrame = -1;
       let fwdIdx = currentFrame;
       let bwdIdx = currentFrame - 1;
+      const targetComp = this.activeCompId || 'root';
 
       while (targetFrame === -1 && (fwdIdx < totalFrames || bwdIdx >= 0)) {
         // Check forward first (more useful — user is likely playing forward)
         if (fwdIdx < totalFrames) {
-          if (!this.frames.has(fwdIdx) && this.isTimeReadyToCache(fwdIdx / this.fps)) {
+          const inFlightKey = `${targetComp}:${fwdIdx}`;
+          if (!this.frames.has(fwdIdx) && (!this._inFlightFrames || !this._inFlightFrames.has(inFlightKey)) && this.isTimeReadyToCache(fwdIdx / this.fps)) {
             targetFrame = fwdIdx;
             break;
           }
@@ -601,7 +628,8 @@
         }
         // Then check backward (recent history — scrub back support)
         if (bwdIdx >= 0) {
-          if (!this.frames.has(bwdIdx) && this.isTimeReadyToCache(bwdIdx / this.fps)) {
+          const inFlightKey = `${targetComp}:${bwdIdx}`;
+          if (!this.frames.has(bwdIdx) && (!this._inFlightFrames || !this._inFlightFrames.has(inFlightKey)) && this.isTimeReadyToCache(bwdIdx / this.fps)) {
             targetFrame = bwdIdx;
             break;
           }

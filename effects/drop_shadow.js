@@ -47,8 +47,8 @@
         ctx.save();
         ctx.shadowColor = hexToRgba(color, op);
         ctx.shadowBlur = blur;
-        // Offset element far offscreen to draw only its shadow at target coordinates
-        const FAR_OFFSET = 10000;
+        // Bounded offscreen offset: avoid exceeding max GPU texture limits (8192px)
+        const FAR_OFFSET = 3000;
         ctx.shadowOffsetX = ox + FAR_OFFSET;
         ctx.shadowOffsetY = oy;
         try {

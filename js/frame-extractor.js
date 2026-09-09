@@ -1487,7 +1487,7 @@
 
         while (source.pendingFrames && source.pendingFrames.size > 0) {
           // If source was cleared or cancelled, abort
-          if (!this.sources.has(source.sourceKey)) break;
+          if (!this.sources.has(source.sourceKey) || !source.isExtracting) break;
 
           // Pause background extraction only while exporting unless priority extraction was requested
           if (window.isExporting && !source._forceExtraction) {
@@ -1784,11 +1784,14 @@
 
       // 3. Invalidate PreviewCacheManager when extraction completed
       if (window.PreviewCacheManager && isComplete) {
+        const pps = window.currentPixelsPerSecond || 80;
+        const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+        const hasMatching = layers.some(l => l.type === 'video' && !l.hidden && this._getSourceKey(l) === sourceKey);
+        if (!hasMatching) return; // Video layer no longer in project — do not invalidate preview cache!
+
         if (!window.isTimelinePlaying) {
-          const pps = window.currentPixelsPerSecond || 80;
-          const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
           layers.forEach(l => {
-            if (l.type === 'video' && this._getSourceKey(l) === sourceKey) {
+            if (l.type === 'video' && !l.hidden && this._getSourceKey(l) === sourceKey) {
               const start = l.startSec !== undefined ? l.startSec : ((l.startPx || 0) / pps);
               const dur = l.durationSec !== undefined ? l.durationSec : ((l.widthPx || 320) / pps);
               window.PreviewCacheManager.invalidateRange(start, start + dur);
@@ -1848,6 +1851,8 @@
       for (const k of keysToClear) {
         const source = this.sources.get(k);
         if (source) {
+          source.isExtracting = false;
+          if (source.pendingFrames) source.pendingFrames.clear();
           if (source.activeVideo) {
             try {
               source.activeVideo.removeAttribute('src');

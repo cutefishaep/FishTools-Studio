@@ -163,7 +163,7 @@
             </button>
 
             <!-- 3. Previous -->
-            <button type="button" class="ctrl-btn" id="editor-btn-prev" title="Previous Keyframe / Beatmark / Frame" aria-label="Previous">
+            <button type="button" class="ctrl-btn" id="editor-btn-prev" title="Previous Keyframe / Beatmark (B)" aria-label="Previous (B)">
               <span class="svg-icon svg-icon-prev"></span>
             </button>
 
@@ -174,7 +174,7 @@
             </button>
 
             <!-- 5. Next -->
-            <button type="button" class="ctrl-btn" id="editor-btn-next" title="Next Keyframe / Beatmark / Frame" aria-label="Next">
+            <button type="button" class="ctrl-btn" id="editor-btn-next" title="Next Keyframe / Beatmark (N)" aria-label="Next (N)">
               <span class="svg-icon svg-icon-next"></span>
             </button>
 
@@ -251,15 +251,21 @@
                   <div class="segmented-switch is-pill add-layer-categories-switch" role="tablist" aria-label="Layer Categories">
                     <button type="button" class="segmented-switch-item is-active" role="tab" aria-selected="true" data-category="media" title="Media Layer" aria-label="Media">
                       <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71zM8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                        <!-- Back Audio Card: Clean border with note -->
+                        <path d="M4 2h10a2 2 0 0 1 2 2v2.5h-2V4H4v11h2.5v2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+                        <path d="M9 5v4.5c-.35-.15-.75-.25-1.2-.25-1.3 0-2.3 1-2.3 2.25s1 2.25 2.3 2.25 2.2-1 2.2-2.25V7h2V5H9z"/>
+                        <!-- Front Photo Card: Solid filled card with cutout landscape & sun -->
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M8 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V8zm4.5 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-2 7h10l-3.2-4.2-2 2.6-1.8-2.2-3 3.8z"/>
                       </svg>
+                      <span class="category-label">Media</span>
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="shape" title="Shape Layer" aria-label="Shape">
                       <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                       </svg>
+                      <span class="category-label">Shape</span>
                     </button>
-                    <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="control" title="Control Camera Layer" aria-label="Controll">
+                    <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="control" title="Control Camera Layer" aria-label="Control">
                       <svg viewBox="0 0 24 24" fill="currentColor">
                         <rect x="2" y="2" width="3" height="3" rx="0.5"/>
                         <rect x="11.5" y="2" width="3" height="3" rx="0.5"/>
@@ -270,11 +276,13 @@
                         <path d="M6.5 5.5h1v3h-1zm-1 1h3v1h-3z"/>
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M12.2 8.5h3.1l1.2 1.8H20c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H10c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2l1-1.8zm3.3 10.2a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm0-1.8a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4zm3.7-4.4a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6z"/>
                       </svg>
+                      <span class="category-label">Control</span>
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="text" title="Text Layer" aria-label="Text">
                       <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 4h9.5v3H6v3.5h5.5v3H6V20H3V4zm12 3.5h3v3h2.5v2.8H18v4.2c0 .9.5 1.5 1.4 1.5.5 0 .9-.1 1.2-.2v2.7c-.7.3-1.6.4-2.4.4-2.3 0-3.2-1.3-3.2-3.4v-5.2h-2v-2.8h2v-3z"/>
                       </svg>
+                      <span class="category-label">Text</span>
                     </button>
                   </div>
 
@@ -1861,7 +1869,7 @@
                     </aside>
 
                     <!-- Work Area: Text Parameters -->
-                    <main class="shape-work-area" style="overflow-y: auto; max-height: 290px; padding-bottom: 20px;">
+                    <main class="shape-work-area" style="overflow-y: auto; max-height: 290px; padding-bottom: 150px;">
                       <!-- Header Bar: Title & Preset Badge -->
                       <div class="shape-header-bar">
                         <span class="shape-section-title">Edit Text</span>
@@ -1900,22 +1908,30 @@
                         </div>
                       </div>
 
-                      <!-- 4. Text IN Animation Selector -->
+                      <!-- 4. Text IN Animation Selector (Dropdown) -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
                           <span class="shape-control-label">IN Animation (Intro)</span>
                           <span class="shape-val-badge" id="val-text-anim-in-duration">0.80s</span>
                         </div>
-                        <div class="segmented-switch is-pill" id="switch-text-animation" role="tablist" style="width: 100%; overflow-x: auto; scrollbar-width: none;">
-                          <button type="button" class="segmented-switch-item" data-val="none">None</button>
-                          <button type="button" class="segmented-switch-item is-active" data-val="bounce_pop">Pop (AE)</button>
-                          <button type="button" class="segmented-switch-item" data-val="bounce_drop">Drop (AE)</button>
-                          <button type="button" class="segmented-switch-item" data-val="overshoot_slide">Slide (AE)</button>
-                          <button type="button" class="segmented-switch-item" data-val="elastic_wobble">Wobble</button>
-                          <button type="button" class="segmented-switch-item" data-val="typewriter">Type</button>
-                          <button type="button" class="segmented-switch-item" data-val="wave">Wave</button>
-                          <button type="button" class="segmented-switch-item" data-val="fade_up">Fade</button>
-                          <button type="button" class="segmented-switch-item" data-val="glitch">Glitch</button>
+                        <div class="custom-dropdown" id="dropdown-text-anim-in" data-value="bounce_1" style="width: 100%;">
+                          <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select IN Animation" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
+                            <span class="custom-dropdown-label">Bounce 1 (Stagger 20ms)</span>
+                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                          </button>
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: none; z-index: 1050;">
+                            <div class="custom-dropdown-item is-selected" role="option" data-val="bounce_1">Bounce 1 (Stagger 20ms)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_2">Bounce 2 (Inertial 0.10s)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_3">Bounce 3 (Stagger 60ms)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_4">Bounce 4 (Inertial 0.25s)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="wave">Kinetic Wave</div>
+                            <div class="custom-dropdown-item" role="option" data-val="typewriter">Typewriter</div>
+                            <div class="custom-dropdown-item" role="option" data-val="fade_up">Fade Up</div>
+                            <div class="custom-dropdown-item" role="option" data-val="glitch">Digital Glitch</div>
+                            <div class="custom-dropdown-item" role="option" data-val="none">None</div>
+                          </div>
                         </div>
                       </div>
 
@@ -1931,18 +1947,26 @@
                         </div>
                       </div>
 
-                      <!-- 4c. Text OUT Animation Selector -->
+                      <!-- 4c. Text OUT Animation Selector (Dropdown) -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
                           <span class="shape-control-label">OUT Animation (Outro)</span>
                           <span class="shape-val-badge" id="val-text-anim-out-duration">0.60s</span>
                         </div>
-                        <div class="segmented-switch is-pill" id="switch-text-anim-out" role="tablist" style="width: 100%; overflow-x: auto; scrollbar-width: none;">
-                          <button type="button" class="segmented-switch-item is-active" data-val="none">None</button>
-                          <button type="button" class="segmented-switch-item" data-val="bounce_out">Bounce Out (AE)</button>
-                          <button type="button" class="segmented-switch-item" data-val="slide_out">Slide Out (AE)</button>
-                          <button type="button" class="segmented-switch-item" data-val="fade_down">Fade Down</button>
-                          <button type="button" class="segmented-switch-item" data-val="shrink_drop">Shrink</button>
+                        <div class="custom-dropdown" id="dropdown-text-anim-out" data-value="none" style="width: 100%;">
+                          <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select OUT Animation" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
+                            <span class="custom-dropdown-label">None</span>
+                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                          </button>
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 180px; overflow-y: auto; scrollbar-width: none; z-index: 1050;">
+                            <div class="custom-dropdown-item is-selected" role="option" data-val="none">None</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_out">Bounce Out (AE)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="slide_out">Slide Out (AE)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="fade_down">Fade Down</div>
+                            <div class="custom-dropdown-item" role="option" data-val="shrink_drop">Shrink Drop</div>
+                          </div>
                         </div>
                       </div>
 
@@ -3199,6 +3223,7 @@
       }
 
       if (layer) {
+        if (layer.type === 'audio') return; // Audio produces no canvas pixels — never invalidate canvas RAM preview cache!
         const curStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
         const curDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
         const curEnd = curStart + curDur;
@@ -4662,8 +4687,11 @@
           if (!layer._textBufferCanvas || !(layer._textBufferCanvas instanceof HTMLCanvasElement) || typeof layer._textBufferCanvas.getContext !== 'function') {
             layer._textBufferCanvas = document.createElement('canvas');
           }
-          const pw = Math.max(1, Math.round(Math.abs(layer.scaleW || layer.mediaWidth || 500)));
-          const ph = Math.max(1, Math.round(Math.abs(layer.scaleH || layer.mediaHeight || 180)));
+          const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+            ? window.FishTextEngine.getNaturalSize(layer)
+            : { width: 320, height: 100 };
+          const pw = Math.max(1, Math.round(nat.width));
+          const ph = Math.max(1, Math.round(nat.height));
           const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
           const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
           const localSec = Math.max(0, currentSec - clipStart);
@@ -4673,7 +4701,6 @@
           el = layer._textBufferCanvas;
           layer.mediaWidth = pw;
           layer.mediaHeight = ph;
-          layer._userResized = true;
         } else if (isShape) {
           if (!layer._shapeBufferCanvas || !(layer._shapeBufferCanvas instanceof HTMLCanvasElement) || typeof layer._shapeBufferCanvas.getContext !== 'function') {
             layer._shapeBufferCanvas = document.createElement('canvas');
@@ -4888,15 +4915,17 @@
             if (!layer.textProps && window.FishTextEngine) {
               layer.textProps = window.FishTextEngine.getDefaultProps();
             }
-            const tp = layer.textProps || {};
-            const defBoxW = tp.boxWidth || 500;
-            const defBoxH = tp.boxHeight || 180;
+            const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+              ? window.FishTextEngine.getNaturalSize(layer)
+              : { width: 320, height: 100 };
+            const defBoxW = nat.width;
+            const defBoxH = nat.height;
             if (layer.transformScaleX === undefined) layer.transformScaleX = 1.0;
             if (layer.transformScaleY === undefined) layer.transformScaleY = 1.0;
-            if (layer.scaleW === undefined) {
+            if (layer.scaleW === undefined || !layer._userResizedManual) {
               layer.scaleW = defBoxW * layer.transformScaleX;
             }
-            if (layer.scaleH === undefined) {
+            if (layer.scaleH === undefined || !layer._userResizedManual) {
               layer.scaleH = defBoxH * layer.transformScaleY;
             }
             if (layer.normW === undefined) layer.normW = Math.abs(layer.scaleW) / baseW;
@@ -4905,7 +4934,6 @@
             if (layer.posY === undefined) layer.posY = baseH / 2;
             if (layer.normX === undefined) layer.normX = (layer.posX - layer.scaleW / 2) / baseW;
             if (layer.normY === undefined) layer.normY = (layer.posY - layer.scaleH / 2) / baseH;
-            layer._userResized = true;
           }
 
           if (layer.posX === undefined) {
@@ -6287,6 +6315,7 @@
           targetLayer.scaleW = Number(newW.toFixed(1));
           targetLayer.scaleH = Number(newH.toFixed(1));
           targetLayer._userResized = true;
+          targetLayer._userResizedManual = true;
           targetLayer.posX = Number(newPosX.toFixed(2));
           targetLayer.posY = Number(newPosY.toFixed(2));
           targetLayer.normW = targetLayer.scaleW / baseW;
@@ -6767,6 +6796,29 @@
         baseProps.rotX = 0;
         baseProps.rotY = 0;
         baseProps.anchorZ = 0;
+      }
+
+      if (layer.type === 'text' && window.FishTextEngine) {
+        const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+        const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+        const localSec = Math.max(0, currentSec - clipStart);
+
+        const nat = window.FishTextEngine.getNaturalSize(layer);
+        const animTf = window.FishTextEngine.getAnimTransform(layer, localSec, clipDur);
+
+        const uScaleX = layer.transformScaleX !== undefined ? layer.transformScaleX : 1.0;
+        const uScaleY = layer.transformScaleY !== undefined ? layer.transformScaleY : 1.0;
+        const baseW = layer._userResizedManual ? (baseProps.scaleW || nat.width) : (nat.width * uScaleX);
+        const baseH = layer._userResizedManual ? (baseProps.scaleH || nat.height) : (nat.height * uScaleY);
+
+        baseProps.scaleW = baseW * animTf.scaleX;
+        baseProps.scaleH = baseH * animTf.scaleY;
+        baseProps.posX = (baseProps.posX !== undefined ? baseProps.posX : 540) + animTf.offX;
+        baseProps.posY = (baseProps.posY !== undefined ? baseProps.posY : 960) + animTf.offY;
+        if (animTf.alpha !== undefined && animTf.alpha < 1.0) {
+          baseProps.opacity = (baseProps.opacity !== undefined ? baseProps.opacity : 1.0) * animTf.alpha;
+        }
       }
 
       return baseProps;
@@ -8368,8 +8420,11 @@
 
           const activeCanvasEl = document.getElementById('editor-active-canvas');
           const canvasRect = activeCanvasEl ? activeCanvasEl.getBoundingClientRect() : null;
-          const baseSensX = Math.max(2.5, (canvasRect && canvasRect.width > 0) ? ((bW / canvasRect.width) * 1.25) : 3.0);
-          const baseSensY = Math.max(2.5, (canvasRect && canvasRect.height > 0) ? ((bH / canvasRect.height) * 1.25) : 3.0);
+          const scaleRatioX = (canvasRect && canvasRect.width > 0) ? (bW / canvasRect.width) : 1.0;
+          const scaleRatioY = (canvasRect && canvasRect.height > 0) ? (bH / canvasRect.height) : 1.0;
+          // Calibrated touchpad swipe sensitivity: smooth precision control without jumpiness
+          const baseSensX = Math.max(0.5, Math.min(1.2, scaleRatioX * 0.35));
+          const baseSensY = Math.max(0.5, Math.min(1.2, scaleRatioY * 0.35));
           const sensMod = e.shiftKey ? 0.25 : (e.altKey ? 2.0 : 1.0);
 
           const deltaX = rawDeltaX * baseSensX * sensMod;
@@ -10338,8 +10393,11 @@
       textProps.presetId = presetId;
 
       const textCount = currentProjectState.layers.filter(l => l.type === 'text').length + 1;
-      const boxW = textProps.boxWidth || 500;
-      const boxH = textProps.boxHeight || 180;
+      const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+        ? window.FishTextEngine.getNaturalSize({ textProps })
+        : { width: 320, height: 100 };
+      const boxW = nat.width;
+      const boxH = nat.height;
 
       const newLayer = {
         id: 'layer_text_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
@@ -10366,6 +10424,7 @@
         transformScaleX: 1.0,
         transformScaleY: 1.0,
         _userResized: true,
+        _userResizedManual: false,
         rotX: 0,
         rotY: 0,
         rotZ: 0,
@@ -10459,7 +10518,11 @@
 
       const inDur = Math.max(0.1, Number(tp.animInDuration || tp.animDuration) || 0.8);
       const outDur = Math.max(0.1, Number(tp.animOutDuration) || 0.6);
-      const curAnimIn = tp.animIn || tp.animation || 'bounce_pop';
+      let curAnimIn = tp.animIn || tp.animation || 'bounce_1';
+      if (curAnimIn === 'bounce_pop') curAnimIn = 'bounce_1';
+      else if (curAnimIn === 'pop_in' || curAnimIn === 'bounce_drop') curAnimIn = 'bounce_2';
+      else if (curAnimIn === 'overshoot_slide') curAnimIn = 'bounce_3';
+      else if (curAnimIn === 'elastic_wobble') curAnimIn = 'bounce_4';
       const curAnimOut = tp.animOut || 'none';
 
       const valAnimInDur = document.getElementById('val-text-anim-in-duration');
@@ -10472,17 +10535,31 @@
       const badgeAnimOutDur = document.getElementById('badge-text-anim-out-dur');
       if (badgeAnimOutDur) badgeAnimOutDur.textContent = `${outDur.toFixed(2)}s`;
 
-      const switchAnim = document.getElementById('switch-text-animation');
-      if (switchAnim) {
-        switchAnim.querySelectorAll('.segmented-switch-item').forEach(item => {
-          item.classList.toggle('is-active', item.dataset.val === curAnimIn);
+      // Sync IN Animation Dropdown
+      const ddAnimIn = document.getElementById('dropdown-text-anim-in');
+      if (ddAnimIn) {
+        ddAnimIn.dataset.value = curAnimIn;
+        const targetItem = ddAnimIn.querySelector(`.custom-dropdown-item[data-val="${curAnimIn}"]`);
+        const label = ddAnimIn.querySelector('.custom-dropdown-label');
+        if (targetItem && label) {
+          label.textContent = targetItem.textContent;
+        }
+        ddAnimIn.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.classList.toggle('is-selected', item.dataset.val === curAnimIn);
         });
       }
 
-      const switchAnimOut = document.getElementById('switch-text-anim-out');
-      if (switchAnimOut) {
-        switchAnimOut.querySelectorAll('.segmented-switch-item').forEach(item => {
-          item.classList.toggle('is-active', item.dataset.val === curAnimOut);
+      // Sync OUT Animation Dropdown
+      const ddAnimOut = document.getElementById('dropdown-text-anim-out');
+      if (ddAnimOut) {
+        ddAnimOut.dataset.value = curAnimOut;
+        const targetItem = ddAnimOut.querySelector(`.custom-dropdown-item[data-val="${curAnimOut}"]`);
+        const label = ddAnimOut.querySelector('.custom-dropdown-label');
+        if (targetItem && label) {
+          label.textContent = targetItem.textContent;
+        }
+        ddAnimOut.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.classList.toggle('is-selected', item.dataset.val === curAnimOut);
         });
       }
 
@@ -10505,6 +10582,11 @@
               layer.textProps.presetId = pid;
               layer.fillColor = layer.textProps.fillColor || '#ffffff';
               layer._textBufferCanvas = null;
+              if (window.FishTextEngine && !layer._userResizedManual) {
+                const nat = window.FishTextEngine.getNaturalSize(layer);
+                layer.scaleW = nat.width * (layer.transformScaleX || 1);
+                layer.scaleH = nat.height * (layer.transformScaleY || 1);
+              }
               if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
               syncTextControllerUI();
               renderTimelineLayers();
@@ -10526,6 +10608,11 @@
           if (!layer.textProps) layer.textProps = {};
           layer.textProps.text = inputContent.value;
           layer._textBufferCanvas = null;
+          if (window.FishTextEngine && !layer._userResizedManual) {
+            const nat = window.FishTextEngine.getNaturalSize(layer);
+            layer.scaleW = nat.width * (layer.transformScaleX || 1);
+            layer.scaleH = nat.height * (layer.transformScaleY || 1);
+          }
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
           redrawComposition();
           saveCurrentProjectLayers();
@@ -10547,6 +10634,11 @@
           const newSize = Math.max(12, Math.min(240, Math.round(initFontSize + delta)));
           layer.textProps.fontSize = newSize;
           layer._textBufferCanvas = null;
+          if (window.FishTextEngine && !layer._userResizedManual) {
+            const nat = window.FishTextEngine.getNaturalSize(layer);
+            layer.scaleW = nat.width * (layer.transformScaleX || 1);
+            layer.scaleH = nat.height * (layer.transformScaleY || 1);
+          }
           const valFontSize = document.getElementById('val-text-font-size');
           if (valFontSize) valFontSize.textContent = `${newSize}px`;
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
@@ -10582,10 +10674,10 @@
         }
       });
 
-      // Text IN Animation Selector
-      const switchAnim = document.getElementById('switch-text-animation');
-      if (switchAnim) {
-        switchAnim.querySelectorAll('.segmented-switch-item').forEach(item => {
+      // Text IN Animation Dropdown
+      const ddAnimIn = document.getElementById('dropdown-text-anim-in');
+      if (ddAnimIn) {
+        ddAnimIn.querySelectorAll('.custom-dropdown-item').forEach(item => {
           item.addEventListener('click', (e) => {
             e.preventDefault();
             const val = item.dataset.val;
@@ -10594,7 +10686,11 @@
             if (!layer.textProps) layer.textProps = {};
             layer.textProps.animIn = val;
             layer.textProps.animation = val;
-            switchAnim.querySelectorAll('.segmented-switch-item').forEach(i => i.classList.toggle('is-active', i === item));
+            ddAnimIn.dataset.value = val;
+            const label = ddAnimIn.querySelector('.custom-dropdown-label');
+            if (label) label.textContent = item.textContent;
+            ddAnimIn.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.toggle('is-selected', i === item));
+            ddAnimIn.classList.remove('is-open');
             layer._textBufferCanvas = null;
             if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
             renderTimelineLayers();
@@ -10636,10 +10732,10 @@
         }
       });
 
-      // Text OUT Animation Selector
-      const switchAnimOut = document.getElementById('switch-text-anim-out');
-      if (switchAnimOut) {
-        switchAnimOut.querySelectorAll('.segmented-switch-item').forEach(item => {
+      // Text OUT Animation Dropdown
+      const ddAnimOut = document.getElementById('dropdown-text-anim-out');
+      if (ddAnimOut) {
+        ddAnimOut.querySelectorAll('.custom-dropdown-item').forEach(item => {
           item.addEventListener('click', (e) => {
             e.preventDefault();
             const val = item.dataset.val;
@@ -10647,7 +10743,11 @@
             if (!layer || layer.type !== 'text') return;
             if (!layer.textProps) layer.textProps = {};
             layer.textProps.animOut = val;
-            switchAnimOut.querySelectorAll('.segmented-switch-item').forEach(i => i.classList.toggle('is-active', i === item));
+            ddAnimOut.dataset.value = val;
+            const label = ddAnimOut.querySelector('.custom-dropdown-label');
+            if (label) label.textContent = item.textContent;
+            ddAnimOut.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.toggle('is-selected', i === item));
+            ddAnimOut.classList.remove('is-open');
             layer._textBufferCanvas = null;
             if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
             renderTimelineLayers();
@@ -17367,8 +17467,17 @@
 
       function triggerClipContextMenu(layer, clickX, clickY) {
         if (!layer) return;
+        const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
         if (!selectedLayerIds || !selectedLayerIds.has(layer.id)) {
-          selectTimelineLayer(layer.id, false);
+          if (!hasKeyframesSelected) {
+            selectTimelineLayer(layer.id, false);
+          } else {
+            window.selectedLayerId = layer.id;
+            if (window.selectedLayerIds) {
+              window.selectedLayerIds.clear();
+              window.selectedLayerIds.add(layer.id);
+            }
+          }
         }
 
         if (typeof updateLayerActionsPopoverState === 'function') {
@@ -17459,18 +17568,19 @@
       }
 
       function onPanMove(e) {
-        const moveDist = Math.hypot(e.clientX - startX, e.clientY - startY);
-        if (timelineEmptyLpTimer && moveDist > 6) {
+        if (!isPanning) return;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        // Cancel empty timeline long-press if user moves pointer beyond slight jitter threshold
+        if (timelineEmptyLpTimer && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
           clearTimeout(timelineEmptyLpTimer);
           timelineEmptyLpTimer = null;
         }
 
-        if (!isPanning) return;
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-
-        let targetPanX = startPanX + deltaX;
         const bounds = getTimelineBounds();
+        let targetPanX = startPanX + deltaX;
 
         // Constrain targetPanX within timeline bounds first (prevent overshoot beyond 0 or max length)
         if (targetPanX > 0) {
@@ -17479,23 +17589,10 @@
           targetPanX = bounds.min;
         }
 
-        // Snap timeline playhead to beatmarks & start/end of layers
-        const rawPlayheadPx = -targetPanX;
-        const snapTargets = (typeof getTimelineSnapTargets === 'function') ? getTimelineSnapTargets(null, false) : [];
-        const snap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(rawPlayheadPx, snapTargets, 10) : null;
+        // Pure smooth playhead scrubbing without snapping to beatmarks or layer start/end
         const needle = document.getElementById('timeline-center-needle');
-
-        if (snap) {
-          targetPanX = -snap.px;
-          if (needle) needle.classList.add('is-snapped');
-          if (window._lastScrubSnapPx !== snap.px) {
-            window._lastScrubSnapPx = snap.px;
-            if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {}
-          }
-        } else {
-          if (needle) needle.classList.remove('is-snapped');
-          window._lastScrubSnapPx = null;
-        }
+        if (needle) needle.classList.remove('is-snapped');
+        window._lastScrubSnapPx = null;
 
         // Scrub timeline horizontally
         updateTimelinePosition(targetPanX);
@@ -18278,20 +18375,19 @@
             });
 
             // Remove layers from project state
-            currentProjectState.layers = currentProjectState.layers.filter(l => {
-              if (idsToDelete.has(l.id)) {
-                const media = layerMediaCache.get(l.mediaId || l.id);
-                if (media && media.el && typeof media.el.pause === 'function') {
-                  try { media.el.pause(); } catch (_) {}
-                }
-                layerMediaCache.delete(l.id);
-                layerMediaCache.delete(l.mediaId);
-                if (window.VideoFrameExtractor) {
-                  window.VideoFrameExtractor.clearLayer(l);
-                }
-                return false;
+            const deletedLayers = currentProjectState.layers.filter(l => idsToDelete.has(l.id));
+            currentProjectState.layers = currentProjectState.layers.filter(l => !idsToDelete.has(l.id));
+
+            deletedLayers.forEach(l => {
+              const media = layerMediaCache.get(l.mediaId || l.id);
+              if (media && media.el && typeof media.el.pause === 'function') {
+                try { media.el.pause(); } catch (_) {}
               }
-              return true;
+              layerMediaCache.delete(l.id);
+              layerMediaCache.delete(l.mediaId);
+              if (window.VideoFrameExtractor) {
+                window.VideoFrameExtractor.clearLayer(l);
+              }
             });
 
             // Clean up child layers pointing to deleted parents
@@ -18378,7 +18474,11 @@
         if (btnCopy) {
           btnCopy.addEventListener('click', (e) => {
             e.stopPropagation();
-            copySelectedLayers();
+            if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+              copySelectedKeyframes();
+            } else {
+              copySelectedLayers();
+            }
           });
         }
 
@@ -18386,7 +18486,15 @@
         if (btnPaste) {
           btnPaste.addEventListener('click', (e) => {
             e.stopPropagation();
-            pasteLayers();
+            const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
+            const hasKeyframeClip = window.internalKeyframeClipboard && Array.isArray(window.internalKeyframeClipboard.items) && window.internalKeyframeClipboard.items.length > 0;
+            const shouldPasteKeyframe = (window.lastClipboardType === 'keyframe' && hasKeyframeClip) || (hasKeyframesSelected && hasKeyframeClip);
+
+            if (shouldPasteKeyframe) {
+              pasteKeyframes();
+            } else {
+              pasteLayers();
+            }
           });
         }
 
@@ -18417,9 +18525,160 @@
         }
       })();
 
-      // Internal Layer Clipboard & Modular Actions Logic
+      // Internal Layer & Keyframe Clipboard & Modular Actions Logic
       window.internalLayerClipboard = null;
+      window.internalKeyframeClipboard = null;
+      window.lastClipboardType = null;
       let lastContextClickSec = null;
+
+      function isKeyframePropCompatible(clipProp, targetProp) {
+        if (!clipProp || !targetProp) return false;
+        if (clipProp === targetProp) return true;
+
+        const isPos = p => p === 'move' || p === 'pos' || p === 'position';
+        if (isPos(clipProp) && isPos(targetProp)) return true;
+
+        const isRot = p => p === 'rotate' || p === 'rotZ' || p === 'rotation';
+        if (isRot(clipProp) && isRot(targetProp)) return true;
+
+        const isScale = p => p === 'scale' || p === 'scaleW' || p === 'scaleH';
+        if (isScale(clipProp) && isScale(targetProp)) return true;
+
+        const isSkew = p => p === 'skew' || p === 'skewX' || p === 'skewY';
+        if (isSkew(clipProp) && isSkew(targetProp)) return true;
+
+        if (clipProp === 'opacity' && targetProp === 'opacity') return true;
+        if (clipProp === 'volume' && targetProp === 'volume') return true;
+        if (clipProp === 'speed' && targetProp === 'speed') return true;
+
+        if (clipProp.startsWith('camera') && targetProp.startsWith('camera')) {
+          return clipProp === targetProp;
+        }
+
+        if (clipProp.includes(':') && targetProp.includes(':')) {
+          const clipParam = clipProp.split(':')[1];
+          const targetParam = targetProp.split(':')[1];
+          return clipParam === targetParam;
+        }
+
+        return false;
+      }
+      window.isKeyframePropCompatible = isKeyframePropCompatible;
+
+      function copySelectedKeyframes() {
+        if (!Array.isArray(window.selectedKeyframes) || window.selectedKeyframes.length === 0) return;
+        const items = [...window.selectedKeyframes];
+        const primaryProp = items[0].prop;
+        const minTime = Math.min(...items.map(it => (it.kf ? it.kf.time : it.time)));
+
+        window.internalKeyframeClipboard = {
+          prop: primaryProp,
+          items: items.map(it => {
+            let val = null;
+            let easing = null;
+            if (it.kf) {
+              val = it.kf.value !== undefined ? JSON.parse(JSON.stringify(it.kf.value)) : null;
+              easing = it.kf.easing ? [...it.kf.easing] : null;
+            } else {
+              const lyr = it.layer || (currentProjectState.layers || []).find(l => l.id === it.layerId);
+              if (lyr && lyr.keyframes && lyr.keyframes[it.prop]) {
+                const found = lyr.keyframes[it.prop].find(k => Math.abs(k.time - it.time) < 0.002);
+                if (found) {
+                  val = found.value !== undefined ? JSON.parse(JSON.stringify(found.value)) : null;
+                  easing = found.easing ? [...found.easing] : null;
+                }
+              }
+            }
+            return {
+              prop: it.prop,
+              offsetSec: Number(((it.kf ? it.kf.time : it.time) - minTime).toFixed(4)),
+              value: val,
+              easing: easing
+            };
+          })
+        };
+        window.lastClipboardType = 'keyframe';
+        if (window.Popover) window.Popover.close();
+      }
+      window.copySelectedKeyframes = copySelectedKeyframes;
+
+      function pasteKeyframes() {
+        if (!window.internalKeyframeClipboard || !Array.isArray(window.internalKeyframeClipboard.items) || window.internalKeyframeClipboard.items.length === 0) {
+          return false;
+        }
+
+        const targetLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId)
+          || ((selectedLayerIds && selectedLayerIds.size > 0) ? (currentProjectState.layers || []).find(l => selectedLayerIds.has(l.id)) : null);
+
+        if (!targetLayer) return false;
+
+        let targetProp = null;
+        if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+          targetProp = window.selectedKeyframes[0].prop;
+        } else if (window.activeKeyframeProperty) {
+          targetProp = window.activeKeyframeProperty;
+        } else if (window.activeTransformTool) {
+          targetProp = window.activeTransformTool;
+        } else {
+          targetProp = 'move';
+        }
+
+        const clipProp = window.internalKeyframeClipboard.prop;
+        if (!isKeyframePropCompatible(clipProp, targetProp)) {
+          console.warn(`[Keyframe Paste] Type mismatch: cannot paste "${clipProp}" keyframes to "${targetProp}".`);
+          return false;
+        }
+
+        if (window.Popover) window.Popover.close();
+
+        const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+        let baseSec = Number((Math.max(0, - (window.timelinePanX || panX || 0) / pps)).toFixed(4));
+        if (lastContextClickSec !== null && typeof lastContextClickSec === 'number') {
+          baseSec = lastContextClickSec;
+        }
+        lastContextClickSec = null;
+
+        if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
+          window.UndoRedoManager.recordSnapshot();
+        }
+
+        if (!targetLayer.keyframes) targetLayer.keyframes = {};
+        if (!targetLayer.keyframes[targetProp]) targetLayer.keyframes[targetProp] = [];
+
+        const pastedList = [];
+        window.internalKeyframeClipboard.items.forEach(item => {
+          const pasteTime = Number((baseSec + item.offsetSec).toFixed(4));
+          targetLayer.keyframes[targetProp] = targetLayer.keyframes[targetProp].filter(k => Math.abs(k.time - pasteTime) > 0.005);
+
+          const newKf = {
+            time: pasteTime,
+            value: item.value !== null ? JSON.parse(JSON.stringify(item.value)) : (typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(targetLayer, targetProp) : null),
+            easing: item.easing ? [...item.easing] : [0.0, 0.0, 1.0, 1.0]
+          };
+          targetLayer.keyframes[targetProp].push(newKf);
+          pastedList.push({
+            layerId: targetLayer.id,
+            layer: targetLayer,
+            prop: targetProp,
+            time: pasteTime,
+            kf: newKf
+          });
+        });
+
+        targetLayer.keyframes[targetProp].sort((a, b) => a.time - b.time);
+
+        window.selectedKeyframes = pastedList;
+
+        saveCurrentProjectLayers();
+        renderTimelineLayers();
+        if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+        if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(targetLayer);
+        if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
+        if (typeof redrawComposition === 'function') redrawComposition('pasteKeyframes');
+
+        return true;
+      }
+      window.pasteKeyframes = pasteKeyframes;
 
       function updateLayerActionsPopoverState(contextLayer = null, isFromEmptyTimeline = false) {
         const copyBtn = document.getElementById('popover-btn-copy');
@@ -18428,10 +18687,15 @@
         const pasteLabel = document.getElementById('popover-label-paste');
         const duplicateBtn = document.getElementById('popover-btn-duplicate');
         const duplicateLabel = document.getElementById('popover-label-duplicate');
+        const precomposeBtn = document.getElementById('popover-btn-precompose');
+        const precomposeLabel = document.getElementById('popover-label-precompose');
         const extractBtn = document.getElementById('popover-btn-extract-audio');
         const audioDivider = document.getElementById('popover-layer-audio-divider');
 
         const layers = currentProjectState.layers || [];
+
+        const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
+        const kfCount = hasKeyframesSelected ? window.selectedKeyframes.length : 0;
 
         // Determine effective selected layer count
         const selectedCount = (selectedLayerIds && selectedLayerIds.size > 0)
@@ -18440,7 +18704,12 @@
 
         // 1. Copy State
         if (copyBtn) {
-          if (selectedCount > 0) {
+          if (hasKeyframesSelected) {
+            copyBtn.removeAttribute('disabled');
+            if (copyLabel) {
+              copyLabel.textContent = kfCount > 1 ? `Copy (${kfCount} Keyframes)` : 'Copy Keyframe';
+            }
+          } else if (selectedCount > 0) {
             copyBtn.removeAttribute('disabled');
             if (copyLabel) {
               copyLabel.textContent = selectedCount > 1 ? `Copy (${selectedCount} Layers)` : 'Copy';
@@ -18452,12 +18721,35 @@
         }
 
         // 2. Paste State
-        const clipCount = (window.internalLayerClipboard && window.internalLayerClipboard.length) || 0;
+        const hasKeyframeClip = window.internalKeyframeClipboard && Array.isArray(window.internalKeyframeClipboard.items) && window.internalKeyframeClipboard.items.length > 0;
+        const clipLayerCount = (window.internalLayerClipboard && window.internalLayerClipboard.length) || 0;
+        const shouldPasteKeyframe = (window.lastClipboardType === 'keyframe' && hasKeyframeClip) || (hasKeyframesSelected && hasKeyframeClip);
+
         if (pasteBtn) {
-          if (clipCount > 0) {
+          if (shouldPasteKeyframe) {
+            const targetProp = (hasKeyframesSelected && window.selectedKeyframes[0].prop)
+              || window.activeKeyframeProperty
+              || window.activeTransformTool
+              || 'move';
+            const clipProp = window.internalKeyframeClipboard.prop;
+            const isCompatible = isKeyframePropCompatible(clipProp, targetProp);
+
+            if (isCompatible) {
+              pasteBtn.removeAttribute('disabled');
+              if (pasteLabel) {
+                const count = window.internalKeyframeClipboard.items.length;
+                pasteLabel.textContent = count > 1 ? `Paste (${count} Keyframes)` : 'Paste Keyframe';
+              }
+            } else {
+              pasteBtn.setAttribute('disabled', 'true');
+              if (pasteLabel) {
+                pasteLabel.textContent = 'Paste (Type Mismatch)';
+              }
+            }
+          } else if (clipLayerCount > 0) {
             pasteBtn.removeAttribute('disabled');
             if (pasteLabel) {
-              pasteLabel.textContent = clipCount > 1 ? `Paste (${clipCount} Layers)` : 'Paste';
+              pasteLabel.textContent = clipLayerCount > 1 ? `Paste (${clipLayerCount} Layers)` : 'Paste';
             }
           } else {
             pasteBtn.setAttribute('disabled', 'true');
@@ -18467,7 +18759,10 @@
 
         // 3. Duplicate State
         if (duplicateBtn) {
-          if (selectedCount > 0) {
+          if (hasKeyframesSelected) {
+            duplicateBtn.setAttribute('disabled', 'true');
+            if (duplicateLabel) duplicateLabel.textContent = 'Duplicate';
+          } else if (selectedCount > 0) {
             duplicateBtn.removeAttribute('disabled');
             if (duplicateLabel) {
               duplicateLabel.textContent = selectedCount > 1 ? `Duplicate (${selectedCount})` : 'Duplicate';
@@ -18479,10 +18774,8 @@
         }
 
         // 3b. Precompose State (Text only)
-        const precomposeBtn = document.getElementById('popover-btn-precompose');
-        const precomposeLabel = document.getElementById('popover-label-precompose');
         if (precomposeBtn) {
-          if (selectedCount > 0 && !isFromEmptyTimeline) {
+          if (!hasKeyframesSelected && selectedCount > 0 && !isFromEmptyTimeline) {
             precomposeBtn.removeAttribute('disabled');
             precomposeBtn.style.display = 'flex';
             if (precomposeLabel) {
@@ -18497,7 +18790,7 @@
 
         // 4. Extract Audio State (Only for single selected video)
         let isSingleVideo = false;
-        if (selectedCount === 1) {
+        if (!hasKeyframesSelected && selectedCount === 1) {
           if (contextLayer && contextLayer.type === 'video') {
             isSingleVideo = true;
           } else {
@@ -18547,6 +18840,7 @@
 
         if (copied.length > 0) {
           window.internalLayerClipboard = copied;
+          window.lastClipboardType = 'layer';
         }
         if (window.Popover) window.Popover.close();
       }
@@ -20134,7 +20428,7 @@
                   const animInDur = Math.max(0.1, Number(tp.animInDuration || tp.animDuration) || 0.8);
                   const animOutDur = Math.max(0.1, Number(tp.animOutDuration) || 0.6);
                   const clipW = layer.widthPx || 320;
-                  const hasIn = (tp.animIn || tp.animation || 'bounce_pop') !== 'none';
+                  const hasIn = (tp.animIn || tp.animation || 'bounce_1') !== 'none';
                   const hasOut = (tp.animOut || 'none') !== 'none';
 
                   const inPx = Math.min(clipW * 0.48, Math.round(animInDur * pps));
@@ -20144,7 +20438,7 @@
 
                   return `
                     ${hasIn ? `
-                      <div class="text-anim-zone zone-in" style="width: ${inPx}px;" title="IN Animation: ${(tp.animIn || tp.animation || 'bounce_pop').toUpperCase()} (${animInDur.toFixed(2)}s)"></div>
+                      <div class="text-anim-zone zone-in" style="width: ${inPx}px;" title="IN Animation: ${(tp.animIn || tp.animation || 'bounce_1').toUpperCase()} (${animInDur.toFixed(2)}s)"></div>
                       <div class="text-anim-marker marker-in" style="left: ${inMarkerLeft}px;" data-layer-id="${layer.id}" title="IN: ${animInDur.toFixed(2)}s (Drag to adjust)">IN ${animInDur.toFixed(1)}s</div>
                     ` : ''}
                     ${hasOut ? `
@@ -20365,6 +20659,48 @@
                     window.addEventListener('pointermove', onMarkerPointerMove);
                     window.addEventListener('pointerup', onMarkerPointerUp);
                     window.addEventListener('pointercancel', onMarkerPointerUp);
+                  });
+
+                  marker.addEventListener('contextmenu', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    const isAlreadySelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => it.kf === kf || (it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.002));
+                    if (!isAlreadySelected) {
+                      if (!e.shiftKey) {
+                        if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                      }
+                      marker.classList.add('is-selected-kf');
+                      if (!window.selectedKeyframes) window.selectedKeyframes = [];
+                      window.selectedKeyframes.push({ layerId: layer.id, layer, prop, time: kf.time, kf, marker });
+                    }
+
+                    if (window.selectedLayerId !== layer.id) {
+                      window.selectedLayerId = layer.id;
+                      if (window.selectedLayerIds) {
+                        window.selectedLayerIds.clear();
+                        window.selectedLayerIds.add(layer.id);
+                      }
+                    }
+
+                    if (typeof updateLayerActionsPopoverState === 'function') {
+                      updateLayerActionsPopoverState(layer);
+                    }
+                    if (window.Popover) {
+                      const mouseAnchor = {
+                        isVirtual: true,
+                        getBoundingClientRect: () => ({
+                          left: e.clientX,
+                          top: e.clientY,
+                          right: e.clientX,
+                          bottom: e.clientY,
+                          width: 0,
+                          height: 0
+                        }),
+                        dataset: {}
+                      };
+                      window.Popover.open(mouseAnchor, 'popover-layer-actions');
+                    }
                   });
 
                   kfContainer.appendChild(marker);
@@ -21606,7 +21942,7 @@
 
       // Keyboard Shortcuts: Escape to deselect, Ctrl+A to select all, Delete to remove, Ctrl+C/V/D for clipboard
       window.addEventListener('keydown', (e) => {
-        if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+        if (e.target && typeof e.target.closest === 'function' && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
         if (document.querySelector('.modal-backdrop.is-open, .modal-backdrop.active, .modal-card.is-active, .modal-backdrop.is-active')) return;
 
         // Quick Effects Search Shortcut: Ctrl+Space (works only on selected single or multiple layers)
@@ -21681,12 +22017,22 @@
             redrawComposition();
           }
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-          if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0)) {
+          if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            e.preventDefault();
+            copySelectedKeyframes();
+          } else if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0)) {
             e.preventDefault();
             copySelectedLayers();
           }
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-          if (window.internalLayerClipboard && window.internalLayerClipboard.length > 0) {
+          const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
+          const hasKeyframeClip = window.internalKeyframeClipboard && Array.isArray(window.internalKeyframeClipboard.items) && window.internalKeyframeClipboard.items.length > 0;
+          const shouldPasteKeyframe = (window.lastClipboardType === 'keyframe' && hasKeyframeClip) || (hasKeyframesSelected && hasKeyframeClip);
+
+          if (shouldPasteKeyframe) {
+            e.preventDefault();
+            pasteKeyframes();
+          } else if (window.internalLayerClipboard && window.internalLayerClipboard.length > 0) {
             e.preventDefault();
             pasteLayers();
           }
@@ -21694,6 +22040,18 @@
           if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0)) {
             e.preventDefault();
             duplicateSelectedLayers();
+          }
+        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'b') {
+          // 'B' shortcut: jump to previous stop (keyframe / beatmark)
+          e.preventDefault();
+          if (typeof navigateBeatmark === 'function') {
+            navigateBeatmark(-1);
+          }
+        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'n') {
+          // 'N' shortcut: jump to next stop (keyframe / beatmark)
+          e.preventDefault();
+          if (typeof navigateBeatmark === 'function') {
+            navigateBeatmark(1);
           }
         } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm') {
           // 'M' shortcut: toggle / add beatmark at current playhead position

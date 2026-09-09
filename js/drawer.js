@@ -251,15 +251,19 @@ class DrawerManager {
 
     // 2. Immediate purge of any lingering active drawer states and content in DOM
     const activeDrawers = document.querySelectorAll('.drawer-container.is-active');
+    let hasRemainingActive = false;
     activeDrawers.forEach((drawer) => {
       if (drawer !== exceptEl) {
         drawer.classList.remove('is-active');
         drawer.setAttribute('aria-hidden', 'true');
         this.clearContent(drawer);
+      } else {
+        hasRemainingActive = true;
       }
     });
-    if (!exceptEl || this.activeDrawer !== exceptEl) {
-      this.activeDrawer = null;
+    if (!hasRemainingActive && !exceptEl) {
+      document.body.classList.remove('has-active-drawer');
+      document.querySelectorAll('.editor-timeline.has-drawer-open').forEach(t => t.classList.remove('has-drawer-open'));
     }
   }
 
@@ -302,6 +306,16 @@ class DrawerManager {
     el.classList.add('is-active');
     el.setAttribute('aria-hidden', 'false');
 
+    document.body.classList.add('has-active-drawer');
+    const timeline = el.closest('.editor-timeline') || document.querySelector('.editor-timeline');
+    if (timeline) {
+      timeline.classList.add('has-drawer-open');
+    }
+    const fab = document.getElementById('timeline-btn-add') || document.querySelector('.timeline-fab-add');
+    if (fab && document.activeElement === fab) {
+      fab.blur();
+    }
+
     // Push invisible history state for native back gesture if not already active
     if (!this.historyPushed) {
       window.history.pushState({ drawerOpen: true, drawerId: el.id }, '');
@@ -337,6 +351,12 @@ class DrawerManager {
     }
     this.activeDrawer = null;
 
+    const remainingActive = document.querySelectorAll('.drawer-container.is-active');
+    if (remainingActive.length === 0) {
+      document.body.classList.remove('has-active-drawer');
+      document.querySelectorAll('.editor-timeline.has-drawer-open').forEach(t => t.classList.remove('has-drawer-open'));
+    }
+
     window.dispatchEvent(new CustomEvent('drawer-closed', { detail: { id: closingDrawer.id, target: closingDrawer } }));
 
     // Release active element focus
@@ -368,6 +388,8 @@ class DrawerManager {
     this.cleanup(null);
     this.activeDrawer = null;
     this.historyPushed = false;
+    document.body.classList.remove('has-active-drawer');
+    document.querySelectorAll('.editor-timeline.has-drawer-open').forEach(t => t.classList.remove('has-drawer-open'));
   }
 
   /**
@@ -379,7 +401,7 @@ class DrawerManager {
     const el = this.resolveElement(target);
     if (!el) return;
 
-    if (this.isOpen(el)) {
+    if (this.activeDrawer === el) {
       this.close();
     } else {
       this.open(el, content);
@@ -393,7 +415,7 @@ class DrawerManager {
    */
   isOpen(target) {
     const el = this.resolveElement(target);
-    return Boolean(el && el.classList.contains('is-active'));
+    return this.activeDrawer === el;
   }
 }
 

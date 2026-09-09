@@ -228,17 +228,35 @@
       }
 
       // Multi-effect pipeline: chain through offscreen buffers
+      const hasExpandingFx = renderEffects.some(f => f.type === 'transform' || f.type === 'tile' || f.type === 'wave-warp');
+      let pipeW = bw;
+      let pipeH = bh;
+      let offX = 0;
+      let offY = 0;
+
+      if (hasExpandingFx) {
+        const targetCanvas = ctx.canvas;
+        const cw = targetCanvas ? targetCanvas.width : (bw * 2);
+        const ch = targetCanvas ? targetCanvas.height : (bh * 2);
+        pipeW = Math.max(bw, Math.min(cw, 3840));
+        pipeH = Math.max(bh, Math.min(ch, 2160));
+        offX = Math.round((pipeW - bw) / 2);
+        offY = Math.round((pipeH - bh) / 2);
+      }
+
       let currentSource = el;
       for (let i = 0; i < renderEffects.length; i++) {
         const fx = renderEffects[i];
         const def = FishEffectsRegistry.get(fx.type);
         const isLast = (i === renderEffects.length - 1);
-        const buf = this._getPipelineCanvas(i % 2, bw, bh);
+        const buf = this._getPipelineCanvas(i % 2, pipeW, pipeH);
         const targetCtx = isLast ? ctx : buf.ctx;
-        const targetBounds = isLast ? normBounds : { x: 0, y: 0, w: bw, h: bh };
+        const targetBounds = isLast
+          ? (hasExpandingFx ? { x: normBounds.x - offX, y: normBounds.y - offY, w: pipeW, h: pipeH } : normBounds)
+          : { x: offX, y: offY, w: bw, h: bh };
 
         if (!isLast) {
-          buf.ctx.clearRect(0, 0, bw, bh);
+          buf.ctx.clearRect(0, 0, pipeW, pipeH);
         }
 
         def.render(targetCtx, currentSource, layer, targetBounds, fx);

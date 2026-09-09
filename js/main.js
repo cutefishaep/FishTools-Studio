@@ -50,18 +50,18 @@ function initUIProtections() {
  * e.g., "0.1.0-pre-alpha" -> "0.1.0 PA"
  */
 function formatAppVersion(raw) {
-  if (!raw) return '0.1.0 PA';
+  if (!raw) return '0.2.0 Alpha';
   let str = String(raw).trim().replace(/^v\.?/i, '');
   
   let tag = '';
   if (/[-_.\s]pre[-_.\s]?alpha$/i.test(str)) {
-    tag = 'PA';
+    tag = 'Pre-Alpha';
     str = str.replace(/[-_.\s]pre[-_.\s]?alpha$/i, '');
   } else if (/[-_.\s]alpha$/i.test(str)) {
-    tag = 'A';
+    tag = 'Alpha';
     str = str.replace(/[-_.\s]alpha$/i, '');
   } else if (/[-_.\s]beta$/i.test(str)) {
-    tag = 'B';
+    tag = 'Beta';
     str = str.replace(/[-_.\s]beta$/i, '');
   }
   
@@ -96,7 +96,7 @@ async function initVersionFetcher() {
   if (!badgeEl) return;
 
   if (window.location.protocol === 'file:') {
-    badgeEl.textContent = '0.1.0 PA';
+    badgeEl.textContent = '0.2.0 Alpha';
     return;
   }
 
@@ -108,7 +108,7 @@ async function initVersionFetcher() {
       badgeEl.textContent = formatAppVersion(pkg.version);
     }
   } catch (err) {
-    badgeEl.textContent = '0.1.0 PA';
+    badgeEl.textContent = '0.2.0 Alpha';
   }
 }
 

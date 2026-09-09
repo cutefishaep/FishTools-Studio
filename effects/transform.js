@@ -40,22 +40,35 @@
         ctx.globalAlpha *= op;
       }
 
-      const cx = x + w / 2 + px;
-      const cy = y + h / 2 + py;
+      // Center of source bounds
+      const cx = x + w / 2;
+      const cy = y + h / 2;
 
-      ctx.translate(cx, cy);
+      // 1. Move to Position offset
+      ctx.translate(cx + px, cy + py);
+
+      // 2. Rotate around Anchor Point
       if (rot !== 0) {
         ctx.rotate((rot * Math.PI) / 180);
       }
+
+      // 3. Skew around Anchor Point
       if (skew !== 0) {
         const tanSkew = Math.tan((skew * Math.PI) / 180);
         ctx.transform(1, 0, tanSkew, 1, 0, 0);
       }
+
+      // 4. Scale around Anchor Point
       if (scale !== 1) {
         ctx.scale(scale, scale);
       }
 
-      ctx.drawImage(el, -w / 2 - ax, -h / 2 - ay, w, h);
+      // 5. Offset by Anchor Point so (ax, ay) acts as true pivot point
+      ctx.translate(-ax, -ay);
+
+      // 6. Draw layer content unclipped
+      ctx.drawImage(el, -w / 2, -h / 2, w, h);
+
       ctx.restore();
     }
   });

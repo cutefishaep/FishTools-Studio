@@ -2611,7 +2611,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">Pre-Alpha</span>
+          <span class="welcome-badge">Alpha</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -2629,7 +2629,7 @@
           </div>
           <div class="welcome-banner-text">
             <strong>Project Dalam Pengembangan</strong>
-            <p>OpenFishTools Studio masih dalam tahap pengembangan aktif (Pre-Alpha). Beberapa fitur mungkin masih dalam pengerjaan atau terus disempurnakan.</p>
+            <p>OpenFishTools Studio masih dalam tahap pengembangan aktif (Alpha). Beberapa fitur mungkin masih dalam pengerjaan atau terus disempurnakan.</p>
           </div>
         </div>
 
@@ -4994,6 +4994,24 @@
                 skewX: skewX,
                 skewY: skewY
               };
+
+              const tfFx = (animLayerPost.effects || []).find(f => f && f.type === 'transform' && !f.disabled);
+              if (tfFx) {
+                const tfScale = (tfFx.scale !== undefined ? tfFx.scale : 100) / 100;
+                const tfRot = tfFx.rotation || 0;
+                const tfPx = (tfFx.posX || 0) * bufferScale;
+                const tfPy = (tfFx.posY || 0) * bufferScale;
+
+                layer._canvasBounds.cx += tfPx;
+                layer._canvasBounds.cy += tfPy;
+                layer._canvasBounds.w *= tfScale;
+                layer._canvasBounds.h *= tfScale;
+                layer._canvasBounds.scaleW *= tfScale;
+                layer._canvasBounds.scaleH *= tfScale;
+                layer._canvasBounds.rotation = (layer._canvasBounds.rotation || 0) + tfRot;
+                layer._canvasBounds.x = layer._canvasBounds.cx - layer._canvasBounds.w / 2;
+                layer._canvasBounds.y = layer._canvasBounds.cy - layer._canvasBounds.h / 2;
+              }
             }
 
             // Auto-capture ultra-lightweight micro-thumbnail preview (32x24px, JPEG 0.45) for timeline pill (only when paused/idle & not exporting)
@@ -19605,10 +19623,12 @@
                     const kfInitialTime = kf.time;
                     let multiDragItems = null;
 
-                    holdTimer = setTimeout(() => {
+                    function startDrag(pointerId) {
+                      if (isDragging) return;
+                      clearTimeout(holdTimer);
                       isDragging = true;
                       marker.classList.add('is-dragging');
-                      try { marker.setPointerCapture(e.pointerId); } catch (_) {}
+                      try { marker.setPointerCapture(pointerId); } catch (_) {}
                       if (navigator.vibrate) try { navigator.vibrate(25); } catch (_) {}
 
                       // Snapshot initial times for multi-selected keyframes
@@ -19628,15 +19648,20 @@
                         window.selectedKeyframes = [{ layerId: layer.id, layer, prop, time: kf.time, kf, marker }];
                         multiDragItems = [{ item: window.selectedKeyframes[0], initTime: kf.time }];
                       }
-                    }, 220);
+                    }
+
+                    holdTimer = setTimeout(() => {
+                      startDrag(e.pointerId);
+                    }, 200);
 
                     function onMarkerPointerMove(ev) {
                       if (!isDragging) {
                         const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
-                        if (dist > 6) {
-                          clearTimeout(holdTimer);
+                        if (dist > 4) {
+                          startDrag(ev.pointerId);
+                        } else {
+                          return;
                         }
-                        return;
                       }
 
                       ev.stopPropagation();
@@ -19676,11 +19701,12 @@
                         marker.dataset.time = newTime;
                         marker.style.left = `${(targetRelSec * pps).toFixed(1)}px`;
                         marker.title = `${prop.toUpperCase()} Keyframe: ${newTime.toFixed(2)}s`;
+                        if (window.selectedKeyframes) {
+                          const sItem = window.selectedKeyframes.find(it => it.kf === kf);
+                          if (sItem) sItem.time = newTime;
+                        }
                       }
 
-                      if (typeof seekTimelineToTime === 'function') {
-                        seekTimelineToTime(newTime, true);
-                      }
                       if (typeof updateGraphEditorUI === 'function') {
                         updateGraphEditorUI();
                       }

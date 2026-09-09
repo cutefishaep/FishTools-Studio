@@ -34,7 +34,8 @@
       { id: 'waveWidth', label: 'Wave Width', type: 'number', min: 10, max: 2000, default: 120, unit: 'px' },
       { id: 'direction', label: 'Direction', type: 'number', min: 0, max: 360, default: 0, unit: '°' },
       { id: 'speed', label: 'Wave Speed', type: 'number', min: -10, max: 10, default: 1, step: 0.05, unit: 'x' },
-      { id: 'phase', label: 'Phase', type: 'number', min: 0, max: 360, default: 0, unit: '°' }
+      { id: 'phase', label: 'Phase', type: 'number', min: 0, max: 360, default: 0, unit: '°' },
+      { id: 'tile', label: 'Tile', type: 'switch', default: 0 }
     ],
     render(ctx, el, layer, bounds, fx) {
       if (!ctx || !el) return;
@@ -82,6 +83,8 @@
         return Math.sin(p);
       }
 
+      const isTile = !!(fx && (fx.tile === 1 || fx.tile === true || fx.tile === '1' || fx.tile === 'true' || fx.tile === 'on'));
+
       // True continuous 2D arbitrary rotation transformation:
       // Rotates layer into wave propagation coordinate space, applies perpendicular slice displacement,
       // and transforms back seamlessly. Zero angle snapping or stair-stepping seams.
@@ -91,9 +94,9 @@
       const spanH = Math.ceil(w * sinA + h * cosA);
 
       // Extra padding for wave displacement peaks to prevent clipping
-      const padY = Math.ceil(Math.abs(height) * 2) + 4;
-      const totalW = spanW + 4;
-      const totalH = spanH + padY;
+      const padY = Math.ceil(Math.abs(height) * 2) + (isTile ? 24 : 4);
+      const totalW = spanW + (isTile ? padY * 2 : 4);
+      const totalH = spanH + padY * (isTile ? 2 : 1);
 
       const buf = getWaveBuffer(totalW, totalH);
       if (!buf || !buf.ctx) {
@@ -110,8 +113,35 @@
       bCtx.translate(totalW / 2, totalH / 2);
       bCtx.rotate(-dirRad);
       bCtx.imageSmoothingEnabled = true;
+
       try {
-        bCtx.drawImage(el, -w / 2, -h / 2, w, h);
+        if (!isTile) {
+          bCtx.drawImage(el, -w / 2, -h / 2, w, h);
+        } else {
+          // Seamless Mirrored Tiling: completely populates buffer space so no transparent holes/edges occur
+          const maxDim = Math.max(totalW, totalH);
+          const rangeX = Math.max(1, Math.ceil(maxDim / w));
+          const rangeY = Math.max(1, Math.ceil(maxDim / h));
+
+          for (let j = -rangeY; j <= rangeY; j++) {
+            for (let i = -rangeX; i <= rangeX; i++) {
+              const flipX = (Math.abs(i) % 2 === 1);
+              const flipY = (Math.abs(j) % 2 === 1);
+              const tx = i * w - w / 2;
+              const ty = j * h - h / 2;
+
+              if (!flipX && !flipY) {
+                bCtx.drawImage(el, tx, ty, w, h);
+              } else {
+                bCtx.save();
+                bCtx.translate(tx + (flipX ? w : 0), ty + (flipY ? h : 0));
+                bCtx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+                bCtx.drawImage(el, 0, 0, w, h);
+                bCtx.restore();
+              }
+            }
+          }
+        }
       } catch (_) {
         bCtx.restore();
         try { ctx.drawImage(el, x, y, w, h); } catch (e) {}
@@ -124,14 +154,19 @@
       const cy = y + h / 2;
 
       ctx.save();
+      if (isTile) {
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+      }
       ctx.translate(cx, cy);
       ctx.rotate(dirRad);
 
       // Slicing parameters: fine subpixel slice width with slight overlap to guarantee 0 seam lines/gaps
       const sliceW = spanW > 1400 ? 2 : (spanW > 700 ? 1.5 : 1);
       const overlap = 0.65; // Subpixel overlap prevents anti-aliasing seam bleed through
-      const startSx = Math.max(0, Math.floor((totalW - spanW) / 2));
-      const endSx = Math.min(totalW, Math.ceil((totalW + spanW) / 2));
+      const startSx = isTile ? 0 : Math.max(0, Math.floor((totalW - spanW) / 2));
+      const endSx = isTile ? totalW : Math.min(totalW, Math.ceil((totalW + spanW) / 2));
 
       for (let sx = startSx; sx < endSx; sx += sliceW) {
         const sw = Math.min(sliceW, endSx - sx);

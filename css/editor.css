@@ -1042,6 +1042,7 @@ html, body {
   bottom: 0;
   pointer-events: none;
   z-index: 22;
+  contain: layout style;
 }
 
 .timeline-beatmark-item {
@@ -1095,6 +1096,7 @@ html, body {
   right: 0;
   pointer-events: none;
   z-index: 2;
+  contain: layout style;
 }
 
 .timeline-layers-beatmark-line {

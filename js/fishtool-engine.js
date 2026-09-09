@@ -226,6 +226,9 @@
 
     _hasValidDimensions(el) {
       if (!el) return false;
+      if (el.tagName === 'AUDIO' || (typeof HTMLAudioElement !== 'undefined' && el instanceof HTMLAudioElement)) {
+        return false;
+      }
       if (el.tagName === 'VIDEO') {
         return el.readyState >= 2 && el.videoWidth > 0 && el.videoHeight > 0;
       }
@@ -235,7 +238,7 @@
       if (typeof el.width === 'number' && typeof el.height === 'number') {
         return el.width > 0 && el.height > 0;
       }
-      return true;
+      return false;
     }
 
     _getOrCreateTexture(el) {

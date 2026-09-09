@@ -426,7 +426,9 @@
         const timelineSec = startSec + (timeInClip / currentSpeed);
 
         if (timelineSec >= startSec - 0.15 && timelineSec <= endSec + 0.25) {
-          return timelineSec;
+          if (Math.abs(timelineSec - currentSec) <= 0.6) {
+            return timelineSec;
+          }
         }
       }
       return null;
@@ -438,7 +440,9 @@
           this.unlock();
         }
       } else if (this.ctx && this.ctx.state === 'suspended') {
-        this.ctx.resume().catch(() => {});
+        if (this._hasUserActivation()) {
+          this.ctx.resume().catch(() => {});
+        }
       }
 
       // Group active layers by their media element
@@ -453,7 +457,9 @@
         const el = media.el;
         if (isMuted) {
           el.muted = true;
-          this.detachMediaElement(el);
+          if (this.sources.has(el)) {
+            this.detachMediaElement(el);
+          }
           if (this.pendingMediaElements && this.pendingMediaElements.has(el)) {
             this.pendingMediaElements.delete(el);
           }

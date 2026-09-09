@@ -2952,18 +2952,48 @@
         this.updateUI();
       },
 
+      _cloneLayersForSnapshot(layers) {
+        if (!layers || !layers.length) return [];
+        return layers.map(l => {
+          const c = {};
+          for (const k in l) {
+            if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') continue;
+            c[k] = l[k];
+          }
+          if (l.keyframes) c.keyframes = JSON.parse(JSON.stringify(l.keyframes));
+          if (l.effects) c.effects = JSON.parse(JSON.stringify(l.effects));
+          if (l.shapeProps) c.shapeProps = JSON.parse(JSON.stringify(l.shapeProps));
+          return c;
+        });
+      },
+
+      _computeFingerprint(layers, beatmarks) {
+        const lSig = (layers || []).map(l => {
+          let kfCount = 0;
+          if (l.keyframes) {
+            for (const p in l.keyframes) {
+              if (Array.isArray(l.keyframes[p])) kfCount += l.keyframes[p].length;
+            }
+          }
+          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${kfCount}:${(l.effects || []).length}`;
+        }).join(';');
+        const bSig = (beatmarks || []).join(',');
+        return `${lSig}|${bSig}`;
+      },
+
       recordSnapshot() {
         if (this.isApplying) return;
-        const layersCopy = JSON.parse(JSON.stringify(currentProjectState.layers || []));
         const beatmarksCopy = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
-        const serialized = JSON.stringify({ layers: layersCopy, beatmarks: beatmarksCopy });
+        const fingerprint = this._computeFingerprint(currentProjectState.layers || [], beatmarksCopy);
 
         // Avoid duplicate consecutive states
         if (this.index >= 0 && this.index < this.stack.length) {
-          if (this.stack[this.index].serialized === serialized) {
+          if (this.stack[this.index].fingerprint === fingerprint) {
             return;
           }
         }
+
+        const layersCopy = this._cloneLayersForSnapshot(currentProjectState.layers || []);
 
         // Cut off redo branch
         this.stack = this.stack.slice(0, this.index + 1);
@@ -2971,7 +3001,7 @@
         this.stack.push({
           layers: layersCopy,
           beatmarks: beatmarksCopy,
-          serialized
+          fingerprint
         });
 
         // Enforce max undo limit (dropping oldest)
@@ -4298,7 +4328,7 @@
           const engine = window.FishToolEngine || window.LayerTransform;
           allIds.forEach(id => {
             const selL = (currentProjectState.layers || []).find(l => l.id === id);
-            if (!selL || selL.hidden) return;
+            if (!selL || selL.hidden || selL.type === 'null' || selL.type === 'audio') return;
             if (selL.type === 'camera') {
               const padX = Math.max(8, Math.round(w * 0.035));
               const padY = Math.max(8, Math.round(h * 0.035));
@@ -4344,8 +4374,8 @@
           ctx.fillRect(0, 0, w, h);
         }
 
-        // Draw each active layer onto canvas in bottom-to-top order (excluding camera and null layers, reverse so top timeline lane is on top of canvas)
-        const renderOrderLayers = [...activeLayers].reverse().filter(l => l.type !== 'camera' && l.type !== 'null');
+        // Draw each active layer onto canvas in bottom-to-top order (excluding camera, null, and audio layers, reverse so top timeline lane is on top of canvas)
+        const renderOrderLayers = [...activeLayers].reverse().filter(l => l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio');
         const layersToRender = [];
         let compositionBufferScale = bufferScale;
 
@@ -5238,7 +5268,7 @@
         const engine = window.FishToolEngine || window.LayerTransform;
         allSelectedIds.forEach(id => {
           const selL = (currentProjectState.layers || []).find(l => l.id === id);
-          if (!selL || selL.hidden) return;
+          if (!selL || selL.hidden || selL.type === 'null' || selL.type === 'audio') return;
           if (selL.type === 'camera') {
             const padX = Math.max(8, Math.round(w * 0.035));
             const padY = Math.max(8, Math.round(h * 0.035));
@@ -5277,7 +5307,7 @@
           // Select All / Multi-Select Mode: Pure wireframe bounding box ONLY (no anchor, no scale handles)
           allSelectedIds.forEach(id => {
             const l = (currentProjectState.layers || []).find(layer => layer.id === id);
-            if (!l || l.hidden || l.type === 'camera' || l.type === 'null') return;
+            if (!l || l.hidden || l.type === 'camera' || l.type === 'null' || l.type === 'audio') return;
             const b = l._canvasBounds;
             if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
               window.CanvasWireframe.draw(ctx, b, {
@@ -5291,7 +5321,7 @@
           // Individual Select Mode: Full interactive wireframe with center anchor point and 8 perimeter scale handles
           const selId = allSelectedIds[0];
           const selL = (currentProjectState.layers || []).find(l => l.id === selId);
-          if (selL && !selL.hidden) {
+          if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'null' && selL.type !== 'audio') {
             const b = selL._canvasBounds;
             if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
               const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
@@ -5587,7 +5617,7 @@
         } else if (isMultiSelect && window.selectedLayerIds) {
           for (const id of window.selectedLayerIds) {
             const l = layers.find(layer => layer.id === id);
-            if (l && l._canvasBounds && l.type !== 'camera' && window.CanvasWireframe && window.CanvasWireframe.hitTest(l._canvasBounds, coords.x, coords.y) &&
+            if (l && l._canvasBounds && l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio' && window.CanvasWireframe && window.CanvasWireframe.hitTest(l._canvasBounds, coords.x, coords.y) &&
                 !(l.type === 'image' && isLayerPixelTransparent(l, coords.x, coords.y))) {
               activeCanvasEl.style.cursor = 'move';
               return;
@@ -5595,7 +5625,7 @@
           }
         }
 
-        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'null');
+        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio');
         for (let i = 0; i < activeLayers.length; i++) {
           const l = activeLayers[i];
           if (l._canvasBounds && window.CanvasWireframe && window.CanvasWireframe.hitTest(l._canvasBounds, coords.x, coords.y) &&
@@ -5775,7 +5805,7 @@
         }
 
         // C. Check other active layers (from topmost to bottom)
-        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'null');
+        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio');
         for (let i = 0; i < activeLayers.length; i++) {
           const l = activeLayers[i];
           const b = l._canvasBounds;
@@ -16284,20 +16314,68 @@
       window.seekTimelineToTime = seekTimelineToTime;
 
       // --- Beatmark Engine & UI Controller ---
+      let _lastBeatmarkNearState = null;
       function updateTimeBadgeBeatmarkState() {
         const badge = document.getElementById('timeline-time-badge');
         if (!badge) return;
+        // Avoid style/attribute invalidations during active 60fps playback
+        if (isPlaying) {
+          if (_lastBeatmarkNearState !== false) {
+            _lastBeatmarkNearState = false;
+            badge.classList.remove('has-beatmark');
+          }
+          return;
+        }
         const currentSec = Math.abs(panX) / pixelsPerSecond;
         const beatmarks = currentProjectState.beatmarks || [];
         const isNear = beatmarks.some(b => Math.abs(b - currentSec) <= 0.05);
-        badge.classList.toggle('has-beatmark', isNear);
-        if (isNear) {
-          badge.setAttribute('title', 'Playhead on Beatmark. Click to delete Beatmark.');
-        } else {
-          badge.setAttribute('title', 'Click to add Beatmark at current time');
+        if (isNear !== _lastBeatmarkNearState) {
+          _lastBeatmarkNearState = isNear;
+          badge.classList.toggle('has-beatmark', isNear);
+          badge.setAttribute('title', isNear ? 'Playhead on Beatmark. Click to delete Beatmark.' : 'Click to add Beatmark at current time');
         }
       }
       window.updateTimeBadgeBeatmarkState = updateTimeBadgeBeatmarkState;
+
+      function createBeatmarkItemEl(bm, pps) {
+        const leftPx = Math.round(bm * pps);
+        const timeStr = formatTimecode(Math.round(bm * 1000));
+        const item = document.createElement('div');
+        item.className = 'timeline-beatmark-item';
+        item.dataset.time = String(bm);
+        item.style.left = `${leftPx}px`;
+        item.title = `Beatmark: ${timeStr} (Click to jump, Shift+Click or Right-Click to delete)`;
+        item.setAttribute('aria-label', `Beatmark at ${timeStr}`);
+        item.innerHTML = `
+          <div class="timeline-beatmark-pin">
+            <svg viewBox="0 0 10 12" width="10" height="12" class="timeline-beatmark-svg" aria-hidden="true">
+              <path d="M 0 0 L 10 0 L 10 7 L 5 12 L 0 7 Z" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="timeline-beatmark-stem"></div>
+        `;
+        return item;
+      }
+
+      function createBeatmarkLineEl(bm, pps) {
+        const leftPx = Math.round(bm * pps);
+        const line = document.createElement('div');
+        line.className = 'timeline-layers-beatmark-line';
+        line.dataset.time = String(bm);
+        line.style.left = `${leftPx}px`;
+        return line;
+      }
+
+      function addBeatmarkDOM(bm, pps) {
+        let rulerBeatmarks = rulerTrack.querySelector('#timeline-ruler-beatmarks');
+        let layersBeatmarks = layersTrack.querySelector('#timeline-layers-beatmarks');
+        if (!rulerBeatmarks || !layersBeatmarks) {
+          renderTimelineBeatmarks();
+          return;
+        }
+        rulerBeatmarks.appendChild(createBeatmarkItemEl(bm, pps));
+        layersBeatmarks.appendChild(createBeatmarkLineEl(bm, pps));
+      }
 
       function renderTimelineBeatmarks() {
         let rulerBeatmarks = rulerTrack.querySelector('#timeline-ruler-beatmarks');
@@ -16324,42 +16402,29 @@
           return;
         }
 
-        let rulerHtml = '';
-        let layersHtml = '';
         const pps = pixelsPerSecond;
+        const rulerFrag = document.createDocumentFragment();
+        const layersFrag = document.createDocumentFragment();
 
         for (let i = 0; i < beatmarks.length; i++) {
           const bm = beatmarks[i];
-          const leftPx = Math.round(bm * pps);
-          const timeStr = formatTimecode(Math.round(bm * 1000));
-          rulerHtml += `
-            <div class="timeline-beatmark-item" data-time="${bm}" style="left: ${leftPx}px;" title="Beatmark: ${timeStr} (Click to jump, Shift+Click or Right-Click to delete)" aria-label="Beatmark at ${timeStr}">
-              <div class="timeline-beatmark-pin">
-                <svg viewBox="0 0 10 12" width="10" height="12" class="timeline-beatmark-svg" aria-hidden="true">
-                  <path d="M 0 0 L 10 0 L 10 7 L 5 12 L 0 7 Z" fill="currentColor"/>
-                </svg>
-              </div>
-              <div class="timeline-beatmark-stem"></div>
-            </div>
-          `;
-          layersHtml += `
-            <div class="timeline-layers-beatmark-line" style="left: ${leftPx}px;"></div>
-          `;
+          rulerFrag.appendChild(createBeatmarkItemEl(bm, pps));
+          layersFrag.appendChild(createBeatmarkLineEl(bm, pps));
         }
 
-        rulerBeatmarks.innerHTML = rulerHtml;
-        layersBeatmarks.innerHTML = layersHtml;
+        rulerBeatmarks.replaceChildren(rulerFrag);
+        layersBeatmarks.replaceChildren(layersFrag);
         updateTimeBadgeBeatmarkState();
       }
       window.renderTimelineBeatmarks = renderTimelineBeatmarks;
 
       let saveBeatmarksDebounceTimer = null;
-      function saveCurrentProjectBeatmarks() {
+      function saveCurrentProjectBeatmarks(immediate = false) {
         if (saveBeatmarksDebounceTimer) {
           clearTimeout(saveBeatmarksDebounceTimer);
-        }
-        saveBeatmarksDebounceTimer = setTimeout(async () => {
           saveBeatmarksDebounceTimer = null;
+        }
+        const doSave = async () => {
           if (!window.FishDatabase || !currentProjectState.id) return;
           try {
             const prj = await window.FishDatabase.getProject(currentProjectState.id);
@@ -16368,7 +16433,19 @@
               await window.FishDatabase.saveProject(prj);
             }
           } catch (_) {}
-        }, 100);
+        };
+
+        if (immediate) {
+          doSave();
+          return;
+        }
+
+        // During playback, debounce longer (1500ms) so rapid beat taps don't trigger IndexedDB/localStorage writes during 60fps playback
+        const delay = isPlaying ? 1500 : 250;
+        saveBeatmarksDebounceTimer = setTimeout(() => {
+          saveBeatmarksDebounceTimer = null;
+          doSave();
+        }, delay);
       }
       window.saveCurrentProjectBeatmarks = saveCurrentProjectBeatmarks;
 
@@ -16376,21 +16453,27 @@
         if (!Array.isArray(currentProjectState.beatmarks)) {
           currentProjectState.beatmarks = [];
         }
-        const currentSec = Math.max(0, Math.abs(panX) / pixelsPerSecond);
+        const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+        const currentSec = Math.max(0, Math.abs(panX) / pps);
         const roundedSec = Math.round(currentSec * 1000) / 1000;
         const tolerance = 0.05;
 
         const existingIdx = currentProjectState.beatmarks.findIndex(b => Math.abs(b - roundedSec) <= tolerance);
         if (existingIdx !== -1) {
           // Playhead is at beatmark -> delete it
-          currentProjectState.beatmarks.splice(existingIdx, 1);
+          const removed = currentProjectState.beatmarks.splice(existingIdx, 1)[0];
+          const rulerBm = rulerTrack.querySelector(`.timeline-beatmark-item[data-time="${removed}"]`);
+          if (rulerBm) rulerBm.remove();
+          const layerLine = layersTrack.querySelector(`.timeline-layers-beatmark-line[data-time="${removed}"]`);
+          if (layerLine) layerLine.remove();
+          if (!rulerBm || !layerLine) renderTimelineBeatmarks();
         } else {
           // Playhead not on beatmark -> add it
           currentProjectState.beatmarks.push(roundedSec);
           currentProjectState.beatmarks.sort((a, b) => a - b);
+          addBeatmarkDOM(roundedSec, pps);
         }
 
-        renderTimelineBeatmarks();
         updateTimeBadgeBeatmarkState();
         if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
           window.UndoRedoManager.recordSnapshot();
@@ -16403,8 +16486,12 @@
         if (!Array.isArray(currentProjectState.beatmarks)) return;
         const idx = currentProjectState.beatmarks.findIndex(b => Math.abs(b - sec) <= 0.05);
         if (idx !== -1) {
-          currentProjectState.beatmarks.splice(idx, 1);
-          renderTimelineBeatmarks();
+          const removed = currentProjectState.beatmarks.splice(idx, 1)[0];
+          const rulerBm = rulerTrack.querySelector(`.timeline-beatmark-item[data-time="${removed}"]`);
+          if (rulerBm) rulerBm.remove();
+          const layerLine = layersTrack.querySelector(`.timeline-layers-beatmark-line[data-time="${removed}"]`);
+          if (layerLine) layerLine.remove();
+          if (!rulerBm || !layerLine) renderTimelineBeatmarks();
           updateTimeBadgeBeatmarkState();
           if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
             window.UndoRedoManager.recordSnapshot();
@@ -16757,8 +16844,12 @@
         }
         // Always trigger idle cache fill after pause — fills remaining uncached frames in background
         // This mirrors AE RAM Preview: bar fills continuously during idle time
-        if (window.PreviewCacheManager && window.PreviewCacheManager.idleCacheEnabled) {
-          window.PreviewCacheManager.scheduleIdleCheck();
+        // Flush any pending debounced beatmark save and refresh badge state
+        if (typeof saveCurrentProjectBeatmarks === 'function') {
+          saveCurrentProjectBeatmarks(true);
+        }
+        if (typeof updateTimeBadgeBeatmarkState === 'function') {
+          updateTimeBadgeBeatmarkState();
         }
         redrawComposition('playbackPause');
       }
@@ -17117,12 +17208,12 @@
         const targetSec = (currentFrame + framesElapsed) / fps;
         let nextSec = targetSec;
 
-        if (window.FishAudioEngine && _playTickCount > 1) {
+        if (window.FishAudioEngine && _playTickCount > 30) {
           const masterSec = window.FishAudioEngine.getMasterAudioTime(layers, currentSec, pixelsPerSecond);
-          if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec)) {
+          if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec > 0.05) {
             const drift = masterSec - targetSec;
-            if (Math.abs(drift) > 0.4) {
-              // Large drift (> 400ms): user scrubbed, jumped, or hard seek -> align to master audio
+            if (Math.abs(drift) > 0.6) {
+              // Large drift (> 600ms): user scrubbed, jumped, or hard seek -> align to master audio
               nextSec = masterSec;
             }
           }

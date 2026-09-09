@@ -28,8 +28,9 @@
 html, body {
   width: 100%;
   height: 100%;
-  height: 100vh;
-  height: 100dvh;
+  height: -webkit-fill-available;
+  height: var(--app-height, 100%);
+  max-height: var(--app-height, 100%);
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -45,17 +46,19 @@ html, body {
 .editor-viewport {
   width: 100%;
   height: 100%;
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100dvh;
+  height: -webkit-fill-available;
+  height: var(--app-height, 100%);
+  max-height: var(--app-height, 100%);
   display: flex;
   flex-direction: column;
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   border: none;
   outline: none;
   background-color: var(--bg-canvas);
   box-sizing: border-box;
+  padding-bottom: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -803,19 +806,29 @@ html, body {
   }
 
   .timeline-layers-viewport {
+    padding-bottom: 48px;
     padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
   }
 
   .timeline-layers-viewport.has-drawer-open,
+  .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
   .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
+    padding-bottom: 130px;
     padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px));
   }
 
   .timeline-fab-add {
     right: 14px;
+    bottom: 14px;
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     width: 42px;
     height: 42px;
+  }
+
+  .editor-timeline.has-layer-drawer-open .timeline-fab-add,
+  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
+    bottom: 160px;
+    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Vertical split handle is strictly hidden on mobile */
@@ -1276,6 +1289,7 @@ html, body {
 /* Generous bottom clearance when layer drawer is active
    so the lowest layer can effortlessly scroll completely above the drawer card */
 .timeline-layers-viewport.has-drawer-open,
+.editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
 .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
   padding-bottom: 240px;
 }
@@ -2440,6 +2454,7 @@ html, body {
   position: absolute;
   right: 20px;
   bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   width: 46px;
   height: 46px;
   border-radius: 50%;
@@ -2451,11 +2466,18 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 60;
+  z-index: 120;
   padding: 0;
   box-shadow: none;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease, bottom 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Float FAB above layer action drawer when open */
+.editor-timeline.has-layer-drawer-open .timeline-fab-add,
+.editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
+  bottom: 200px;
+  bottom: calc(200px + env(safe-area-inset-bottom, 0px));
 }
 
 .timeline-fab-add .svg-icon {
@@ -2486,9 +2508,16 @@ html, body {
 @media (max-width: 600px) {
   .timeline-fab-add {
     right: 14px;
+    bottom: 14px;
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     width: 42px;
     height: 42px;
+  }
+
+  .editor-timeline.has-layer-drawer-open .timeline-fab-add,
+  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-fab-add {
+    bottom: 160px;
+    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   }
 }
 

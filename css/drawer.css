@@ -22,6 +22,7 @@
   pointer-events: none;
   overflow: hidden;
   box-sizing: border-box;
+  visibility: hidden;
 }
 
 /* Global viewport drawer variant */
@@ -40,6 +41,7 @@
 /* Active State Container */
 .drawer-container.is-active {
   pointer-events: auto;
+  visibility: visible;
 }
 
 /* 2. Drawer Backdrop (Solid dark canvas opacity overlay) */

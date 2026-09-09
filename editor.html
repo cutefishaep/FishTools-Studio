@@ -19,6 +19,17 @@
   <link rel="stylesheet" href="css/effects-rack.css">
   <link rel="stylesheet" href="css/color-picker.css">
   <link rel="stylesheet" href="css/template-editor.css">
+  <script>
+    (function() {
+      function syncAppHeight() {
+        var h = window.innerHeight;
+        document.documentElement.style.setProperty('--app-height', h + 'px');
+      }
+      syncAppHeight();
+      window.addEventListener('resize', syncAppHeight, { passive: true });
+      window.addEventListener('orientationchange', syncAppHeight, { passive: true });
+    })();
+  </script>
 </head>
 <body oncontextmenu="return false;" onselectstart="return false;">
 
@@ -17468,6 +17479,8 @@
         isSelectorMode = false;
         const vp = document.getElementById('timeline-layers-viewport');
         if (vp) vp.classList.remove('has-drawer-open');
+        const tl = document.getElementById('main-editor-timeline');
+        if (tl) tl.classList.remove('has-layer-drawer-open');
         const drawerGrid = document.getElementById('drawer-media-grid');
         if (drawerGrid) {
           drawerGrid.querySelectorAll('.media-item-tile').forEach(t => {
@@ -19154,6 +19167,8 @@
         if (e.detail && e.detail.id === 'timeline-layer-drawer') {
           const vp = document.getElementById('timeline-layers-viewport');
           if (vp) vp.classList.remove('has-drawer-open');
+          const tl = document.getElementById('main-editor-timeline');
+          if (tl) tl.classList.remove('has-layer-drawer-open');
           const drawerEl = document.getElementById('timeline-layer-drawer');
           if (drawerEl) {
             drawerEl.style.removeProperty('--spotlight-top');
@@ -19164,6 +19179,10 @@
       });
       window.addEventListener('drawer-opened', (e) => {
         if (e.detail && e.detail.id === 'timeline-layer-drawer') {
+          const vp = document.getElementById('timeline-layers-viewport');
+          if (vp) vp.classList.add('has-drawer-open');
+          const tl = document.getElementById('main-editor-timeline');
+          if (tl) tl.classList.add('has-layer-drawer-open');
           updateTimelineSpotlight();
           if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
             updateTimelineKeyframeMarkersHighlight();

@@ -569,7 +569,7 @@ html, body {
 
 .editor-layer-motion-blur-btn {
   background-color: transparent;
-  color: var(--color-primary);
+  color: var(--text-muted);
   border: none;
   outline: none !important;
   width: 32px;
@@ -1623,8 +1623,8 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: default;
-  pointer-events: none;
+  cursor: ew-resize;
+  pointer-events: auto;
   user-select: none;
   z-index: 12;
   white-space: nowrap;
@@ -1642,12 +1642,6 @@ html, body {
   border: 1px solid var(--track-text);
 }
 
-/* Enabled ONLY when clip is in selection mode (selected) */
-.timeline-clip-block.is-selected .text-anim-marker {
-  pointer-events: auto;
-  cursor: ew-resize;
-}
-
 .timeline-clip-block.is-selected .text-anim-marker.marker-in,
 .timeline-clip-block.is-selected .text-anim-marker.marker-out {
   background-color: var(--track-text);
@@ -1655,8 +1649,8 @@ html, body {
   border: 1px solid var(--track-text);
 }
 
-.timeline-clip-block.is-selected .text-anim-marker:hover,
-.timeline-clip-block.is-selected .text-anim-marker.is-dragging {
+.text-anim-marker:hover,
+.text-anim-marker.is-dragging {
   transform: scale(1.08);
 }
 

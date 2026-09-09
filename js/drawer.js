@@ -258,6 +258,9 @@ class DrawerManager {
         this.clearContent(drawer);
       }
     });
+    if (!exceptEl || this.activeDrawer !== exceptEl) {
+      this.activeDrawer = null;
+    }
   }
 
   /**
@@ -376,7 +379,7 @@ class DrawerManager {
     const el = this.resolveElement(target);
     if (!el) return;
 
-    if (this.activeDrawer === el) {
+    if (this.isOpen(el)) {
       this.close();
     } else {
       this.open(el, content);
@@ -390,7 +393,7 @@ class DrawerManager {
    */
   isOpen(target) {
     const el = this.resolveElement(target);
-    return this.activeDrawer === el;
+    return Boolean(el && el.classList.contains('is-active'));
   }
 }
 

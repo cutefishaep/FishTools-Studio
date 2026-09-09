@@ -22,9 +22,10 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   box-sizing: border-box;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding: 24px 12px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 .modal-backdrop.is-active {
@@ -34,6 +35,7 @@
 
 /* 2. Modular Modal Card Surface */
 .modal-card {
+  margin: auto;
   background-color: var(--bg-dashboard);
   color: var(--text-primary);
   font-family: var(--font-brand);
@@ -446,6 +448,135 @@
   border-radius: 11px;
 }
 
+/* ==========================================================================
+   MODULAR SETTINGS CATEGORY & COLLAPSIBLE ACCORDION (.settings-category)
+   - Groups composition & project settings into clean, distinct cards
+   - Unexpanded / Collapsible mode via .is-collapsed
+   - 100% Theme Token Binding, Zero Shadows, Zero Gradients, Zero Blur
+   ========================================================================== */
+.settings-category {
+  background-color: var(--bg-panel);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.15s ease;
+  position: relative;
+}
+
+.settings-category-header {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 16px 16px 0 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease;
+}
+
+.settings-category.is-collapsed .settings-category-header {
+  border-radius: 16px;
+}
+
+.settings-category-header:hover {
+  background-color: var(--bg-panel-hover);
+}
+
+.settings-category-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-category-title {
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.settings-category-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-category-summary {
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.1px;
+}
+
+.settings-category-chevron {
+  width: 14px;
+  height: 14px;
+  fill: var(--color-primary);
+  flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-category:not(.is-collapsed) .settings-category-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-category.is-collapsed .settings-category-chevron {
+  transform: rotate(0deg);
+}
+
+.settings-category-body {
+  padding: 4px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-category.is-collapsed .settings-category-body {
+  display: none !important;
+}
+
+/* Category Sub-items: Contrast surfaces within category card */
+.settings-category .modal-form-row {
+  background-color: var(--bg-panel-inner);
+  border-radius: 12px;
+  padding: 8px 12px 8px 14px;
+}
+
+.settings-category .modal-form-row:hover {
+  background-color: var(--bg-panel-inner-hover);
+}
+
+.settings-category .modal-form-row .custom-dropdown-trigger {
+  background-color: var(--bg-panel);
+}
+
+.settings-category .modal-form-row .custom-dropdown-trigger:hover,
+.settings-category .modal-form-row .custom-dropdown.is-open .custom-dropdown-trigger {
+  background-color: var(--bg-panel-hover);
+}
+
+.settings-category .aspect-ratio-frame {
+  background-color: var(--bg-panel-inner);
+}
+
+.settings-category .aspect-ratio-frame:hover {
+  background-color: var(--bg-panel-inner-hover);
+}
+
+.settings-category .aspect-ratio-frame.is-selected {
+  background-color: var(--bg-panel-hover);
+}
+
 /* Modal Footer & Action Button */
 .modal-footer {
   padding: 10px 20px 20px;
@@ -653,9 +784,11 @@
   .modal-backdrop {
     align-items: flex-start;
     justify-content: center;
+    padding: 0;
   }
 
   .modal-card {
+    margin: 0;
     width: 100%;
     max-height: none;
     height: auto;

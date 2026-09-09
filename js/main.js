@@ -403,6 +403,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Modular Settings Category Accordion Expand/Collapse (Capture phase)
+  document.addEventListener('click', (e) => {
+    const header = e.target.closest('.settings-category-header');
+    if (!header) return;
+    const category = header.closest('.settings-category');
+    if (!category) return;
+    const isCollapsed = category.classList.toggle('is-collapsed');
+    header.setAttribute('aria-expanded', String(!isCollapsed));
+  }, true);
+
   // Modular Drag & Drop Zones
   document.querySelectorAll('.modal-dropzone').forEach(dropzone => {
     const fileInput = dropzone.querySelector('input[type="file"]');

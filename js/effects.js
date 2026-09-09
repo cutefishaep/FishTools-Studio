@@ -416,7 +416,7 @@
           const rem = Math.round(angleVal % 360);
           const badgeText = (turns !== 0)
             ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°`
-            : `0x ${rem >= 0 ? '+' : ''}${rem}°`;
+            : `${rem >= 0 ? '+' : ''}${rem}°`;
 
           return `
             <div class="effects-control-row" data-param="${p.id}">

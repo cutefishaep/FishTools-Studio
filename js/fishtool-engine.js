@@ -40,7 +40,7 @@
 
     void main() {
       vec4 col = texture2D(u_texture, v_texCoord);
-      if (col.a <= 0.001) discard;
+      if (col.a <= 0.003) discard;
       gl_FragColor = col * u_opacity;
     }
   `;
@@ -67,7 +67,9 @@
       vec4 colG = texture2D(u_image, v_uv);
       vec4 colR = texture2D(u_image, v_uv + u_delta);
       vec4 colB = texture2D(u_image, v_uv - u_delta);
-      gl_FragColor = vec4(colR.r, colG.g, colB.b, colG.a) * u_opacity;
+      float outA = max(colG.a, max(colR.a, colB.a));
+      if (outA <= 0.003) discard;
+      gl_FragColor = vec4(colR.r, colG.g, colB.b, outA) * u_opacity;
     }
   `;
 
@@ -129,6 +131,7 @@
         gl.disable(gl.CULL_FACE);
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
 
         this.program = prog;
 
@@ -247,6 +250,9 @@
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // Pre-initialize with a 1x1 transparent RGBA pixel so texture is never incomplete (avoids solid white glitch)
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
         this.textureCache.set(el, tex);
       }
 
@@ -255,8 +261,9 @@
         const isStaticImg = (el.tagName === 'IMG');
         const src = el.src || '';
         if (!isStaticImg || tex._uploadedSrc !== src) {
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
-          if (isStaticImg) tex._uploadedSrc = src;
+          if (isStaticImg && src) tex._uploadedSrc = src;
         }
       } catch (_) {}
 
@@ -454,6 +461,162 @@
     }
 
     /**
+     * Compute exact local 2D contour points for any Shape geometry
+     */
+    getShapeLocalContour(shapeType, shapeProps = {}, w = 300, h = 300) {
+      const sx = Math.max(1, w);
+      const sy = Math.max(1, h);
+      const rx = sx / 2;
+      const ry = sy / 2;
+      const pts = [];
+
+      const baseW = (shapeProps.sizeX && Number(shapeProps.sizeX) > 0) ? Number(shapeProps.sizeX) : sx;
+      const scaleR = sx / Math.max(1, baseW);
+
+      switch (shapeType) {
+        case 'circle': {
+          const segs = 48;
+          for (let i = 0; i < segs; i++) {
+            const a = (i / segs) * Math.PI * 2;
+            pts.push({ x: Math.cos(a) * rx, y: Math.sin(a) * ry });
+          }
+          break;
+        }
+        case 'rectangle': {
+          let r = Number(shapeProps.roundness);
+          if (isNaN(r) || r < 0) r = 0;
+          r = Math.min(r * scaleR, rx, ry);
+          if (r <= 0.5) {
+            pts.push({ x: -rx, y: -ry }, { x: rx, y: -ry }, { x: rx, y: ry }, { x: -rx, y: ry });
+          } else {
+            const arcSegs = 6;
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = -Math.PI / 2 + (i / arcSegs) * (Math.PI / 2);
+              pts.push({ x: rx - r + Math.cos(a) * r, y: -ry + r + Math.sin(a) * r });
+            }
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = (i / arcSegs) * (Math.PI / 2);
+              pts.push({ x: rx - r + Math.cos(a) * r, y: ry - r + Math.sin(a) * r });
+            }
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = Math.PI / 2 + (i / arcSegs) * (Math.PI / 2);
+              pts.push({ x: -rx + r + Math.cos(a) * r, y: ry - r + Math.sin(a) * r });
+            }
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = Math.PI + (i / arcSegs) * (Math.PI / 2);
+              pts.push({ x: -rx + r + Math.cos(a) * r, y: -ry + r + Math.sin(a) * r });
+            }
+          }
+          break;
+        }
+        case 'triangle': {
+          const step = Math.max(3, parseInt(shapeProps.step || shapeProps.steps, 10) || 3);
+          if (step === 3) {
+            let r = Number(shapeProps.roundness);
+            if (isNaN(r) || r < 0) r = 0;
+            r = r * scaleR;
+            if (r <= 0.5) {
+              pts.push({ x: 0, y: -ry });
+              pts.push({ x: rx, y: ry });
+              pts.push({ x: -rx, y: ry });
+            } else {
+              const raw = [{ x: 0, y: -ry }, { x: rx, y: ry }, { x: -rx, y: ry }];
+              const cornerR = Math.min(r, Math.min(sx, sy) * 0.25);
+              for (let i = 0; i < 3; i++) {
+                const pPrev = raw[(i + 2) % 3];
+                const pCurr = raw[i];
+                const pNext = raw[(i + 1) % 3];
+                const v1 = { x: pPrev.x - pCurr.x, y: pPrev.y - pCurr.y };
+                const v2 = { x: pNext.x - pCurr.x, y: pNext.y - pCurr.y };
+                const l1 = Math.hypot(v1.x, v1.y) || 1;
+                const l2 = Math.hypot(v2.x, v2.y) || 1;
+                const u1 = { x: v1.x / l1, y: v1.y / l1 };
+                const u2 = { x: v2.x / l2, y: v2.y / l2 };
+                const startPt = { x: pCurr.x + u1.x * cornerR, y: pCurr.y + u1.y * cornerR };
+                const endPt = { x: pCurr.x + u2.x * cornerR, y: pCurr.y + u2.y * cornerR };
+                pts.push(startPt);
+                for (let k = 1; k <= 4; k++) {
+                  const t = k / 5;
+                  pts.push({
+                    x: (1 - t) * (1 - t) * startPt.x + 2 * (1 - t) * t * pCurr.x + t * t * endPt.x,
+                    y: (1 - t) * (1 - t) * startPt.y + 2 * (1 - t) * t * pCurr.y + t * t * endPt.y
+                  });
+                }
+                pts.push(endPt);
+              }
+            }
+          } else {
+            for (let i = 0; i < step; i++) {
+              const a = -Math.PI / 2 + (i / step) * Math.PI * 2;
+              pts.push({ x: Math.cos(a) * rx, y: Math.sin(a) * ry });
+            }
+          }
+          break;
+        }
+        case 'star': {
+          const numPts = Math.max(3, parseInt(shapeProps.points, 10) || 5);
+          let inR = Number(shapeProps.innerRadius);
+          if (isNaN(inR) || inR <= 0) inR = 0.4;
+          inR = Math.max(0.1, Math.min(0.9, inR));
+          const total = numPts * 2;
+          for (let i = 0; i < total; i++) {
+            const a = -Math.PI / 2 + (i / total) * Math.PI * 2;
+            const radRatio = (i % 2 === 0) ? 1.0 : inR;
+            pts.push({ x: Math.cos(a) * rx * radRatio, y: Math.sin(a) * ry * radRatio });
+          }
+          break;
+        }
+        case 'polygon': {
+          const sides = Math.max(3, parseInt(shapeProps.sides, 10) || 6);
+          for (let i = 0; i < sides; i++) {
+            const a = -Math.PI / 2 + (i / sides) * Math.PI * 2;
+            pts.push({ x: Math.cos(a) * rx, y: Math.sin(a) * ry });
+          }
+          break;
+        }
+        case 'capsule': {
+          const r = Math.min(rx, ry);
+          const arcSegs = 8;
+          if (rx >= ry) {
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = -Math.PI / 2 + (i / arcSegs) * Math.PI;
+              pts.push({ x: rx - r + Math.cos(a) * r, y: Math.sin(a) * r });
+            }
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = Math.PI / 2 + (i / arcSegs) * Math.PI;
+              pts.push({ x: -rx + r + Math.cos(a) * r, y: Math.sin(a) * r });
+            }
+          } else {
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = (i / arcSegs) * Math.PI;
+              pts.push({ x: Math.cos(a) * r, y: ry - r + Math.sin(a) * r });
+            }
+            for (let i = 0; i <= arcSegs; i++) {
+              const a = Math.PI + (i / arcSegs) * Math.PI;
+              pts.push({ x: Math.cos(a) * r, y: -ry + r + Math.sin(a) * r });
+            }
+          }
+          break;
+        }
+        case 'heart': {
+          const segs = 48;
+          for (let i = 0; i < segs; i++) {
+            const t = (i / segs) * Math.PI * 2;
+            const hx = 16 * Math.pow(Math.sin(t), 3);
+            const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            pts.push({ x: (hx / 16) * rx, y: ((hy + 2) / 17) * ry });
+          }
+          break;
+        }
+        default: {
+          pts.push({ x: -rx, y: -ry }, { x: rx, y: -ry }, { x: rx, y: ry }, { x: -rx, y: ry });
+          break;
+        }
+      }
+      return pts;
+    }
+
+    /**
      * Compute exact bounding quad, 8 handles, and center anchor
      */
     getBounds(layer, bufferScale = 1, camera = null, viewportW = null, viewportH = null) {
@@ -513,6 +676,19 @@
       let pTL, pTR, pBR, pBL, pN, pE, pS, pW, pAnchor;
       let isBehindCamera = false;
 
+      const transformParams = {
+        cx, cy, posZ, rotX, rotY, rotZ, skewX, skewY, signX, signY,
+        anchorX, anchorY, anchorZ,
+        perspective: camDist,
+        near: nearPlane,
+        bufferScale,
+        camera,
+        vw,
+        vh
+      };
+
+      let projectLocalPoint = null;
+
       if (mvp) {
         const projectQuad = (u, v, zCoord = 0) => {
           const clipX = mvp[0] * u + mvp[4] * v + mvp[8] * zCoord + mvp[12];
@@ -541,6 +717,8 @@
           };
         };
 
+        projectLocalPoint = (lx, ly, lz = 0) => projectQuad(absW ? lx / absW : 0, absH ? ly / absH : 0, lz);
+
         pTL = projectQuad(-0.5, -0.5, 0);
         pTR = projectQuad( 0.5, -0.5, 0);
         pBR = projectQuad( 0.5,  0.5, 0);
@@ -567,20 +745,12 @@
         pS  = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
         pW  = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
         pAnchor = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
+        projectLocalPoint = () => ({ x: 0, y: 0, z: 0, scale: 0, isBehind: true });
       } else {
-        const transformParams = {
-          cx, cy, posZ, rotX, rotY, rotZ, skewX, skewY, signX, signY,
-          anchorX, anchorY, anchorZ,
-          perspective: camDist,
-          near: nearPlane,
-          bufferScale,
-          camera,
-          vw,
-          vh
-        };
-
         const halfW = absW / 2;
         const halfH = absH / 2;
+
+        projectLocalPoint = (lx, ly, lz = 0) => this.projectPoint(lx, ly, lz, transformParams);
 
         pTL = this.projectPoint(-halfW, -halfH, 0, transformParams);
         pTR = this.projectPoint(halfW, -halfH, 0, transformParams);
@@ -605,6 +775,15 @@
       const screenCenterX = (pTL.x + pBR.x) / 2;
       const screenCenterY = (pTL.y + pBR.y) / 2;
 
+      let shapeContour = null;
+      let shapeContourLocal = null;
+      if (layer.type === 'shape') {
+        shapeContourLocal = this.getShapeLocalContour(layer.shapeType || 'rectangle', layer.shapeProps || {}, absW, absH);
+        if (Array.isArray(shapeContourLocal) && typeof projectLocalPoint === 'function') {
+          shapeContour = shapeContourLocal.map(pt => projectLocalPoint(pt.x, pt.y, 0));
+        }
+      }
+
       return {
         is3D,
         isBehindCamera,
@@ -620,6 +799,10 @@
         aabbW: maxX - minX,
         aabbH: maxY - minY,
         corners,
+        shapeContour,
+        shapeContourLocal,
+        shapeType: layer.shapeType || null,
+        shapeProps: layer.shapeProps || null,
         bufferScale,
         handles: [
           { type: 'nw', x: pTL.x, y: pTL.y, cursor: this.getHandleCursor(pTL.x, pTL.y, screenCenterX, screenCenterY) },
@@ -633,16 +816,7 @@
           { type: 'anchor', x: pAnchor.x, y: pAnchor.y, cursor: 'move' }
         ],
         anchor: pAnchor,
-        transformParams: {
-          cx, cy, posZ, rotX, rotY, rotZ, skewX, skewY, signX, signY,
-          anchorX, anchorY, anchorZ,
-          perspective: camDist,
-          near: nearPlane,
-          bufferScale,
-          camera,
-          vw,
-          vh
-        }
+        transformParams
       };
     }
 

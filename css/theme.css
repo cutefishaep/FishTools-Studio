@@ -68,6 +68,8 @@
   --track-adj-dark: #3f5233;            /* Adjustment Track Hidden Shade */
   --track-color: #d4f8a8;               /* Color / Solid Track Pale Lime Matcha */
   --track-color-dark: #6e8454;          /* Color Track Hidden Shade */
+  --track-text: #c8ff8c;                /* Text Track Bright Luminous Lime-Matcha (High Contrast) */
+  --track-text-dark: #5c6e4e;           /* Text Track Hidden Shade */
 
   /* --- Tech Grid Overlay Colors --- */
   --grid-line-thin: rgba(152, 206, 123, 0.18);
@@ -130,6 +132,8 @@
   --track-audio-dark: #0f766e;
   --track-adj: #008ba3;
   --track-adj-dark: #092836;
+  --track-text: #67e8f9;
+  --track-text-dark: #155e75;
 
   /* Grid Overlay */
   --grid-line-thin: rgba(0, 229, 255, 0.18);
@@ -184,6 +188,8 @@
   --track-audio-dark: #926d15;
   --track-adj: #cc8800;
   --track-adj-dark: #2f1e08;
+  --track-text: #fde047;
+  --track-text-dark: #854d0e;
 
   /* Grid Overlay */
   --grid-line-thin: rgba(255, 170, 0, 0.18);

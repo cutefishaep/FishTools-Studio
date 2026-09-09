@@ -370,27 +370,57 @@
       }
     }
 
+    _flattenPlayableLayers(layers, parentOffsetSec = 0, parentSpeed = 1.0, parentMuted = false, parentGain = 1.0, pixelsPerSecond = 80) {
+      const result = [];
+      (layers || []).forEach(layer => {
+        if (layer.hidden) return;
+        const isMuted = parentMuted || !!layer.isMuted;
+        const layerSpeed = (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
+        const effectiveSpeed = parentSpeed * layerSpeed;
+        const layerVol = (layer.volume !== undefined ? layer.volume : 1.0);
+        const effectiveGain = parentGain * layerVol;
+
+        if (layer.type === 'video' || layer.type === 'audio') {
+          result.push({
+            layer,
+            parentOffsetSec,
+            parentSpeed,
+            effectiveSpeed,
+            isMuted,
+            effectiveGain
+          });
+        } else if (layer.type === 'precomp' && Array.isArray(layer.layers)) {
+          const pStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+          const pOffset = parentOffsetSec + pStart - (layer.sourceOffsetSec || 0);
+          const nested = this._flattenPlayableLayers(layer.layers, pOffset, effectiveSpeed, isMuted, effectiveGain, pixelsPerSecond);
+          nested.forEach(item => result.push(item));
+        }
+      });
+      return result;
+    }
+
     getMasterAudioTime(layers, currentSec, pixelsPerSecond = 80) {
       if (!layers || !layers.length) return null;
-      for (let i = 0; i < layers.length; i++) {
-        const layer = layers[i];
-        if (layer.hidden || layer.isMuted) continue;
-        if (layer.type !== 'video' && layer.type !== 'audio') continue;
+      const flatItems = this._flattenPlayableLayers(layers, 0, 1.0, false, 1.0, pixelsPerSecond);
+      for (let i = 0; i < flatItems.length; i++) {
+        const item = flatItems[i];
+        const layer = item.layer;
+        if (item.isMuted) continue;
         const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
         if (!media || !media.el) continue;
         const el = media.el;
         if (el.paused || el.seeking || el.readyState < 2) continue;
 
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
+        const startSec = (layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond)) + item.parentOffsetSec;
+        const durSec = (layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond)) / (item.parentSpeed || 1.0);
         const endSec = startSec + durSec;
 
         const effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
-          ? window.getLayerEffectivePropsAtTime(layer, currentSec)
+          ? window.getLayerEffectivePropsAtTime(layer, currentSec - item.parentOffsetSec)
           : null;
         const currentSpeed = (effProps && effProps.speed !== undefined)
-          ? effProps.speed
-          : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
+          ? effProps.speed * (item.parentSpeed || 1.0)
+          : item.effectiveSpeed;
 
         const timeInClip = el.currentTime - (layer.sourceOffsetSec || 0);
         const timelineSec = startSec + (timeInClip / currentSpeed);
@@ -413,39 +443,42 @@
 
       // Group active layers by their media element
       const activeElementTargets = new Map();
+      const flatItems = this._flattenPlayableLayers(layers, 0, 1.0, false, 1.0, pixelsPerSecond);
 
-      (layers || []).forEach(layer => {
-        if (layer.hidden || (layer.type !== 'video' && layer.type !== 'audio')) return;
-
+      flatItems.forEach(item => {
+        const { layer, parentOffsetSec, parentSpeed, effectiveSpeed, isMuted, effectiveGain } = item;
         const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
         if (!media || !media.el) return;
 
         const el = media.el;
-        if (layer.isMuted) {
+        if (isMuted) {
           el.muted = true;
           this.detachMediaElement(el);
           if (this.pendingMediaElements && this.pendingMediaElements.has(el)) {
             this.pendingMediaElements.delete(el);
           }
+          return;
         } else {
           this.attachMediaElement(el);
         }
 
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
+        const lStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+        const lDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
+        const startSec = lStart + parentOffsetSec;
+        const durSec = lDur / (parentSpeed || 1.0);
         const endSec = startSec + durSec;
 
         if (currentSec >= startSec && currentSec < endSec) {
           // Evaluate effective volume & speed (supports keyframing)
           const effProps = (typeof window.getLayerEffectivePropsAtTime === 'function')
-            ? window.getLayerEffectivePropsAtTime(layer, currentSec)
+            ? window.getLayerEffectivePropsAtTime(layer, currentSec - parentOffsetSec)
             : null;
-          const currentVol = (effProps && effProps.volume !== undefined)
+          const currentVol = ((effProps && effProps.volume !== undefined)
             ? effProps.volume
-            : (layer.volume !== undefined ? layer.volume : 1.0);
+            : (layer.volume !== undefined ? layer.volume : 1.0)) * (effectiveGain || 1.0);
           const currentSpeed = (effProps && effProps.speed !== undefined)
-            ? effProps.speed
-            : (layer.speed !== undefined && layer.speed > 0 ? layer.speed : 1.0);
+            ? (effProps.speed * (parentSpeed || 1.0))
+            : effectiveSpeed;
 
           if (layer.type === 'video') {
             const vfe = window.VideoFrameExtractor;

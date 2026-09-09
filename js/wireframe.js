@@ -150,15 +150,21 @@
       const showAnchor = (options.showAnchor !== false) && (!options.hideAnchor);
       const showHandles = (options.showHandles !== false) && (!options.hideHandles);
 
-      // 0. Unified 2D/3D Quad Polygon Render (if bounds has projected corners)
       if (bounds.corners && Array.isArray(bounds.corners) && bounds.corners.length === 4) {
-        // 1. Crisp bounding quad stroke
+        // 1. Crisp bounding quad or adaptive shape contour stroke
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = primaryColor;
         ctx.beginPath();
-        ctx.moveTo(bounds.corners[0].x, bounds.corners[0].y);
-        for (let i = 1; i < bounds.corners.length; i++) {
-          ctx.lineTo(bounds.corners[i].x, bounds.corners[i].y);
+        if (bounds.shapeContour && Array.isArray(bounds.shapeContour) && bounds.shapeContour.length >= 3) {
+          ctx.moveTo(bounds.shapeContour[0].x, bounds.shapeContour[0].y);
+          for (let i = 1; i < bounds.shapeContour.length; i++) {
+            ctx.lineTo(bounds.shapeContour[i].x, bounds.shapeContour[i].y);
+          }
+        } else {
+          ctx.moveTo(bounds.corners[0].x, bounds.corners[0].y);
+          for (let i = 1; i < bounds.corners.length; i++) {
+            ctx.lineTo(bounds.corners[i].x, bounds.corners[i].y);
+          }
         }
         ctx.closePath();
         ctx.stroke();
@@ -226,10 +232,20 @@
           ctx.transform(1, tanY, tanX, 1, 0, 0);
         }
 
-        // 1. Crisp bounding box stroke
+        // 1. Crisp bounding box or adaptive shape contour stroke
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = primaryColor;
-        ctx.strokeRect(-w / 2 + 0.5, -h / 2 + 0.5, Math.round(w), Math.round(h));
+        if (bounds.shapeContourLocal && Array.isArray(bounds.shapeContourLocal) && bounds.shapeContourLocal.length >= 3) {
+          ctx.beginPath();
+          ctx.moveTo(bounds.shapeContourLocal[0].x, bounds.shapeContourLocal[0].y);
+          for (let i = 1; i < bounds.shapeContourLocal.length; i++) {
+            ctx.lineTo(bounds.shapeContourLocal[i].x, bounds.shapeContourLocal[i].y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(-w / 2 + 0.5, -h / 2 + 0.5, Math.round(w), Math.round(h));
+        }
 
         // 2. Center Anchor Point
         if (showAnchor) {
@@ -287,10 +303,20 @@
 
       } else {
         const { x, y } = bounds;
-        // 1. Crisp bounding box stroke
+        // 1. Crisp bounding box or adaptive shape contour stroke
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = primaryColor;
-        ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h));
+        if (bounds.shapeContour && Array.isArray(bounds.shapeContour) && bounds.shapeContour.length >= 3) {
+          ctx.beginPath();
+          ctx.moveTo(bounds.shapeContour[0].x, bounds.shapeContour[0].y);
+          for (let i = 1; i < bounds.shapeContour.length; i++) {
+            ctx.lineTo(bounds.shapeContour[i].x, bounds.shapeContour[i].y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        } else {
+          ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h));
+        }
 
         // 2. Center Anchor Point (Poros Titik Tengah Simetris)
         if (showAnchor) {

@@ -41,7 +41,6 @@ const Popover = (function () {
         if ((!triggerRect || (triggerRect.width === 0 && triggerRect.height === 0)) || !activeTrigger.isConnected) {
           // Fallback: try active gradient handle
           const fallbackEl = document.querySelector('#fill-grad-handles-container .fill-grad-handle.is-active') ||
-                             document.getElementById('fill-grad-stop-tooltip') ||
                              document.getElementById('fill-grad-track-bar');
           if (fallbackEl && fallbackEl.isConnected && fallbackEl !== document.body) {
             activeTrigger = fallbackEl;
@@ -262,7 +261,7 @@ const Popover = (function () {
     activePopover = popoverEl;
 
     // Push popstate history for native back button / Android gesture support (exclude in-drawer popovers)
-    if (popoverEl.id !== 'popover-graph-more' && (!window.history.state || !window.history.state.popoverOpen)) {
+    if (popoverEl.id !== 'popover-graph-more' && popoverEl.id !== 'popover-graph-delete-confirm' && (!window.history.state || !window.history.state.popoverOpen)) {
       window.history.pushState({ popoverOpen: true, popoverId: popoverEl.id }, '');
     }
 

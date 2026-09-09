@@ -5,7 +5,7 @@
    - 100% Cal Sans typography
    ========================================================================== */
 
-/* 1. Drawer Subview Container Switching */
+/* 1. Drawer Subview Container Switching & 60fps Smooth Transitions */
 .drawer-subview {
   display: none !important;
   width: 100%;
@@ -15,6 +15,61 @@
 .drawer-subview.is-active {
   display: flex !important;
   flex-direction: column;
+  animation: subviewFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.drawer-subview.is-active.is-entering-forward {
+  animation: subviewSlideInForward 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.drawer-subview.is-active.is-entering-backward {
+  animation: subviewSlideInBackward 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+@keyframes subviewSlideInForward {
+  0% {
+    opacity: 0;
+    transform: translate3d(24px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes subviewSlideInBackward {
+  0% {
+    opacity: 0;
+    transform: translate3d(-24px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes subviewFadeIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-subview.is-active,
+  .drawer-subview.is-active.is-entering-forward,
+  .drawer-subview.is-active.is-entering-backward {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }
 
 /* 2. Transform Controller Main Layout (3-Column Layout) */
@@ -632,8 +687,8 @@
   display: grid;
   grid-template-columns: 48px 1fr 48px;
   width: 100%;
-  height: 250px;
-  min-height: 230px;
+  height: 256px;
+  min-height: 240px;
   background-color: var(--bg-panel);
   color: var(--text-primary);
   font-family: var(--font-brand);
@@ -646,7 +701,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 10px;
+  padding: 8px 6px;
   box-sizing: border-box;
   overflow: hidden;
   width: 100%;
@@ -655,35 +710,17 @@
 
 .graph-canvas-frame {
   position: relative;
-  width: auto;
+  width: 100%;
   height: 100%;
   max-width: 100%;
   max-height: 100%;
-  aspect-ratio: 280 / 180;
-  margin: auto;
+  margin: 0;
   background-color: var(--bg-canvas);
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.graph-dashed-boundary {
-  position: absolute;
-  top: 13.333%;
-  left: 8.571%;
-  right: 8.571%;
-  bottom: 13.333%;
-  border: 1px dashed var(--border-subtle);
-  pointer-events: none;
-  border-radius: 4px;
-  transition: top 0.24s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.graph-canvas-frame.is-overshoot .graph-dashed-boundary {
-  top: 24.444%;
-  bottom: 24.444%;
+  touch-action: none;
 }
 
 .graph-svg-layer {
@@ -693,6 +730,184 @@
   width: 100%;
   height: 100%;
   display: block;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overflow: hidden;
+}
+
+/* Static handles without scale animation / jitter */
+.graph-handle-node {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.graph-handle-node:active,
+.graph-handle-node.is-dragging {
+  cursor: grabbing !important;
+}
+
+/* Right Presets Rail (Clean transparent, blends with theme, top/bottom fade, hidden scrollbar) */
+.graph-presets-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 8px 0;
+  box-sizing: border-box;
+  background: transparent;
+  border-left: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14px, black calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 14px, black calc(100% - 14px), transparent 100%);
+}
+
+.graph-presets-col::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.graph-custom-presets-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.graph-preset-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+  color: var(--text-primary);
+  margin: 0 auto;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.graph-preset-btn:hover {
+  background-color: var(--bg-panel-hover);
+}
+
+.graph-preset-btn.is-active {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+/* Delete X button on custom presets */
+.graph-preset-delete-btn {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--color-danger);
+  color: var(--bg-canvas);
+  border: none;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  z-index: 10;
+  outline: none;
+  transition: background-color 0.1s ease;
+}
+
+.graph-preset-delete-btn:hover {
+  background-color: var(--color-danger-hover);
+}
+
+.graph-preset-delete-btn svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+.graph-preset-btn.is-custom:hover .graph-preset-delete-btn {
+  display: flex;
+}
+
+.graph-preset-save-btn {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.preset-thumb-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.preset-thumb-boundary {
+  fill: none;
+  stroke: var(--border-subtle);
+  stroke-dasharray: 2 2;
+  stroke-width: 1;
+}
+
+.preset-thumb-tangent {
+  stroke: var(--text-muted);
+  stroke-width: 1.2;
+}
+
+.preset-thumb-curve {
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke 0.12s ease;
+}
+
+.preset-thumb-dot {
+  fill: var(--text-primary);
+  transition: fill 0.12s ease;
+}
+
+.preset-thumb-handle {
+  fill: var(--text-primary);
+  transition: fill 0.12s ease;
+}
+
+.graph-preset-btn.is-active .preset-thumb-curve {
+  stroke: var(--color-primary);
+}
+
+.graph-preset-btn.is-active .preset-thumb-dot {
+  fill: var(--color-primary);
+}
+
+.graph-preset-btn.is-active .preset-thumb-handle {
+  fill: var(--color-primary);
+}
+
+.graph-preset-btn.is-active .preset-thumb-tangent {
+  stroke: var(--color-primary);
+  opacity: 0.6;
 }
 
 /* ==========================================================================
@@ -761,15 +976,17 @@
   transform: translate(-50%, -50%) rotate(45deg) scale(1.5) !important;
 }
 
-/* Timeline Keyframe Marquee Selection Box (Pure Flat Theme Token) */
+/* Timeline Keyframe Marquee Selection Box (Pure Flat Theme Token, Strictly Confined Inside Layer Clip) */
 .timeline-keyframe-marquee {
   position: absolute;
   pointer-events: none;
+  top: 0;
+  height: 100%;
   border: 1.5px dashed var(--color-primary);
   background-color: var(--color-primary);
-  opacity: 0.18;
-  border-radius: 4px;
-  z-index: 100;
+  opacity: 0.22;
+  border-radius: 6px;
+  z-index: 25;
   display: none;
   box-sizing: border-box;
 }
@@ -865,10 +1082,17 @@
 }
 
 @media (max-width: 600px) {
-  .transform-controller,
-  .graph-editor-container {
+  .transform-controller {
     grid-template-columns: 42px 1fr 42px;
     height: 230px;
+  }
+  .graph-editor-container {
+    grid-template-columns: 38px 1fr 52px;
+    height: 240px;
+  }
+  .graph-preset-btn {
+    width: 40px;
+    height: 40px;
   }
   .transform-nav-btn {
     width: 32px;
@@ -1659,35 +1883,6 @@
   clip-path: none;
 }
 
-.fill-grad-tooltip-pill {
-  padding: 4px 12px;
-  background-color: var(--bg-panel-inner);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  font-family: var(--font-brand);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-primary);
-  cursor: pointer;
-  user-select: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
-}
-
-.fill-grad-tooltip-pill:hover {
-  background-color: var(--bg-panel-hover);
-  border-color: var(--color-primary);
-}
-
-.fill-grad-tooltip-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  display: inline-block;
-}
 
 /* ==========================================================================
    4. MEDIA FILL PANEL (Embedded Media Pool)

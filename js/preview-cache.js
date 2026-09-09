@@ -27,10 +27,8 @@
       this._pendingFrames = new Set();
       // Tracks frames whose createImageBitmap is currently in-flight (prevents double-encode race)
       this._inFlightFrames = new Set();
-      // LRU eviction: max ~3600 frames in RAM (~1 full minute at 60fps)
-      // At 500px preview (562KB/frame): 3600 × 562KB ≈ 2GB — covers typical TikTok/Shorts content fully
-      // After Effects fills until RAM full; browser caps at this limit for stability.
-      this.maxFrames = 3600;
+      // LRU eviction: max 600 frames in RAM (~10s at 60fps) to prevent GPU memory saturation
+      this.maxFrames = 600;
     }
 
     get frames() {
@@ -41,12 +39,30 @@
       return this.pools.get(key);
     }
 
+    getActiveCompId() {
+      return this.activeCompId || 'root';
+    }
+
     getPool(compId) {
       const key = compId || this.activeCompId || 'root';
       if (!this.pools.has(key)) {
         this.pools.set(key, new Map());
       }
       return this.pools.get(key);
+    }
+
+    deletePool(compId) {
+      if (!compId || compId === 'root') return;
+      if (this.pools.has(compId)) {
+        const pool = this.pools.get(compId);
+        for (const entry of pool.values()) {
+          if (entry && entry.bitmap && typeof entry.bitmap.close === 'function') {
+            try { entry.bitmap.close(); } catch (_) {}
+          }
+        }
+        pool.clear();
+        this.pools.delete(compId);
+      }
     }
 
     setActiveComp(compId = 'root') {
@@ -121,25 +137,27 @@
       }
     }
 
-    hasFrame(frameIndex, expectedWidth = null, expectedHeight = null) {
-      const entry = this.frames.get(frameIndex);
+    hasFrame(frameIndex, expectedWidth = null, expectedHeight = null, compId = null) {
+      const pool = this.getPool(compId || this.activeCompId);
+      const entry = pool.get(frameIndex);
       if (!entry) return false;
       if (entry.isDraft !== this.isDraftMode ||
           (expectedWidth && entry.width !== expectedWidth) ||
           (expectedHeight && entry.height !== expectedHeight)) {
-        this.deleteFrame(frameIndex, false);
+        this.deleteFrame(frameIndex, false, compId);
         return false;
       }
       return true;
     }
 
-    getFrame(frameIndex, expectedWidth = null, expectedHeight = null) {
-      const entry = this.frames.get(frameIndex);
+    getFrame(frameIndex, expectedWidth = null, expectedHeight = null, compId = null) {
+      const pool = this.getPool(compId || this.activeCompId);
+      const entry = pool.get(frameIndex);
       if (!entry) return null;
       if (entry.isDraft !== this.isDraftMode ||
           (expectedWidth && entry.width !== expectedWidth) ||
           (expectedHeight && entry.height !== expectedHeight)) {
-        this.deleteFrame(frameIndex, false);
+        this.deleteFrame(frameIndex, false, compId);
         return null;
       }
       return entry.bitmap;
@@ -150,8 +168,9 @@
      * Strategy: evict frames behind the playhead first (already played), then far-lookahead.
      * This mirrors AE RAM preview eviction and keeps the cache useful for smooth playback.
      */
-    _evictIfNeeded() {
-      const pool = this.frames;
+    _evictIfNeeded(compId = null) {
+      const targetComp = compId || this.activeCompId;
+      const pool = this.getPool(targetComp);
       if (!this.maxFrames || pool.size <= this.maxFrames) return;
 
       const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) ? window.currentPixelsPerSecond : 80;
@@ -164,7 +183,8 @@
       let worstScore = -Infinity;
 
       for (const fIdx of pool.keys()) {
-        if (this._inFlightFrames && this._inFlightFrames.has(fIdx)) continue; // never evict in-flight
+        const inFlightKey = `${targetComp}:${fIdx}`;
+        if (this._inFlightFrames && this._inFlightFrames.has(inFlightKey)) continue; // never evict in-flight
         const dist = fIdx - curFrame;
         let score;
         if (dist < 0) {
@@ -184,7 +204,7 @@
       }
 
       if (worstIdx !== -1) {
-        this.deleteFrame(worstIdx, false);
+        this.deleteFrame(worstIdx, false, targetComp);
       }
     }
 
@@ -226,53 +246,58 @@
       }, 250);
     }
 
-    async setFrameFromCanvas(frameIndex, sourceCanvas, isDraft = this.isDraftMode) {
+    async setFrameFromCanvas(frameIndex, sourceCanvas, isDraft = this.isDraftMode, compId = null) {
       if (!sourceCanvas || sourceCanvas.width === 0 || sourceCanvas.height === 0) return;
-      if (this.hasFrame(frameIndex, sourceCanvas.width, sourceCanvas.height)) return;
+      const targetComp = compId || this.activeCompId;
+      const targetPool = this.getPool(targetComp);
+      if (this.hasFrame(frameIndex, sourceCanvas.width, sourceCanvas.height, targetComp)) return;
       if (!this._pendingFrames) this._pendingFrames = new Set();
       if (!this._inFlightFrames) this._inFlightFrames = new Set();
-      // Guard against GPU overload during 60fps playback (max 1 concurrent createImageBitmap)
-      if (this._inFlightFrames.size >= 1) return;
-      if (this._pendingFrames.has(frameIndex) || this._inFlightFrames.has(frameIndex)) return;
-      this._pendingFrames.add(frameIndex);
-      this._inFlightFrames.add(frameIndex);
+      const inFlightKey = `${targetComp}:${frameIndex}`;
+      // Guard against GPU overload during 60fps playback (max 2 concurrent createImageBitmap)
+      if (this._inFlightFrames.size >= 2) return;
+      if (this._pendingFrames.has(inFlightKey) || this._inFlightFrames.has(inFlightKey)) return;
+      this._pendingFrames.add(inFlightKey);
+      this._inFlightFrames.add(inFlightKey);
       try {
         const bitmap = await createImageBitmap(sourceCanvas);
         // Re-check after await: frame may have been cleared/invalidated while we were encoding
-        if (!this._inFlightFrames.has(frameIndex)) return; // Was cancelled during encoding
-        this.deleteFrame(frameIndex, false);
-        this.frames.set(frameIndex, {
+        if (!this._inFlightFrames.has(inFlightKey)) return; // Was cancelled during encoding
+        this.deleteFrame(frameIndex, false, targetComp);
+        targetPool.set(frameIndex, {
           bitmap,
           isDraft,
           width: sourceCanvas.width,
           height: sourceCanvas.height
         });
         // Evict oldest frame if over limit (LRU — keeps playback smooth without OOM)
-        this._evictIfNeeded();
+        this._evictIfNeeded(targetComp);
         // Throttled ruler update — prevents ruler flickering during rapid idle cache fills (250ms batch)
         this._scheduleRulerUpdate();
       } catch (_) {}
       finally {
-        if (this._pendingFrames) this._pendingFrames.delete(frameIndex);
-        if (this._inFlightFrames) this._inFlightFrames.delete(frameIndex);
+        if (this._pendingFrames) this._pendingFrames.delete(inFlightKey);
+        if (this._inFlightFrames) this._inFlightFrames.delete(inFlightKey);
       }
     }
 
-    deleteFrame(frameIndex, updateUI = true) {
+    deleteFrame(frameIndex, updateUI = true, compId = null) {
+      const targetComp = compId || this.activeCompId;
+      const inFlightKey = `${targetComp}:${frameIndex}`;
       if (this._pendingFrames) {
-        this._pendingFrames.delete(frameIndex);
+        this._pendingFrames.delete(inFlightKey);
       }
-      // Also cancel any in-flight encode for this frame so stale bitmap is not stored after clear
       if (this._inFlightFrames) {
-        this._inFlightFrames.delete(frameIndex);
+        this._inFlightFrames.delete(inFlightKey);
       }
-      const entry = this.frames.get(frameIndex);
+      const pool = this.getPool(targetComp);
+      const entry = pool.get(frameIndex);
       if (entry) {
         if (entry.bitmap && typeof entry.bitmap.close === 'function') {
           entry.bitmap.close();
         }
-        this.frames.delete(frameIndex);
-        if (updateUI) {
+        pool.delete(frameIndex);
+        if (updateUI && targetComp === this.activeCompId) {
           this.updateRulerUI();
         }
       }
@@ -287,7 +312,8 @@
         this.clearAll('current', compId);
         return;
       }
-      const pool = this.getPool(compId || this.activeCompId);
+      const targetComp = compId || this.activeCompId;
+      const pool = this.getPool(targetComp);
       const minSec = Math.max(0, Math.min(startSec, endSec));
       const maxSec = Math.max(startSec, endSec);
       const startFrame = Math.max(0, Math.floor(minSec * fps) - 1);
@@ -295,8 +321,12 @@
 
       let changed = false;
       for (let f = startFrame; f <= endFrame; f++) {
+        const inFlightKey = `${targetComp}:${f}`;
         if (this._pendingFrames) {
-          this._pendingFrames.delete(f);
+          this._pendingFrames.delete(inFlightKey);
+        }
+        if (this._inFlightFrames) {
+          this._inFlightFrames.delete(inFlightKey);
         }
         if (pool.has(f)) {
           const entry = pool.get(f);
@@ -352,147 +382,14 @@
     }
 
     /**
-     * Flexible Precompose Cache Adoption:
-     * When returning from a precompose, if the parent composition has only this precompose
-     * (or during this precomp's span with 1:1 default transform and no conflicting layers),
-     * adopt the precomp's rendered frames directly into the parent's frame pool.
+     * Precompose frames are preserved in their own pool (PreviewCacheManager.getPool(layer.id))
+     * and drawn directly via renderPrecompToCanvas without mass createImageBitmap cloning.
      */
     adoptPrecompFrames(precompLayer, parentCompId = 'root') {
-      if (!precompLayer || !precompLayer.id) return;
-      const precompPool = this.getPool(precompLayer.id);
-      if (!precompPool || precompPool.size === 0) return;
-
-      const parentPool = this.getPool(parentCompId || 'root');
-      const fps = this.fps;
-      const pStartSec = precompLayer.startSec !== undefined ? precompLayer.startSec : 0;
-      const pDurSec = precompLayer.durationSec !== undefined ? precompLayer.durationSec : 0;
-      const pOffsetSec = precompLayer.sourceOffsetSec || 0;
-
-      for (const [innerFrame, entry] of precompPool.entries()) {
-        if (!entry || !entry.bitmap) continue;
-        const innerSec = innerFrame / fps;
-        if (innerSec >= 0 && (pDurSec <= 0 || innerSec <= pDurSec + 0.05)) {
-          const rootSec = pStartSec + innerSec - pOffsetSec;
-          if (rootSec >= pStartSec - 0.001 && rootSec <= pStartSec + pDurSec + 0.001) {
-            const rootFrame = Math.round(rootSec * fps);
-            try {
-              if (typeof createImageBitmap === 'function') {
-                createImageBitmap(entry.bitmap).then(clonedBitmap => {
-                  if (parentPool.has(rootFrame)) {
-                    const old = parentPool.get(rootFrame);
-                    if (old && old.bitmap && typeof old.bitmap.close === 'function') {
-                      old.bitmap.close();
-                    }
-                  }
-                  parentPool.set(rootFrame, {
-                    bitmap: clonedBitmap,
-                    isDraft: entry.isDraft,
-                    width: entry.width,
-                    height: entry.height,
-                    fromPrecomp: precompLayer.id
-                  });
-                  this.updateRulerUI();
-                }).catch(() => {
-                  parentPool.set(rootFrame, {
-                    bitmap: entry.bitmap,
-                    isDraft: entry.isDraft,
-                    width: entry.width,
-                    height: entry.height,
-                    fromPrecomp: precompLayer.id
-                  });
-                  this.updateRulerUI();
-                });
-              } else {
-                parentPool.set(rootFrame, {
-                  bitmap: entry.bitmap,
-                  isDraft: entry.isDraft,
-                  width: entry.width,
-                  height: entry.height,
-                  fromPrecomp: precompLayer.id
-                });
-              }
-            } catch (_) {
-              parentPool.set(rootFrame, {
-                bitmap: entry.bitmap,
-                isDraft: entry.isDraft,
-                width: entry.width,
-                height: entry.height,
-                fromPrecomp: precompLayer.id
-              });
-            }
-          }
-        }
-      }
       this.updateRulerUI();
     }
 
-    /**
-     * Reverse Cache Adoption:
-     * When entering a precompose, if the parent composition was already cached in that range,
-     * adopt those frames into the precompose's pool.
-     */
     adoptRootFrames(precompLayer, rootCompId = 'root') {
-      if (!precompLayer || !precompLayer.id) return;
-      const rootPool = this.getPool(rootCompId || 'root');
-      if (!rootPool || rootPool.size === 0) return;
-
-      const precompPool = this.getPool(precompLayer.id);
-      const fps = this.fps;
-      const pStartSec = precompLayer.startSec !== undefined ? precompLayer.startSec : 0;
-      const pDurSec = precompLayer.durationSec !== undefined ? precompLayer.durationSec : 0;
-      const pOffsetSec = precompLayer.sourceOffsetSec || 0;
-
-      for (const [rootFrame, entry] of rootPool.entries()) {
-        if (!entry || !entry.bitmap) continue;
-        const rootSec = rootFrame / fps;
-        if (rootSec >= pStartSec - 0.001 && rootSec <= pStartSec + pDurSec + 0.001) {
-          const innerSec = (rootSec - pStartSec) + pOffsetSec;
-          if (innerSec >= 0) {
-            const innerFrame = Math.round(innerSec * fps);
-            try {
-              if (typeof createImageBitmap === 'function') {
-                createImageBitmap(entry.bitmap).then(clonedBitmap => {
-                  if (precompPool.has(innerFrame)) {
-                    const old = precompPool.get(innerFrame);
-                    if (old && old.bitmap && typeof old.bitmap.close === 'function') {
-                      old.bitmap.close();
-                    }
-                  }
-                  precompPool.set(innerFrame, {
-                    bitmap: clonedBitmap,
-                    isDraft: entry.isDraft,
-                    width: entry.width,
-                    height: entry.height
-                  });
-                  this.updateRulerUI();
-                }).catch(() => {
-                  precompPool.set(innerFrame, {
-                    bitmap: entry.bitmap,
-                    isDraft: entry.isDraft,
-                    width: entry.width,
-                    height: entry.height
-                  });
-                  this.updateRulerUI();
-                });
-              } else {
-                precompPool.set(innerFrame, {
-                  bitmap: entry.bitmap,
-                  isDraft: entry.isDraft,
-                  width: entry.width,
-                  height: entry.height
-                });
-              }
-            } catch (_) {
-              precompPool.set(innerFrame, {
-                bitmap: entry.bitmap,
-                isDraft: entry.isDraft,
-                width: entry.width,
-                height: entry.height
-              });
-            }
-          }
-        }
-      }
       this.updateRulerUI();
     }
 
@@ -502,6 +399,9 @@
       requestAnimationFrame(() => {
         this._rulerRafScheduled = false;
         this._renderRuler();
+        if (typeof window.updateAllPrecompClipsProgress === 'function') {
+          window.updateAllPrecompClipsProgress();
+        }
       });
     }
 

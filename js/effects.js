@@ -234,7 +234,7 @@
       }
 
       // Multi-effect pipeline: chain through offscreen buffers
-      const hasExpandingFx = renderEffects.some(f => f.type === 'transform' || f.type === 'tile' || f.type === 'wave-warp');
+      const hasExpandingFx = renderEffects.some(f => f.type === 'transform' || f.type === 'tile' || f.type === 'wave-warp' || f.type === 'fsmb');
       let pipeW = bw;
       let pipeH = bh;
       let offX = 0;

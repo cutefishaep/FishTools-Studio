@@ -184,6 +184,7 @@
       const totalDur = (typeof window !== 'undefined' && typeof window.getProjectTotalDuration === 'function')
         ? window.getProjectTotalDuration()
         : 0;
+      const totalProjectFrames = Math.round(totalDur * this.fps);
       const effectiveMax = Math.max(this.maxFrames || 1200, totalProjectFrames + 120);
       if (pool.size <= effectiveMax) return;
 
@@ -244,14 +245,14 @@
       return count >= effectiveMinRun;
     }
 
-    // Throttled ruler update: max 4x/second during idle cache fills to prevent ruler flicker
+    // Throttled ruler update: rapid batched updates to display green progress bar promptly
     _scheduleRulerUpdate() {
       if (this._rulerUpdatePending) return;
       this._rulerUpdatePending = true;
       setTimeout(() => {
         this._rulerUpdatePending = false;
         this.updateRulerUI();
-      }, 250);
+      }, 80);
     }
 
     async setFrameFromCanvas(frameIndex, sourceCanvas, isDraft = this.isDraftMode, compId = null) {
@@ -439,7 +440,7 @@
       }
 
       this.rulerCtx.clearRect(0, 0, this.rulerCanvas.width, 3);
-      if (totalDur <= 0 || this.frames.size === 0) return;
+      if (totalDur <= 0 || this.frames.size === 0 || window.isPreviewCacheEnabled === false) return;
 
       if (!this._cachedPrimaryColor || (Date.now() - (this._lastColorQuery || 0) > 3000)) {
         this._cachedPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#98ce7b';

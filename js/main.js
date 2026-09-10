@@ -50,7 +50,7 @@ function initUIProtections() {
  * e.g., "0.1.0-pre-alpha" -> "0.1.0 PA"
  */
 function formatAppVersion(raw) {
-  if (!raw) return '0.4.3';
+  if (!raw) return '0.4.4';
   let str = String(raw).trim().replace(/^v\.?/i, '');
   
   let tag = '';
@@ -89,14 +89,71 @@ function formatRelativeTime(isoString) {
 }
 
 /**
- * Fetches package.json and updates the badge next to Studio
+ * Dynamically detects latest version tag and synchronizes version pills/badges
+ * across Studio navbar and Welcome changelog modal without hardcoding tag literals.
+ */
+function syncWelcomeVersionTags(pkgVersion) {
+  let detected = pkgVersion;
+  if (!detected) {
+    const firstPill = document.querySelector('.welcome-changelog-feed .welcome-version-pill');
+    if (firstPill && firstPill.textContent) {
+      detected = firstPill.textContent.trim();
+    }
+  }
+  if (!detected) {
+    detected = '0.4.4';
+  }
+
+  const cleanNum = String(detected).trim().replace(/^v\.?/i, '');
+  const displayTag = `v${cleanNum}`;
+
+  // 1. Sync Studio top navbar badge
+  const badgeEl = document.getElementById('studio-version-badge');
+  if (badgeEl) {
+    badgeEl.textContent = formatAppVersion(cleanNum);
+  }
+
+  // 2. Sync Welcome modal header badge
+  const welcomeBadge = document.querySelector('.welcome-header-title-box .welcome-badge');
+  if (welcomeBadge) {
+    welcomeBadge.textContent = displayTag;
+  }
+
+  // 3. Dynamically assign Latest badge only to the first version block
+  const blocks = document.querySelectorAll('.welcome-changelog-feed .welcome-version-block');
+  blocks.forEach((block, index) => {
+    const header = block.querySelector('.welcome-version-header');
+    let latestBadge = block.querySelector('.welcome-version-badge-latest');
+    if (index === 0) {
+      if (!latestBadge && header) {
+        latestBadge = document.createElement('span');
+        latestBadge.className = 'welcome-version-badge-latest';
+        latestBadge.textContent = 'Latest';
+        const pill = header.querySelector('.welcome-version-pill');
+        if (pill && pill.nextSibling) {
+          header.insertBefore(latestBadge, pill.nextSibling);
+        } else {
+          header.appendChild(latestBadge);
+        }
+      }
+      const pill = block.querySelector('.welcome-version-pill');
+      if (pill && !pill.textContent.trim()) {
+        pill.textContent = displayTag;
+      }
+    } else {
+      if (latestBadge) {
+        latestBadge.remove();
+      }
+    }
+  });
+}
+
+/**
+ * Fetches package.json and updates the badges dynamically
  */
 async function initVersionFetcher() {
-  const badgeEl = document.getElementById('studio-version-badge');
-  if (!badgeEl) return;
-
   if (window.location.protocol === 'file:') {
-    badgeEl.textContent = '0.4.3';
+    syncWelcomeVersionTags();
     return;
   }
 
@@ -104,12 +161,14 @@ async function initVersionFetcher() {
     const response = await fetch('./package.json');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const pkg = await response.json();
-    if (pkg.version) {
-      badgeEl.textContent = formatAppVersion(pkg.version);
+    if (pkg && pkg.version) {
+      syncWelcomeVersionTags(pkg.version);
+      return;
     }
   } catch (err) {
-    badgeEl.textContent = '0.4.3';
+    // fallback
   }
+  syncWelcomeVersionTags();
 }
 
 /**
@@ -166,9 +225,9 @@ async function initProjectsFetcher() {
           action: () => exportProjectAction(projectId, projectName)
         },
         {
-          label: 'Rename',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
-          action: () => openRenameModal(projectId, projectName)
+          label: 'Project Settings',
+          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
+          action: () => openProjectSettingsModal(projectId)
         },
         {
           label: 'Duplicate',
@@ -481,43 +540,126 @@ function escapeHtml(str) {
 }
 
 /**
- * Opens the Rename Project Modal
+ * Opens the Project Settings Modal and populates existing configuration
  */
-function openRenameModal(projectId, currentName) {
-  const modal = document.getElementById('modal-rename-project');
-  const input = document.getElementById('rename-input-name');
-  const hiddenId = document.getElementById('rename-project-id');
-  if (!modal || !input || !hiddenId) return;
+async function openProjectSettingsModal(projectId) {
+  if (!projectId) return;
 
-  hiddenId.value = projectId;
-  input.value = currentName || '';
-  if (window.Modal) {
-    window.Modal.open('modal-rename-project');
+  let project = null;
+  if (window.FishDatabase && typeof window.FishDatabase.getProject === 'function') {
+    try {
+      project = await window.FishDatabase.getProject(projectId);
+    } catch (e) {
+      console.warn('Failed to load project for settings:', e);
+    }
   }
+
+  if (!project) return;
+
+  const idInput = document.getElementById('settings-project-id');
+  const nameInput = document.getElementById('settings-input-name');
+  if (idInput) idInput.value = projectId;
+  if (nameInput) nameInput.value = project.name || '';
+
+  // 1. Aspect Ratio Frame
+  const aspectVal = project.aspectRatio || '16:9';
+  const aspectGrid = document.getElementById('settings-options-aspect-ratio');
+  if (aspectGrid) {
+    aspectGrid.querySelectorAll('.aspect-ratio-frame').forEach(f => {
+      f.classList.toggle('is-selected', f.dataset.val === aspectVal);
+    });
+  }
+
+  // 2. Resolution Dropdown
+  const resVal = project.resolution || '1080p';
+  const resDropdown = document.getElementById('settings-dropdown-resolution');
+  if (resDropdown) {
+    resDropdown.dataset.value = resVal;
+    const label = resDropdown.querySelector('.custom-dropdown-label');
+    if (label) label.textContent = resVal;
+    resDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+      item.classList.toggle('is-selected', item.dataset.val === resVal);
+    });
+  }
+
+  // 3. FPS Dropdown
+  const fpsVal = String(project.fps || '60');
+  const fpsDropdown = document.getElementById('settings-dropdown-fps');
+  if (fpsDropdown) {
+    fpsDropdown.dataset.value = fpsVal;
+    const label = fpsDropdown.querySelector('.custom-dropdown-label');
+    if (label) label.textContent = `${fpsVal} FPS`;
+    fpsDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+      item.classList.toggle('is-selected', item.dataset.val === fpsVal);
+    });
+  }
+
+  // 4. Background Color Swatch
+  const bgVal = project.bgColor || 'transparent';
+  const bgRow = document.getElementById('settings-options-bgcolor');
+  if (bgRow) {
+    bgRow.querySelectorAll('.modal-color-swatch').forEach(s => {
+      s.classList.toggle('is-selected', s.dataset.val === bgVal);
+    });
+  }
+
+  if (window.Modal) {
+    window.Modal.open('modal-project-settings');
+  }
+
   setTimeout(() => {
-    input.focus();
-    input.select();
+    if (nameInput) {
+      nameInput.focus();
+      nameInput.select();
+    }
   }, 80);
 }
 
 /**
- * Saves project rename from modal
+ * Saves updated project settings (name, aspect ratio, resolution, fps, background color)
  */
-async function saveRenameProjectAction() {
-  const input = document.getElementById('rename-input-name');
-  const hiddenId = document.getElementById('rename-project-id');
-  if (!input || !hiddenId) return;
+async function saveProjectSettingsAction() {
+  const idInput = document.getElementById('settings-project-id');
+  const nameInput = document.getElementById('settings-input-name');
+  const projectId = idInput ? idInput.value : '';
+  if (!projectId || !window.FishDatabase) return;
 
-  const newName = input.value.trim();
-  const projectId = hiddenId.value;
+  const newName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Project';
+  const selectedRatio = document.querySelector('#settings-options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
+  const selectedRes = document.getElementById('settings-dropdown-resolution')?.dataset.value || '1080p';
+  const selectedFps = document.getElementById('settings-dropdown-fps')?.dataset.value || '60';
+  const selectedBg = document.querySelector('#settings-options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
 
-  if (newName && projectId && window.FishDatabase) {
-    await window.FishDatabase.renameProject(projectId, newName);
+  try {
+    const project = await window.FishDatabase.getProject(projectId);
+    if (project) {
+      project.name = newName;
+      project.aspectRatio = selectedRatio;
+      project.resolution = selectedRes;
+      project.fps = selectedFps;
+      project.bgColor = selectedBg;
+      await window.FishDatabase.saveProject(project);
+      showDashboardToast('Project settings saved');
+    }
+  } catch (err) {
+    console.warn('Failed to save project settings:', err);
+    showDashboardToast('Failed to save settings');
   }
 
   if (window.Modal) {
     window.Modal.close();
   }
+}
+
+/**
+ * Legacy compatibility wrappers
+ */
+function openRenameModal(projectId, currentName) {
+  openProjectSettingsModal(projectId);
+}
+
+async function saveRenameProjectAction() {
+  await saveProjectSettingsAction();
 }
 
 /**
@@ -535,7 +677,7 @@ function openDeleteModal(projectId, currentName) {
   if (targetNameEl) {
     targetNameEl.textContent = displayName;
   } else if (promptEl) {
-    promptEl.textContent = `Hapus proyek ${displayName}?`;
+    promptEl.textContent = `Delete project ${displayName}?`;
   }
 
   if (window.Modal) {
@@ -553,7 +695,7 @@ async function confirmDeleteProjectAction() {
   if (projectId && window.FishDatabase) {
     try {
       await window.FishDatabase.deleteProject(projectId);
-      showDashboardToast('Proyek berhasil dihapus');
+      showDashboardToast('Project deleted successfully');
     } catch (e) {
       console.warn('Delete project error:', e);
     }
@@ -580,15 +722,15 @@ async function confirmDeleteProjectAction() {
 async function exportProjectAction(projectId, projectName) {
   if (!projectId) return;
 
-  showDashboardToast(`Mengekspor ${projectName || 'proyek'}...`);
+  showDashboardToast(`Exporting ${projectName || 'project'}...`);
 
   if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
     try {
       await window.FishDatabase.exportProjectToOFTS(projectId);
-      showDashboardToast('Ekspor .ofts selesai');
+      showDashboardToast('.ofts export completed');
     } catch (err) {
       console.warn('Export project error:', err);
-      showDashboardToast('Gagal mengekspor file .ofts');
+      showDashboardToast('Failed to export .ofts file');
     }
   }
 }
@@ -805,6 +947,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  const settingsInput = document.getElementById('settings-input-name');
+  if (settingsInput) {
+    settingsInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveProjectSettingsAction();
+      }
+    });
+  }
 });
 
 /**
@@ -814,7 +966,7 @@ async function handleImportedFiles(files, dropzone, statusEl) {
   if (!files || files.length === 0) return;
   const file = files[0];
   if (!file || !file.name.toLowerCase().endsWith('.ofts')) {
-    alert('Hanya support file .ofts');
+    alert('Only .ofts files are supported');
     return;
   }
 
@@ -830,7 +982,7 @@ async function handleImportedFiles(files, dropzone, statusEl) {
       importedProject = await window.FishDatabase.importOFTSPackage(file);
     } catch (e) {
       console.warn('OFTS package import error:', e);
-      alert('Gagal mengimport file .ofts');
+      alert('Failed to import .ofts file');
     }
   }
 
@@ -855,6 +1007,7 @@ async function handleImportedFiles(files, dropzone, statusEl) {
  * Automatically displays Welcome modal on first visit unless dismissed
  */
 function initWelcomeModal() {
+  syncWelcomeVersionTags();
   try {
     const hasDismissed = localStorage.getItem('oft_seen_welcome_v1');
     if (!hasDismissed) {
@@ -928,6 +1081,9 @@ window.exportProjectAction = exportProjectAction;
 window.showDashboardToast = showDashboardToast;
 window.openRenameModal = openRenameModal;
 window.saveRenameProjectAction = saveRenameProjectAction;
+window.openProjectSettingsModal = openProjectSettingsModal;
+window.saveProjectSettingsAction = saveProjectSettingsAction;
+window.syncWelcomeVersionTags = syncWelcomeVersionTags;
 window.createNewProjectAction = createNewProjectAction;
 window.closeWelcomeModal = closeWelcomeModal;
 window.openDonateFromWelcome = openDonateFromWelcome;

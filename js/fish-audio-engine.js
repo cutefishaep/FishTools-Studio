@@ -582,10 +582,21 @@
             this.applyAudioEffects(el, layer.audioEffects);
           }
 
+          // Factor in timeline playback speed multiplier (e.g. 0.5x, 1.5x, 2.0x from timeline settings)
+          const timelineSpeedMult = (typeof actualSpeedRatio === 'number' && actualSpeedRatio > 0)
+            ? actualSpeedRatio
+            : ((typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+              ? window.timelinePlaybackSpeed
+              : 1.0);
+
+          const finalPlaybackRate = isFreezeOrReverse
+            ? 0.0625
+            : Math.max(0.0625, Math.min(8.0, currentSpeed * timelineSpeedMult));
+
           if (!activeElementTargets.has(el)) {
             activeElementTargets.set(el, {
               targetTime,
-              currentSpeed,
+              currentSpeed: finalPlaybackRate,
               isFreezeOrReverse,
               preservePitch: layer.preservePitch !== false
             });

@@ -210,6 +210,21 @@
     const pY = replaceLayer && replaceLayer.posY !== undefined ? replaceLayer.posY : Math.round(baseH / 2);
     const pZ = replaceLayer && replaceLayer.posZ !== undefined ? replaceLayer.posZ : 0;
 
+    // Inside any precomposition, child layers belong to the precomp's local timeline starting at 0.
+    // If child layers were created with parent composition startSec, normalize them to 0-based timing.
+    if (Array.isArray(childLayers)) {
+      childLayers.forEach(l => {
+        if (l) {
+          const lStart = l.startSec !== undefined ? l.startSec : ((l.startPx || 0) / pps);
+          const relStart = Math.max(0, lStart - (startSec || 0));
+          l.startSec = Number(relStart.toFixed(4));
+          l.startPx = Math.round(l.startSec * pps);
+          l.durationSec = Number((l.durationSec !== undefined ? l.durationSec : durationSec).toFixed(4));
+          l.widthPx = Math.round(l.durationSec * pps);
+        }
+      });
+    }
+
     const precompLayer = {
       id: precompId,
       mediaId,
@@ -251,6 +266,8 @@
       duration: durationSec,
       width: compW,
       height: compH,
+      is3D: true,
+      collapseTransformations: true,
       layers: JSON.parse(JSON.stringify(childLayers))
     };
 
@@ -347,12 +364,12 @@
     const cubeCompW = Math.round(boxW);
     const cubeCompH = Math.round(boxH);
 
-    // Root Controller
+    // Root Controller (starts at 0 in precomp local timeline)
     const controller = create3DNull({
       name: 'Cube_Controller',
       pos: [cubeCompW / 2, cubeCompH / 2, 0],
       ori: [0, 0, 0],
-      startSec,
+      startSec: 0,
       durationSec,
       pps
     });
@@ -375,7 +392,7 @@
         parent: controller,
         color: cFront,
         textureLayer,
-        startSec,
+        startSec: 0,
         durationSec,
         pps
       }),
@@ -388,7 +405,7 @@
         parent: controller,
         color: cBack,
         textureLayer,
-        startSec,
+        startSec: 0,
         durationSec,
         pps
       }),
@@ -401,7 +418,7 @@
         parent: controller,
         color: cLeft,
         textureLayer,
-        startSec,
+        startSec: 0,
         durationSec,
         pps
       }),
@@ -414,7 +431,7 @@
         parent: controller,
         color: cRight,
         textureLayer,
-        startSec,
+        startSec: 0,
         durationSec,
         pps
       }),
@@ -427,7 +444,7 @@
         parent: controller,
         color: cTop,
         textureLayer,
-        startSec,
+        startSec: 0,
         durationSec,
         pps
       }),
@@ -440,7 +457,7 @@
         parent: controller,
         color: cBottom,
         textureLayer,
-        startSec,
+        startSec: 0,
         durationSec,
         pps
       })

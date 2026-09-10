@@ -411,7 +411,10 @@
         const deltaSec = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
-        let nextPan = panX - (deltaSec * pixelsPerSecond);
+        const speed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+          ? window.timelinePlaybackSpeed
+          : 1.0;
+        let nextPan = panX - (deltaSec * pixelsPerSecond * speed);
         if (nextPan <= minPanX) {
           nextPan = maxPanX;
         }

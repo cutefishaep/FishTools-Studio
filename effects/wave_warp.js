@@ -30,8 +30,8 @@
     description: 'After Effects style wave distortion with true 360° arbitrary direction and continuous sine/triangle/square warping',
     params: [
       { id: 'waveType', label: 'Wave Type', type: 'select', default: 'sine', options: ['sine', 'triangle', 'square', 'sawtooth', 'circle', 'semicircle', 'noise', 'smooth-noise'] },
-      { id: 'waveHeight', label: 'Wave Height', type: 'number', min: 0, max: 200, default: 25, unit: 'px' },
-      { id: 'waveWidth', label: 'Wave Width', type: 'number', min: 10, max: 2000, default: 120, unit: 'px' },
+      { id: 'waveHeight', label: 'Wave Height', type: 'number', min: 0, max: 1000, default: 25, unit: 'px' },
+      { id: 'waveWidth', label: 'Wave Width', type: 'number', min: 10, max: 4000, default: 120, unit: 'px' },
       { id: 'direction', label: 'Direction', type: 'number', min: 0, max: 360, default: 0, unit: '°' },
       { id: 'speed', label: 'Wave Speed', type: 'number', min: -10, max: 10, default: 1, step: 0.05, unit: 'x' },
       { id: 'phase', label: 'Phase', type: 'number', min: 0, max: 360, default: 0, unit: '°' },

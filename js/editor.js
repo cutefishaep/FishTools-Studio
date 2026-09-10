@@ -132,7 +132,7 @@
           if (Array.isArray(l.layers)) {
             childSig = this._computeFingerprint(l.layers, []);
           }
-          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${kfCount}:${(l.effects || []).length}:${kfSig}:${exprSig}:${defEasSig}:${childSig}`;
+          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${l.motionBlur ? 1 : 0}:${l.is3D ? 1 : 0}:${l.collapseTransformations ? 1 : 0}:${kfCount}:${(l.effects || []).length}:${kfSig}:${exprSig}:${defEasSig}:${childSig}`;
         }).join(';');
         const bSig = (beatmarks || []).join(',');
         return `${lSig}|${bSig}`;
@@ -375,7 +375,7 @@
       const pps = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
       const currentSec = Math.abs(currentPanX) / pps;
-      const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec) : null;
+      const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec, null, null, true) : null;
       if (!eff) return;
 
       if (eff.posX !== undefined) layer.posX = eff.posX;
@@ -527,6 +527,8 @@
                 _userResized: !!l._userResized,
                 hidden: !!l.hidden,
                 motionBlur: !!l.motionBlur,
+                is3D: !!l.is3D,
+                collapseTransformations: !!l.collapseTransformations,
                 keyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined,
                 expressions: (l.expressions && typeof l.expressions === 'object' && Object.keys(l.expressions).length > 0) ? JSON.parse(JSON.stringify(l.expressions)) : undefined,
                 defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
@@ -1959,7 +1961,7 @@
       const isTransformDragging = !!(window.isTransformInteracting || (typeof activeOp !== 'undefined' && activeOp));
       // RAM preview cache: used during playback, scrubbing, and frame park for instant 60fps blit.
       // Canvas wireframe transform interaction bypasses cache to track cursor movements live.
-      if (!isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager) {
+      if (!isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
         let isVideoReady = true;
         if (activeVideos.length > 0 && window.VideoFrameExtractor) {
           for (let vi = 0; vi < activeVideos.length; vi++) {
@@ -2093,39 +2095,67 @@
           const mbEngine = window.FishMotionBlurEngine;
           const compState = currentActivePrecomp || currentProjectState;
           if (engine && layersToRender.length > 0) {
-            const hasAnyMb = mbEngine && layersToRender.some(item =>
-              mbEngine.isLayerActive(item.layer, compState) &&
-              mbEngine.hasMotion(item.layer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60))
-            );
-
-            if (!hasAnyMb && typeof engine.renderScene === 'function') {
-              engine.renderScene(ctx, layersToRender, compositionBufferScale, camEff);
-            } else {
-              layersToRender.forEach(item => {
-                const rawLayer = item.layer;
-                const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60));
-                if (isMbActive) {
-                  mbEngine.renderLayerWithMotionBlur(
-                    ctx,
-                    item.el,
-                    rawLayer,
-                    compositionBufferScale,
-                    camEff,
-                    currentSec,
-                    (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
-                      const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
-                      const subAnimLayer = Object.assign({}, subLayer, subEff);
-                      if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
-                      else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
-                    },
-                    compState
-                  );
-                } else {
+            let staticBatch = [];
+            const flushStaticBatch = () => {
+              if (staticBatch.length === 0) return;
+              if (typeof engine.renderScene === 'function') {
+                engine.renderScene(ctx, staticBatch, compositionBufferScale, camEff);
+              } else {
+                staticBatch.forEach(item => {
                   engine.renderLayer(ctx, item.el, item.animLayer || item.layer, compositionBufferScale, camEff);
-                }
-              });
-            }
+                });
+              }
+              staticBatch = [];
+            };
+
+            layersToRender.forEach(item => {
+              const rawLayer = item.layer;
+              const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || []);
+              if (isMbActive) {
+                flushStaticBatch();
+                mbEngine.renderLayerWithMotionBlur(
+                  ctx,
+                  item.el,
+                  rawLayer,
+                  compositionBufferScale,
+                  camEff,
+                  currentSec,
+                  (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                    // For collapsed precomp children: re-evaluate world transform at subSec
+                    if (subLayer._isCollapsedPrecompChild && subLayer._precompParentLayer && subLayer._childOrigLayer && window.FishMotionBlurEngine) {
+                      const worldAtSub = window.FishMotionBlurEngine._computeCollapsedChildWorldPos(
+                        subLayer._precompParentLayer, subLayer._childOrigLayer, subSec, null
+                      );
+                      if (worldAtSub) {
+                        const subAnimLayer = Object.assign({}, subLayer, {
+                          posX: worldAtSub.posX,
+                          posY: worldAtSub.posY,
+                          posZ: worldAtSub.posZ,
+                          scaleW: worldAtSub.scaleW,
+                          scaleH: worldAtSub.scaleH,
+                          rotX: worldAtSub.rotX,
+                          rotY: worldAtSub.rotY,
+                          rotZ: worldAtSub.rotZ,
+                          rotation: worldAtSub.rotZ
+                        });
+                        if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
+                        engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                        return;
+                      }
+                    }
+                    const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
+                    const subAnimLayer = Object.assign({}, subLayer, subEff);
+                    if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
+                    else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
+                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                  },
+                  compState
+                );
+              } else {
+                staticBatch.push(item);
+              }
+            });
+            flushStaticBatch();
             layersToRender.length = 0;
           }
 
@@ -2439,7 +2469,11 @@
                 mediaWidth: child.mediaWidth || Math.abs(worldScaleW),
                 mediaHeight: child.mediaHeight || Math.abs(worldScaleH),
                 _isCollapsedPrecompChild: true,
-                _precompParentId: layer.id
+                _precompParentId: layer.id,
+                // MB: propagate parent precomp-layer motionBlur switch + refs for world-transform re-evaluation
+                motionBlur: !!(layer.motionBlur || child.motionBlur),
+                _precompParentLayer: layer,
+                _childOrigLayer: child
               });
 
               if (Array.isArray(childEff.effects)) {
@@ -2967,39 +3001,68 @@
         const mbEngine = window.FishMotionBlurEngine;
         const compState = currentActivePrecomp || currentProjectState;
         if (engine && layersToRender.length > 0) {
-          const hasAnyMb = mbEngine && layersToRender.some(item =>
-            mbEngine.isLayerActive(item.layer, compState) &&
-            mbEngine.hasMotion(item.layer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60))
-          );
-
-          if (!hasAnyMb && typeof engine.renderScene === 'function') {
-            engine.renderScene(ctx, layersToRender, compositionBufferScale, camEff);
-          } else {
-            layersToRender.forEach(item => {
-              const rawLayer = item.layer;
-              const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60));
-              if (isMbActive) {
-                mbEngine.renderLayerWithMotionBlur(
-                  ctx,
-                  item.el,
-                  rawLayer,
-                  compositionBufferScale,
-                  camEff,
-                  currentSec,
-                  (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
-                    const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
-                    const subAnimLayer = Object.assign({}, subLayer, subEff);
-                    if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
-                    else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
-                  },
-                  compState
-                );
-              } else {
+          let staticBatch = [];
+          const flushStaticBatch = () => {
+            if (staticBatch.length === 0) return;
+            if (typeof engine.renderScene === 'function') {
+              engine.renderScene(ctx, staticBatch, compositionBufferScale, camEff);
+            } else {
+              staticBatch.forEach(item => {
                 engine.renderLayer(ctx, item.el, item.animLayer || item.layer, compositionBufferScale, camEff);
-              }
-            });
-          }
+              });
+            }
+            staticBatch = [];
+          };
+
+          layersToRender.forEach(item => {
+            const rawLayer = item.layer;
+            const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || []);
+            if (isMbActive) {
+              flushStaticBatch();
+              mbEngine.renderLayerWithMotionBlur(
+                ctx,
+                item.el,
+                rawLayer,
+                compositionBufferScale,
+                camEff,
+                currentSec,
+                (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                  // For collapsed precomp children: re-evaluate world transform at subSec
+                  // so motion blur samples real parent+child animation, not baked static position
+                  if (subLayer._isCollapsedPrecompChild && subLayer._precompParentLayer && subLayer._childOrigLayer && window.FishMotionBlurEngine) {
+                    const worldAtSub = window.FishMotionBlurEngine._computeCollapsedChildWorldPos(
+                      subLayer._precompParentLayer, subLayer._childOrigLayer, subSec, null
+                    );
+                    if (worldAtSub) {
+                      const subAnimLayer = Object.assign({}, subLayer, {
+                        posX: worldAtSub.posX,
+                        posY: worldAtSub.posY,
+                        posZ: worldAtSub.posZ,
+                        scaleW: worldAtSub.scaleW,
+                        scaleH: worldAtSub.scaleH,
+                        rotX: worldAtSub.rotX,
+                        rotY: worldAtSub.rotY,
+                        rotZ: worldAtSub.rotZ,
+                        rotation: worldAtSub.rotZ
+                      });
+                      if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
+                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                      return;
+                    }
+                  }
+                  const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
+                  const subAnimLayer = Object.assign({}, subLayer, subEff);
+                  if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
+                  else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
+                  engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                },
+                compState
+              );
+            } else {
+              staticBatch.push(item);
+            }
+          });
+          flushStaticBatch();
         }
 
         if (activeCamera && camEff && !engineActive) {
@@ -3031,7 +3094,7 @@
         // LIVE FRAME CACHING (After Effects RAM Preview Style)
         // STRICT RULE: only cache when the exact video frame is available (hasExtractingVideo = false).
         // Caching during playback, scrubbing, and frame park ensures subsequent scrubbing is instant 60fps.
-        if (!hasExtractingVideo && !isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager) {
+        if (!hasExtractingVideo && !isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
           window.PreviewCacheManager.setFrameFromCanvas(frameIndex, canvas);
           // NEVER delete cached frames during extraction — was causing patchy cache bar!
         }
@@ -3767,7 +3830,19 @@
         // E. Click on empty background: keep layer selected per user rule
       });
 
+      let canvasRedrawRaf = null;
       function requestCanvasRedraw() {
+        if (canvasRedrawRaf) return;
+        canvasRedrawRaf = requestAnimationFrame(() => {
+          canvasRedrawRaf = null;
+          redrawComposition();
+        });
+      }
+      function flushCanvasRedraw() {
+        if (canvasRedrawRaf) {
+          cancelAnimationFrame(canvasRedrawRaf);
+          canvasRedrawRaf = null;
+        }
         redrawComposition();
       }
 
@@ -4146,7 +4221,7 @@
         if (finishedLayer && didMove) {
           invalidatePreviewCacheForLayer(finishedLayer);
         }
-        redrawComposition();
+        flushCanvasRedraw();
 
         // Save immediately upon releasing movement
         if (didMove) {
@@ -4215,8 +4290,9 @@
       const pps = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
       const currentSec = Number((Math.abs(currentPanX) / pps).toFixed(3));
+      const isParented = !!(layer && layer.parentId);
       const eff = (typeof getLayerEffectivePropsAtTime === 'function')
-        ? getLayerEffectivePropsAtTime(layer, currentSec)
+        ? getLayerEffectivePropsAtTime(layer, currentSec, null, null, isParented)
         : layer;
 
       if (prop === 'move') {
@@ -4699,7 +4775,7 @@
     window.evaluateLayerExpression = evaluateLayerExpression;
 
     // Get effective animated properties of layer at given time (with hierarchical parenting)
-    function getLayerEffectivePropsAtTime(layer, currentSec, visited = null, layerPool = null) {
+    function getLayerEffectivePropsAtTime(layer, currentSec, visited = null, layerPool = null, skipParenting = false) {
       if (!layer) return {};
       if (!visited) visited = new Set();
       if (visited.has(layer.id)) return {};
@@ -4854,7 +4930,7 @@
       }
 
       // Hierarchical Transform Parenting: recursively resolve parent movement, 3D rotation, scale, posZ
-      if (layer.parentId) {
+      if (layer.parentId && !skipParenting) {
         const parent = pool.find(l => l.id === layer.parentId);
         if (parent && !visited.has(parent.id)) {
           const parentEff = getLayerEffectivePropsAtTime(parent, currentSec, visited, pool);
@@ -5627,8 +5703,8 @@
         layer.anchorZ = 0;
       }
       const pps = window.currentPixelsPerSecond || 80;
-      const currentSec = Math.abs(window.timelinePanX || 0) / pps;
-      const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec) : layer;
+      const isParented = !!(layer && layer.parentId);
+      const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec, null, null, isParented) : layer;
 
       // 1. Determine layer natural resolution
       let naturalW = baseW;
@@ -5856,17 +5932,18 @@
 
       const BASE_SVG_H = 170;
       let svgW = 260;
-      const PAD_X = 14;
-      const BASE_Y_END = 14;    // 1.0 top of 0..1 reference zone
-      const BASE_Y_START = 156; // 0.0 bottom of 0..1 reference zone
-      const BASE_RANGE_Y = BASE_Y_START - BASE_Y_END; // 142
+      const PAD_X = 16;
+      const BASE_Y_END = 16;    // 1.0 top of 0..1 reference zone
+      const BASE_Y_START = 154; // 0.0 bottom of 0..1 reference zone
+      const BASE_RANGE_Y = BASE_Y_START - BASE_Y_END; // 138
 
-      function updateSvgDimensions() {
+      function updateSvgDimensions(customViewH) {
         if (!graphFrame) return;
         const rect = graphFrame.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
           const ratio = rect.width / rect.height;
-          svgW = Math.max(170, Math.round(BASE_SVG_H * ratio));
+          const h = customViewH || BASE_SVG_H;
+          svgW = Math.max(170, Math.round(h * ratio));
         }
       }
 
@@ -5875,17 +5952,30 @@
         if (!isGraphOvershootEnabled) {
           return { viewY: 0, viewH: BASE_SVG_H, extraTop: 0, extraBottom: 0 };
         }
-        const maxBy = Math.max(1.0, eas[1], eas[3]);
-        const minBy = Math.min(0.0, eas[1], eas[3]);
+        const minBy = Math.min(eas[1], eas[3]);
+        const maxBy = Math.max(eas[1], eas[3]);
 
-        // Handle radius is 14px -> 20px padding ensures handle knob stays strictly inside frame
-        const HANDLE_PAD = 20;
-        const minSy = BASE_Y_START - maxBy * BASE_RANGE_Y;
-        const maxSy = BASE_Y_START - minBy * BASE_RANGE_Y;
+        // Baseline 0..1 view if handles remain within normal bounds (do not pre-shrink!)
+        if (minBy >= 0.0 && maxBy <= 1.0) {
+          return { viewY: 0, viewH: BASE_SVG_H, extraTop: 0, extraBottom: 0 };
+        }
 
-        // ViewBox must ALWAYS strictly encompass both handles plus margin
-        const viewY = Math.min(0, minSy - HANDLE_PAD);
-        const viewBottom = Math.max(BASE_SVG_H, maxSy + HANDLE_PAD);
+        const HANDLE_PAD = 18;
+
+        // Progressive upward elongation if overshooting above 1.0
+        let viewY = 0;
+        if (maxBy > 1.0) {
+          const topSy = BASE_Y_START - maxBy * BASE_RANGE_Y;
+          viewY = Math.min(0, topSy - HANDLE_PAD);
+        }
+
+        // Progressive downward elongation if overshooting below 0.0 ("memanjang ke bawah")
+        let viewBottom = BASE_SVG_H;
+        if (minBy < 0.0) {
+          const bottomSy = BASE_Y_START - minBy * BASE_RANGE_Y;
+          viewBottom = Math.max(BASE_SVG_H, bottomSy + HANDLE_PAD);
+        }
+
         const viewH = viewBottom - viewY;
         const extraTop = -viewY;
         const extraBottom = viewBottom - BASE_SVG_H;
@@ -5914,10 +6004,13 @@
         const pps = window.currentPixelsPerSecond || 80;
         const currentSec = Math.abs(window.timelinePanX || 0) / pps;
 
-        // Priority 1: If keyframe(s) are selected in timeline, reflect selected keyframe easing
+        const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+        const tol = Math.max(0.04, 0.5 / fps);
+
+        // Priority 1: If keyframe(s) are selected in timeline at current playhead, reflect selected keyframe easing
         const hasSelectedKfs = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
         if (hasSelectedKfs) {
-          const matched = window.selectedKeyframes.find(it => it.layerId === window.selectedLayerId && (it.prop === prop || !prop));
+          const matched = window.selectedKeyframes.find(it => it.layerId === window.selectedLayerId && (it.prop === prop || !prop) && Math.abs(it.time - currentSec) <= tol * 2);
           if (matched && matched.kf) {
             const l = matched.layer || (currentProjectState.layers || []).find(ly => ly.id === matched.layerId) || layer;
             if (l && l.keyframes && Array.isArray(l.keyframes[matched.prop])) {
@@ -5964,9 +6057,11 @@
           Number(newEasing[3].toFixed(3))
         ];
 
-        // 1. If keyframe(s) for the active property are selected in timeline, update those selected keyframes
+        // 1. If keyframe(s) for the active property are selected in timeline at current playhead, update those selected keyframes
+        const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+        const tol = Math.max(0.04, 0.5 / fps);
         const relevantSelectedKfs = Array.isArray(window.selectedKeyframes)
-          ? window.selectedKeyframes.filter(it => it.kf && it.layerId === window.selectedLayerId && (it.prop === prop || !prop))
+          ? window.selectedKeyframes.filter(it => it.kf && it.layerId === window.selectedLayerId && (it.prop === prop || !prop) && Math.abs(it.time - currentSec) <= tol * 2)
           : [];
         if (relevantSelectedKfs.length > 0) {
           let didUpdateKf = false;
@@ -6035,13 +6130,21 @@
 
       function updateGraphUI() {
         if (!svgLayer) return;
-        updateSvgDimensions();
         const easing = getActiveEasing();
-        const { minX, maxX, yStart, yEnd } = getBounds();
         const { viewY, viewH } = getCurrentViewBox(easing);
+        updateSvgDimensions(viewH);
+        const { minX, maxX, yStart, yEnd } = getBounds();
 
         // Dynamically elongate grid vertically when overshooting zone and horizontally to fill frame
         svgLayer.setAttribute('viewBox', `0 ${viewY.toFixed(1)} ${svgW} ${viewH.toFixed(1)}`);
+
+        // Constant screen size ratio: counteracts SVG scale-down so handles, stems, anchors never shrink or bloat
+        const zoomRatio = viewH / BASE_SVG_H;
+        const handleRadius = (9.5 * zoomRatio).toFixed(1);
+        const tangentWidth = (2.4 * zoomRatio).toFixed(1);
+        const anchorRadius = (4.2 * zoomRatio).toFixed(1);
+        const curveWidth = (3.0 * zoomRatio).toFixed(1);
+        const dashedWidth = (1.4 * zoomRatio).toFixed(1);
 
         const p1 = bezierToSvg(easing[0], easing[1]);
         const p2 = bezierToSvg(easing[2], easing[3]);
@@ -6052,15 +6155,18 @@
           dashedRect.setAttribute('y', yEnd);
           dashedRect.setAttribute('width', maxX - minX);
           dashedRect.setAttribute('height', yStart - yEnd);
+          dashedRect.setAttribute('stroke-width', dashedWidth);
         }
 
         if (anchorStart) {
           anchorStart.setAttribute('cx', minX);
           anchorStart.setAttribute('cy', yStart);
+          anchorStart.setAttribute('r', anchorRadius);
         }
         if (anchorEnd) {
           anchorEnd.setAttribute('cx', maxX);
           anchorEnd.setAttribute('cy', yEnd);
+          anchorEnd.setAttribute('r', anchorRadius);
         }
 
         if (tangent1) {
@@ -6068,25 +6174,30 @@
           tangent1.setAttribute('y1', yStart);
           tangent1.setAttribute('x2', p1.sx.toFixed(1));
           tangent1.setAttribute('y2', p1.sy.toFixed(1));
+          tangent1.setAttribute('stroke-width', tangentWidth);
         }
         if (tangent2) {
           tangent2.setAttribute('x1', maxX);
           tangent2.setAttribute('y1', yEnd);
           tangent2.setAttribute('x2', p2.sx.toFixed(1));
           tangent2.setAttribute('y2', p2.sy.toFixed(1));
+          tangent2.setAttribute('stroke-width', tangentWidth);
         }
 
         if (handle1) {
           handle1.setAttribute('cx', p1.sx.toFixed(1));
           handle1.setAttribute('cy', p1.sy.toFixed(1));
+          handle1.setAttribute('r', handleRadius);
         }
         if (handle2) {
           handle2.setAttribute('cx', p2.sx.toFixed(1));
           handle2.setAttribute('cy', p2.sy.toFixed(1));
+          handle2.setAttribute('r', handleRadius);
         }
 
         if (curvePath) {
           curvePath.setAttribute('d', `M ${minX} ${yStart} C ${p1.sx.toFixed(1)} ${p1.sy.toFixed(1)}, ${p2.sx.toFixed(1)} ${p2.sy.toFixed(1)}, ${maxX} ${yEnd}`);
+          curvePath.setAttribute('stroke-width', curveWidth);
         }
 
         const matched = getMatchingPreset(easing);
@@ -6202,7 +6313,7 @@
       function requestDeleteCustomPreset(anchorEl, idx, displayName) {
         pendingDeleteCustomIdx = idx;
         if (popoverDeleteTitle) {
-          popoverDeleteTitle.textContent = `Hapus "${displayName}"?`;
+          popoverDeleteTitle.textContent = `Delete "${displayName}"?`;
         }
         if (window.Popover) {
           window.Popover.open(anchorEl, 'popover-graph-delete-confirm');
@@ -6230,7 +6341,7 @@
           btn.className = 'graph-preset-btn is-custom';
           btn.dataset.customIdx = String(idx);
           const displayName = item.name || `Curve ${idx + 1}`;
-          btn.title = `${displayName} (Klik untuk pasang, klik kanan untuk hapus)`;
+          btn.title = `${displayName} (Click to apply, right-click to delete)`;
           btn.setAttribute('aria-label', displayName);
 
           const isMatched = Math.abs(p1x - activeEasing[0]) < tol &&
@@ -6250,7 +6361,7 @@
               <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
               <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
             </svg>
-            <button type="button" class="graph-preset-delete-btn" title="Hapus preset" aria-label="Hapus preset">
+            <button type="button" class="graph-preset-delete-btn" title="Delete preset" aria-label="Delete preset">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
               </svg>
@@ -6514,10 +6625,6 @@
                 }
               }
             }
-            if (!tgtL.defaultEasing) tgtL.defaultEasing = {};
-            tgtL.defaultEasing[prop] = [...rounded];
-            tgtL._defaultEasing = tgtL.defaultEasing;
-
             if (typeof invalidatePreviewCacheForLayer === 'function') {
               invalidatePreviewCacheForLayer(tgtL);
             }
@@ -6544,24 +6651,6 @@
         });
       }
 
-      function getSvgPoint(svg, clientX, clientY) {
-        if (!svg) return { x: 0, y: 0 };
-        try {
-          const pt = svg.createSVGPoint();
-          pt.x = clientX;
-          pt.y = clientY;
-          const ctm = svg.getScreenCTM();
-          if (ctm) {
-            return pt.matrixTransform(ctm.inverse());
-          }
-        } catch (_) {}
-        const rect = svg.getBoundingClientRect();
-        return {
-          x: rect.width ? ((clientX - rect.left) / rect.width) * svgW : 0,
-          y: rect.height ? ((clientY - rect.top) / rect.height) * BASE_SVG_H : 0
-        };
-      }
-
       function setupHandleDrag(handleEl, handleIndex) {
         if (!handleEl) return;
 
@@ -6581,98 +6670,134 @@
 
           let isDragging = true;
           let currentEasing = [...getActiveEasing()];
-          let currentClientY = e.clientY;
-          const { minX, maxX, yStart, rangeY } = getBounds();
-          const spanX = maxX - minX;
-
           const bxIdx = (handleIndex === 1) ? 0 : 2;
           const byIdx = (handleIndex === 1) ? 1 : 3;
 
-          // Compute initial grab offset in SVG coordinates so the knob doesn't jump
-          const startSvgPt = getSvgPoint(svgLayer, e.clientX, e.clientY);
-          const initialHandleSvg = bezierToSvg(currentEasing[bxIdx], currentEasing[byIdx]);
-          const grabOffsetSvgX = startSvgPt.x - initialHandleSvg.sx;
-          const grabOffsetSvgY = startSvgPt.y - initialHandleSvg.sy;
+          let rawBx = currentEasing[bxIdx];
+          let rawBy = currentEasing[byIdx];
+          let prevClientX = e.clientX;
+          let prevClientY = e.clientY;
 
           let autoScrollRaf = null;
+          let autoScrollDir = 0;
+          let autoScrollSpeed = 0;
 
-          function doAutoScroll() {
-            if (!isDragging || !isGraphOvershootEnabled) return;
-            const rect = graphFrame ? graphFrame.getBoundingClientRect() : svgLayer.getBoundingClientRect();
-
-            // Edge threshold zone inside the frame card
-            const EDGE_ZONE = 24;
-            const topBoundary = rect.top + EDGE_ZONE;
-            const bottomBoundary = rect.bottom - EDGE_ZONE;
-
-            let updated = false;
-
-            if (currentClientY < topBoundary) {
-              // Pulling towards / past top edge: smoothly auto-scroll and elongate curve upwards
-              const dist = Math.max(1, topBoundary - currentClientY);
-              const speed = Math.min(0.05, 0.003 + dist * 0.0006);
-              currentEasing[byIdx] = Math.min(10.0, currentEasing[byIdx] + speed);
-              updated = true;
-            } else if (currentClientY > bottomBoundary) {
-              // Pulling towards / past bottom edge: smoothly auto-scroll and elongate curve downwards
-              const dist = Math.max(1, currentClientY - bottomBoundary);
-              const speed = Math.min(0.05, 0.003 + dist * 0.0006);
-              currentEasing[byIdx] = Math.max(-10.0, currentEasing[byIdx] - speed);
-              updated = true;
+          function stepAutoScroll() {
+            if (!isDragging || autoScrollDir === 0 || !isGraphOvershootEnabled) {
+              if (autoScrollRaf) {
+                cancelAnimationFrame(autoScrollRaf);
+                autoScrollRaf = null;
+              }
+              return;
             }
 
-            if (updated) {
-              setActiveEasing(currentEasing);
-              updateGraphUI();
+            rawBy += autoScrollDir * autoScrollSpeed;
+            rawBy = Math.max(-2.0, Math.min(2.0, rawBy));
+
+            let finalBy = rawBy;
+            if (isGraphSnapEnabled) {
+              const SNAP_STEP = 0.05;
+              finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
             }
 
-            autoScrollRaf = requestAnimationFrame(doAutoScroll);
-          }
+            currentEasing[byIdx] = Number(finalBy.toFixed(3));
+            setActiveEasing(currentEasing);
+            updateGraphUI();
 
-          if (isGraphOvershootEnabled) {
-            autoScrollRaf = requestAnimationFrame(doAutoScroll);
+            autoScrollRaf = requestAnimationFrame(stepAutoScroll);
           }
 
           function onPointerMove(ev) {
-            currentClientY = ev.clientY;
+            if (!isDragging) return;
 
-            // Direct 1:1 SVG coordinate projection
-            const currSvgPt = getSvgPoint(svgLayer, ev.clientX, ev.clientY);
-            const targetSx = currSvgPt.x - grabOffsetSvgX;
-            const targetSy = currSvgPt.y - grabOffsetSvgY;
+            const rect = (graphFrame || svgLayer).getBoundingClientRect();
+            const frameW = (rect.width > 0) ? rect.width : 260;
+            const frameH = (rect.height > 0) ? rect.height : 170;
 
-            let newBx = (targetSx - minX) / spanX;
-            let newBy = (yStart - targetSy) / rangeY;
+            const currentView = getCurrentViewBox(currentEasing);
+            const { minX, maxX, rangeY } = getBounds();
+            const spanX = Math.max(1, maxX - minX);
 
-            // Snapping to grid subdivisions when snap mode is toggled on
+            const pxPerUnitX = (spanX / svgW) * frameW;
+            const pxPerUnitY = (rangeY / currentView.viewH) * frameH;
+
+            const deltaX = ev.clientX - prevClientX;
+            const deltaY = ev.clientY - prevClientY;
+            prevClientX = ev.clientX;
+            prevClientY = ev.clientY;
+
+            // Horizontal tracking (always direct, clamped 0..1)
+            rawBx += deltaX / pxPerUnitX;
+            rawBx = Math.max(0, Math.min(1, rawBx));
+
+            let finalBx = rawBx;
             if (isGraphSnapEnabled) {
-              const SNAP_STEP = 0.05; // 20 divisions across 0..1 reference grid
-              newBx = Math.round(newBx / SNAP_STEP) * SNAP_STEP;
-              newBy = Math.round(newBy / SNAP_STEP) * SNAP_STEP;
+              const SNAP_STEP = 0.05;
+              finalBx = Math.round(finalBx / SNAP_STEP) * SNAP_STEP;
             }
+            currentEasing[bxIdx] = Number(finalBx.toFixed(3));
 
-            newBx = Math.max(0, Math.min(1, newBx));
-
-            if (!isGraphOvershootEnabled) {
-              newBy = Math.max(0, Math.min(1, newBy));
+            // Vertical: edge auto-scroll when overshoot is enabled, direct tracking inside
+            if (isGraphOvershootEnabled) {
+              const EDGE_ZONE = 14;
+              if (ev.clientY >= rect.bottom - EDGE_ZONE) {
+                // Bottom edge: auto-scroll downwards into negative overshoot values
+                autoScrollDir = -1;
+                const overflow = Math.max(1, ev.clientY - (rect.bottom - EDGE_ZONE));
+                autoScrollSpeed = 0.003 + Math.min(0.022, (overflow / 140) * 0.022);
+                if (!autoScrollRaf) {
+                  autoScrollRaf = requestAnimationFrame(stepAutoScroll);
+                }
+              } else if (ev.clientY <= rect.top + EDGE_ZONE) {
+                // Top edge: auto-scroll upwards into positive overshoot values
+                autoScrollDir = 1;
+                const overflow = Math.max(1, (rect.top + EDGE_ZONE) - ev.clientY);
+                autoScrollSpeed = 0.003 + Math.min(0.022, (overflow / 140) * 0.022);
+                if (!autoScrollRaf) {
+                  autoScrollRaf = requestAnimationFrame(stepAutoScroll);
+                }
+              } else {
+                // Inside frame: stop auto-scroll, direct vertical tracking
+                autoScrollDir = 0;
+                if (autoScrollRaf) {
+                  cancelAnimationFrame(autoScrollRaf);
+                  autoScrollRaf = null;
+                }
+                rawBy -= deltaY / pxPerUnitY;
+                rawBy = Math.max(-2.0, Math.min(2.0, rawBy));
+                let finalBy = rawBy;
+                if (isGraphSnapEnabled) {
+                  const SNAP_STEP = 0.05;
+                  finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
+                }
+                currentEasing[byIdx] = Number(finalBy.toFixed(3));
+              }
             } else {
-              newBy = Math.max(-10.0, Math.min(10.0, newBy));
+              // Normal non-overshoot mode: direct vertical tracking clamped 0..1
+              autoScrollDir = 0;
+              rawBy -= deltaY / pxPerUnitY;
+              rawBy = Math.max(0, Math.min(1, rawBy));
+              let finalBy = rawBy;
+              if (isGraphSnapEnabled) {
+                const SNAP_STEP = 0.05;
+                finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
+              }
+              currentEasing[byIdx] = Number(finalBy.toFixed(3));
             }
-
-            currentEasing[bxIdx] = Number(newBx.toFixed(3));
-            currentEasing[byIdx] = Number(newBy.toFixed(3));
 
             setActiveEasing(currentEasing);
             updateGraphUI();
           }
 
           function onPointerUp(ev) {
+            if (!isDragging) return;
             isDragging = false;
-            window.isTransformInteracting = false;
+            autoScrollDir = 0;
             if (autoScrollRaf) {
               cancelAnimationFrame(autoScrollRaf);
               autoScrollRaf = null;
             }
+            window.isTransformInteracting = false;
             try { handleEl.releasePointerCapture(ev.pointerId); } catch (_) {}
             handleEl.classList.remove('is-dragging');
             window.removeEventListener('pointermove', onPointerMove);
@@ -6715,6 +6840,13 @@
             updateGraphUI();
           }
         }).catch(() => {});
+      }
+
+      if (graphFrame) {
+        graphFrame.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, { passive: false });
       }
 
       if (typeof ResizeObserver !== 'undefined' && graphFrame) {
@@ -7092,6 +7224,23 @@
         let targetL = null;
         let bW = 1920;
         let bH = 1080;
+        let movePadRaf = null;
+
+        function requestMovePadRedraw() {
+          if (movePadRaf) return;
+          movePadRaf = requestAnimationFrame(() => {
+            movePadRaf = null;
+            redrawComposition();
+          });
+        }
+
+        function flushMovePadRedraw() {
+          if (movePadRaf) {
+            cancelAnimationFrame(movePadRaf);
+            movePadRaf = null;
+          }
+          redrawComposition();
+        }
 
         movePad.addEventListener('pointerdown', (e) => {
           if (e.button !== 0) return;
@@ -7204,7 +7353,7 @@
             if (valPosX) valPosX.textContent = (window.formatTransformNumber || formatTransformNumber)(targetL.anchorX);
             if (valPosY) valPosY.textContent = (window.formatTransformNumber || formatTransformNumber)(targetL.anchorY);
 
-            redrawComposition();
+            requestMovePadRedraw();
             return;
           }
 
@@ -7287,7 +7436,7 @@
           if (valPosX) valPosX.textContent = (window.formatTransformNumber || formatTransformNumber)(targetL.posX);
           if (valPosY) valPosY.textContent = (window.formatTransformNumber || formatTransformNumber)(targetL.posY);
 
-          redrawComposition();
+          requestMovePadRedraw();
         });
 
         const onMoveEnd = (e) => {
@@ -7302,7 +7451,7 @@
           if (finishedLayer) {
             invalidatePreviewCacheForLayer(finishedLayer);
           }
-          redrawComposition();
+          flushMovePadRedraw();
           renderTimelineLayers();
           saveCurrentProjectLayers();
         };
@@ -8923,7 +9072,9 @@
           const media = window.getOrLoadLayerMedia(layer);
           if (media && media.el) {
             try {
-              media.el.playbackRate = roundedVal;
+              const tlSpeed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+                ? window.timelinePlaybackSpeed : 1.0;
+              media.el.playbackRate = Math.max(0.0625, Math.min(8.0, roundedVal * tlSpeed));
               if ('preservesPitch' in media.el) {
                 media.el.preservesPitch = layer.preservePitch !== false;
               }
@@ -8935,6 +9086,13 @@
               }
             } catch (_) {}
           }
+        }
+        if (window.FishAudioEngine && window.isTimelinePlaying) {
+          const pps = (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+          const curSec = Math.max(0, -panX / pps);
+          const tlSpeed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+            ? window.timelinePlaybackSpeed : 1.0;
+          window.FishAudioEngine.syncPlayback(currentProjectState.layers || [], curSec, pps, tlSpeed);
         }
 
         if (window.VideoFrameExtractor) {
@@ -14247,6 +14405,7 @@
         { id: 'transform', name: 'Transform', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'oscillate', name: 'Oscillate', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'swing', name: 'Swing', category: 'movement', icon: 'assets/FXPH.svg' },
+        { id: 'fsmb', name: 'FSMB (Motion Blur)', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'tint', name: 'Tint', category: 'lightning', icon: 'assets/FXPH.svg' },
         { id: 'lumia', name: 'Lumia', category: 'lightning', icon: 'assets/FXPH.svg' },
         { id: 'curve', name: 'Curve', category: 'lightning', icon: 'assets/FXPH.svg' },
@@ -14509,7 +14668,7 @@
         fps: currentActivePrecomp.fps || currentProjectState.fps || 60,
         defaultDuration: currentActivePrecomp.durationSec || currentProjectState.defaultDuration || 5,
         bgColor: currentActivePrecomp.bgColor || 'transparent',
-        motionBlur: currentActivePrecomp.motionBlur || currentProjectState.motionBlur || { enabled: false, shutterAngle: 180, shutterPhase: -90, samples: 16 }
+        motionBlur: (currentActivePrecomp.motionBlur && typeof currentActivePrecomp.motionBlur === 'object') ? currentActivePrecomp.motionBlur : (currentProjectState.motionBlur || { enabled: false, shutterAngle: 180, shutterPhase: 0, samples: 16 })
       } : currentProjectState;
 
       // 1. Sync Aspect Ratio Frame selection
@@ -14578,7 +14737,7 @@
       // 7. Sync Motion Blur Settings Dropdowns
       const mb = targetState.motionBlur || {};
       const mbAngle = (typeof mb.shutterAngle === 'number') ? mb.shutterAngle : 180;
-      const mbPhase = (typeof mb.shutterPhase === 'number') ? mb.shutterPhase : -90;
+      const mbPhase = (typeof mb.shutterPhase === 'number') ? mb.shutterPhase : 0;
       const mbSamples = (typeof mb.samples === 'number') ? mb.samples : 16;
 
       const angleDropdown = document.getElementById('dropdown-mb-shutter-angle');
@@ -14820,6 +14979,83 @@
       }
     }
 
+    // ── Debug State Helper: Fetch Layer & Sanitize ────────────────────────────
+    window.getSelectedLayerDebugState = function() {
+      const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+      const selId = window.selectedLayerId ||
+        (window.selectedLayerIds && window.selectedLayerIds.size === 1
+          ? Array.from(window.selectedLayerIds)[0] : null);
+      const layer = layers.find(l => l.id === selId) || null;
+      if (!layer) return null;
+
+      const SKIP_KEYS = new Set(['dataUrl', 'thumbUrl', 'audioPcmData', '_precompBufferCanvas',
+                                  '_cachedImageBitmap', '_bitmapCache']);
+      const clone = {};
+      for (const k of Object.keys(layer)) {
+        if (SKIP_KEYS.has(k)) {
+          clone[k] = '[omitted]';
+        } else if (layer[k] && typeof layer[k] === 'object' && !Array.isArray(layer[k]) &&
+                   !(layer[k] instanceof HTMLElement) &&
+                   !(layer[k] instanceof HTMLCanvasElement)) {
+          try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = String(layer[k]); }
+        } else if (Array.isArray(layer[k])) {
+          try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = '[array]'; }
+        } else {
+          clone[k] = layer[k];
+        }
+      }
+      return { layer: layer, clean: clone };
+    };
+
+    // If debug card DOM elements exist locally in main window, bind them
+    (function initDebugCard() {
+      const fetchBtn = document.getElementById('btn-debug-fetch-layer');
+      const copyBtn  = document.getElementById('btn-debug-copy-layer');
+      const output   = document.getElementById('debug-layer-output');
+      const status   = document.getElementById('debug-layer-status');
+      if (!fetchBtn || !output) return;
+
+      fetchBtn.addEventListener('click', () => {
+        const res = window.getSelectedLayerDebugState();
+        if (!res || !res.layer) {
+          output.value = '';
+          if (status) status.textContent = '⚠ No layer selected — select a layer on the timeline first.';
+          return;
+        }
+        try {
+          output.value = JSON.stringify(res.clean, null, 2);
+          if (status) status.textContent = `✓ Fetched: ${res.layer.name || res.layer.id} (${res.layer.type || 'unknown'})`;
+        } catch (e) {
+          output.value = String(e);
+          if (status) status.textContent = '✗ Serialization error';
+        }
+      });
+
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          if (!output.value) {
+            if (status) status.textContent = '⚠ Nothing to copy — fetch a layer first.';
+            return;
+          }
+          try {
+            navigator.clipboard.writeText(output.value).then(() => {
+              if (status) status.textContent = '✓ Copied to clipboard!';
+              copyBtn.style.color = 'var(--color-primary)';
+              setTimeout(() => {
+                if (status) status.textContent = '';
+                copyBtn.style.color = '';
+              }, 1800);
+            });
+          } catch (_) {
+            output.select();
+            document.execCommand('copy');
+            if (status) status.textContent = '✓ Copied (fallback)';
+          }
+        });
+      }
+    })();
+    // ─────────────────────────────────────────────────────────────────────────
+
     // URL Query Params & FishDatabase project loader
     (async function initEditorParams() {
       const params = new URLSearchParams(window.location.search);
@@ -14856,7 +15092,7 @@
           currentProjectState.motionBlur = {
             enabled: storedGlobalMb,
             shutterAngle: 180,
-            shutterPhase: -90,
+            shutterPhase: 0,
             samples: 16
           };
         } else if (storedGlobalMb) {
@@ -14929,6 +15165,12 @@
               if (l.type === 'precomp' && m && Array.isArray(m.layers)) {
                 if (!Array.isArray(l.layers) || l.layers.length === 0) {
                   l.layers = JSON.parse(JSON.stringify(m.layers));
+                }
+                if (l.collapseTransformations === undefined && m.collapseTransformations !== undefined) {
+                  l.collapseTransformations = !!m.collapseTransformations;
+                }
+                if (l.is3D === undefined && m.is3D !== undefined) {
+                  l.is3D = !!m.is3D;
                 }
               }
               if (l.fillMediaId && mediaMap.has(l.fillMediaId)) {
@@ -15465,7 +15707,7 @@
           }
         } catch (err) {
           console.error('[MediaPool] Failed to convert video to audio:', err);
-          alert('Gagal mengonversi video ke audio.');
+          alert('Failed to convert video to audio.');
         }
       }
 
@@ -16527,6 +16769,9 @@
         } else {
           scheduleRender();
         }
+        if (typeof updateGraphEditorUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'graph') {
+          updateGraphEditorUI();
+        }
       }
       window.updateTimelinePosition = updateTimelinePosition;
 
@@ -17473,35 +17718,48 @@
           return;
         }
 
+        const playbackSpeed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+          ? window.timelinePlaybackSpeed
+          : 1.0;
+
         const currentSec = Math.max(0, -panX / pixelsPerSecond);
         const currentFrame = Math.round(currentSec * fps);
         const layers = currentProjectState.layers || [];
 
         // 1. Synchronize audio playback with timeline position
         if (window.FishAudioEngine) {
-          window.FishAudioEngine.syncPlayback(layers, currentSec, pixelsPerSecond);
+          window.FishAudioEngine.syncPlayback(layers, currentSec, pixelsPerSecond, playbackSpeed);
         }
 
         // 2. Continuous time advance with Master Audio Clock synchronization
-        // If master audio is playing, visual timeline is locked to the hardware audio clock
-        const framesElapsed = Math.max(1, Math.round(rawDeltaSec / frameDuration));
-        const targetSec = (currentFrame + framesElapsed) / fps;
-        let nextSec = targetSec;
+        // Advance timeline time proportionally to actual elapsed time and playback speed multiplier (0.5x, 1x, 1.5x, 2x)
+        const effectiveDeltaSec = Math.min(0.25, rawDeltaSec) * playbackSpeed;
+        let nextSec = currentSec + effectiveDeltaSec;
 
-        if (window.FishAudioEngine && _playTickCount > 3) {
+        if (window.FishAudioEngine && _playTickCount > 3 && playbackSpeed === 1.0) {
           const masterSec = window.FishAudioEngine.getMasterAudioTime(layers, currentSec, pixelsPerSecond);
           if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec >= 0) {
-            // Master Audio Clock: Visual timeline tracks hardware audio clock directly
+            // Master Audio Clock: Visual timeline tracks hardware audio clock directly at 1.0x
             nextSec = Math.max(currentSec, masterSec);
           }
         }
 
         let nextPan = -(nextSec * pixelsPerSecond);
         if (nextPan <= bounds.min) {
-          nextPan = bounds.max;
-          nextSec = Math.abs(bounds.max) / pixelsPerSecond;
-          if (window.FishAudioEngine) {
-            window.FishAudioEngine.syncPlayback(layers, nextSec, pixelsPerSecond);
+          if (window.isPlaybackLoopEnabled !== false) {
+            nextPan = bounds.max;
+            nextSec = Math.abs(bounds.max) / pixelsPerSecond;
+            if (window.FishAudioEngine) {
+              window.FishAudioEngine.syncPlayback(layers, nextSec, pixelsPerSecond, playbackSpeed);
+            }
+          } else {
+            pausePlayback();
+            updateTimelinePosition(bounds.min, true);
+            const canvas = document.getElementById('editor-active-canvas');
+            if (canvas) {
+              renderCanvasFrame(canvas, currentProjectState.bgColor, canvas.width, canvas.height, 'playbackStep', Math.abs(bounds.min) / pixelsPerSecond);
+            }
+            return;
           }
         }
         updateTimelinePosition(nextPan, true);
@@ -17517,7 +17775,68 @@
       }
 
       if (playBtn) {
-        playBtn.addEventListener('click', () => {
+        let playLongPressTimer = null;
+        let isPlayLongPress = false;
+        let playDownX = 0;
+        let playDownY = 0;
+
+        function openPlaySettingsPopover() {
+          if (!window.Popover) return;
+          syncPlaySettingsUI();
+          window.Popover.open(playBtn, 'popover-play-settings');
+        }
+
+        playBtn.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          isPlayLongPress = false;
+          playDownX = e.clientX;
+          playDownY = e.clientY;
+          if (playLongPressTimer) clearTimeout(playLongPressTimer);
+          playLongPressTimer = setTimeout(() => {
+            isPlayLongPress = true;
+            if (navigator.vibrate) {
+              try { navigator.vibrate(35); } catch (_) {}
+            }
+            openPlaySettingsPopover();
+          }, 450);
+        });
+
+        playBtn.addEventListener('pointermove', (e) => {
+          if (!playLongPressTimer) return;
+          const dist = Math.hypot(e.clientX - playDownX, e.clientY - playDownY);
+          if (dist > 8) {
+            clearTimeout(playLongPressTimer);
+            playLongPressTimer = null;
+          }
+        });
+
+        const cancelPlayLongPress = () => {
+          if (playLongPressTimer) {
+            clearTimeout(playLongPressTimer);
+            playLongPressTimer = null;
+          }
+        };
+
+        playBtn.addEventListener('pointerup', cancelPlayLongPress);
+        playBtn.addEventListener('pointercancel', cancelPlayLongPress);
+
+        playBtn.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cancelPlayLongPress();
+          openPlaySettingsPopover();
+        });
+
+        playBtn.addEventListener('click', (e) => {
+          if (isPlayLongPress) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') {
+              e.stopImmediatePropagation();
+            }
+            isPlayLongPress = false;
+            return;
+          }
           if (window.FishAudioEngine && !window.FishAudioEngine.isUnlocked) {
             window.FishAudioEngine.unlock();
           }
@@ -17548,6 +17867,91 @@
             playAnimationId = requestAnimationFrame(stepPlay);
           }
         });
+      }
+
+      // =========================================================================
+      // Playback Settings Popover Wiring (Loop, Speed, Cache)
+      // =========================================================================
+      function syncPlaySettingsUI() {
+        const pop = document.getElementById('popover-play-settings');
+        if (!pop) return;
+
+        // 1. Loop
+        const isLoop = window.isPlaybackLoopEnabled !== false;
+        const loopBtns = pop.querySelectorAll('#play-settings-loop-group .effects-segmented-btn');
+        loopBtns.forEach(btn => {
+          btn.classList.toggle('is-active', (btn.dataset.val === 'on' && isLoop) || (btn.dataset.val === 'off' && !isLoop));
+        });
+
+        // 2. Speed
+        const speed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+          ? window.timelinePlaybackSpeed
+          : 1.0;
+        const speedBtns = pop.querySelectorAll('#play-settings-speed-group .effects-segmented-btn');
+        speedBtns.forEach(btn => {
+          const val = parseFloat(btn.dataset.speed) || 1.0;
+          btn.classList.toggle('is-active', Math.abs(val - speed) < 0.05);
+        });
+
+        // 3. Cache
+        const isCache = window.isPreviewCacheEnabled !== false;
+        const cacheBtns = pop.querySelectorAll('#play-settings-cache-group .effects-segmented-btn');
+        cacheBtns.forEach(btn => {
+          btn.classList.toggle('is-active', (btn.dataset.val === 'on' && isCache) || (btn.dataset.val === 'off' && !isCache));
+        });
+      }
+
+      // Initialize Playback Settings Listeners
+      const playSettingsPop = document.getElementById('popover-play-settings');
+      if (playSettingsPop) {
+        // Loop buttons
+        const loopBtns = playSettingsPop.querySelectorAll('#play-settings-loop-group .effects-segmented-btn');
+        loopBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            window.isPlaybackLoopEnabled = (btn.dataset.val === 'on');
+            syncPlaySettingsUI();
+          });
+        });
+
+        // Speed buttons
+        const speedBtns = playSettingsPop.querySelectorAll('#play-settings-speed-group .effects-segmented-btn');
+        speedBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            const speed = parseFloat(btn.dataset.speed) || 1.0;
+            window.timelinePlaybackSpeed = speed;
+            syncPlaySettingsUI();
+            if (window.FishAudioEngine && window.isTimelinePlaying) {
+              const pps = (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+              const curSec = Math.max(0, -panX / pps);
+              const layers = currentProjectState.layers || [];
+              window.FishAudioEngine.syncPlayback(layers, curSec, pps, speed);
+            }
+          });
+        });
+
+        // Cache buttons
+        const cacheBtns = playSettingsPop.querySelectorAll('#play-settings-cache-group .effects-segmented-btn');
+        cacheBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            const enabled = (btn.dataset.val === 'on');
+            window.isPreviewCacheEnabled = enabled;
+            syncPlaySettingsUI();
+            if (window.PreviewCacheManager) {
+              if (!enabled) {
+                // Instantly clear ruler display when cache is turned off
+                window.PreviewCacheManager.updateRulerUI();
+              } else {
+                // Re-enable and fill cache
+                window.PreviewCacheManager.updateRulerUI();
+                if (typeof window.PreviewCacheManager.scheduleIdleFill === 'function') {
+                  window.PreviewCacheManager.scheduleIdleFill();
+                }
+              }
+            }
+          });
+        });
+
+        syncPlaySettingsUI();
       }
 
       // Backward navigation on "Previous" button (beatmark jump or frame step)
@@ -18273,7 +18677,7 @@
             if (typeof invalidatePreviewCacheForLayer === 'function') {
               invalidatePreviewCacheForLayer(layer);
             }
-            saveCurrentProjectLayers();
+            saveCurrentProjectLayers(true);
             redrawComposition('togglePrecompCollapse');
           });
         }
@@ -19861,7 +20265,7 @@
               if (typeof invalidatePreviewCacheForLayer === 'function') {
                 invalidatePreviewCacheForLayer(currentActivePrecomp);
               }
-              saveCurrentProjectLayers();
+              saveCurrentProjectLayers(true);
               redrawComposition('togglePrecompCollapse');
             }
           });
@@ -20838,7 +21242,6 @@
               });
             }
 
-            let lpSlideTimer = null;
             let lpMenuTimer = null;
             let isLongPressActive = false;
             let hasSlid = false;
@@ -20847,6 +21250,7 @@
             let startPointerY = 0;
             let initialStartPx = 0;
             let justFinishedSlide = false;
+            let slideRedrawRaf = null;
 
             function onClipPointerDown(e) {
               if (e.target.closest('.timeline-clip-handle') || e.target.closest('.timeline-keyframe-marker.is-active-prop') || e.target.closest('.text-anim-marker')) return;
@@ -20988,6 +21392,7 @@
                     layer: l,
                     initialStartPx: sInitPx,
                     initialStartSec: sInitSec,
+                    initialSlideStartSec: sInitSec,
                     initialEndSec: sInitSec + sDurSec,
                     durationSec: sDurSec,
                     clipEl: sClipEl,
@@ -21014,43 +21419,17 @@
                 triggerClipContextMenu(layer, startPointerX, startPointerY);
               }, 450);
 
-              // 200ms timer to prepare horizontal slide (only when NOT in keyframe marquee mode)
-              const isPropActiveNow = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
-              if (!isSelectedLayer || !isPropActiveNow || !window.activeKeyframeProperty) {
-                lpSlideTimer = setTimeout(() => {
-                  if (!hasMenuOpened && !isMarqueeActive) {
-                    isLongPressActive = true;
-                    if (isMultiDragging && multiDragLayers.length > 0) {
-                      multiDragLayers.forEach(m => {
-                        if (m.clipEl) m.clipEl.classList.add('is-sliding');
-                      });
-                    } else {
-                      clipEl.classList.add('is-sliding');
-                    }
-                    try {
-                      clipEl.setPointerCapture(e.pointerId);
-                    } catch (_) {}
-                  }
-                }, 200);
-              }
-
               function onClipPointerMove(moveEvent) {
                 const dist = Math.hypot(moveEvent.clientX - startPointerX, moveEvent.clientY - startPointerY);
-                if (dist > 5) {
-                  if (lpMenuTimer) {
-                    clearTimeout(lpMenuTimer);
-                    lpMenuTimer = null;
-                  }
-                  if (lpSlideTimer) {
-                    clearTimeout(lpSlideTimer);
-                    lpSlideTimer = null;
-                  }
-                }
 
                 // If layer is selected AND a property editor is actively open, drag initiates Marquee Keyframe Selection strictly inside this layer
                 const isPropActiveNow = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
                 if (isSelectedLayer && isPropActiveNow && window.activeKeyframeProperty) {
-                  if (dist > 5) {
+                  if (dist > 4) {
+                    if (lpMenuTimer) {
+                      clearTimeout(lpMenuTimer);
+                      lpMenuTimer = null;
+                    }
                     if (!isMarqueeActive) {
                       isMarqueeActive = true;
                       window.isTransformInteracting = true;
@@ -21082,7 +21461,30 @@
                   return;
                 }
 
-                if (!isLongPressActive || hasMenuOpened) return;
+                if (hasMenuOpened) return;
+
+                // Deadzone check: distinguish intentional drag from micro jitter / click
+                if (dist <= 4 && !isLongPressActive) return;
+
+                if (lpMenuTimer) {
+                  clearTimeout(lpMenuTimer);
+                  lpMenuTimer = null;
+                }
+
+                // Instant responsive activation of sliding mode on drag threshold
+                if (!isLongPressActive) {
+                  isLongPressActive = true;
+                  if (isMultiDragging && multiDragLayers.length > 0) {
+                    multiDragLayers.forEach(m => {
+                      if (m.clipEl) m.clipEl.classList.add('is-sliding');
+                    });
+                  } else {
+                    clipEl.classList.add('is-sliding');
+                  }
+                  try {
+                    clipEl.setPointerCapture(e.pointerId);
+                  } catch (_) {}
+                }
 
                 moveEvent.preventDefault();
                 hasSlid = true;
@@ -21136,9 +21538,7 @@
 
                   multiDragLayers.forEach(m => {
                     m.layer.startPx = Math.max(0, Math.round(m.initialStartPx + effectiveDeltaPx));
-                    if (m.layer.durationSec !== undefined) {
-                      m.layer.startSec = m.layer.startPx / pixelsPerSecond;
-                    }
+                    m.layer.startSec = m.layer.startPx / pixelsPerSecond;
                     const curSlideEndSec = (m.layer.startSec || 0) + (m.layer.durationSec || ((m.layer.widthPx || 320) / pixelsPerSecond));
                     if (curSlideEndSec > lastGeneratedDuration) {
                       generateRulerTicks(currentFps);
@@ -21147,7 +21547,7 @@
                       m.clipEl.style.left = `${m.layer.startPx}px`;
                     }
                     if (m.initialKeyframes && m.layer.keyframes) {
-                      const mDeltaSec = m.layer.startSec - m.initialSlideStartSec;
+                      const mDeltaSec = m.layer.startSec - m.initialStartSec;
                       for (const [p, kfs] of Object.entries(m.initialKeyframes)) {
                         if (!Array.isArray(kfs) || !Array.isArray(m.layer.keyframes[p])) continue;
                         kfs.forEach((initKf, idx) => {
@@ -21198,9 +21598,7 @@
                   }
 
                   layer.startPx = Math.round(newStartPx);
-                  if (layer.durationSec !== undefined) {
-                    layer.startSec = layer.startPx / pixelsPerSecond;
-                  }
+                  layer.startSec = layer.startPx / pixelsPerSecond;
                   const curSlideEndSec = (layer.startSec || 0) + (layer.durationSec || ((layer.widthPx || 320) / pixelsPerSecond));
                   if (curSlideEndSec > lastGeneratedDuration) {
                     generateRulerTicks(currentFps);
@@ -21221,17 +21619,22 @@
                   }
                 }
 
-                if (typeof renderTimelineLinkConnectors === 'function') renderTimelineLinkConnectors();
-                redrawComposition();
+                if (!slideRedrawRaf) {
+                  slideRedrawRaf = requestAnimationFrame(() => {
+                    slideRedrawRaf = null;
+                    if (typeof renderTimelineLinkConnectors === 'function') renderTimelineLinkConnectors();
+                    redrawComposition();
+                  });
+                }
               }
 
               function onClipPointerUp(upEvent) {
                 if (typeof hideTimelineSnapGuide === 'function') hideTimelineSnapGuide();
                 window._lastSlideSnapPx = null;
 
-                if (lpSlideTimer) {
-                  clearTimeout(lpSlideTimer);
-                  lpSlideTimer = null;
+                if (slideRedrawRaf) {
+                  cancelAnimationFrame(slideRedrawRaf);
+                  slideRedrawRaf = null;
                 }
                 if (lpMenuTimer) {
                   clearTimeout(lpMenuTimer);
@@ -21658,10 +22061,16 @@
                   }
                 }
 
+                let reorderRaf = null;
                 function onPointerMove(moveEvent) {
                   if (!isDragging) return;
                   lastPointerClientY = moveEvent.clientY;
-                  updatePositions();
+                  if (!reorderRaf) {
+                    reorderRaf = requestAnimationFrame(() => {
+                      reorderRaf = null;
+                      updatePositions();
+                    });
+                  }
                 }
 
                 // Start auto-scroll ticker
@@ -21670,6 +22079,10 @@
                 function onPointerUp(upEvent) {
                   if (!isDragging) return;
                   isDragging = false;
+                  if (reorderRaf) {
+                    cancelAnimationFrame(reorderRaf);
+                    reorderRaf = null;
+                  }
                   if (autoScrollRaf) {
                     cancelAnimationFrame(autoScrollRaf);
                     autoScrollRaf = null;
@@ -22038,6 +22451,8 @@
             posZ: 0,
             opacity: 1,
             blendMode: 'normal',
+            is3D: !!item.is3D,
+            collapseTransformations: item.collapseTransformations !== undefined ? !!item.collapseTransformations : false,
             layers: Array.isArray(item.layers) ? JSON.parse(JSON.stringify(item.layers)) : []
           };
           currentProjectState.layers.unshift(newPrecompLayer);
@@ -22379,7 +22794,7 @@
         return { layer, playheadPx, startPx, widthPx, endPx };
       }
 
-      // 1. Cut Left: Hapus sisi kiri dari current playhead
+      // 1. Cut Left: Trim start of layer to current playhead
       function executeCutLeft() {
         const info = getSelectedLayerForCut();
         if (!info) return;
@@ -22476,7 +22891,7 @@
         selectTimelineLayer(newLayerId, false);
       }
 
-      // 3. Cut Right: Hapus sisi kanan dari current playhead
+      // 3. Cut Right: Trim end of layer to current playhead
       function executeCutRight() {
         const info = getSelectedLayerForCut();
         if (!info) return;

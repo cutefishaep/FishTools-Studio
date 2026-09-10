@@ -556,7 +556,7 @@
           <div class="brand-title">FishTool</div>
           <div class="brand-subtitle-row">
             <span class="brand-subtitle">Studio</span>
-            <span class="badge-pre-alpha" id="studio-version-badge">0.4.3</span>
+            <span class="badge-pre-alpha" id="studio-version-badge">0.4.4</span>
           </div>
           <h2 class="projects-title" style="margin-top: 10px;">Your Project</h2>
         </div>
@@ -564,7 +564,7 @@
         <div class="component-box">
           <span class="component-box-title">Badges & Metadata</span>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <span class="badge-pre-alpha">0.4.3</span>
+            <span class="badge-pre-alpha">0.4.4</span>
             <span class="project-count-badge">5</span>
             <span class="project-count-badge">12</span>
             <span class="project-count-badge">99+</span>
@@ -750,7 +750,7 @@
     <section class="demo-section">
       <h2 class="demo-section-title">07. Modular UI Components (Live Preview + Copyable Code)</h2>
       <p style="color: var(--text-secondary); font-size: 13.5px; margin: -6px 0 12px;">
-        Komponen modular siap pakai. Coba interaksinya langsung di kotak preview atas, lalu klik <strong>Copy</strong> pada kotak kode di bawahnya untuk menambahkan komponen ke projekmu.
+        Ready-to-use modular components. Test live interactions in the preview box above, then click <strong>Copy</strong> on the code snippet below to add components into your project.
       </p>
 
       <div class="showcase-cards-list">
@@ -947,29 +947,29 @@
             <div class="showcase-live-widget" style="align-items: center; text-align: center; gap: 10px;">
               <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-welcome')" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "Welcome" Modal
+                  Open "Welcome" Modal
                 </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-donate')" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "Donate" Modal
+                  Open "Donate" Modal
                 </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-new-project')" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "New Project" Modal
+                  Open "New Project" Modal
                 </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-import-project')" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "Import Project" Modal
+                  Open "Import Project" Modal
                 </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-project-settings')" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "Project Settings" Modal
+                  Open "Project Settings" Modal
                 </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-export-video')" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "Export Video" Modal
+                  Open "Export Video" Modal
                 </button>
                 <button type="button" class="theme-btn" onclick="testOFTSProgressDemo()" style="padding: 12px 24px; font-size: 14px;">
-                  Buka "OFTS Progress" Modal
+                  Open "OFTS Progress" Modal
                 </button>
               </div>
               <span style="color: var(--text-secondary); font-size: 12.5px;">
-                Animasi slide atas ke bawah di mobile (≤600px), center scale di PC (≥601px). Tutup via klik backdrop atau tombol back browser.
+                Slide-down animation on mobile (≤600px), center scale on desktop (≥601px). Dismiss by clicking backdrop or pressing browser back button.
               </span>
             </div>
           </div>
@@ -1415,7 +1415,7 @@
             </div>
             <div class="showcase-live-widget" style="padding: 24px 16px; background-color: var(--bg-dashboard); border-radius: 12px; display: flex; flex-direction: column; gap: 20px;">
               <span style="font-size: 12.5px; color: var(--text-secondary); text-align: center;">
-                Klik tombol-tombol di bawah untuk menguji auto-positioning, smart flipping (atas/bawah), clamping tepi layar, dan animasi spring bounce yang mengembang dari ujung lancip ekor (tail tip anchor):
+                Click the buttons below to test auto-positioning, smart flipping (top/bottom), viewport boundary clamping, and tail tip anchor spring bounce animation:
               </span>
 
               <!-- Main Feature Trigger Buttons -->
@@ -1472,6 +1472,11 @@
                 <!-- Expression (.is-expression-popover) Trigger -->
                 <button type="button" class="theme-btn" data-popover-target="demo-popover-expression" style="padding: 8px 14px; font-size: 12px;">
                   𝑓𝑥 Expression (.is-expression-popover)
+                </button>
+
+                <!-- Playback Settings (.is-play-settings-popover) Trigger -->
+                <button type="button" class="theme-btn" data-popover-target="demo-popover-play-settings" style="padding: 8px 14px; font-size: 12px;">
+                  ⏯️ Play Settings (.is-play-settings-popover)
                 </button>
               </div>
 
@@ -1535,7 +1540,7 @@
             </div>
             <div class="showcase-live-widget" style="background-color: var(--bg-panel); border-radius: 12px; height: 160px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
               <span style="color: var(--text-primary); font-size: 13px; font-weight: 700;">Timeline Background Surface (Color 3: var(--bg-panel))</span>
-              <button type="button" class="timeline-fab-add" data-drawer-target="demo-drawer-fab-sample" style="position: absolute; right: 16px; bottom: 16px;" title="Tambah Track / Layer" aria-label="Add Track or Layer">
+              <button type="button" class="timeline-fab-add" data-drawer-target="demo-drawer-fab-sample" style="position: absolute; right: 16px; bottom: 16px;" title="Add Track / Layer" aria-label="Add Track or Layer">
                 <span class="svg-icon svg-icon-plus" aria-hidden="true"></span>
               </button>
 
@@ -1568,7 +1573,7 @@
               </button>
             </div>
             <pre class="code-snippet-body"><code id="code-fab-example">&lt;!-- Floating Round Action Button with Drawer Trigger --&gt;
-&lt;button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Tambah Track / Layer"&gt;
+&lt;button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Add Track / Layer"&gt;
   &lt;span class="svg-icon svg-icon-plus" aria-hidden="true"&gt;&lt;/span&gt;
 &lt;/button&gt;</code></pre>
           </div>
@@ -1585,7 +1590,7 @@
               <span class="showcase-tag">Live Interactive Widget</span>
             </div>
             <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
-              GPU-accelerated bottom drawer matching container/timeline width. Height strictly adapts to content with top drag handle constraints (&quot;sudah ke show semua&quot; limit) and automatic cleanup on close.
+              GPU-accelerated bottom drawer matching container/timeline width. Height strictly adapts to content with top drag handle constraints (maximum content height limit) and automatic cleanup on close.
             </p>
             <div class="showcase-live-widget" style="background-color: var(--bg-canvas); border: 1px solid var(--border-subtle); border-radius: 14px; height: 220px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
               <button type="button" class="theme-btn" data-drawer-target="demo-drawer-interactive-box" style="padding: 10px 20px; font-size: 13px;">
@@ -1684,37 +1689,37 @@
                       <!-- 4. Category Panel: Shape Layer (Flexible 3-item Grid - Icon Only) -->
                       <div class="add-layer-shape-panel" id="demo-add-layer-shape-panel" style="display: none; width: 100%; padding: 4px 0;">
                         <div class="layer-action-btn-grid">
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Kotak" aria-label="Kotak">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Rectangle" aria-label="Rectangle">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <rect x="3" y="3" width="18" height="18" rx="2"/>
                             </svg>
                           </button>
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Segitiga" aria-label="Segitiga">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Triangle" aria-label="Triangle">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <path d="M12 3.2L2.8 19.5c-.8 1.4.2 3.2 1.8 3.2h14.8c1.6 0 2.6-1.8 1.8-3.2L12 3.2z"/>
                             </svg>
                           </button>
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Lingkaran" aria-label="Lingkaran">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Circle" aria-label="Circle">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <circle cx="12" cy="12" r="9.5"/>
                             </svg>
                           </button>
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Bintang" aria-label="Bintang">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Star" aria-label="Star">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                             </svg>
                           </button>
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Poligon" aria-label="Poligon">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Polygon" aria-label="Polygon">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <path d="M12 2.5l8.66 5v10L12 22.5l-8.66-5v-10L12 2.5z"/>
                             </svg>
                           </button>
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Kapsul" aria-label="Kapsul">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Capsule" aria-label="Capsule">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <rect x="3" y="6" width="18" height="12" rx="6"/>
                             </svg>
                           </button>
-                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Hati" aria-label="Hati">
+                          <button type="button" class="layer-action-btn layer-action-btn-icon-only" title="Heart" aria-label="Heart">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                             </svg>
@@ -1791,13 +1796,13 @@
                     <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
                   </button>
                   <div class="segmented-button-group layer-cut-group" role="group" aria-label="Cut Options">
-                    <button type="button" class="segmented-button" title="Cut Left — hapus sisi kiri">
+                    <button type="button" class="segmented-button" title="Cut Left — trim start of layer to playhead">
                       <span class="svg-icon svg-icon-cut-left" aria-hidden="true"></span>
                     </button>
-                    <button type="button" class="segmented-button" title="Cut Tengah — potong di playhead">
+                    <button type="button" class="segmented-button" title="Split — cut at playhead position">
                       <span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span>
                     </button>
-                    <button type="button" class="segmented-button" title="Cut Right — hapus sisi kanan">
+                    <button type="button" class="segmented-button" title="Cut Right — trim end of layer to playhead">
                       <span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span>
                     </button>
                   </div>
@@ -2063,13 +2068,13 @@
                     <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
                   </button>
                   <div class="segmented-button-group layer-cut-group" role="group" aria-label="Cut Options">
-                    <button type="button" class="segmented-button" title="Cut Left — hapus sisi kiri">
+                    <button type="button" class="segmented-button" title="Cut Left — trim start of layer to playhead">
                       <span class="svg-icon svg-icon-cut-left" aria-hidden="true"></span>
                     </button>
-                    <button type="button" class="segmented-button" title="Cut Tengah — potong di playhead">
+                    <button type="button" class="segmented-button" title="Split — cut at playhead position">
                       <span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span>
                     </button>
-                    <button type="button" class="segmented-button" title="Cut Right — hapus sisi kanan">
+                    <button type="button" class="segmented-button" title="Cut Right — trim end of layer to playhead">
                       <span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span>
                     </button>
                   </div>
@@ -2086,10 +2091,10 @@
                     <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
                   </button>
                   <div class="segmented-button-group layer-cut-group" role="group" aria-label="Expand &amp; Move Right">
-                    <button type="button" class="segmented-button" title="Expand ke current frame">
+                    <button type="button" class="segmented-button" title="Expand to current frame">
                       <span class="svg-icon svg-icon-layer-expand-right" aria-hidden="true"></span>
                     </button>
-                    <button type="button" class="segmented-button" title="Geser layer ke current frame">
+                    <button type="button" class="segmented-button" title="Move layer to current frame">
                       <span class="svg-icon svg-icon-layer-move-right" aria-hidden="true"></span>
                     </button>
                   </div>
@@ -2106,10 +2111,10 @@
                     <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
                   </button>
                   <div class="segmented-button-group layer-cut-group" role="group" aria-label="Move &amp; Expand Left">
-                    <button type="button" class="segmented-button" title="Geser layer ke current frame">
+                    <button type="button" class="segmented-button" title="Move layer to current frame">
                       <span class="svg-icon svg-icon-layer-move-left" aria-hidden="true"></span>
                     </button>
-                    <button type="button" class="segmented-button" title="Expand ke current frame">
+                    <button type="button" class="segmented-button" title="Expand to current frame">
                       <span class="svg-icon svg-icon-layer-expand-left" aria-hidden="true"></span>
                     </button>
                   </div>
@@ -2137,7 +2142,7 @@
               <div>
                 <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 8px;">E. Cut Bar: Non-Media Layer (Photo / Shape → Volume &amp; Speed Greyed Out)</span>
                 <div class="layer-cut-bar-row" style="max-width: 360px;" role="group" aria-label="Layer Cut Bar (Non-Media Disabled)">
-                  <button type="button" class="segmented-button layer-tile-btn is-disabled" title="Speed (Hanya untuk Video / Audio)" disabled>
+                  <button type="button" class="segmented-button layer-tile-btn is-disabled" title="Speed (Video / Audio only)" disabled>
                     <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
                   </button>
                   <div class="segmented-button-group layer-cut-group" role="group" aria-label="Cut Options">
@@ -2145,7 +2150,7 @@
                     <button type="button" class="segmented-button" title="Cut Mid"><span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span></button>
                     <button type="button" class="segmented-button" title="Cut Right"><span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span></button>
                   </div>
-                  <button type="button" class="segmented-button layer-tile-btn is-disabled" title="Volume (Hanya untuk Video / Audio)" disabled>
+                  <button type="button" class="segmented-button layer-tile-btn is-disabled" title="Volume (Video / Audio only)" disabled>
                     <span class="svg-icon svg-icon-volume-mute" aria-hidden="true"></span>
                   </button>
                 </div>
@@ -2201,20 +2206,20 @@
 
 &lt;!-- 3. Out-of-Bounds (Playhead is AFTER layer) --&gt;
 &lt;div class="segmented-button-group layer-cut-group" id="layer-cut-group-after" role="group"&gt;
-  &lt;button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand ke current frame"&gt;
+  &lt;button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand to current frame"&gt;
     &lt;span class="svg-icon svg-icon-layer-expand-right"&gt;&lt;/span&gt;
   &lt;/button&gt;
-  &lt;button type="button" class="segmented-button" id="btn-layer-move-right" title="Geser layer ke current frame"&gt;
+  &lt;button type="button" class="segmented-button" id="btn-layer-move-right" title="Move layer to current frame"&gt;
     &lt;span class="svg-icon svg-icon-layer-move-right"&gt;&lt;/span&gt;
   &lt;/button&gt;
 &lt;/div&gt;
 
 &lt;!-- 4. Out-of-Bounds (Playhead is BEFORE layer) --&gt;
 &lt;div class="segmented-button-group layer-cut-group" id="layer-cut-group-before" role="group"&gt;
-  &lt;button type="button" class="segmented-button" id="btn-layer-move-left" title="Geser layer ke current frame"&gt;
+  &lt;button type="button" class="segmented-button" id="btn-layer-move-left" title="Move layer to current frame"&gt;
     &lt;span class="svg-icon svg-icon-layer-move-left"&gt;&lt;/span&gt;
   &lt;/button&gt;
-  &lt;button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand ke current frame"&gt;
+  &lt;button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand to current frame"&gt;
     &lt;span class="svg-icon svg-icon-layer-expand-left"&gt;&lt;/span&gt;
   &lt;/button&gt;
 &lt;/div&gt;
@@ -2347,15 +2352,15 @@
                 Copy
               </button>
             </div>
-            <pre class="code-snippet-body"><code id="code-js-full-example">// 1. Buka modal
+            <pre class="code-snippet-body"><code id="code-js-full-example">// 1. Open modal
 Modal.open('modal-my-popup');
 Modal.close();
 
-// 2. Buka Popover
+// 2. Open popover
 Popover.open(myTriggerButton, 'my-popover-id');
 Popover.close();
 
-// 3. Buka &amp; Tutup Drawer
+// 3. Open &amp; Close drawer
 Drawer.open('my-drawer-id');
 Drawer.close();
 Drawer.toggle('my-drawer-id');
@@ -2420,9 +2425,9 @@ ContextMenu.bindTrigger('#projects-container', '.project-item', (target) =&gt; {
   const id = target.dataset.id;
   return [
     {
-      label: 'Rename',
-      icon: 'assets/icon-edit.svg',
-      action: () =&gt; openRenameModal(id)
+      label: 'Project Settings',
+      icon: 'assets/icon-settings.svg',
+      action: () =&gt; openProjectSettingsModal(id)
     },
     {
       label: 'Duplicate',
@@ -2947,7 +2952,7 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                       <span class="layer-link-item-name">Camera 1</span>
                     </div>
                     <!-- Disabled circular child -->
-                    <div class="layer-link-item is-disabled" title="Anak layer ini (Mencegah circular loop)">
+                    <div class="layer-link-item is-disabled" title="Child of this layer (Prevents circular loop)">
                       <span class="layer-link-preview-box is-media">
                         <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
                       </span>
@@ -3004,7 +3009,7 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
 
             <div style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
               <span style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-                After Effects-style precompose hierarchy: Header breadcrumb displays <code>[&lt; Nama Project &lt; Nama Precompose]</code>, allowing one-click exit back to root comp and inline renaming. Timeline clips feature COMP badges and double-click to enter.
+                After Effects-style precompose hierarchy: Header breadcrumb displays <code>[&lt; Project Name &lt; Precompose Name]</code>, allowing one-click exit back to root comp and inline renaming. Timeline clips feature COMP badges and double-click to enter.
               </span>
 
               <!-- Live Interactive Breadcrumb Preview -->
@@ -3535,6 +3540,12 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                         </div>
                         <span class="effects-gallery-item-name">Swing</span>
                       </div>
+                      <div class="effects-gallery-item-card" onclick="alert('FSMB (Motion Blur) added!')">
+                        <div class="effects-gallery-item-thumb">
+                          <img src="assets/FXPH.svg" alt="FSMB (Motion Blur)" class="effects-gallery-item-img">
+                        </div>
+                        <span class="effects-gallery-item-name">FSMB</span>
+                      </div>
                       <div class="effects-gallery-item-card" onclick="alert('Tint added!')">
                         <div class="effects-gallery-item-thumb">
                           <img src="assets/FXPH.svg" alt="Tint" class="effects-gallery-item-img">
@@ -3907,7 +3918,7 @@ if (params.get('imported') === '1' || currentProject.isImported) {
         <article class="showcase-card">
           <header class="showcase-card-header">
             <h3 class="showcase-card-title">Fill Controller (.fill-controller-layout)</h3>
-            <p class="showcase-card-desc">Comprehensive layer fill controller. Features 4 categories: No Fill (Kosong / transparent), Fill Color (solid swatches &amp; color picker), Fill Media (project media pool), and Fill Gradient (linear &amp; radial gradient with stops and presets). 100% theme tokens, zero box-shadow, Cal Sans typography.</p>
+            <p class="showcase-card-desc">Comprehensive layer fill controller. Features 4 categories: No Fill (Transparent), Fill Color (solid swatches &amp; color picker), Fill Media (project media pool), and Fill Gradient (linear &amp; radial gradient with stops and presets). 100% theme tokens, zero box-shadow, Cal Sans typography.</p>
           </header>
 
           <div class="showcase-preview-box" style="padding: 16px; justify-content: center; background-color: var(--bg-canvas);">
@@ -4968,7 +4979,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">Alpha</span>
+          <span class="welcome-badge">v0.4.4</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -4980,13 +4991,240 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <div class="welcome-modal-body">
         <div class="welcome-banner">
           <div class="welcome-banner-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
             </svg>
           </div>
           <div class="welcome-banner-text">
-            <strong>Project Dalam Pengembangan</strong>
-            <p>OpenFishTools Studio masih dalam tahap pengembangan aktif (Alpha). Beberapa fitur mungkin masih dalam pengerjaan atau terus disempurnakan.</p>
+            <strong>Active Development Stage (Alpha)</strong>
+            <p>OpenFishTools Studio is a browser-based motion graphics and video editor. Rendering calculations and project storage run entirely locally on your device.</p>
+          </div>
+        </div>
+
+        <!-- Changelog Column with Category Badges -->
+        <div class="welcome-changelog-card">
+          <div class="welcome-changelog-header">
+            <div class="welcome-changelog-header-left">
+              <span class="welcome-changelog-title">Release Notes</span>
+            </div>
+            <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer" class="welcome-changelog-link" title="Open CHANGELOG.md">
+              <span>CHANGELOG.md</span>
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+              </svg>
+            </a>
+          </div>
+          <div class="welcome-changelog-feed">
+            <!-- Version 0.4.4 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.4</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 10, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Debug Panel Relocation</span>
+                  <span class="changelog-item-desc">Moved Debug / Layer Inspector from Composition Settings header to OpenFishTools settings panel.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">IndexedDB Storage Calculation</span>
+                  <span class="changelog-item-desc">Accurate project database storage calculation including raw binary media blobs and frame render cache.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Template Editor Layout</span>
+                  <span class="changelog-item-desc">Pinned media replacement dock to the top on desktop and enlarged touch-friendly cards on mobile.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">UI Scrollbar Visibility</span>
+                  <span class="changelog-item-desc">Removed forced scrollbar hiding; enabled clean, theme-matched slim scrollbars across all scrollable lists.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">OFTS Export Progress Modal</span>
+                  <span class="changelog-item-desc">Real-time export progress indicator with DEFLATE Level 9 compression for fast and lightweight .ofts project files.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">FSMB Effect &amp; Playback Popover</span>
+                  <span class="changelog-item-desc">Fish Motion Blur velocity-based frame blending and long-press Play menu with Loop, Speed, and Cache controls.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Welcome Notice Refinement</span>
+                  <span class="changelog-item-desc">Clean, objective presentation with complete transparency regarding the active Alpha development phase.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.4.3 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.3</span>
+                <span class="welcome-version-date">Sep 08, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Multi-layer Keyframe Shift</span>
+                  <span class="changelog-item-desc">Synchronized keyframe shifting when adjusting multi-layer duration in the timeline.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Expression Persistence</span>
+                  <span class="changelog-item-desc">Ensured layer expression scripts persist intact across project serialization and undo/redo states.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Preview RAM Cache Optimization</span>
+                  <span class="changelog-item-desc">Dynamic frame memory management and cache clamping for smoother 60 FPS playback.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.4.2 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.2</span>
+                <span class="welcome-version-date">Sep 05, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">OFTS Memory Crash Prevention</span>
+                  <span class="changelog-item-desc">Sanitizes canvas buffers, frame caches, and blob URLs before exporting large projects to prevent browser tab crashes.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Runtime Memory Sanitization</span>
+                  <span class="changelog-item-desc">Periodic garbage collection of canvas buffer references during editor page navigation.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.4.1 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.1</span>
+                <span class="welcome-version-date">Sep 02, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Multi-layer Selection &amp; Drag</span>
+                  <span class="changelog-item-desc">Select and drag multiple layers simultaneously across the timeline.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Null Object &amp; Layer Parenting</span>
+                  <span class="changelog-item-desc">Hierarchical transform parenting between layers and null object controllers.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Group Masking (Alight Motion style)</span>
+                  <span class="changelog-item-desc">Mask and Exclude group creation with destination-in and destination-out blend modes.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Audio Scrubbing Glitch</span>
+                  <span class="changelog-item-desc">Eliminated audio noise artifacts during rapid timeline playhead scrubbing.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.3.0 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.3.0</span>
+                <span class="welcome-version-date">Aug 25, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Modular Layer Effects Registry</span>
+                  <span class="changelog-item-desc">Extensible modular JavaScript layer effects plugin architecture under effects/.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Interactive Graph Curve Editor</span>
+                  <span class="changelog-item-desc">Interactive bezier curve editor with control nodes, tangent lines, and timing presets.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Matcha Theme Standardization</span>
+                  <span class="changelog-item-desc">Standardized color tokens from css/theme.css and 100% Cal Sans typography.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.2.0 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.2.0</span>
+                <span class="welcome-version-date">Aug 15, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Motion Blur Engine &amp; Text Layers</span>
+                  <span class="changelog-item-desc">Integrated motion blur calculation, typography text layer editor, and vector shape library.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Responsive Splitter Handle</span>
+                  <span class="changelog-item-desc">Vertical pill drag handle for fluid dynamic timeline pane resizing on desktop and tablet.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.1.0 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.1.0</span>
+                <span class="welcome-version-date">Aug 01, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">First Public Release</span>
+                  <span class="changelog-item-desc">Initial launch of OpenFishTools Studio, multi-layer timeline, and native .ofts project format.</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -4994,41 +5232,19 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
           <div class="welcome-feature-item">
             <div class="welcome-feature-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Web-Native Motion &amp; Video Editing</strong>
-              <span>Timeline multi-layer, kurva keyframe, efek real-time, dan video interpolation.</span>
-            </div>
-          </div>
-          <div class="welcome-feature-item">
-            <div class="welcome-feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
               </svg>
             </div>
             <div class="feature-text">
-              <strong>Feedback &amp; Laporan Bug</strong>
-              <span>Laporkan kendala atau saran fitur langsung ke developer.</span>
+              <strong>Bug Reports &amp; Feedback</strong>
+              <span>Encountered an issue or error? Send feedback to help improve upcoming releases.</span>
             </div>
-            <a href="https://www.cutefish.my.id/#contact" target="_blank" rel="noopener noreferrer" class="welcome-link-btn" aria-label="Kirim Feedback">
+            <a href="https://www.cutefish.my.id/#contact" target="_blank" rel="noopener noreferrer" class="welcome-link-btn" aria-label="Send Feedback">
               <span>Feedback</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                 <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
               </svg>
             </a>
-          </div>
-          <div class="welcome-feature-item">
-            <div class="welcome-feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Dukung Project Kami</strong>
-              <span>Donasi Anda membantu biaya operasional, riset, dan kelangsungan OpenFishTools tetap gratis.</span>
-            </div>
           </div>
         </div>
       </div>
@@ -5036,7 +5252,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <footer class="welcome-modal-footer">
         <label class="welcome-dismiss-label">
           <input type="checkbox" id="welcome-dismiss-checkbox" class="welcome-dismiss-checkbox">
-          <span>Jangan tampilkan lagi</span>
+          <span>Don't show again</span>
         </label>
         <div class="welcome-footer-btns">
           <button type="button" class="modal-btn-secondary" onclick="openDonateFromWelcome()">
@@ -5046,7 +5262,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
             <span>Donate</span>
           </button>
           <button type="button" class="modal-btn-create" onclick="closeWelcomeModal()">
-            <span>Mulai</span>
+            <span>Get Started</span>
           </button>
         </div>
       </footer>
@@ -5063,7 +5279,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
-          <h3 class="modal-title">Dukung OpenFishTools</h3>
+          <h3 class="modal-title">Support OpenFishTools</h3>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -5073,7 +5289,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       </header>
 
       <div class="donate-modal-body">
-        <p class="donate-lead-text">Dukungan donasi Anda sangat berarti untuk membiayai server, pengembangan fitur baru, dan menjaga OpenFishTools tetap gratis &amp; open-source.</p>
+        <p class="donate-lead-text">Your donation directly supports server costs, active feature development, and keeps OpenFishTools free &amp; open-source for everyone.</p>
 
         <div class="donate-cards-grid">
           <!-- Saweria -->
@@ -5106,7 +5322,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
               </div>
               <div class="donate-card-meta">
                 <span class="donate-card-name">PayPal</span>
-                <span class="donate-card-desc">Donasi Internasional (USD, EUR, dll)</span>
+                <span class="donate-card-desc">International Donations (USD, EUR, etc.)</span>
               </div>
             </div>
             <div class="donate-card-arrow">
@@ -5127,7 +5343,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
                 </div>
                 <div class="donate-card-meta">
                   <span class="donate-card-name">QRIS</span>
-                  <span class="donate-card-desc">Scan via BCA, Mandiri, GoPay, ShopeePay, dll</span>
+                  <span class="donate-card-desc">Scan via GoPay, OVO, DANA, BCA, QRIS, etc.</span>
                 </div>
               </div>
               <div class="donate-card-arrow qris-arrow" id="qris-arrow-icon">
@@ -5145,7 +5361,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
                   </svg>
-                  <span>Buka Gambar Penuh</span>
+                  <span>Open Full Image</span>
                 </a>
               </div>
             </div>
@@ -5153,6 +5369,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
         </div>
       </div>
     </div>
+  </div>
   <!-- ==========================================================================
        MODULAR POP-UP: OFTS EXPORT PROGRESS MODAL
        ========================================================================== -->
@@ -5370,6 +5587,34 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
     </div>
   </div>
 
+  <!-- Popover 8d: Playback Settings Popover (.is-play-settings-popover) -->
+  <div class="popover-card is-play-settings-popover" id="demo-popover-play-settings" role="dialog" aria-hidden="true" style="min-width: 195px; padding: 10px 12px;">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Loop</span>
+      <div class="effects-segmented-group play-settings-segmented">
+        <button type="button" class="effects-segmented-btn is-active" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="Loop On">On</button>
+        <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="Loop Off">Off</button>
+      </div>
+    </div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Speed</span>
+      <div class="effects-segmented-group play-settings-segmented">
+        <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active'); window.timelinePlaybackSpeed = 0.5;" title="0.5x Speed">0.5x</button>
+        <button type="button" class="effects-segmented-btn is-active" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active'); window.timelinePlaybackSpeed = 1.0;" title="1x Speed">1x</button>
+        <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active'); window.timelinePlaybackSpeed = 1.5;" title="1.5x Speed">1.5x</button>
+        <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active'); window.timelinePlaybackSpeed = 2.0;" title="2x Speed">2x</button>
+      </div>
+    </div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Cache</span>
+      <div class="effects-segmented-group play-settings-segmented">
+        <button type="button" class="effects-segmented-btn is-active" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="RAM Cache On">On</button>
+        <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="RAM Cache Off">Off</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Popover 9: Color Picker Popover (.color-picker-popover-card) -->
   <div class="popover-card color-picker-popover-card" id="popover-color-picker" role="dialog" aria-hidden="true" style="padding: 0; width: 326px;">
     <div class="popover-tail" aria-hidden="true"></div>
@@ -5520,6 +5765,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="effects/fast_box_blur.js"></script>
   <script src="effects/lumia.js"></script>
   <script src="effects/tint.js"></script>
+  <script src="effects/fsmb.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/template-editor.js"></script>

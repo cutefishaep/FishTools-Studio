@@ -229,7 +229,7 @@
         </section>
       </div>
 
-      <!-- Right Pane: Timeline (Di bawah Header) -->
+      <!-- Right Pane: Timeline (Below Header) -->
       <div class="editor-timeline-wrapper">
         <!-- Vertical Pill Splitter Handle (Active on Tablet & Desktop >= 601px) -->
         <div class="timeline-split-handle" id="timeline-split-handle" role="separator" aria-orientation="vertical" aria-label="Resize Timeline Width" tabindex="0">
@@ -245,7 +245,7 @@
           <!-- Component B: Center-Fixed Timeline Needle Line -->
           <div class="timeline-center-needle" id="timeline-center-needle" aria-hidden="true"></div>
 
-          <!-- 2. Sticky Top Header: Time Ruler (Always di atas, zero vertical scroll) -->
+          <!-- 2. Sticky Top Header: Time Ruler (Always on top, zero vertical scroll) -->
           <header class="timeline-header-ruler">
             <div class="timeline-ruler-viewport" id="timeline-ruler-viewport">
               <div class="timeline-ruler-track" id="timeline-ruler-track">
@@ -270,8 +270,8 @@
             </div>
           </div>
 
-          <!-- 4. Floating Round Action Button (Add Track / Layer di pojok kanan bawah) -->
-          <button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Tambah Track / Layer" aria-label="Tambah Track atau Layer">
+          <!-- 4. Floating Round Action Button (Add Track / Layer) -->
+          <button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Add Track / Layer" aria-label="Add Track or Layer">
             <span class="svg-icon svg-icon-plus" aria-hidden="true"></span>
           </button>
 
@@ -374,50 +374,50 @@
                   <!-- 4. Category Panel: Shape Layer (Flexible Grid: Kotak, Segitiga, Lingkaran - Icon Only) -->
                   <div class="add-layer-shape-panel" id="add-layer-shape-panel" style="display: none; width: 100%; padding: 4px 0;">
                     <div class="layer-action-btn-grid" id="add-layer-shape-grid">
-                      <!-- 1. Kotak (Square) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kotak" title="Kotak" aria-label="Kotak">
+                      <!-- 1. Rectangle Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kotak" title="Rectangle" aria-label="Rectangle">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <rect x="3" y="3" width="18" height="18" rx="2"/>
                         </svg>
                       </button>
 
-                      <!-- 2. Segitiga (Triangle) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-segitiga" title="Segitiga" aria-label="Segitiga">
+                      <!-- 2. Triangle Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-segitiga" title="Triangle" aria-label="Triangle">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <path d="M12 3.2L2.8 19.5c-.8 1.4.2 3.2 1.8 3.2h14.8c1.6 0 2.6-1.8 1.8-3.2L12 3.2z"/>
                         </svg>
                       </button>
 
-                      <!-- 3. Lingkaran (Circle) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-lingkaran" title="Lingkaran" aria-label="Lingkaran">
+                      <!-- 3. Circle Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-lingkaran" title="Circle" aria-label="Circle">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <circle cx="12" cy="12" r="9.5"/>
                         </svg>
                       </button>
 
-                      <!-- 4. Bintang (Star) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-bintang" title="Bintang" aria-label="Bintang">
+                      <!-- 4. Star Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-bintang" title="Star" aria-label="Star">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                         </svg>
                       </button>
 
-                      <!-- 5. Poligon (Polygon) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-poligon" title="Poligon" aria-label="Poligon">
+                      <!-- 5. Polygon Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-poligon" title="Polygon" aria-label="Polygon">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <path d="M12 2.5l8.66 5v10L12 22.5l-8.66-5v-10L12 2.5z"/>
                         </svg>
                       </button>
 
-                      <!-- 6. Kapsul (Capsule) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kapsul" title="Kapsul" aria-label="Kapsul">
+                      <!-- 6. Capsule Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kapsul" title="Capsule" aria-label="Capsule">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <rect x="3" y="6" width="18" height="12" rx="6"/>
                         </svg>
                       </button>
 
-                      <!-- 7. Hati (Heart) Button -->
-                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-hati" title="Hati" aria-label="Hati">
+                      <!-- 7. Heart Button -->
+                      <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-hati" title="Heart" aria-label="Heart">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                         </svg>
@@ -454,33 +454,33 @@
                       </button>
                       <!-- Mode 1: Playhead INSIDE selected layer (Normal 3-way cut) -->
                       <div class="segmented-button-group layer-cut-group" id="layer-cut-group-normal" role="group" aria-label="Cut Options">
-                        <button type="button" class="segmented-button" id="btn-cut-left" title="Cut Left — hapus sisi kiri dari playhead" aria-label="Cut Kiri">
+                        <button type="button" class="segmented-button" id="btn-cut-left" title="Cut Left — trim start of layer to playhead" aria-label="Cut Left">
                           <span class="svg-icon svg-icon-cut-left" aria-hidden="true"></span>
                         </button>
-                        <button type="button" class="segmented-button" id="btn-cut-mid" title="Cut Tengah — potong di posisi playhead" aria-label="Cut Tengah">
+                        <button type="button" class="segmented-button" id="btn-cut-mid" title="Split — cut at playhead position" aria-label="Split">
                           <span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span>
                         </button>
-                        <button type="button" class="segmented-button" id="btn-cut-right" title="Cut Right — hapus sisi kanan dari playhead" aria-label="Cut Kanan">
+                        <button type="button" class="segmented-button" id="btn-cut-right" title="Cut Right — trim end of layer to playhead" aria-label="Cut Right">
                           <span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span>
                         </button>
                       </div>
 
                       <!-- Mode 2: Playhead is AFTER selected layer (Expand Right, Move Right) -->
                       <div class="segmented-button-group layer-cut-group" id="layer-cut-group-after" role="group" aria-label="Layer Out-of-Bounds (After)" style="display: none;">
-                        <button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand ke current frame" aria-label="Expand ke Current Frame">
+                        <button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand to current frame" aria-label="Expand to Current Frame">
                           <span class="svg-icon svg-icon-layer-expand-right" aria-hidden="true"></span>
                         </button>
-                        <button type="button" class="segmented-button" id="btn-layer-move-right" title="Geser layer ke current frame" aria-label="Geser Layer ke Current Frame">
+                        <button type="button" class="segmented-button" id="btn-layer-move-right" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
                           <span class="svg-icon svg-icon-layer-move-right" aria-hidden="true"></span>
                         </button>
                       </div>
 
                       <!-- Mode 3: Playhead is BEFORE selected layer (Move Left, Expand Left) -->
                       <div class="segmented-button-group layer-cut-group" id="layer-cut-group-before" role="group" aria-label="Layer Out-of-Bounds (Before)" style="display: none;">
-                        <button type="button" class="segmented-button" id="btn-layer-move-left" title="Geser layer ke current frame" aria-label="Geser Layer ke Current Frame">
+                        <button type="button" class="segmented-button" id="btn-layer-move-left" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
                           <span class="svg-icon svg-icon-layer-move-left" aria-hidden="true"></span>
                         </button>
-                        <button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand ke current frame" aria-label="Expand ke Current Frame">
+                        <button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand to current frame" aria-label="Expand to Current Frame">
                           <span class="svg-icon svg-icon-layer-expand-left" aria-hidden="true"></span>
                         </button>
                       </div>
@@ -819,23 +819,23 @@
                             </pattern>
                           </defs>
                           <!-- Subtle Background Grid (Extends for vertical overshoot expansion) -->
-                          <rect x="-100" y="-3000" width="500" height="6000" fill="url(#graph-grid-pattern)" pointer-events="none"/>
+                          <rect x="-2000" y="-4000" width="6000" height="8000" fill="url(#graph-grid-pattern)" pointer-events="none"/>
                           <!-- Dashed 0..1 Bounding Box -->
-                          <rect id="graph-dashed-boundary-rect" x="28" y="24" width="204" height="122" fill="none" stroke="var(--border-subtle)" stroke-width="1.5" stroke-dasharray="4 4" pointer-events="none"/>
+                          <rect id="graph-dashed-boundary-rect" x="16" y="16" width="228" height="138" fill="none" stroke="var(--border-subtle)" stroke-width="1.4" stroke-dasharray="4 4" pointer-events="none"/>
                           <!-- Tangent guide lines -->
-                          <line id="graph-tangent-1" x1="28" y1="146" x2="28" y2="146" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round"/>
-                          <line id="graph-tangent-2" x1="232" y1="24" x2="232" y2="24" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round"/>
+                          <line id="graph-tangent-1" x1="16" y1="154" x2="16" y2="154" stroke="var(--text-primary)" stroke-width="2.4" stroke-linecap="round"/>
+                          <line id="graph-tangent-2" x1="244" y1="16" x2="244" y2="16" stroke="var(--text-primary)" stroke-width="2.4" stroke-linecap="round"/>
                           <!-- Curve -->
-                          <path id="graph-curve-path" d="M 28 146 L 232 24" fill="none" stroke="var(--color-primary)" stroke-width="3.5" stroke-linecap="round"/>
+                          <path id="graph-curve-path" d="M 16 154 L 244 16" fill="none" stroke="var(--color-primary)" stroke-width="3" stroke-linecap="round"/>
                           <!-- Start / End Anchor Points -->
-                          <circle id="graph-anchor-start" cx="28" cy="146" r="5" fill="var(--color-primary)"/>
-                          <circle id="graph-anchor-end" cx="232" cy="24" r="5" fill="var(--color-primary)"/>
+                          <circle id="graph-anchor-start" cx="16" cy="154" r="4.2" fill="var(--color-primary)"/>
+                          <circle id="graph-anchor-end" cx="244" cy="16" r="4.2" fill="var(--color-primary)"/>
                           <!-- Vertical dashed playhead time indicator line -->
-                          <line id="graph-time-line" x1="28" y1="10" x2="28" y2="160" stroke="var(--color-primary)" stroke-dasharray="3 3" stroke-width="1.5" opacity="0.6" pointer-events="none"/>
-                          <!-- Control point handle 1 (P1): BIG solid circular knob -->
-                          <circle id="graph-handle-1" cx="28" cy="146" r="14" fill="var(--text-primary)" class="graph-handle-node" role="slider" aria-label="Handle 1" tabindex="0"/>
-                          <!-- Control point handle 2 (P2): BIG solid circular knob -->
-                          <circle id="graph-handle-2" cx="232" cy="24" r="14" fill="var(--text-primary)" class="graph-handle-node" role="slider" aria-label="Handle 2" tabindex="0"/>
+                          <line id="graph-time-line" x1="16" y1="10" x2="16" y2="160" stroke="var(--color-primary)" stroke-dasharray="3 3" stroke-width="1.5" opacity="0.6" pointer-events="none"/>
+                          <!-- Control point handle 1 (P1): solid circular knob -->
+                          <circle id="graph-handle-1" cx="16" cy="154" r="9.5" fill="var(--text-primary)" class="graph-handle-node" role="slider" aria-label="Handle 1" tabindex="0"/>
+                          <!-- Control point handle 2 (P2): solid circular knob -->
+                          <circle id="graph-handle-2" cx="244" cy="16" r="9.5" fill="var(--text-primary)" class="graph-handle-node" role="slider" aria-label="Handle 2" tabindex="0"/>
                         </svg>
                       </div>
                     </main>
@@ -1355,6 +1355,12 @@
                               <img src="assets/FXPH.svg" alt="Swing" class="effects-gallery-item-img" loading="lazy">
                             </div>
                             <span class="effects-gallery-item-name">Swing</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="fsmb" data-category="movement" title="FSMB (Motion Blur)">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="FSMB (Motion Blur)" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">FSMB</span>
                           </div>
                           <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="drop-shadow" data-category="layer" title="Drop Shadow">
                             <div class="effects-gallery-item-thumb">
@@ -2174,7 +2180,7 @@
                               <path d="M7 10l5 5 5-5z"/>
                             </svg>
                           </button>
-                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: none; z-index: 1050;">
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item is-selected" role="option" data-val="bounce_1">Bounce 1 (Stagger 20ms)</div>
                             <div class="custom-dropdown-item" role="option" data-val="bounce_2">Bounce 2 (Inertial 0.10s)</div>
                             <div class="custom-dropdown-item" role="option" data-val="bounce_3">Bounce 3 (Stagger 60ms)</div>
@@ -2213,7 +2219,7 @@
                               <path d="M7 10l5 5 5-5z"/>
                             </svg>
                           </button>
-                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 180px; overflow-y: auto; scrollbar-width: none; z-index: 1050;">
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 180px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item is-selected" role="option" data-val="none">None</div>
                             <div class="custom-dropdown-item" role="option" data-val="bounce_out">Bounce Out (AE)</div>
                             <div class="custom-dropdown-item" role="option" data-val="slide_out">Slide Out (AE)</div>
@@ -2493,17 +2499,17 @@
             <!-- Shutter Phase Row -->
             <div class="modal-form-row" id="row-settings-mb-shutter-phase">
               <label class="modal-label">Shutter Phase</label>
-              <div class="custom-dropdown" id="dropdown-mb-shutter-phase" data-value="-90">
+              <div class="custom-dropdown" id="dropdown-mb-shutter-phase" data-value="0">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Shutter Phase">
-                  <span class="custom-dropdown-label">-90° (Default)</span>
+                  <span class="custom-dropdown-label">0° (AE Default)</span>
                   <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M7 10l5 5 5-5z"/>
                   </svg>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item" role="option" data-val="-180">-180°</div>
-                  <div class="custom-dropdown-item is-selected" role="option" data-val="-90">-90° (Default)</div>
-                  <div class="custom-dropdown-item" role="option" data-val="0">0° (Trailing)</div>
+                  <div class="custom-dropdown-item" role="option" data-val="-90">-90° (Centered)</div>
+                  <div class="custom-dropdown-item is-selected" role="option" data-val="0">0° (AE Default)</div>
                   <div class="custom-dropdown-item" role="option" data-val="90">90°</div>
                 </div>
               </div>
@@ -2821,11 +2827,43 @@
        ========================================================================== -->
   <div class="popover-card is-confirm-popover" id="popover-graph-delete-confirm" role="dialog" aria-hidden="true" style="min-width: 200px; padding: 12px 14px;">
     <div class="popover-tail" aria-hidden="true"></div>
-    <div class="popover-confirm-title" id="popover-graph-delete-title" style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Hapus Preset?</div>
-    <div class="popover-confirm-desc" style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Preset kurva ini akan dihapus permanen.</div>
+    <div class="popover-confirm-title" id="popover-graph-delete-title" style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Delete Preset?</div>
+    <div class="popover-confirm-desc" style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">This curve preset will be permanently deleted.</div>
     <div class="popover-confirm-actions" style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button type="button" class="popover-confirm-btn is-cancel" id="btn-graph-delete-cancel">Batal</button>
-      <button type="button" class="popover-confirm-btn is-danger" id="btn-graph-delete-confirm">Hapus</button>
+      <button type="button" class="popover-confirm-btn is-cancel" id="btn-graph-delete-cancel">Cancel</button>
+      <button type="button" class="popover-confirm-btn is-danger" id="btn-graph-delete-confirm">Delete</button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR PLAYBACK SETTINGS POPOVER (.is-play-settings-popover)
+       Triggered via long-press on #editor-btn-play
+       Controls: Loop toggle, Playback speed, RAM cache toggle
+       ========================================================================== -->
+  <div class="popover-card is-play-settings-popover" id="popover-play-settings" role="dialog" aria-hidden="true" style="min-width: 195px; padding: 10px 12px;">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Loop</span>
+      <div class="effects-segmented-group play-settings-segmented" id="play-settings-loop-group">
+        <button type="button" class="effects-segmented-btn is-active" data-val="on" title="Loop On">On</button>
+        <button type="button" class="effects-segmented-btn" data-val="off" title="Loop Off">Off</button>
+      </div>
+    </div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Speed</span>
+      <div class="effects-segmented-group play-settings-segmented" id="play-settings-speed-group">
+        <button type="button" class="effects-segmented-btn" data-speed="0.5" title="0.5x Speed">0.5x</button>
+        <button type="button" class="effects-segmented-btn is-active" data-speed="1" title="1x Speed">1x</button>
+        <button type="button" class="effects-segmented-btn" data-speed="1.5" title="1.5x Speed">1.5x</button>
+        <button type="button" class="effects-segmented-btn" data-speed="2" title="2x Speed">2x</button>
+      </div>
+    </div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Cache</span>
+      <div class="effects-segmented-group play-settings-segmented" id="play-settings-cache-group">
+        <button type="button" class="effects-segmented-btn is-active" data-val="on" title="RAM Cache On">On</button>
+        <button type="button" class="effects-segmented-btn" data-val="off" title="RAM Cache Off (Realtime render)">Off</button>
+      </div>
     </div>
   </div>
 
@@ -3014,7 +3052,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">Alpha</span>
+          <span class="welcome-badge">v0.4.4</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3026,13 +3064,240 @@
       <div class="welcome-modal-body">
         <div class="welcome-banner">
           <div class="welcome-banner-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
             </svg>
           </div>
           <div class="welcome-banner-text">
-            <strong>Project Dalam Pengembangan</strong>
-            <p>OpenFishTools Studio masih dalam tahap pengembangan aktif (Alpha). Beberapa fitur mungkin masih dalam pengerjaan atau terus disempurnakan.</p>
+            <strong>Active Development Stage (Alpha)</strong>
+            <p>OpenFishTools Studio is a browser-based motion graphics and video editor. Rendering calculations and project storage run entirely locally on your device.</p>
+          </div>
+        </div>
+
+        <!-- Changelog Column with Category Badges -->
+        <div class="welcome-changelog-card">
+          <div class="welcome-changelog-header">
+            <div class="welcome-changelog-header-left">
+              <span class="welcome-changelog-title">Release Notes</span>
+            </div>
+            <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer" class="welcome-changelog-link" title="Open CHANGELOG.md">
+              <span>CHANGELOG.md</span>
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+              </svg>
+            </a>
+          </div>
+          <div class="welcome-changelog-feed">
+            <!-- Version 0.4.4 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.4</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 10, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Debug Panel Relocation</span>
+                  <span class="changelog-item-desc">Moved Debug / Layer Inspector from Composition Settings header to OpenFishTools settings panel.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">IndexedDB Storage Calculation</span>
+                  <span class="changelog-item-desc">Accurate project database storage calculation including raw binary media blobs and frame render cache.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Template Editor Layout</span>
+                  <span class="changelog-item-desc">Pinned media replacement dock to the top on desktop and enlarged touch-friendly cards on mobile.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">UI Scrollbar Visibility</span>
+                  <span class="changelog-item-desc">Removed forced scrollbar hiding; enabled clean, theme-matched slim scrollbars across all scrollable lists.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">OFTS Export Progress Modal</span>
+                  <span class="changelog-item-desc">Real-time export progress indicator with DEFLATE Level 9 compression for fast and lightweight .ofts project files.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">FSMB Effect &amp; Playback Popover</span>
+                  <span class="changelog-item-desc">Fish Motion Blur velocity-based frame blending and long-press Play menu with Loop, Speed, and Cache controls.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Welcome Notice Refinement</span>
+                  <span class="changelog-item-desc">Clean, objective presentation with complete transparency regarding the active Alpha development phase.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.4.3 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.3</span>
+                <span class="welcome-version-date">Sep 08, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Multi-layer Keyframe Shift</span>
+                  <span class="changelog-item-desc">Synchronized keyframe shifting when adjusting multi-layer duration in the timeline.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Expression Persistence</span>
+                  <span class="changelog-item-desc">Ensured layer expression scripts persist intact across project serialization and undo/redo states.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Preview RAM Cache Optimization</span>
+                  <span class="changelog-item-desc">Dynamic frame memory management and cache clamping for smoother 60 FPS playback.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.4.2 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.2</span>
+                <span class="welcome-version-date">Sep 05, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">OFTS Memory Crash Prevention</span>
+                  <span class="changelog-item-desc">Sanitizes canvas buffers, frame caches, and blob URLs before exporting large projects to prevent browser tab crashes.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Runtime Memory Sanitization</span>
+                  <span class="changelog-item-desc">Periodic garbage collection of canvas buffer references during editor page navigation.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.4.1 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.1</span>
+                <span class="welcome-version-date">Sep 02, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Multi-layer Selection &amp; Drag</span>
+                  <span class="changelog-item-desc">Select and drag multiple layers simultaneously across the timeline.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Null Object &amp; Layer Parenting</span>
+                  <span class="changelog-item-desc">Hierarchical transform parenting between layers and null object controllers.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Group Masking (Alight Motion style)</span>
+                  <span class="changelog-item-desc">Mask and Exclude group creation with destination-in and destination-out blend modes.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Audio Scrubbing Glitch</span>
+                  <span class="changelog-item-desc">Eliminated audio noise artifacts during rapid timeline playhead scrubbing.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.3.0 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.3.0</span>
+                <span class="welcome-version-date">Aug 25, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Modular Layer Effects Registry</span>
+                  <span class="changelog-item-desc">Extensible modular JavaScript layer effects plugin architecture under effects/.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Interactive Graph Curve Editor</span>
+                  <span class="changelog-item-desc">Interactive bezier curve editor with control nodes, tangent lines, and timing presets.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Matcha Theme Standardization</span>
+                  <span class="changelog-item-desc">Standardized color tokens from css/theme.css and 100% Cal Sans typography.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.2.0 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.2.0</span>
+                <span class="welcome-version-date">Aug 15, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Motion Blur Engine &amp; Text Layers</span>
+                  <span class="changelog-item-desc">Integrated motion blur calculation, typography text layer editor, and vector shape library.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Responsive Splitter Handle</span>
+                  <span class="changelog-item-desc">Vertical pill drag handle for fluid dynamic timeline pane resizing on desktop and tablet.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.1.0 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.1.0</span>
+                <span class="welcome-version-date">Aug 01, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">First Public Release</span>
+                  <span class="changelog-item-desc">Initial launch of OpenFishTools Studio, multi-layer timeline, and native .ofts project format.</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3040,41 +3305,19 @@
           <div class="welcome-feature-item">
             <div class="welcome-feature-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Web-Native Motion &amp; Video Editing</strong>
-              <span>Timeline multi-layer, kurva keyframe, efek real-time, dan video interpolation.</span>
-            </div>
-          </div>
-          <div class="welcome-feature-item">
-            <div class="welcome-feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
               </svg>
             </div>
             <div class="feature-text">
-              <strong>Feedback &amp; Laporan Bug</strong>
-              <span>Laporkan kendala atau saran fitur langsung ke developer.</span>
+              <strong>Bug Reports &amp; Feedback</strong>
+              <span>Encountered an issue or error? Send feedback to help improve upcoming releases.</span>
             </div>
-            <a href="https://www.cutefish.my.id/#contact" target="_blank" rel="noopener noreferrer" class="welcome-link-btn" aria-label="Kirim Feedback">
+            <a href="https://www.cutefish.my.id/#contact" target="_blank" rel="noopener noreferrer" class="welcome-link-btn" aria-label="Send Feedback">
               <span>Feedback</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                 <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
               </svg>
             </a>
-          </div>
-          <div class="welcome-feature-item">
-            <div class="welcome-feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Dukung Project Kami</strong>
-              <span>Donasi Anda membantu biaya operasional, riset, dan kelangsungan OpenFishTools tetap gratis.</span>
-            </div>
           </div>
         </div>
       </div>
@@ -3082,7 +3325,7 @@
       <footer class="welcome-modal-footer">
         <label class="welcome-dismiss-label">
           <input type="checkbox" id="welcome-dismiss-checkbox" class="welcome-dismiss-checkbox">
-          <span>Jangan tampilkan lagi</span>
+          <span>Don't show again</span>
         </label>
         <div class="welcome-footer-btns">
           <button type="button" class="modal-btn-secondary" onclick="openDonateFromWelcome()">
@@ -3092,7 +3335,7 @@
             <span>Donate</span>
           </button>
           <button type="button" class="modal-btn-create" onclick="closeWelcomeModal()">
-            <span>Mulai</span>
+            <span>Get Started</span>
           </button>
         </div>
       </footer>
@@ -3109,7 +3352,7 @@
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
-          <h3 class="modal-title">Dukung OpenFishTools</h3>
+          <h3 class="modal-title">Support OpenFishTools</h3>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3119,7 +3362,7 @@
       </header>
 
       <div class="donate-modal-body">
-        <p class="donate-lead-text">Dukungan donasi Anda sangat berarti untuk membiayai server, pengembangan fitur baru, dan menjaga OpenFishTools tetap gratis &amp; open-source.</p>
+        <p class="donate-lead-text">Your donation directly supports server costs, active feature development, and keeps OpenFishTools free &amp; open-source for everyone.</p>
 
         <div class="donate-cards-grid">
           <!-- Saweria -->
@@ -3152,7 +3395,7 @@
               </div>
               <div class="donate-card-meta">
                 <span class="donate-card-name">PayPal</span>
-                <span class="donate-card-desc">Donasi Internasional (USD, EUR, dll)</span>
+                <span class="donate-card-desc">International Donations (USD, EUR, etc.)</span>
               </div>
             </div>
             <div class="donate-card-arrow">
@@ -3173,7 +3416,7 @@
                 </div>
                 <div class="donate-card-meta">
                   <span class="donate-card-name">QRIS</span>
-                  <span class="donate-card-desc">Scan via BCA, Mandiri, GoPay, ShopeePay, dll</span>
+                  <span class="donate-card-desc">Scan via GoPay, OVO, DANA, BCA, QRIS, etc.</span>
                 </div>
               </div>
               <div class="donate-card-arrow qris-arrow" id="qris-arrow-icon">
@@ -3191,7 +3434,7 @@
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
                   </svg>
-                  <span>Buka Gambar Penuh</span>
+                  <span>Open Full Image</span>
                 </a>
               </div>
             </div>
@@ -3285,6 +3528,7 @@
   <script src="effects/bevel.js"></script>
   <script src="effects/shatter.js"></script>
   <script src="effects/deep_glow.js"></script>
+  <script src="effects/fsmb.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/fishtools-adapter.js?v=4"></script>

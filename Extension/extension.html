@@ -554,6 +554,35 @@
                 </div>
             </div>
 
+            <div class="card" id="card-debug">
+                <div class="card-header">
+                    <h3>Debug</h3>
+                </div>
+                <div class="settings-row">
+                    <span class="status-label" style="margin:0;">LAYER INSPECTOR</span>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" id="btn-debug-fetch-layer" class="btn-secondary" title="Fetch Selected Layer">
+                            <span class="material-icons" style="font-size: 13px; margin-right: 4px;">refresh</span>
+                            <span>FETCH</span>
+                        </button>
+                        <button type="button" id="btn-debug-copy-layer" class="btn-secondary" title="Copy to Clipboard" style="padding: 6px 8px;">
+                            <span class="material-icons" style="font-size: 13px;">content_copy</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-top: 8px;">
+                    <textarea id="debug-layer-output" readonly spellcheck="false" placeholder="Select a layer then click 'FETCH' to inspect its full state..." style="
+                        width: 100%; min-height: 120px; max-height: 240px; resize: vertical;
+                        background: var(--surface2); color: var(--text);
+                        border: 1px solid var(--border); border-radius: 4px;
+                        font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 10px;
+                        line-height: 1.4; padding: 6px 8px; box-sizing: border-box;
+                        overflow: auto; white-space: pre; word-break: normal; outline: none;
+                    "></textarea>
+                    <div id="debug-layer-status" style="font-size: 10px; color: var(--text-mut); margin-top: 4px; min-height: 14px;"></div>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>Donation</h3>
                 <p class="text-muted mb-8">Your support keeps this project alive.</p>

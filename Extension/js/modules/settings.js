@@ -46,6 +46,8 @@ SettingsModule.prototype.setupListeners = function () {
         }
         self.saveSettings();
     });
+
+    this.setupDebugTools();
 };
 
 SettingsModule.prototype.loadSettings = function () {
@@ -289,6 +291,86 @@ SettingsModule.prototype.openSettingsDir = function () {
         window.csInterface.evalScript(script, function (result) {
             if (result === 'false') {
                 window.ModalModule.alert('Failed to open settings directory. Folder does not exist.', 'Error');
+            }
+        });
+    }
+};
+
+SettingsModule.prototype.setupDebugTools = function () {
+    var fetchBtn = document.getElementById('btn-debug-fetch-layer');
+    var copyBtn = document.getElementById('btn-debug-copy-layer');
+    var output = document.getElementById('debug-layer-output');
+    var status = document.getElementById('debug-layer-status');
+    if (!fetchBtn || !output) return;
+
+    function getDebugInfo() {
+        var host = (window.parent && typeof window.parent.getSelectedLayerDebugState === 'function')
+            ? window.parent
+            : window;
+        if (typeof host.getSelectedLayerDebugState === 'function') {
+            return host.getSelectedLayerDebugState();
+        }
+        var pState = host.currentProjectState || window.currentProjectState;
+        if (pState && Array.isArray(pState.layers)) {
+            var selId = host.selectedLayerId ||
+                (host.selectedLayerIds && host.selectedLayerIds.size === 1
+                    ? Array.from(host.selectedLayerIds)[0]
+                    : null);
+            var layer = pState.layers.find(function (l) { return l.id === selId; });
+            if (!layer) return null;
+            var SKIP_KEYS = { dataUrl: 1, thumbUrl: 1, audioPcmData: 1, _precompBufferCanvas: 1, _cachedImageBitmap: 1, _bitmapCache: 1 };
+            var clone = {};
+            for (var k in layer) {
+                if (SKIP_KEYS[k]) {
+                    clone[k] = '[omitted]';
+                } else if (layer[k] && typeof layer[k] === 'object' && !Array.isArray(layer[k])) {
+                    try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = String(layer[k]); }
+                } else if (Array.isArray(layer[k])) {
+                    try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = '[array]'; }
+                } else {
+                    clone[k] = layer[k];
+                }
+            }
+            return { layer: layer, clean: clone };
+        }
+        return null;
+    }
+
+    fetchBtn.addEventListener('click', function () {
+        var res = getDebugInfo();
+        if (!res || !res.layer) {
+            output.value = '';
+            if (status) status.textContent = '⚠ No layer selected — select a layer on the timeline first.';
+            return;
+        }
+        try {
+            output.value = JSON.stringify(res.clean, null, 2);
+            if (status) status.textContent = '✓ Fetched: ' + (res.layer.name || res.layer.id) + ' (' + (res.layer.type || 'unknown') + ')';
+        } catch (e) {
+            output.value = String(e);
+            if (status) status.textContent = '✗ Serialization error';
+        }
+    });
+
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+            if (!output.value) {
+                if (status) status.textContent = '⚠ Nothing to copy — fetch a layer first.';
+                return;
+            }
+            try {
+                navigator.clipboard.writeText(output.value).then(function () {
+                    if (status) status.textContent = '✓ Copied to clipboard!';
+                    copyBtn.style.color = 'var(--accent-h)';
+                    setTimeout(function () {
+                        if (status) status.textContent = '';
+                        copyBtn.style.color = '';
+                    }, 1800);
+                });
+            } catch (_) {
+                output.select();
+                document.execCommand('copy');
+                if (status) status.textContent = '✓ Copied (fallback)';
             }
         });
     }

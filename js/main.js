@@ -814,7 +814,11 @@ async function handleImportedFiles(files, dropzone, statusEl) {
     if (statusEl) statusEl.textContent = '';
     
     if (importedProject && importedProject.id) {
-      window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}&imported=1`;
+      if (importedProject.isTemplate) {
+        window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}&template=1`;
+      } else {
+        window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}`;
+      }
     } else {
       loadAndRender();
     }

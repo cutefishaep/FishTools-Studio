@@ -15017,10 +15017,10 @@
         redrawComposition('initProjectLoaded');
       }
 
-      // Auto-open Template Editor for imported templates / projects
-      const isImportedParam = params.get('imported') === '1' || params.get('isImported') === '1' || params.get('template') === '1';
-      const isImportedProject = isImportedParam || (currentProject && currentProject.isImported);
-      if (isImportedProject && window.FishTemplateEditor) {
+      // Auto-open Template Editor ONLY for genuine templates
+      const isTemplateParam = params.get('template') === '1';
+      const isTemplateProject = isTemplateParam || (currentProject && currentProject.isTemplate);
+      if (isTemplateProject && window.FishTemplateEditor) {
         setTimeout(() => {
           window.FishTemplateEditor.open();
         }, 150);

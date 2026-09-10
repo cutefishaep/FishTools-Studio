@@ -940,6 +940,129 @@ window.FishDatabase = (function () {
   }
 
   /**
+   * Sanitizes a project object specifically for .ofts export, stripping all runtime caches,
+   * frame buffers, temporary canvas instances, and bloated base64 data URLs.
+   */
+  function sanitizeProjectForExport(project, mediaItems) {
+    if (!project) return null;
+    var projectData = JSON.parse(JSON.stringify(project));
+
+    // Strip project-level runtime caches and preview screenshots
+    projectData.previewUrl = '';
+    projectData.thumbnail = '';
+    delete projectData.isImported;
+    delete projectData.cache;
+
+    // Remove any internal _... keys from project root
+    Object.keys(projectData).forEach(function (k) {
+      if (k.startsWith('_')) delete projectData[k];
+    });
+
+    var mediaMap = new Map();
+    if (Array.isArray(mediaItems)) {
+      mediaItems.forEach(function (m) {
+        if (m && m.id) mediaMap.set(m.id, m);
+      });
+    }
+
+    function cleanLayer(l) {
+      if (!l) return l;
+
+      // 1. Strip all frame extraction caches and temporary canvas buffers
+      delete l.videoFrames;
+      delete l.extractedFrames;
+      delete l._cachedFrames;
+      delete l._shapeBufferCanvas;
+      delete l._precompBufferCanvas;
+      delete l._fillBufferCanvas;
+      delete l._textBufferCanvas;
+      delete l._fillMediaImg;
+      delete l._alphaHitCanvas;
+      delete l._alphaHitCtx;
+      delete l._canvasBounds;
+      delete l._extractComplete;
+      delete l._cachedStartSec;
+      delete l._cachedEndSec;
+
+      // 2. Strip transient _... properties
+      Object.keys(l).forEach(function (k) {
+        if (k.startsWith('_') && k !== '_userResized') delete l[k];
+      });
+
+      // 3. Thumbnails are transient - strip them to avoid base64 bloat
+      l.thumbUrl = '';
+
+      // 4. Handle layer.dataUrl
+      if (l.mediaId && mediaMap.has(l.mediaId)) {
+        // Media already preserved in media/ folder; strip redundant base64 / blob URL
+        l.dataUrl = '';
+      } else if (l.dataUrl && (l.dataUrl.startsWith('data:') || l.dataUrl.startsWith('blob:'))) {
+        if (l.dataUrl.startsWith('data:')) {
+          // Embedded base64 asset without mediaId: extract into project media package so project.json stays tiny
+          var newId = 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+          var blob = dataUrlToBlob(l.dataUrl);
+          var ext = l.type === 'video' ? 'mp4' : l.type === 'audio' ? 'mp3' : 'png';
+          var safeName = (l.name || 'embedded_layer').replace(/[^a-zA-Z0-9._-]/g, '_') + '.' + ext;
+          var extractedItem = {
+            id: newId,
+            projectId: project.id,
+            name: safeName,
+            type: l.type || 'image',
+            mimeType: blob.type || (l.type === 'video' ? 'video/mp4' : 'image/png'),
+            size: blob.size || 0,
+            blob: blob,
+            dataUrl: '',
+            createdAt: new Date().toISOString()
+          };
+          mediaItems.push(extractedItem);
+          mediaMap.set(newId, extractedItem);
+          l.mediaId = newId;
+        }
+        l.dataUrl = '';
+      }
+
+      // 5. Handle fillMediaUrl
+      if (l.fillMediaId && mediaMap.has(l.fillMediaId)) {
+        l.fillMediaUrl = '';
+      } else if (l.fillMediaUrl && (l.fillMediaUrl.startsWith('data:') || l.fillMediaUrl.startsWith('blob:'))) {
+        if (l.fillMediaUrl.startsWith('data:')) {
+          var fillId = 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+          var fillBlob = dataUrlToBlob(l.fillMediaUrl);
+          var fillName = (l.fillMediaName || 'fill_media').replace(/[^a-zA-Z0-9._-]/g, '_') + '.png';
+          var fillItem = {
+            id: fillId,
+            projectId: project.id,
+            name: fillName,
+            type: 'image',
+            mimeType: fillBlob.type || 'image/png',
+            size: fillBlob.size || 0,
+            blob: fillBlob,
+            dataUrl: '',
+            createdAt: new Date().toISOString()
+          };
+          mediaItems.push(fillItem);
+          mediaMap.set(fillId, fillItem);
+          l.fillMediaId = fillId;
+        }
+        l.fillMediaUrl = '';
+      }
+
+      // 6. Recursively clean precomp children
+      if (Array.isArray(l.layers)) {
+        l.layers = l.layers.map(cleanLayer).filter(Boolean);
+      }
+
+      return l;
+    }
+
+    if (Array.isArray(projectData.layers)) {
+      projectData.layers = projectData.layers.map(cleanLayer).filter(Boolean);
+    }
+
+    return projectData;
+  }
+
+  /**
    * Exports a project package metadata and media files list
    * @param {string} projectId
    * @returns {Promise<{folderName: string, projectJson: string, mediaItems: Array}>}
@@ -948,10 +1071,16 @@ window.FishDatabase = (function () {
     if (!projectId) return null;
     var project = await getProject(projectId);
     if (!project) return null;
-    var mediaItems = await getProjectMedia(projectId);
+    var mediaItems = (await getProjectMedia(projectId)) || [];
 
-    var projectData = Object.assign({}, project);
-    projectData.media = mediaItems.map(function (m) {
+    // Sanitize project metadata & layers, extracting embedded base64 layers if any
+    var projectData = sanitizeProjectForExport(project, mediaItems);
+
+    // Assign safe, collision-free filenames for the media archive and manifest
+    projectData.media = mediaItems.map(function (m, idx) {
+      var safeName = (m.name || ('media_' + (m.id || idx))).replace(/[^a-zA-Z0-9._-]/g, '_');
+      var uniqueFilename = 'media_' + m.id + '_' + safeName;
+      m.archiveFilename = uniqueFilename;
       return {
         id: m.id,
         name: m.name,
@@ -962,13 +1091,13 @@ window.FishDatabase = (function () {
         height: m.height || null,
         duration: m.duration || null,
         createdAt: m.createdAt,
-        filename: m.name
+        filename: uniqueFilename
       };
     });
 
     var jsonStr = JSON.stringify(projectData, null, 2);
     return {
-      folderName: project.name || 'Project',
+      folderName: (project.name || 'Project').replace(/[^a-zA-Z0-9._-]/g, '_'),
       projectJson: jsonStr,
       mediaItems: mediaItems
     };
@@ -996,7 +1125,8 @@ window.FishDatabase = (function () {
           blobData = dataUrlToBlob(item.dataUrl);
         }
         if (blobData) {
-          mediaFolder.file(item.name || ('media_' + item.id), blobData);
+          var targetName = item.archiveFilename || ('media_' + item.id + '_' + (item.name || 'asset').replace(/[^a-zA-Z0-9._-]/g, '_'));
+          mediaFolder.file(targetName, blobData);
         }
       });
     }
@@ -1030,53 +1160,116 @@ window.FishDatabase = (function () {
       projectData = { name: fallbackName, aspectRatio: '16:9', resolution: '1080p', fps: 60, bgColor: 'transparent' };
     }
 
-    // Ensure unique ID
+    // Clean any legacy caches if present in imported project.json
+    projectData.previewUrl = '';
+    projectData.thumbnail = '';
+    delete projectData.cache;
+    delete projectData.isImported;
+
+    function sanitizeImportedLayer(l) {
+      if (!l) return l;
+      delete l.videoFrames;
+      delete l.extractedFrames;
+      delete l._cachedFrames;
+      delete l._shapeBufferCanvas;
+      delete l._precompBufferCanvas;
+      delete l._fillBufferCanvas;
+      delete l._textBufferCanvas;
+      delete l._fillMediaImg;
+      delete l._alphaHitCanvas;
+      delete l._alphaHitCtx;
+      delete l._canvasBounds;
+      delete l._extractComplete;
+      delete l._cachedStartSec;
+      delete l._cachedEndSec;
+
+      // Clean invalid blob URLs from previous session
+      if (l.dataUrl && (l.dataUrl.startsWith('blob:') || (l.mediaId && l.dataUrl.startsWith('data:')))) {
+        l.dataUrl = '';
+      }
+      if (l.thumbUrl && l.thumbUrl.startsWith('blob:')) {
+        l.thumbUrl = '';
+      }
+      if (l.fillMediaUrl && (l.fillMediaUrl.startsWith('blob:') || (l.fillMediaId && l.fillMediaUrl.startsWith('data:')))) {
+        l.fillMediaUrl = '';
+      }
+
+      if (Array.isArray(l.layers)) {
+        l.layers = l.layers.map(sanitizeImportedLayer).filter(Boolean);
+      }
+      return l;
+    }
+
+    if (Array.isArray(projectData.layers)) {
+      projectData.layers = projectData.layers.map(sanitizeImportedLayer).filter(Boolean);
+    }
+
+    // Assign a fresh, unique project ID
     projectData.id = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     projectData.updatedAt = new Date().toISOString();
-    projectData.isImported = true;
+    projectData.createdAt = projectData.createdAt || new Date().toISOString();
+
+    // Save base project record first
     var savedProject = await saveProject(projectData);
 
-    var declaredMedia = projectData.media || [];
+    var declaredMedia = Array.isArray(projectData.media) ? projectData.media : [];
     var mediaFolder = zip.folder("media");
-    
+
     if (mediaFolder) {
-      var filesPromises = [];
+      var mediaEntries = [];
       mediaFolder.forEach(function (relativePath, zipEntry) {
         if (!zipEntry.dir) {
-          filesPromises.push((async function() {
-            var blob = await zipEntry.async("blob");
-            var fileName = relativePath.split('/').pop() || zipEntry.name;
-            var matchDesc = declaredMedia.find(m => m.filename === fileName || m.name === fileName) || {};
-            var type = matchDesc.type || (blob.type.startsWith('video/') ? 'video' : blob.type.startsWith('audio/') ? 'audio' : 'image');
-            var mediaId = matchDesc.id || ('media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
-
-            var dataUrl = await new Promise(res => {
-              var reader = new FileReader();
-              reader.onload = () => res(reader.result || '');
-              reader.onerror = () => res('');
-              reader.readAsDataURL(blob);
-            });
-
-            var mediaItem = {
-              id: mediaId,
-              projectId: savedProject.id,
-              name: fileName,
-              type: type,
-              mimeType: blob.type || (matchDesc && matchDesc.mimeType) || '',
-              size: blob.size || (matchDesc && matchDesc.size) || 0,
-              width: (matchDesc && matchDesc.width) || null,
-              height: (matchDesc && matchDesc.height) || null,
-              duration: (matchDesc && matchDesc.duration) || null,
-              dataUrl: dataUrl,
-              blob: blob,
-              createdAt: new Date().toISOString()
-            };
-            await saveMedia(mediaItem);
-          })());
+          mediaEntries.push({ relativePath: relativePath, zipEntry: zipEntry });
         }
       });
-      await Promise.all(filesPromises);
+
+      // Sequential processing: process one file at a time to prevent heap spikes & OOM browser crash
+      for (var i = 0; i < mediaEntries.length; i++) {
+        var entry = mediaEntries[i];
+        var zipEntry = entry.zipEntry;
+        var relativePath = entry.relativePath;
+        var rawFileName = relativePath.split('/').pop() || zipEntry.name;
+
+        // Try exact match with manifest filename or original name or media id prefix
+        var matchDesc = declaredMedia.find(function (m) {
+          return m && (
+            m.filename === rawFileName ||
+            m.name === rawFileName ||
+            rawFileName.startsWith('media_' + m.id + '_') ||
+            rawFileName === ('media_' + m.id)
+          );
+        }) || {};
+
+        var mediaId = matchDesc.id || (rawFileName.startsWith('media_') ? rawFileName.split('_')[1] : null) || ('media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+        var displayName = matchDesc.name || rawFileName.replace(/^media_[^_]+_/, '');
+
+        // Extract raw binary Blob directly
+        var blob = await zipEntry.async("blob");
+        var type = matchDesc.type || (blob.type.startsWith('video/') ? 'video' : blob.type.startsWith('audio/') ? 'audio' : 'image');
+
+        // Store directly as native Blob in IndexedDB with ZERO memory-waste base64 string
+        var mediaItem = {
+          id: mediaId,
+          projectId: savedProject.id,
+          name: displayName,
+          type: type,
+          mimeType: blob.type || matchDesc.mimeType || '',
+          size: blob.size || matchDesc.size || 0,
+          width: matchDesc.width || null,
+          height: matchDesc.height || null,
+          duration: matchDesc.duration || null,
+          dataUrl: '', // Zero base64 string! Hydrated on-demand via URL.createObjectURL(blob)
+          blob: blob,
+          createdAt: new Date().toISOString()
+        };
+
+        await saveMedia(mediaItem);
+        // Explicitly dereference to assist GC
+        blob = null;
+        mediaItem = null;
+      }
     }
+
     return savedProject;
   }
 
@@ -1129,6 +1322,7 @@ window.FishDatabase = (function () {
     deleteMedia: deleteMedia,
     deleteProjectMedia: deleteProjectMedia,
     clearAllMedia: clearAllMedia,
+    exportProjectPackage: exportProjectPackage,
     exportProjectToOFTS: exportProjectToOFTS,
     importOFTSPackage: importOFTSPackage
   };

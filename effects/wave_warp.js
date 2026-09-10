@@ -29,7 +29,7 @@
     icon: 'assets/FXPH.svg',
     description: 'After Effects style wave distortion with true 360° arbitrary direction and continuous sine/triangle/square warping',
     params: [
-      { id: 'waveType', label: 'Wave Type', type: 'select', default: 'sine', options: ['sine', 'triangle', 'square', 'sawtooth'] },
+      { id: 'waveType', label: 'Wave Type', type: 'select', default: 'sine', options: ['sine', 'triangle', 'square', 'sawtooth', 'circle', 'semicircle', 'noise', 'smooth-noise'] },
       { id: 'waveHeight', label: 'Wave Height', type: 'number', min: 0, max: 200, default: 25, unit: 'px' },
       { id: 'waveWidth', label: 'Wave Width', type: 'number', min: 10, max: 2000, default: 120, unit: 'px' },
       { id: 'direction', label: 'Direction', type: 'number', min: 0, max: 360, default: 0, unit: '°' },
@@ -37,7 +37,7 @@
       { id: 'phase', label: 'Phase', type: 'number', min: 0, max: 360, default: 0, unit: '°' },
       { id: 'tile', label: 'Tile', type: 'switch', default: 0 }
     ],
-    render(ctx, el, layer, bounds, fx) {
+    render(ctx, el, layer, bounds, fx, currentSec) {
       if (!ctx || !el) return;
       const x = bounds && bounds.x !== undefined ? bounds.x : 0;
       const y = bounds && bounds.y !== undefined ? bounds.y : 0;
@@ -51,14 +51,18 @@
       }
 
       const width = Math.max(10, fx && fx.waveWidth !== undefined ? fx.waveWidth : 120);
-      const type = (fx && fx.waveType ? fx.waveType : 'sine').toLowerCase();
+      const rawType = (fx && fx.waveType ? String(fx.waveType) : 'sine').toLowerCase().replace(/[\s_]+/g, '-');
       const dirDeg = fx && fx.direction !== undefined ? fx.direction : 0;
       const speed = fx && fx.speed !== undefined ? fx.speed : 1;
       const phaseDeg = fx && fx.phase !== undefined ? fx.phase : 0;
 
       let curSec = 0;
-      if (typeof window !== 'undefined') {
-        if (typeof window.getCurrentPlayheadTime === 'function') curSec = window.getCurrentPlayheadTime();
+      if (typeof currentSec === 'number' && !isNaN(currentSec)) curSec = currentSec;
+      else if (layer && typeof layer._currentSec === 'number') curSec = layer._currentSec;
+      else if (typeof window !== 'undefined') {
+        if (typeof window.currentPlaybackSec === 'number') curSec = window.currentPlaybackSec;
+        else if (typeof window.currentSec === 'number') curSec = window.currentSec;
+        else if (typeof window.getCurrentPlayheadTime === 'function') curSec = window.getCurrentPlayheadTime();
         else if (window.currentFrame !== undefined && window.currentFps) curSec = window.currentFrame / window.currentFps;
         else if (window.timelinePanX !== undefined) curSec = Math.abs(window.timelinePanX) / (window.currentPixelsPerSecond || 80);
       }
@@ -69,16 +73,43 @@
       const phaseRad = (phaseDeg * Math.PI / 180) - (t * speed * Math.PI * 2);
       const dirRad = (dirDeg * Math.PI) / 180;
 
+      function pseudoNoise1D(k) {
+        const s = Math.sin(k * 127.1 + 311.7) * 43758.5453123;
+        return (s - Math.floor(s)) * 2 - 1;
+      }
+
+      function smoothNoise1D(u) {
+        const i0 = Math.floor(u);
+        const f = u - i0;
+        // Quintic smoothstep for continuous C2 curvature (identical to AE smooth noise)
+        const q = f * f * f * (f * (f * 6 - 15) + 10);
+        const a = pseudoNoise1D(i0);
+        const b = pseudoNoise1D(i0 + 1);
+        return a + (b - a) * q;
+      }
+
       function getWave(val) {
         const p = (val / width) * Math.PI * 2 + phaseRad;
-        if (type === 'triangle') {
+        if (rawType === 'triangle') {
           const s = Math.max(-1, Math.min(1, Math.sin(p)));
           return Math.asin(s) * (2 / Math.PI);
-        } else if (type === 'square') {
+        } else if (rawType === 'square') {
           return Math.sin(p) >= 0 ? 1 : -1;
-        } else if (type === 'sawtooth') {
+        } else if (rawType === 'sawtooth') {
           const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
           return norm * 2 - 1;
+        } else if (rawType === 'circle') {
+          const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
+          return Math.sqrt(Math.max(0, 1 - Math.pow((norm - 0.5) * 2, 2))) * 2 - 1;
+        } else if (rawType === 'semicircle' || rawType === 'semi-circle') {
+          const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
+          return Math.sqrt(Math.max(0, 1 - Math.pow((norm - 0.5) * 2, 2)));
+        } else if (rawType === 'noise') {
+          const cycle = p / (Math.PI * 2);
+          return pseudoNoise1D(Math.floor(cycle));
+        } else if (rawType === 'smooth-noise' || rawType === 'smoothnoise' || rawType === 'noisesmooth' || rawType === 'noise-smooth') {
+          const cycle = p / (Math.PI * 2);
+          return smoothNoise1D(cycle);
         }
         return Math.sin(p);
       }

@@ -68,6 +68,19 @@
 
         <!-- Right Header Actions (Settings & Export) -->
         <div class="editor-header-right-actions">
+          <button type="button" class="editor-precomp-collapse-btn" id="btn-precomp-collapse" title="For Comp layer: Collapse Transformations; For vector layer: Continuously Rasterize" aria-label="Collapse Transformations" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+              <line x1="12" y1="2.5" x2="12" y2="5.5"/>
+              <line x1="12" y1="18.5" x2="12" y2="21.5"/>
+              <line x1="2.5" y1="12" x2="5.5" y2="12"/>
+              <line x1="18.5" y1="12" x2="21.5" y2="12"/>
+              <line x1="5.28" y1="5.28" x2="7.4" y2="7.4"/>
+              <line x1="16.6" y1="16.6" x2="18.72" y2="18.72"/>
+              <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
+              <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
+            </svg>
+          </button>
           <button type="button" class="editor-settings-btn" id="btn-editor-template" title="Template Editor" aria-label="Template Editor" onclick="if(window.FishTemplateEditor) window.FishTemplateEditor.open()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -113,6 +126,19 @@
           <button type="button" class="editor-layer-delete-btn" id="btn-layer-header-delete" title="Delete Selected Layer" aria-label="Delete Selected Layer">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>
+          <button type="button" class="editor-layer-collapse-btn" id="btn-layer-header-collapse" title="For Comp layer: Collapse Transformations; For vector layer: Continuously Rasterize" aria-label="Collapse Transformations" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+              <line x1="12" y1="2.5" x2="12" y2="5.5"/>
+              <line x1="12" y1="18.5" x2="12" y2="21.5"/>
+              <line x1="2.5" y1="12" x2="5.5" y2="12"/>
+              <line x1="18.5" y1="12" x2="21.5" y2="12"/>
+              <line x1="5.28" y1="5.28" x2="7.4" y2="7.4"/>
+              <line x1="16.6" y1="16.6" x2="18.72" y2="18.72"/>
+              <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
+              <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
             </svg>
           </button>
           <button type="button" class="editor-layer-motion-blur-btn" id="btn-layer-header-motion-blur" title="Toggle Motion Blur" aria-label="Toggle Motion Blur">
@@ -534,6 +560,12 @@
                             <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
                           </svg>
                         </button>
+                        <button type="button" class="transform-nav-btn" id="btn-transform-expression" title="Expression" aria-label="Expression">
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/>
+                            <path d="M9.8 7.5c-.8 0-1.3.4-1.5 1.1H8v1.2h.7v3.5c0 1.4.7 2.2 2.1 2.2.6 0 1.1-.1 1.4-.3l-.3-1.2c-.3.1-.6.2-.9.2-.6 0-.9-.3-.9-1v-3.4h1.8V8.6h-1.8v-.4c0-.5.3-.7.8-.7.3 0 .6.1.8.2l.4-1.1c-.5-.2-1.1-.3-1.9-.3zm3.7 3.3l1.1 1.8 1.1-1.8h1.6l-1.9 2.7 2 2.8h-1.6l-1.2-1.9-1.2 1.9H12l2-2.8-1.9-2.7h1.4z"/>
+                          </svg>
+                        </button>
                       </div>
                     </aside>
 
@@ -574,6 +606,10 @@
                             <span class="transform-z-label" id="lbl-z-ruler">Z</span>
                           </div>
                         </div>
+                        <div class="transform-pane-expression-badge">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <span>Expression Active</span>
+                        </div>
                       </div>
 
                       <!-- PANE 2: ROTATE -->
@@ -597,6 +633,10 @@
                             </div>
                             <div class="rotate-knob" id="knob-transform-rotate"></div>
                           </div>
+                        </div>
+                        <div class="transform-pane-expression-badge">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <span>Expression Active</span>
                         </div>
                       </div>
 
@@ -639,6 +679,10 @@
                             <div class="jog-wheel-needle is-white"></div>
                           </div>
                         </div>
+                        <div class="transform-pane-expression-badge">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <span>Expression Active</span>
+                        </div>
                       </div>
 
                       <!-- PANE 4: SKEW -->
@@ -662,6 +706,10 @@
                             <div class="jog-wheel-ticks"></div>
                             <div class="jog-wheel-needle is-white"></div>
                           </div>
+                        </div>
+                        <div class="transform-pane-expression-badge">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <span>Expression Active</span>
                         </div>
                       </div>
                     </main>
@@ -1087,6 +1135,14 @@
                           <div class="effects-category-card-overlay"></div>
                           <span class="effects-category-name">Layer</span>
                         </div>
+                        <div class="effects-category-card" role="button" tabindex="0" data-category="background" title="Background">
+                          <div class="effects-category-card-overlay"></div>
+                          <span class="effects-category-name">Background</span>
+                        </div>
+                        <div class="effects-category-card" role="button" tabindex="0" data-category="expression" title="Expression Controls">
+                          <div class="effects-category-card-overlay"></div>
+                          <span class="effects-category-name">Expression</span>
+                        </div>
                       </div>
 
                       <!-- 2. Category Effects Items View (Inside "Lightning") -->
@@ -1185,6 +1241,18 @@
                             </div>
                             <span class="effects-gallery-item-name">Curve</span>
                           </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="scanline" data-category="lightning" title="Scanline">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Scanline" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Scanline</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="mono" data-category="lightning" title="Mono">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Mono" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Mono</span>
+                          </div>
                           <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="tile" data-category="warp" title="Tile">
                             <div class="effects-gallery-item-thumb">
                               <img src="assets/FXPH.svg" alt="Tile" class="effects-gallery-item-img" loading="lazy">
@@ -1244,6 +1312,90 @@
                               <img src="assets/FXPH.svg" alt="Camera Lens Blur" class="effects-gallery-item-img" loading="lazy">
                             </div>
                             <span class="effects-gallery-item-name">Camera Lens Blur</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="glow-aura" data-category="layer" title="Glow Aura">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Glow Aura" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Glow Aura</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="deep-glow" data-category="layer" title="Deep Glow">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Deep Glow" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Deep Glow</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="solid-aura" data-category="layer" title="Solid Aura (Flux)">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Solid Aura (Flux)" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Solid Aura (Flux)</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="bevel" data-category="layer" title="Bevel">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Bevel" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Bevel</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="shatter" data-category="layer" title="Shatter">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Shatter" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Shatter</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="star-burst" data-category="background" title="Star Burst">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Star Burst" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Star Burst</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="grid" data-category="background" title="Grid">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Grid" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Grid</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="radio-waves" data-category="background" title="Radio Waves">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Radio Waves" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Radio Waves</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="expression-controls" data-category="expression" title="Expression Controls">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Expression Controls" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Expression Controls</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="slider-control" data-category="expression" title="Slider Control">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Slider Control" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Slider Control</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="point-control" data-category="expression" title="Point Control">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Point Control" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Point Control</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="angle-control" data-category="expression" title="Angle Control">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Angle Control" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Angle Control</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="checkbox-control" data-category="expression" title="Checkbox Control">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Checkbox Control" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Checkbox Control</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="color-control" data-category="expression" title="Color Control">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Color Control" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Color Control</span>
                           </div>
                         </div>
                       </div>
@@ -2558,9 +2710,24 @@
   </div>
 
   <!-- ==========================================================================
+       MODULAR TRANSFORM EXPRESSION POPOVER (.is-expression-popover)
+       ========================================================================== -->
+  <div class="popover-card is-expression-popover" id="popover-transform-expression" role="dialog" aria-hidden="true" style="min-width: 260px; max-width: 320px;">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="expression-popover-header">
+      <span class="expression-popover-title" id="expression-popover-title">Expression</span>
+      <button type="button" class="expression-clear-btn" id="btn-expression-clear" title="Clear Expression">Clear</button>
+    </div>
+    <div class="expression-popover-body">
+      <textarea class="expression-textarea" id="expression-editor-textarea" placeholder="e.g. [value[0] + effect(&quot;Slider Control&quot;)(&quot;Slider&quot;), value[1]]" spellcheck="false" autocomplete="off" rows="3"></textarea>
+      <div class="expression-error-msg" id="expression-error-msg" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
        MODULAR GRAPH EDITOR MORE OPTIONS POPOVER (.is-menu-popover)
        ========================================================================== -->
-  <div class="popover-card is-menu-popover" id="popover-graph-more" role="dialog" aria-hidden="true" style="min-width: 190px;">
+  <div class="popover-card is-menu-popover" id="popover-graph-more" role="dialog" aria-hidden="true" style="min-width: 170px;">
     <div class="popover-tail" aria-hidden="true"></div>
     <div class="popover-menu-list">
       <button type="button" class="popover-menu-item" id="btn-toggle-overshoot">
@@ -2570,9 +2737,14 @@
         <span>Enable Overshoot</span>
       </button>
       <div class="popover-menu-divider"></div>
-      <button type="button" class="popover-menu-item" id="btn-graph-copy-to-all" title="Copy curve to all keyframes of this property">
-        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-        <span>Copy to all keyframes</span>
+      <button type="button" class="popover-menu-item" id="btn-graph-copy" title="Copy graph curve">
+        <span>Copy</span>
+      </button>
+      <button type="button" class="popover-menu-item" id="btn-graph-paste" title="Paste graph curve">
+        <span>Paste</span>
+      </button>
+      <button type="button" class="popover-menu-item" id="btn-graph-copy-to-all" title="Paste curve to all keyframes of this property">
+        <span>Paste to all</span>
       </button>
     </div>
   </div>
@@ -2691,6 +2863,17 @@
         </button>
       </nav>
     </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR PARAMETER VALUE INPUT POPOVER (.is-value-input-popover)
+       Direct keyboard numeric editing for effect & controller value badges
+       ========================================================================== -->
+  <div class="popover-card is-value-input-popover" id="popover-value-input" role="dialog" aria-hidden="true">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <form class="popover-value-form" id="popover-value-input-form" onsubmit="return false;">
+      <input type="number" step="any" class="popover-value-field" id="popover-value-input-field" autocomplete="off" spellcheck="false">
+    </form>
   </div>
 
   <!-- ==========================================================================
@@ -3005,6 +3188,22 @@
   <script src="effects/fill.js"></script>
   <script src="effects/fast_box_blur.js"></script>
   <script src="effects/camera_lens_blur.js"></script>
+  <script src="effects/expression_controls.js"></script>
+  <script src="effects/slider_control.js"></script>
+  <script src="effects/point_control.js"></script>
+  <script src="effects/angle_control.js"></script>
+  <script src="effects/checkbox_control.js"></script>
+  <script src="effects/color_control.js"></script>
+  <script src="effects/star_burst.js"></script>
+  <script src="effects/grid.js"></script>
+  <script src="effects/radio_waves.js"></script>
+  <script src="effects/scanline.js"></script>
+  <script src="effects/mono.js"></script>
+  <script src="effects/glow_aura.js"></script>
+  <script src="effects/solid_aura.js"></script>
+  <script src="effects/bevel.js"></script>
+  <script src="effects/shatter.js"></script>
+  <script src="effects/deep_glow.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/fishtools-adapter.js?v=4"></script>
@@ -3103,8 +3302,11 @@
             c[k] = l[k];
           }
           if (l.keyframes) c.keyframes = JSON.parse(JSON.stringify(l.keyframes));
+          if (l.defaultEasing) c.defaultEasing = JSON.parse(JSON.stringify(l.defaultEasing));
+          if (l._defaultEasing) c._defaultEasing = JSON.parse(JSON.stringify(l._defaultEasing));
           if (l.effects) c.effects = JSON.parse(JSON.stringify(l.effects));
           if (l.shapeProps) c.shapeProps = JSON.parse(JSON.stringify(l.shapeProps));
+          if (Array.isArray(l.layers)) c.layers = this._cloneLayersForSnapshot(l.layers);
           return c;
         });
       },
@@ -3112,12 +3314,27 @@
       _computeFingerprint(layers, beatmarks) {
         const lSig = (layers || []).map(l => {
           let kfCount = 0;
+          let kfSig = '';
           if (l.keyframes) {
             for (const p in l.keyframes) {
-              if (Array.isArray(l.keyframes[p])) kfCount += l.keyframes[p].length;
+              if (Array.isArray(l.keyframes[p])) {
+                kfCount += l.keyframes[p].length;
+                kfSig += p + ':' + l.keyframes[p].map(k => `${k.time}:${JSON.stringify(k.value)}:${(k.easing || []).join(',')}`).join('|') + ';';
+              }
             }
           }
-          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${kfCount}:${(l.effects || []).length}`;
+          let defEasSig = '';
+          const defEas = l.defaultEasing || l._defaultEasing;
+          if (defEas) {
+            for (const dp in defEas) {
+              if (Array.isArray(defEas[dp])) defEasSig += dp + ':' + defEas[dp].join(',') + ';';
+            }
+          }
+          let childSig = '';
+          if (Array.isArray(l.layers)) {
+            childSig = this._computeFingerprint(l.layers, []);
+          }
+          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${kfCount}:${(l.effects || []).length}:${kfSig}:${defEasSig}:${childSig}`;
         }).join(';');
         const bSig = (beatmarks || []).join(',');
         return `${lSig}|${bSig}`;
@@ -3183,6 +3400,19 @@
           currentProjectState.layers = JSON.parse(JSON.stringify(snapshot.layers || []));
           if (Array.isArray(snapshot.beatmarks)) {
             currentProjectState.beatmarks = [...snapshot.beatmarks];
+          }
+          if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            window.selectedKeyframes.forEach(item => {
+              const freshLayer = (currentProjectState.layers || []).find(l => l.id === item.layerId);
+              if (freshLayer) {
+                item.layer = freshLayer;
+                if (freshLayer.keyframes && Array.isArray(freshLayer.keyframes[item.prop])) {
+                  const matchTime = (item.kf && item.kf.time !== undefined) ? item.kf.time : item.time;
+                  const freshKf = freshLayer.keyframes[item.prop].find(k => Math.abs(k.time - matchTime) < 0.005);
+                  if (freshKf) item.kf = freshKf;
+                }
+              }
+            });
           }
           if (typeof window.renderTimelineBeatmarks === 'function') {
             window.renderTimelineBeatmarks();
@@ -3403,7 +3633,7 @@
       }
 
       const doSave = async () => {
-        if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+        if (window.UndoRedoManager && !window.UndoRedoManager.isApplying && !window.isTransformInteracting) {
           window.UndoRedoManager.recordSnapshot();
         }
         // Safety net: check all layers for timing/duration shifts against cached spans
@@ -3926,6 +4156,84 @@
     }
     window.getOrLoadLayerMedia = getOrLoadLayerMedia;
 
+    function composeEulerRotations(pRotX, pRotY, pRotZ, cRotX, cRotY, cRotZ) {
+      if (!pRotX && !pRotY && !pRotZ) {
+        return {
+          rotX: cRotX || 0,
+          rotY: cRotY || 0,
+          rotZ: cRotZ || 0
+        };
+      }
+      if (!cRotX && !cRotY && !cRotZ) {
+        return {
+          rotX: pRotX || 0,
+          rotY: pRotY || 0,
+          rotZ: pRotZ || 0
+        };
+      }
+
+      const radPX = ((pRotX || 0) * Math.PI) / 180;
+      const radPY = ((pRotY || 0) * Math.PI) / 180;
+      const radPZ = ((pRotZ || 0) * Math.PI) / 180;
+      const cpx = Math.cos(radPX), spx = Math.sin(radPX);
+      const cpy = Math.cos(radPY), spy = Math.sin(radPY);
+      const cpz = Math.cos(radPZ), spz = Math.sin(radPZ);
+
+      const mp00 = cpy * cpz;
+      const mp10 = spx * spy * cpz - cpx * spz;
+      const mp20 = cpx * spy * cpz + spx * spz;
+      const mp01 = cpy * spz;
+      const mp11 = spx * spy * spz + cpx * cpz;
+      const mp21 = cpx * spy * spz - spx * cpz;
+      const mp02 = -spy;
+      const mp12 = spx * cpy;
+      const mp22 = cpx * cpy;
+
+      const radCX = ((cRotX || 0) * Math.PI) / 180;
+      const radCY = ((cRotY || 0) * Math.PI) / 180;
+      const radCZ = ((cRotZ || 0) * Math.PI) / 180;
+      const ccx = Math.cos(radCX), scx = Math.sin(radCX);
+      const ccy = Math.cos(radCY), scy = Math.sin(radCY);
+      const ccz = Math.cos(radCZ), scz = Math.sin(radCZ);
+
+      const mc00 = ccy * ccz;
+      const mc10 = scx * scy * ccz - ccx * scz;
+      const mc20 = ccx * scy * ccz + scx * scz;
+      const mc01 = ccy * scz;
+      const mc11 = scx * scy * scz + ccx * ccz;
+      const mc21 = ccx * scy * scz - scx * ccz;
+      const mc02 = -scy;
+      const mc12 = scx * ccy;
+      const mc22 = ccx * ccy;
+
+      const mw00 = mp00 * mc00 + mp10 * mc01 + mp20 * mc02;
+      const mw10 = mp00 * mc10 + mp10 * mc11 + mp20 * mc12;
+      const mw01 = mp01 * mc00 + mp11 * mc01 + mp21 * mc02;
+      const mw11 = mp01 * mc10 + mp11 * mc11 + mp21 * mc12;
+      const mw02 = mp02 * mc00 + mp12 * mc01 + mp22 * mc02;
+      const mw12 = mp02 * mc10 + mp12 * mc11 + mp22 * mc12;
+      const mw22 = mp02 * mc20 + mp12 * mc21 + mp22 * mc22;
+
+      const m02Clamped = Math.max(-1, Math.min(1, mw02));
+      const ry = -Math.asin(m02Clamped);
+      const cosY = Math.cos(ry);
+      let rx, rz;
+      if (Math.abs(cosY) > 0.0001) {
+        rx = Math.atan2(mw12, mw22);
+        rz = Math.atan2(mw01, mw00);
+      } else {
+        rx = 0;
+        rz = Math.atan2(-mw10, mw11);
+      }
+
+      return {
+        rotX: (rx * 180) / Math.PI,
+        rotY: (ry * 180) / Math.PI,
+        rotZ: (rz * 180) / Math.PI
+      };
+    }
+    window.composeEulerRotations = composeEulerRotations;
+
     var _redrawCount = 0;
     var _redrawRafScheduled = false;
     var _lastRedrawSource = 'general';
@@ -3943,6 +4251,7 @@
         renderCanvasFrame(canvas, activeBg, canvas.width, canvas.height, _lastRedrawSource);
       });
     }
+    window.redrawComposition = redrawComposition;
 
     // Compatibility shim: used when selecting an item directly
     function setActivePreviewMedia(item) {
@@ -4152,6 +4461,354 @@
       return canvas;
     }
 
+    // Helper: Obtain rendered DOM element or canvas buffer for a precompose child layer
+    function getPrecompChildRenderElement(child, innerSec, pw, ph, pps, triggerSource = '') {
+      if (!child) return null;
+      const childEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(child, innerSec, null, [child]) : child;
+      const effSpeed = (childEff && childEff.speed !== undefined) ? childEff.speed : (child.speed !== undefined && child.speed > 0 ? child.speed : 1);
+      const isExport = (typeof triggerSource === 'string') && triggerSource.startsWith('export');
+
+      if (child.type === 'precomp') {
+        if (!child._precompBufferCanvas || !(child._precompBufferCanvas instanceof HTMLCanvasElement) || typeof child._precompBufferCanvas.getContext !== 'function') {
+          child._precompBufferCanvas = document.createElement('canvas');
+        }
+        const childW = Math.round(Math.abs(child.mediaWidth || child.scaleW || pw));
+        const childH = Math.round(Math.abs(child.mediaHeight || child.scaleH || ph));
+        if (child._precompBufferCanvas.width !== childW || child._precompBufferCanvas.height !== childH) {
+          child._precompBufferCanvas.width = childW;
+          child._precompBufferCanvas.height = childH;
+        }
+        child.mediaWidth = childW;
+        child.mediaHeight = childH;
+        child._userResized = true;
+        const cStart = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
+        const cInnerSec = Math.max(0, (child.sourceOffsetSec || 0) + (innerSec - cStart) * effSpeed);
+        renderPrecompToCanvas(child, child._precompBufferCanvas, cInnerSec, childW, childH, triggerSource);
+        return child._precompBufferCanvas;
+      } else if (child.type === 'text') {
+        if (!child._textBufferCanvas || !(child._textBufferCanvas instanceof HTMLCanvasElement)) {
+          child._textBufferCanvas = document.createElement('canvas');
+        }
+        const tw = Math.max(1, Math.round(Math.abs(child.scaleW || child.mediaWidth || 500)));
+        const th = Math.max(1, Math.round(Math.abs(child.scaleH || child.mediaHeight || 180)));
+        const cStart = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
+        const cDur = child.durationSec !== undefined ? child.durationSec : ((child.widthPx || 400) / pps);
+        const cLocal = Math.max(0, innerSec - cStart);
+        if (window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
+          window.FishTextEngine.renderTextToCanvas(child, child._textBufferCanvas, tw, th, cLocal, cDur);
+        }
+        child.mediaWidth = tw;
+        child.mediaHeight = th;
+        child._userResized = true;
+        return child._textBufferCanvas;
+      } else if (child.type === 'shape') {
+        if (!child._shapeBufferCanvas || !(child._shapeBufferCanvas instanceof HTMLCanvasElement) || typeof child._shapeBufferCanvas.getContext !== 'function') {
+          child._shapeBufferCanvas = document.createElement('canvas');
+        }
+        const spW = Math.max(1, Math.round(Math.abs((child.shapeProps && child.shapeProps.sizeX) || 300)));
+        const spH = Math.max(1, Math.round(Math.abs((child.shapeProps && child.shapeProps.sizeY) || 300)));
+        if (child._shapeBufferCanvas.width !== spW || child._shapeBufferCanvas.height !== spH) {
+          child._shapeBufferCanvas.width = spW;
+          child._shapeBufferCanvas.height = spH;
+        }
+        if (typeof renderShapeToCanvas === 'function') {
+          renderShapeToCanvas(child, child._shapeBufferCanvas, spW, spH);
+        }
+        child.mediaWidth = spW;
+        child.mediaHeight = spH;
+        return child._shapeBufferCanvas;
+      } else {
+        const isNativeMedia = (child.type === 'video' || child.type === 'image');
+        const effectiveFill = child.fillType || (isNativeMedia ? 'media' : (child.fillColor ? 'color' : 'none'));
+        if (effectiveFill === 'none') {
+          return null;
+        } else if (effectiveFill === 'color' || effectiveFill === 'gradient' || (!isNativeMedia && effectiveFill === 'media')) {
+          const cw = Math.round(Math.abs(child.mediaWidth || child.scaleW || pw));
+          const ch = Math.round(Math.abs(child.mediaHeight || child.scaleH || ph));
+          const el = (typeof getOrUpdateLayerFillCanvas === 'function') ? getOrUpdateLayerFillCanvas(child, cw, ch) : null;
+          child.mediaWidth = cw;
+          child.mediaHeight = ch;
+          return el;
+        } else {
+          const m = getOrLoadLayerMedia(child);
+          if (!m) return null;
+          let el = m.el;
+          if (child.type === 'video') {
+            const cStart = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
+            const timeInClip = Math.max(0, (child.sourceOffsetSec || 0) + (innerSec - cStart) * effSpeed);
+            const sourceKey = (window.VideoFrameExtractor && window.VideoFrameExtractor._getSourceKey) ? window.VideoFrameExtractor._getSourceKey(child) : (child.mediaId || child.dataUrl || child.id);
+            const cachedSource = (!isExport && window.VideoFrameExtractor) ? window.VideoFrameExtractor.getSourceCache(sourceKey) : null;
+            if (!isExport && cachedSource) {
+              const childInterp = child.speedInterpolation || 'none';
+              let cachedFrame = null;
+              if (childInterp !== 'none' && window.VideoFrameExtractor && typeof window.VideoFrameExtractor.getInterpolatedFrame === 'function') {
+                cachedFrame = window.VideoFrameExtractor.getInterpolatedFrame(cachedSource, timeInClip, childInterp, child.mediaWidth, child.mediaHeight);
+              }
+              if (!cachedFrame) {
+                const fIdx = Math.round(timeInClip * cachedSource.fps);
+                cachedFrame = cachedSource.frames.get(fIdx);
+              }
+              if (cachedFrame) el = cachedFrame;
+            }
+          }
+          return el;
+        }
+      }
+    }
+    window.getPrecompChildRenderElement = getPrecompChildRenderElement;
+
+    // Helper: Compute Adaptive 3D Group Wireframe Bounds for Collapsed Precompose Layer
+    function computeCollapsedPrecompBounds(precompLayer, effProps, currentSec, bufferScale, camEff, w, h) {
+      const engine = window.FishToolEngine || window.LayerTransform;
+      if (!engine || !precompLayer) return null;
+
+      const pps = window.currentPixelsPerSecond || 80;
+      const baseW = (typeof currentProjectState !== 'undefined' && currentProjectState.baseW) || 1920;
+      const baseH = (typeof currentProjectState !== 'undefined' && currentProjectState.baseH) || 1080;
+      const precompW = Math.round(Math.abs(precompLayer.mediaWidth || precompLayer.scaleW || baseW));
+      const precompH = Math.round(Math.abs(precompLayer.mediaHeight || precompLayer.scaleH || baseH));
+
+      const clipStart = precompLayer.startSec !== undefined ? precompLayer.startSec : ((precompLayer.startPx || 0) / pps);
+      let innerSec = 0;
+      if (precompLayer.speedMode === 'time_remap') {
+        innerSec = Math.max(0, effProps.timeRemap !== undefined ? effProps.timeRemap : ((currentSec - clipStart) * (precompLayer.speed || 1.0)));
+      } else {
+        innerSec = (typeof getLayerIntegratedSpeedTime === 'function')
+          ? getLayerIntegratedSpeedTime(precompLayer, currentSec)
+          : Math.max(0, (precompLayer.sourceOffsetSec || 0) + (currentSec - clipStart) * (precompLayer.speed || 1.0));
+      }
+
+      const childLayers = precompLayer.layers || [];
+      const activeChildren = childLayers.filter(child => {
+        const cs = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
+        const cd = child.durationSec !== undefined ? child.durationSec : ((child.widthPx || 320) / pps);
+        return innerSec >= cs && innerSec < cs + cd;
+      });
+      const validChildren = activeChildren.filter(c => c.type !== 'camera' && c.type !== 'null' && c.type !== 'audio' && !c.hidden);
+
+      const precompCenterBounds = engine.getBounds(Object.assign({}, precompLayer, effProps), bufferScale, camEff, w, h);
+      if (validChildren.length === 0) {
+        return precompCenterBounds;
+      }
+
+      const scaleRatioW = (effProps.scaleW !== undefined ? effProps.scaleW : precompW) / (precompW || 1920);
+      const scaleRatioH = (effProps.scaleH !== undefined ? effProps.scaleH : precompH) / (precompH || 1080);
+      const scaleRatioZ = (Math.abs(scaleRatioW) + Math.abs(scaleRatioH)) / 2;
+
+      const pRotX = effProps.rotX || 0;
+      const pRotY = effProps.rotY || 0;
+      const pRotZ = effProps.rotZ !== undefined ? effProps.rotZ : (effProps.rotation || 0);
+
+      const pivotX = precompW / 2 + (effProps.anchorX || 0);
+      const pivotY = precompH / 2 + (effProps.anchorY || 0);
+      const pivotZ = (effProps.anchorZ || 0);
+
+      const pWorldX = (effProps.posX !== undefined ? effProps.posX : baseW / 2) + (effProps.anchorX || 0);
+      const pWorldY = (effProps.posY !== undefined ? effProps.posY : baseH / 2) + (effProps.anchorY || 0);
+      const pWorldZ = (effProps.posZ || 0) + (effProps.anchorZ || 0);
+
+      if (validChildren.length === 1) {
+        const child = validChildren[0];
+        const childEff = (typeof getLayerEffectivePropsAtTime === 'function')
+          ? getLayerEffectivePropsAtTime(child, innerSec, null, childLayers)
+          : child;
+
+        let vx = (childEff.posX !== undefined ? childEff.posX : precompW / 2) - pivotX;
+        let vy = (childEff.posY !== undefined ? childEff.posY : precompH / 2) - pivotY;
+        let vz = (childEff.posZ || 0) - pivotZ;
+
+        vx *= scaleRatioW;
+        vy *= scaleRatioH;
+        vz *= scaleRatioZ;
+
+        if (pRotZ !== 0) {
+          const radZ = (pRotZ * Math.PI) / 180;
+          const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
+          const nvx = vx * cZ - vy * sZ, nvy = vx * sZ + vy * cZ;
+          vx = nvx; vy = nvy;
+        }
+        if (pRotY !== 0) {
+          const radY = (pRotY * Math.PI) / 180;
+          const cY = Math.cos(radY), sY = Math.sin(radY);
+          const nvx = vx * cY + vz * sY, nvz = -vx * sY + vz * cY;
+          vx = nvx; vz = nvz;
+        }
+        if (pRotX !== 0) {
+          const radX = (pRotX * Math.PI) / 180;
+          const cX = Math.cos(radX), sX = Math.sin(radX);
+          const nvy = vy * cX - vz * sX, nvz = vy * sX + vz * cX;
+          vy = nvy; vz = nvz;
+        }
+
+        const worldPosX = pWorldX + vx;
+        const worldPosY = pWorldY + vy;
+        const worldPosZ = pWorldZ + vz;
+
+        const worldRotX = (childEff.rotX || 0) + pRotX;
+        const worldRotY = (childEff.rotY || 0) + pRotY;
+        const worldRotZ = ((childEff.rotZ !== undefined ? childEff.rotZ : (childEff.rotation || 0))) + pRotZ;
+
+        const childBaseW = (childEff.scaleW !== undefined ? childEff.scaleW : (child.scaleW || child.mediaWidth || 500));
+        const childBaseH = (childEff.scaleH !== undefined ? childEff.scaleH : (child.scaleH || child.mediaHeight || 500));
+        const worldScaleW = childBaseW * scaleRatioW;
+        const worldScaleH = childBaseH * scaleRatioH;
+
+        const worldAnchorX = (childEff.anchorX || 0) * scaleRatioW;
+        const worldAnchorY = (childEff.anchorY || 0) * scaleRatioH;
+        const worldAnchorZ = (childEff.anchorZ || 0) * scaleRatioZ;
+
+        const childWorldAnimLayer = Object.assign({}, child, childEff, {
+          posX: worldPosX,
+          posY: worldPosY,
+          posZ: worldPosZ,
+          rotX: worldRotX,
+          rotY: worldRotY,
+          rotZ: worldRotZ,
+          rotation: worldRotZ,
+          scaleW: worldScaleW,
+          scaleH: worldScaleH,
+          anchorX: worldAnchorX,
+          anchorY: worldAnchorY,
+          anchorZ: worldAnchorZ,
+          mediaWidth: child.mediaWidth || Math.abs(worldScaleW),
+          mediaHeight: child.mediaHeight || Math.abs(worldScaleH)
+        });
+
+        const cb = engine.getBounds(childWorldAnimLayer, bufferScale, camEff, w, h);
+        if (cb && cb.corners && Array.isArray(cb.corners) && cb.corners.length === 4) {
+          return cb;
+        }
+      }
+
+      if (validChildren.length > 1 && (pRotX !== 0 || pRotY !== 0 || pRotZ !== 0) && precompCenterBounds && precompCenterBounds.corners && precompCenterBounds.corners.length === 4) {
+        return precompCenterBounds;
+      }
+
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let anyValid = false;
+
+      validChildren.forEach(child => {
+        const childEff = (typeof getLayerEffectivePropsAtTime === 'function')
+          ? getLayerEffectivePropsAtTime(child, innerSec, null, childLayers)
+          : child;
+
+        let vx = (childEff.posX !== undefined ? childEff.posX : precompW / 2) - pivotX;
+        let vy = (childEff.posY !== undefined ? childEff.posY : precompH / 2) - pivotY;
+        let vz = (childEff.posZ || 0) - pivotZ;
+
+        vx *= scaleRatioW;
+        vy *= scaleRatioH;
+        vz *= scaleRatioZ;
+
+        if (pRotZ !== 0) {
+          const radZ = (pRotZ * Math.PI) / 180;
+          const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
+          const nvx = vx * cZ - vy * sZ, nvy = vx * sZ + vy * cZ;
+          vx = nvx; vy = nvy;
+        }
+        if (pRotY !== 0) {
+          const radY = (pRotY * Math.PI) / 180;
+          const cY = Math.cos(radY), sY = Math.sin(radY);
+          const nvx = vx * cY + vz * sY, nvz = -vx * sY + vz * cY;
+          vx = nvx; vz = nvz;
+        }
+        if (pRotX !== 0) {
+          const radX = (pRotX * Math.PI) / 180;
+          const cX = Math.cos(radX), sX = Math.sin(radX);
+          const nvy = vy * cX - vz * sX, nvz = vy * sX + vz * cX;
+          vy = nvy; vz = nvz;
+        }
+
+        const worldPosX = pWorldX + vx;
+        const worldPosY = pWorldY + vy;
+        const worldPosZ = pWorldZ + vz;
+
+        const worldRotX = (childEff.rotX || 0) + pRotX;
+        const worldRotY = (childEff.rotY || 0) + pRotY;
+        const worldRotZ = ((childEff.rotZ !== undefined ? childEff.rotZ : (childEff.rotation || 0))) + pRotZ;
+
+        const childBaseW = (childEff.scaleW !== undefined ? childEff.scaleW : (child.scaleW || child.mediaWidth || 500));
+        const childBaseH = (childEff.scaleH !== undefined ? childEff.scaleH : (child.scaleH || child.mediaHeight || 500));
+        const worldScaleW = childBaseW * scaleRatioW;
+        const worldScaleH = childBaseH * scaleRatioH;
+
+        const worldAnchorX = (childEff.anchorX || 0) * scaleRatioW;
+        const worldAnchorY = (childEff.anchorY || 0) * scaleRatioH;
+        const worldAnchorZ = (childEff.anchorZ || 0) * scaleRatioZ;
+
+        const childWorldAnimLayer = Object.assign({}, child, childEff, {
+          posX: worldPosX,
+          posY: worldPosY,
+          posZ: worldPosZ,
+          rotX: worldRotX,
+          rotY: worldRotY,
+          rotZ: worldRotZ,
+          rotation: worldRotZ,
+          scaleW: worldScaleW,
+          scaleH: worldScaleH,
+          anchorX: worldAnchorX,
+          anchorY: worldAnchorY,
+          anchorZ: worldAnchorZ,
+          mediaWidth: child.mediaWidth || Math.abs(worldScaleW),
+          mediaHeight: child.mediaHeight || Math.abs(worldScaleH)
+        });
+
+        const cb = engine.getBounds(childWorldAnimLayer, bufferScale, camEff, w, h);
+        if (cb && cb.corners && Array.isArray(cb.corners)) {
+          cb.corners.forEach(pt => {
+            if (pt && !pt.isBehind && !isNaN(pt.x) && !isNaN(pt.y)) {
+              anyValid = true;
+              if (pt.x < minX) minX = pt.x;
+              if (pt.x > maxX) maxX = pt.x;
+              if (pt.y < minY) minY = pt.y;
+              if (pt.y > maxY) maxY = pt.y;
+            }
+          });
+        }
+      });
+
+      if (!anyValid || !isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
+        return precompCenterBounds;
+      }
+
+      const anc = (precompCenterBounds && precompCenterBounds.anchor) ? precompCenterBounds.anchor : { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+      const groupCorners = [
+        { x: minX, y: minY, z: 0 },
+        { x: maxX, y: minY, z: 0 },
+        { x: maxX, y: maxY, z: 0 },
+        { x: minX, y: maxY, z: 0 }
+      ];
+
+      return {
+        is3D: true,
+        isBehindCamera: false,
+        cx: (minX + maxX) / 2,
+        cy: (minY + maxY) / 2,
+        x: minX,
+        y: minY,
+        w: Math.max(1, maxX - minX),
+        h: Math.max(1, maxY - minY),
+        aabbW: Math.max(1, maxX - minX),
+        aabbH: Math.max(1, maxY - minY),
+        corners: groupCorners,
+        anchor: anc,
+        handles: [
+          { type: 'nw', x: minX, y: minY, cursor: 'nwse-resize' },
+          { type: 'n',  x: (minX + maxX) / 2, y: minY, cursor: 'ns-resize' },
+          { type: 'ne', x: maxX, y: minY, cursor: 'nesw-resize' },
+          { type: 'e',  x: maxX, y: (minY + maxY) / 2, cursor: 'ew-resize' },
+          { type: 'se', x: maxX, y: maxY, cursor: 'nwse-resize' },
+          { type: 's',  x: (minX + maxX) / 2, y: maxY, cursor: 'ns-resize' },
+          { type: 'sw', x: minX, y: maxY, cursor: 'nesw-resize' },
+          { type: 'w',  x: minX, y: (minY + maxY) / 2, cursor: 'ew-resize' },
+          { type: 'anchor', x: anc.x, y: anc.y, cursor: 'move' }
+        ],
+        bufferScale
+      };
+    }
+    window.computeCollapsedPrecompBounds = computeCollapsedPrecompBounds;
+
     // Render Precompose Layer onto offscreen canvas buffer
     function renderPrecompToCanvas(precompLayer, targetCanvas, innerSec, targetW = null, targetH = null, triggerSource = '') {
       if (!targetCanvas || typeof targetCanvas.getContext !== 'function' || !precompLayer) return;
@@ -4226,7 +4883,7 @@
               if (child.blendMode && child.blendMode !== 'normal') {
                 pctx.globalCompositeOperation = child.blendMode;
               }
-              window.FishEffects.renderLayer(pctx, snap, animChild, { x: 0, y: 0, w: pw, h: ph });
+              window.FishEffects.renderLayer(pctx, snap, animChild, { x: 0, y: 0, w: pw, h: ph }, innerSec);
               pctx.restore();
             } else if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
               window.FishEffects.applyToContext(pctx, animChild);
@@ -4360,6 +5017,28 @@
           const curAbsW = Math.abs(curBw);
           const curAbsH = Math.abs(curBh);
 
+          const engine = window.FishToolEngine || window.LayerTransform;
+          const isChild3D = engine && (Math.abs(curRotX) > 0.001 || Math.abs(curRotY) > 0.001 || Math.abs(eff.posZ || 0) > 0.001 || Math.abs(eff.anchorZ || 0) > 0.001 || !!targetChild.is3D);
+          if (isChild3D) {
+            const animChild = Object.assign({}, targetChild, eff, {
+              posX: curCx,
+              posY: curCy,
+              scaleW: curBw,
+              scaleH: curBh,
+              rotZ: curRotZ,
+              rotX: curRotX,
+              rotY: curRotY,
+              skewX: curSkewX,
+              skewY: curSkewY,
+              anchorX: curAx,
+              anchorY: curAy,
+              opacity: eff.opacity !== undefined ? eff.opacity : 1.0
+            });
+            engine.renderLayer(targetCtx, targetEl, animChild, 1, null);
+            targetCtx.restore();
+            return;
+          }
+
           targetCtx.translate(curCx + curAx * curSignX, curCy + curAy * curSignY);
           if (curRotZ) targetCtx.rotate((curRotZ * Math.PI) / 180);
           if (curRotX || curRotY) {
@@ -4378,7 +5057,7 @@
 
           try {
             if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function' && Array.isArray(targetChild.effects) && targetChild.effects.length > 0) {
-              window.FishEffects.renderLayer(targetCtx, targetEl, Object.assign({}, targetChild, eff), { x: -curAbsW / 2 - curAx, y: -curAbsH / 2 - curAy, w: curAbsW, h: curAbsH });
+              window.FishEffects.renderLayer(targetCtx, targetEl, Object.assign({}, targetChild, eff), { x: -curAbsW / 2 - curAx, y: -curAbsH / 2 - curAy, w: curAbsW, h: curAbsH }, innerSec);
             } else {
               targetCtx.drawImage(targetEl, -curAbsW / 2 - curAx, -curAbsH / 2 - curAy, curAbsW, curAbsH);
             }
@@ -4431,6 +5110,8 @@
       const pixelsPerSecond = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? Math.min(0, window.timelinePanX) : 0;
       const currentSec = (overrideSec !== null && overrideSec !== undefined) ? Math.max(0, overrideSec) : (Math.max(0, -currentPanX) / pixelsPerSecond);
+      window.currentSec = currentSec;
+      window.currentPlaybackSec = currentSec;
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
       const frameIndex = Math.round(currentSec * fps);
 
@@ -4537,7 +5218,11 @@
               };
             } else if (engine) {
               const effProps = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(selL, currentSec) : selL;
-              selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
+              if (selL.type === 'precomp' && selL.collapseTransformations && Array.isArray(selL.layers) && selL.layers.length > 0) {
+                selL._canvasBounds = computeCollapsedPrecompBounds(selL, effProps, currentSec, bufferScale, camEff, w, h);
+              } else {
+                selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
+              }
             }
           });
         }
@@ -4731,7 +5416,7 @@
           }
 
           if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-            window.FishEffects.renderLayer(procCtx, buf, animLayer, { x: 0, y: 0, w: w, h: h });
+            window.FishEffects.renderLayer(procCtx, buf, animLayer, { x: 0, y: 0, w: w, h: h }, currentSec);
           } else {
             procCtx.drawImage(buf, 0, 0);
           }
@@ -4818,6 +5503,170 @@
           layer.mediaWidth = pw;
           layer.mediaHeight = ph;
         } else if (layer.type === 'precomp') {
+          if (layer.collapseTransformations) {
+            // Collapse Transformations (3D Grouping Mode)
+            const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
+              ? getLayerEffectivePropsAtTime(layer, currentSec)
+              : layer;
+
+            const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+            let innerSec = 0;
+            if (layer.speedMode === 'time_remap') {
+              innerSec = Math.max(0, effProps.timeRemap !== undefined ? effProps.timeRemap : ((currentSec - clipStart) * (layer.speed || 1.0)));
+            } else {
+              innerSec = (typeof getLayerIntegratedSpeedTime === 'function')
+                ? getLayerIntegratedSpeedTime(layer, currentSec)
+                : Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - clipStart) * (layer.speed || 1.0));
+            }
+
+            const pw = Math.round(Math.abs(layer.mediaWidth || layer.scaleW || baseW));
+            const ph = Math.round(Math.abs(layer.mediaHeight || layer.scaleH || baseH));
+            layer.mediaWidth = pw;
+            layer.mediaHeight = ph;
+
+            // Compute adaptive 3D bounding wireframe for the precomp group
+            layer._canvasBounds = computeCollapsedPrecompBounds(layer, effProps, currentSec, bufferScale, camEff, w, h);
+
+            // Concatenate precomp 3D transform with each child layer and push to 3D scene batch
+            const pps = window.currentPixelsPerSecond || 80;
+            const childLayers = layer.layers || [];
+            const activeChildren = childLayers.filter(child => {
+              const cs = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
+              const cd = child.durationSec !== undefined ? child.durationSec : ((child.widthPx || 320) / pps);
+              return innerSec >= cs && innerSec < cs + cd;
+            });
+            const validChildren = [...activeChildren].reverse().filter(c => c.type !== 'camera' && c.type !== 'null' && c.type !== 'audio' && !c.hidden);
+
+            const scaleRatioW = (effProps.scaleW !== undefined ? effProps.scaleW : pw) / (pw || 1920);
+            const scaleRatioH = (effProps.scaleH !== undefined ? effProps.scaleH : ph) / (ph || 1080);
+            const scaleRatioZ = (Math.abs(scaleRatioW) + Math.abs(scaleRatioH)) / 2;
+
+            const pRotX = effProps.rotX || 0;
+            const pRotY = effProps.rotY || 0;
+            const pRotZ = effProps.rotZ !== undefined ? effProps.rotZ : (effProps.rotation || 0);
+
+            const pivotX = pw / 2 + (effProps.anchorX || 0);
+            const pivotY = ph / 2 + (effProps.anchorY || 0);
+            const pivotZ = (effProps.anchorZ || 0);
+
+            const pWorldX = (effProps.posX !== undefined ? effProps.posX : baseW / 2) + (effProps.anchorX || 0);
+            const pWorldY = (effProps.posY !== undefined ? effProps.posY : baseH / 2) + (effProps.anchorY || 0);
+            const pWorldZ = (effProps.posZ || 0) + (effProps.anchorZ || 0);
+
+            const precompOpacity = effProps.opacity !== undefined ? effProps.opacity : 1.0;
+            const engine = window.FishToolEngine || window.LayerTransform;
+
+            validChildren.forEach(child => {
+              const childEl = getPrecompChildRenderElement(child, innerSec, pw, ph, pps, triggerSource);
+              if (!childEl) return;
+
+              const childEff = (typeof getLayerEffectivePropsAtTime === 'function')
+                ? getLayerEffectivePropsAtTime(child, innerSec, null, childLayers)
+                : child;
+
+              let vx = (childEff.posX !== undefined ? childEff.posX : pw / 2) - pivotX;
+              let vy = (childEff.posY !== undefined ? childEff.posY : ph / 2) - pivotY;
+              let vz = (childEff.posZ || 0) - pivotZ;
+
+              vx *= scaleRatioW;
+              vy *= scaleRatioH;
+              vz *= scaleRatioZ;
+
+              if (pRotX !== 0) {
+                const radX = (pRotX * Math.PI) / 180;
+                const cX = Math.cos(radX), sX = Math.sin(radX);
+                const nvy = vy * cX - vz * sX, nvz = vy * sX + vz * cX;
+                vy = nvy; vz = nvz;
+              }
+              if (pRotY !== 0) {
+                const radY = (pRotY * Math.PI) / 180;
+                const cY = Math.cos(radY), sY = Math.sin(radY);
+                const nvx = vx * cY + vz * sY, nvz = -vx * sY + vz * cY;
+                vx = nvx; vz = nvz;
+              }
+              if (pRotZ !== 0) {
+                const radZ = (pRotZ * Math.PI) / 180;
+                const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
+                const nvx = vx * cZ - vy * sZ, nvy = vx * sZ + vy * cZ;
+                vx = nvx; vy = nvy;
+              }
+
+              const worldPosX = pWorldX + vx;
+              const worldPosY = pWorldY + vy;
+              const worldPosZ = pWorldZ + vz;
+
+              const cRotX = childEff.rotX || 0;
+              const cRotY = childEff.rotY || 0;
+              const cRotZ = childEff.rotZ !== undefined ? childEff.rotZ : (childEff.rotation || 0);
+              const composedRot = composeEulerRotations(pRotX, pRotY, pRotZ, cRotX, cRotY, cRotZ);
+              const worldRotX = composedRot.rotX;
+              const worldRotY = composedRot.rotY;
+              const worldRotZ = composedRot.rotZ;
+
+              const childBaseW = (childEff.scaleW !== undefined ? childEff.scaleW : (child.scaleW || child.mediaWidth || 500));
+              const childBaseH = (childEff.scaleH !== undefined ? childEff.scaleH : (child.scaleH || child.mediaHeight || 500));
+              const worldScaleW = childBaseW * scaleRatioW;
+              const worldScaleH = childBaseH * scaleRatioH;
+
+              const worldAnchorX = (childEff.anchorX || 0) * scaleRatioW;
+              const worldAnchorY = (childEff.anchorY || 0) * scaleRatioH;
+              const worldAnchorZ = (childEff.anchorZ || 0) * scaleRatioZ;
+
+              const worldOpacity = precompOpacity * (childEff.opacity !== undefined ? childEff.opacity : 1.0);
+
+              const childWorldAnimLayer = Object.assign({}, child, childEff, {
+                posX: worldPosX,
+                posY: worldPosY,
+                posZ: worldPosZ,
+                rotX: worldRotX,
+                rotY: worldRotY,
+                rotZ: worldRotZ,
+                rotation: worldRotZ,
+                scaleW: worldScaleW,
+                scaleH: worldScaleH,
+                anchorX: worldAnchorX,
+                anchorY: worldAnchorY,
+                anchorZ: worldAnchorZ,
+                opacity: worldOpacity,
+                mediaWidth: child.mediaWidth || Math.abs(worldScaleW),
+                mediaHeight: child.mediaHeight || Math.abs(worldScaleH),
+                _isCollapsedPrecompChild: true,
+                _precompParentId: layer.id
+              });
+
+              if (Array.isArray(childEff.effects)) {
+                childWorldAnimLayer.effects = childEff.effects.map(fx => Object.assign({}, fx));
+              }
+
+              if (engine) {
+                childWorldAnimLayer._canvasBounds = engine.getBounds(childWorldAnimLayer, bufferScale, camEff, w, h);
+                layersToRender.push({ el: childEl, layer: childWorldAnimLayer, animLayer: childWorldAnimLayer });
+              } else {
+                ctx.save();
+                if (worldOpacity < 1.0) ctx.globalAlpha = Math.max(0, Math.min(1, worldOpacity));
+                if (child.blendMode && child.blendMode !== 'normal') ctx.globalCompositeOperation = child.blendMode;
+                const ax = worldAnchorX * bufferScale;
+                const ay = worldAnchorY * bufferScale;
+                ctx.translate(worldPosX * bufferScale + ax, worldPosY * bufferScale + ay);
+                if (worldRotZ) ctx.rotate((worldRotZ * Math.PI) / 180);
+                const signCX = Math.sign(worldScaleW) || 1;
+                const signCY = Math.sign(worldScaleH) || 1;
+                const cAbsW = Math.abs(worldScaleW) * bufferScale;
+                const cAbsH = Math.abs(worldScaleH) * bufferScale;
+                if (signCX < 0 || signCY < 0) ctx.scale(signCX, signCY);
+                try {
+                  ctx.drawImage(childEl, -cAbsW / 2 - ax, -cAbsH / 2 - ay, cAbsW, cAbsH);
+                } catch (_) {}
+                ctx.restore();
+              }
+            });
+
+            if (!isExport && window.selectedLayerId && layer.id === window.selectedLayerId && !layer.hidden) {
+              selectedWireframeBounds = layer._canvasBounds;
+            }
+            return; // Skip normal single-layer pass for this collapsed precomp
+          }
+
           if (!layer._precompBufferCanvas || !(layer._precompBufferCanvas instanceof HTMLCanvasElement) || typeof layer._precompBufferCanvas.getContext !== 'function') {
             layer._precompBufferCanvas = document.createElement('canvas');
           }
@@ -5222,7 +6071,7 @@
                 else if (Array.isArray(layer.effects)) animLayerPost.effects = layer.effects;
 
                 if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-                  window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: -absW / 2 - ax, y: -absH / 2 - ay, w: absW, h: absH });
+                  window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: -absW / 2 - ax, y: -absH / 2 - ay, w: absW, h: absH }, currentSec);
                 } else {
                   ctx.drawImage(el, -absW / 2 - ax, -absH / 2 - ay, absW, absH);
                 }
@@ -5511,7 +6360,11 @@
             const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
               ? getLayerEffectivePropsAtTime(selL, currentSec)
               : selL;
-            selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
+            if (selL.type === 'precomp' && selL.collapseTransformations && Array.isArray(selL.layers) && selL.layers.length > 0) {
+              selL._canvasBounds = computeCollapsedPrecompBounds(selL, effProps, currentSec, bufferScale, camEff, w, h);
+            } else {
+              selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
+            }
           }
         });
       }
@@ -5872,6 +6725,9 @@
           const hitH = window.CanvasWireframe.hitTestHandle(b, coords.x, coords.y, hitTolerance, isAnchorMode);
 
           if (hitH && hitH.type !== 'anchor') {
+            if (selectedLayer.expressions && selectedLayer.expressions.scale) {
+              return; // Scale controlled by expression
+            }
             if (selectedLayer.type === 'camera') {
               syncLayerWithEffectiveProps(selectedLayer);
               window.isTransformInteracting = true;
@@ -5977,10 +6833,13 @@
                             window.CanvasWireframe.hitTest(b, coords.x, coords.y) &&
                             !(selectedLayer.type === 'image' && isLayerPixelTransparent(selectedLayer, coords.x, coords.y));
           if (isAnchorHit || (isAnchorMode && isBodyHit) || isBodyHit) {
+            const isMoveAnchor = isAnchorMode;
+            if (selectedLayer.expressions && (selectedLayer.expressions.move || (isMoveAnchor && selectedLayer.expressions.anchor))) {
+              return; // Position/Anchor controlled by expression
+            }
             syncLayerWithEffectiveProps(selectedLayer);
             window.isTransformInteracting = true;
 
-            const isMoveAnchor = isAnchorMode;
             activeOp = isMoveAnchor ? 'moveAnchor' : 'move';
             activeHandleType = isMoveAnchor ? 'anchor' : 'move';
             targetLayer = selectedLayer;
@@ -6093,10 +6952,7 @@
           return;
         }
 
-        // E. Click on empty background: deselect
-        if (typeof window.deselectTimelineLayer === 'function') {
-          window.deselectTimelineLayer();
-        }
+        // E. Click on empty background: keep layer selected per user rule
       });
 
       function requestCanvasRedraw() {
@@ -6667,6 +7523,369 @@
       return res;
     }
 
+    // ======================================================================
+    // LAYER EXPRESSION EVALUATOR & EFFECT CONTROLLER BINDINGS
+    // ======================================================================
+    function createEffectProxy(fx) {
+      if (!fx) {
+        const dummy = function() { return 0; };
+        dummy.value = 0;
+        dummy.slider = 0;
+        dummy.valueOf = () => 0;
+        dummy.toString = () => '0';
+        return dummy;
+      }
+      const isPoint = (fx.type === 'point-control' || fx.id === 'point-control' || (fx.point_x !== undefined && fx.point_y !== undefined));
+      const proxyFn = function(paramNameOrIdx) {
+        if (isPoint) {
+          if (paramNameOrIdx === undefined || paramNameOrIdx === 'point' || paramNameOrIdx === 'Point' || paramNameOrIdx === 'value') {
+            return [Number(fx.point_x) || 0, Number(fx.point_y) || 0];
+          }
+        }
+        if (typeof paramNameOrIdx === 'number') {
+          const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
+          const pId = pIds[paramNameOrIdx - 1] || pIds[paramNameOrIdx];
+          return (pId && fx[pId] !== undefined) ? fx[pId] : (fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0));
+        }
+        if (typeof paramNameOrIdx === 'string') {
+          const cleanKey = paramNameOrIdx.toLowerCase().replace(/[\s_-]/g, '');
+          if (cleanKey.includes('slider') || cleanKey.includes('adbeslidercontrol')) {
+            return fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0);
+          }
+          for (const key of Object.keys(fx)) {
+            if (key.toLowerCase().replace(/[\s_-]/g, '') === cleanKey) {
+              return fx[key];
+            }
+          }
+          const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
+          if (def && Array.isArray(def.params)) {
+            const pDef = def.params.find(p => (p.label && p.label.toLowerCase().replace(/[\s_-]/g, '') === cleanKey) || p.id.toLowerCase().replace(/[\s_-]/g, '') === cleanKey);
+            if (pDef && fx[pDef.id] !== undefined) return fx[pDef.id];
+          }
+        }
+        const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
+        return (pIds[0] && fx[pIds[0]] !== undefined) ? fx[pIds[0]] : (fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0));
+      };
+
+      Object.keys(fx).forEach(k => {
+        proxyFn[k] = fx[k];
+        proxyFn[k.toLowerCase()] = fx[k];
+      });
+
+      if (isPoint) {
+        proxyFn.point = [Number(fx.point_x) || 0, Number(fx.point_y) || 0];
+      }
+
+      const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
+      const defaultVal = (pIds[0] && fx[pIds[0]] !== undefined) ? fx[pIds[0]] : (fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0));
+      proxyFn.value = defaultVal;
+      proxyFn.slider = fx.slider !== undefined ? fx.slider : defaultVal;
+      proxyFn.valueOf = function() { return Number(defaultVal) || 0; };
+      proxyFn.toString = function() { return String(defaultVal); };
+      return proxyFn;
+    }
+
+    function createMarkerObject(markerTimes) {
+      const rawList = Array.isArray(markerTimes) ? markerTimes : [];
+      const list = rawList.map(m => (typeof m === 'number' ? m : (m && m.time !== undefined ? m.time : 0))).sort((a, b) => a - b);
+      return {
+        numKeys: list.length,
+        key: function(n) {
+          const idx = (typeof n === 'number') ? n : 1;
+          if (idx < 1 || idx > list.length) {
+            return { time: (idx <= 0 ? (list[0] !== undefined ? list[0] : 0) : (list[list.length - 1] !== undefined ? list[list.length - 1] : 0)), index: idx };
+          }
+          return { time: list[idx - 1], index: idx };
+        },
+        nearestKey: function(t) {
+          if (list.length === 0) return { index: 0, time: 0 };
+          let bestIdx = 1;
+          let bestDist = Math.abs(t - list[0]);
+          for (let i = 1; i < list.length; i++) {
+            const dist = Math.abs(t - list[i]);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestIdx = i + 1;
+            }
+          }
+          return { index: bestIdx, time: list[bestIdx - 1] };
+        }
+      };
+    }
+
+    function evaluateLayerExpression(code, prop, baseProps, layer, currentSec, visited = null, layerPool = null) {
+      if (!code || typeof code !== 'string') return;
+      const trimmed = code.trim();
+      if (!trimmed) return;
+
+      const time = currentSec;
+
+      let val;
+      if (prop === 'move') {
+        val = [baseProps.posX !== undefined ? baseProps.posX : 540, baseProps.posY !== undefined ? baseProps.posY : 960, baseProps.posZ || 0];
+      } else if (prop === 'rotate') {
+        val = baseProps.rotZ !== undefined ? baseProps.rotZ : (baseProps.rotation || 0);
+      } else if (prop === 'scale') {
+        val = [baseProps.scaleW !== undefined ? baseProps.scaleW : 500, baseProps.scaleH !== undefined ? baseProps.scaleH : 500];
+      } else if (prop === 'skew') {
+        val = [baseProps.skewX || 0, baseProps.skewY || 0];
+      } else if (prop === 'opacity') {
+        val = baseProps.opacity !== undefined ? baseProps.opacity : 1.0;
+      } else {
+        val = 0;
+      }
+
+      function wiggle(freq, amp) {
+        const f = Number(freq) || 1;
+        const a = Number(amp) || 10;
+        const t = time * f;
+        const noise1 = Math.sin(t * 6.28318) * 0.7 + Math.sin(t * 11.623) * 0.3;
+        const noise2 = Math.cos(t * 6.28318) * 0.7 + Math.sin(t * 14.137) * 0.3;
+        if (Array.isArray(val)) {
+          return [val[0] + noise1 * a, val[1] + noise2 * a, (val[2] || 0) + (noise1 + noise2) * 0.5 * a];
+        }
+        return val + noise1 * a;
+      }
+
+      function effect(nameOrIndex) {
+        const effectsList = (baseProps && Array.isArray(baseProps.effects)) ? baseProps.effects : (layer && Array.isArray(layer.effects) ? layer.effects : []);
+        let targetFx = null;
+        if (typeof nameOrIndex === 'number') {
+          targetFx = effectsList[nameOrIndex - 1] || effectsList[nameOrIndex];
+        } else if (typeof nameOrIndex === 'string') {
+          const q = nameOrIndex.trim().toLowerCase();
+          targetFx = effectsList.find(fx => {
+            const n = (fx.name || fx.type || '').toLowerCase();
+            const t = (fx.type || '').toLowerCase();
+            return n === q || t === q || n.replace(/[\s_-]/g, '') === q.replace(/[\s_-]/g, '');
+          });
+          if (!targetFx) {
+            targetFx = effectsList.find(fx => (fx.name || '').toLowerCase().includes(q) || (fx.type || '').toLowerCase().includes(q));
+          }
+        }
+        if (!targetFx) {
+          const dummy = function() { return 0; };
+          dummy.value = 0;
+          dummy.slider = 0;
+          dummy.valueOf = () => 0;
+          dummy.toString = () => '0';
+          return dummy;
+        }
+        return createEffectProxy(targetFx);
+      }
+
+      function linear(t, tMin, tMax, vMin, vMax) {
+        if (t <= tMin) return vMin;
+        if (t >= tMax) return vMax;
+        const norm = (t - tMin) / (tMax - tMin);
+        return vMin + (vMax - vMin) * norm;
+      }
+
+      function clamp(v, minVal, maxVal) {
+        return Math.max(minVal, Math.min(maxVal, v));
+      }
+
+      function addVec(a, b) {
+        if (Array.isArray(a) && Array.isArray(b)) {
+          return [a[0] + b[0], a[1] + (b[1] !== undefined ? b[1] : b[0]), (a[2] || 0) + (b[2] || 0)];
+        }
+        if (Array.isArray(a) && typeof b === 'number') {
+          return [a[0] + b, a[1] + b, (a[2] || 0) + b];
+        }
+        if (typeof a === 'number' && Array.isArray(b)) {
+          return [a + b[0], a + (b[1] !== undefined ? b[1] : b[0]), a + (b[2] || 0)];
+        }
+        return a + b;
+      }
+
+      const pool = (Array.isArray(layerPool) && layerPool.length > 0) ? layerPool : (currentProjectState.layers || []);
+      const layerIdx = pool.findIndex(l => l.id === layer.id);
+      const index = (layerIdx >= 0) ? (layerIdx + 1) : 1;
+
+      const pps = window.currentPixelsPerSecond || 80;
+      const inPoint = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+      const durationSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+      const outPoint = Number((inPoint + durationSec).toFixed(4));
+
+      // Gather comp beat markers
+      let compBeatmarks = [];
+      if (currentProjectState && Array.isArray(currentProjectState.beatmarks)) {
+        compBeatmarks = compBeatmarks.concat(currentProjectState.beatmarks);
+      }
+      if (typeof window !== 'undefined' && Array.isArray(window.beatmarks)) {
+        compBeatmarks = compBeatmarks.concat(window.beatmarks);
+      }
+      const compMarkerObj = createMarkerObject(compBeatmarks);
+
+      // Layer beat markers (or comp beat markers inside layer duration)
+      let layerMarkers = Array.isArray(layer.markers) ? layer.markers.slice() : [];
+      if (layerMarkers.length === 0 && compBeatmarks.length > 0) {
+        layerMarkers = compBeatmarks.filter(b => b >= (inPoint - 0.001) && b <= (outPoint + 0.001));
+      }
+      const layerMarkerObj = createMarkerObject(layerMarkers);
+
+      const thisLayer = {
+        effect,
+        width: layer.mediaWidth || layer.widthPx || 1920,
+        height: layer.mediaHeight || layer.heightPx || 1080,
+        index: index,
+        name: layer.name || 'Layer',
+        inPoint,
+        outPoint,
+        marker: layerMarkerObj,
+        time
+      };
+
+      const thisComp = {
+        numLayers: pool.length,
+        marker: compMarkerObj,
+        layer: function(nameOrIndex) {
+          let otherLayer = null;
+          if (typeof nameOrIndex === 'number') {
+            // In AE, layer indices are 1-based: layer(1) is first layer in pool
+            otherLayer = pool[nameOrIndex - 1];
+          } else if (typeof nameOrIndex === 'string') {
+            const q = nameOrIndex.trim().toLowerCase();
+            otherLayer = pool.find(l => (l.name || '').toLowerCase() === q);
+          }
+          if (!otherLayer) {
+            return {
+              marker: createMarkerObject([]),
+              inPoint: 0,
+              outPoint: 100,
+              effect: () => createEffectProxy(null),
+              transform: { position: [0, 0, 0], rotation: 0, scale: [100, 100], opacity: 100 }
+            };
+          }
+          const otherInPoint = otherLayer.startSec !== undefined ? otherLayer.startSec : ((otherLayer.startPx || 0) / pps);
+          const otherDur = otherLayer.durationSec !== undefined ? otherLayer.durationSec : ((otherLayer.widthPx || 320) / pps);
+          const otherOutPoint = Number((otherInPoint + otherDur).toFixed(4));
+
+          let otherMarkers = Array.isArray(otherLayer.markers) ? otherLayer.markers.slice() : [];
+          if (otherMarkers.length === 0 && compBeatmarks.length > 0) {
+            otherMarkers = compBeatmarks.filter(b => b >= (otherInPoint - 0.001) && b <= (otherOutPoint + 0.001));
+          }
+          const otherMarkerObj = createMarkerObject(otherMarkers);
+
+          const otherEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(otherLayer, currentSec, visited, pool) : otherLayer;
+          return {
+            marker: otherMarkerObj,
+            inPoint: otherInPoint,
+            outPoint: otherOutPoint,
+            effect: function(fxName) {
+              const fxList = otherEff.effects || otherLayer.effects || [];
+              let target = null;
+              if (typeof fxName === 'number') {
+                target = fxList[fxName - 1] || fxList[fxName];
+              } else if (typeof fxName === 'string') {
+                const q = fxName.trim().toLowerCase();
+                target = fxList.find(f => {
+                  const n = (f.name || f.type || '').toLowerCase();
+                  return n === q || n.replace(/[\s_-]/g, '') === q.replace(/[\s_-]/g, '') || n.includes(q);
+                });
+              }
+              return createEffectProxy(target);
+            },
+            transform: {
+              position: [otherEff.posX || 0, otherEff.posY || 0, otherEff.posZ || 0],
+              rotation: otherEff.rotZ || 0,
+              scale: [otherEff.scaleW || 100, otherEff.scaleH || 100],
+              opacity: (otherEff.opacity !== undefined ? otherEff.opacity : 1) * 100
+            }
+          };
+        },
+        width: 1920,
+        height: 1080,
+        frameRate: currentProjectState.fps || 60,
+        duration: currentProjectState.durationSec || 5
+      };
+
+      let script = trimmed;
+      // Transform AE vector additions: value + [...] -> addVec(value, [...])
+      script = script.replace(/\b([a-zA-Z0-9_$]+)\s*\+\s*\[([^\]]+)\]/g, (m, g1, g2) => `addVec(${g1}, [${g2}])`);
+
+      let result;
+      try {
+        const fn = new Function(
+          'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
+          'inPoint', 'outPoint', 'index', 'addVec',
+          'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
+          'return eval(' + JSON.stringify(script) + ');'
+        );
+
+        result = fn(
+          time, val, effect, wiggle, linear, clamp, thisLayer, thisComp,
+          inPoint, outPoint, index, addVec,
+          Math.sin, Math.cos, Math.tan, Math.abs, Math.floor, Math.ceil, Math.round, Math.sqrt, Math.PI, Math.min, Math.max, Math.random
+        );
+      } catch (_) {
+        // Fallback for simple single-statement return scripts
+        try {
+          let fallbackScript = trimmed;
+          if (!fallbackScript.includes('return ') && !fallbackScript.includes('return\n')) {
+            const lines = fallbackScript.split('\n');
+            const lastIdx = lines.length - 1;
+            lines[lastIdx] = 'return (' + lines[lastIdx].replace(/;$/, '') + ');';
+            fallbackScript = lines.join('\n');
+          }
+          const fnFallback = new Function(
+            'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
+            'inPoint', 'outPoint', 'index', 'addVec',
+            'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
+            fallbackScript
+          );
+          result = fnFallback(
+            time, val, effect, wiggle, linear, clamp, thisLayer, thisComp,
+            inPoint, outPoint, index, addVec,
+            Math.sin, Math.cos, Math.tan, Math.abs, Math.floor, Math.ceil, Math.round, Math.sqrt, Math.PI, Math.min, Math.max, Math.random
+          );
+        } catch (e) {
+          return;
+        }
+      }
+
+      if (result === undefined || result === null || (typeof result === 'number' && isNaN(result))) return;
+
+      if (prop === 'move') {
+        if (Array.isArray(result)) {
+          if (result[0] !== undefined && !isNaN(result[0])) baseProps.posX = Number(result[0]);
+          if (result[1] !== undefined && !isNaN(result[1])) baseProps.posY = Number(result[1]);
+          if (result[2] !== undefined && !isNaN(result[2])) baseProps.posZ = Number(result[2]);
+        } else if (typeof result === 'object' && result !== null) {
+          if (result.x !== undefined && !isNaN(result.x)) baseProps.posX = Number(result.x);
+          if (result.y !== undefined && !isNaN(result.y)) baseProps.posY = Number(result.y);
+          if (result.z !== undefined && !isNaN(result.z)) baseProps.posZ = Number(result.z);
+        } else if (typeof result === 'number' && !isNaN(result)) {
+          baseProps.posX = result;
+        }
+      } else if (prop === 'rotate') {
+        const r = Number(Array.isArray(result) ? result[0] : result);
+        if (!isNaN(r)) {
+          baseProps.rotZ = r;
+          baseProps.rotation = r;
+        }
+      } else if (prop === 'scale') {
+        if (Array.isArray(result)) {
+          if (result[0] !== undefined && !isNaN(result[0])) baseProps.scaleW = Number(result[0]);
+          if (result[1] !== undefined && !isNaN(result[1])) baseProps.scaleH = Number(result[1]);
+        } else if (typeof result === 'number' && !isNaN(result)) {
+          baseProps.scaleW = result;
+          baseProps.scaleH = result;
+        }
+      } else if (prop === 'skew') {
+        if (Array.isArray(result)) {
+          if (result[0] !== undefined && !isNaN(result[0])) baseProps.skewX = Number(result[0]);
+          if (result[1] !== undefined && !isNaN(result[1])) baseProps.skewY = Number(result[1]);
+        }
+      } else if (prop === 'opacity') {
+        const op = Number(result);
+        if (!isNaN(op)) {
+          baseProps.opacity = (op > 1.0) ? (op / 100) : Math.max(0, Math.min(1, op));
+        }
+      }
+    }
+    window.evaluateLayerExpression = evaluateLayerExpression;
+
     // Get effective animated properties of layer at given time (with hierarchical parenting)
     function getLayerEffectivePropsAtTime(layer, currentSec, visited = null, layerPool = null) {
       if (!layer) return {};
@@ -6675,6 +7894,8 @@
       visited.add(layer.id);
 
       const baseProps = {
+        _currentSec: currentSec,
+        _timeInClip: Math.max(0, currentSec - (layer.startSec !== undefined ? layer.startSec : 0)),
         posX: layer.posX !== undefined ? layer.posX : 540,
         posY: layer.posY !== undefined ? layer.posY : 960,
         posZ: layer.posZ !== undefined ? layer.posZ : 0,
@@ -6803,9 +8024,25 @@
         }
       }
 
+      const pool = (Array.isArray(layerPool) && layerPool.length > 0) ? layerPool : (currentProjectState.layers || []);
+
+      // Apply expressions on layer properties (overriding keyframes / manual values)
+      if (layer.expressions && typeof layer.expressions === 'object') {
+        const exprKeys = ['move', 'rotate', 'scale', 'skew', 'opacity'];
+        for (const p of exprKeys) {
+          const code = layer.expressions[p];
+          if (code && typeof code === 'string' && code.trim().length > 0) {
+            try {
+              evaluateLayerExpression(code, p, baseProps, layer, currentSec, visited, pool);
+            } catch (err) {
+              // Silently catch frame evaluation errors
+            }
+          }
+        }
+      }
+
       // Hierarchical Transform Parenting: recursively resolve parent movement, 3D rotation, scale, posZ
       if (layer.parentId) {
-        const pool = (Array.isArray(layerPool) && layerPool.length > 0) ? layerPool : (currentProjectState.layers || []);
         const parent = pool.find(l => l.id === layer.parentId);
         if (parent && !visited.has(parent.id)) {
           const parentEff = getLayerEffectivePropsAtTime(parent, currentSec, visited, pool);
@@ -6882,12 +8119,12 @@
             baseProps.rotZ = (baseProps.rotZ !== undefined ? baseProps.rotZ : (baseProps.rotation || 0)) + deltaRotZ;
             baseProps.rotation = baseProps.rotZ;
           } else {
-            // Standard layer forward rotation: Roll (Z) -> Yaw (Y) -> Pitch (X)
-            if (deltaRotZ !== 0) {
-              const radZ = (deltaRotZ * Math.PI) / 180;
-              const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
-              const nvx = vx * cZ - vy * sZ, nvy = vx * sZ + vy * cZ;
-              vx = nvx; vy = nvy;
+            // Standard layer forward rotation: Pitch (X) -> Yaw (Y) -> Roll (Z)
+            if (deltaRotX !== 0) {
+              const radX = (deltaRotX * Math.PI) / 180;
+              const cX = Math.cos(radX), sX = Math.sin(radX);
+              const nvy = vy * cX - vz * sX, nvz = vy * sX + vz * cX;
+              vy = nvy; vz = nvz;
             }
             if (deltaRotY !== 0) {
               const radY = (deltaRotY * Math.PI) / 180;
@@ -6895,19 +8132,24 @@
               const nvx = vx * cY + vz * sY, nvz = -vx * sY + vz * cY;
               vx = nvx; vz = nvz;
             }
-            if (deltaRotX !== 0) {
-              const radX = (deltaRotX * Math.PI) / 180;
-              const cX = Math.cos(radX), sX = Math.sin(radX);
-              const nvy = vy * cX - vz * sX, nvz = vy * sX + vz * cX;
-              vy = nvy; vz = nvz;
+            if (deltaRotZ !== 0) {
+              const radZ = (deltaRotZ * Math.PI) / 180;
+              const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
+              const nvx = vx * cZ - vy * sZ, nvy = vx * sZ + vy * cZ;
+              vx = nvx; vy = nvy;
             }
 
             baseProps.posX = parentEff.posX + vx;
             baseProps.posY = parentEff.posY + vy;
             baseProps.posZ = parentEff.posZ + vz;
-            baseProps.rotX = (baseProps.rotX || 0) + deltaRotX;
-            baseProps.rotY = (baseProps.rotY || 0) + deltaRotY;
-            baseProps.rotZ = (baseProps.rotZ !== undefined ? baseProps.rotZ : (baseProps.rotation || 0)) + deltaRotZ;
+
+            const cBaseRotX = baseProps.rotX || 0;
+            const cBaseRotY = baseProps.rotY || 0;
+            const cBaseRotZ = baseProps.rotZ !== undefined ? baseProps.rotZ : (baseProps.rotation || 0);
+            const compRot = composeEulerRotations(deltaRotX, deltaRotY, deltaRotZ, cBaseRotX, cBaseRotY, cBaseRotZ);
+            baseProps.rotX = compRot.rotX;
+            baseProps.rotY = compRot.rotY;
+            baseProps.rotZ = compRot.rotZ;
             baseProps.rotation = baseProps.rotZ;
           }
 
@@ -7428,6 +8670,11 @@
       if (typeof redrawComposition === 'function') {
         redrawComposition('switchLayerDrawerSubview');
       }
+      if (typeof centerSelectedTimelineLayer === 'function') {
+        centerSelectedTimelineLayer(true);
+        setTimeout(() => centerSelectedTimelineLayer(true), 80);
+        setTimeout(() => centerSelectedTimelineLayer(false), 260);
+      }
     }
     window.switchLayerDrawerSubview = switchLayerDrawerSubview;
 
@@ -7684,6 +8931,51 @@
       const valSkewY = document.getElementById('val-skew-y');
       if (valSkewX) valSkewX.textContent = `${formatTransformNumber(curSkewX)}°`;
       if (valSkewY) valSkewY.textContent = `${formatTransformNumber(curSkewY)}°`;
+
+      // 6. Expression disabled state on transform panes & nav button
+      const exprs = (layer && layer.expressions && typeof layer.expressions === 'object') ? layer.expressions : {};
+      const paneMove = document.getElementById('pane-transform-move');
+      const paneRotate = document.getElementById('pane-transform-rotate');
+      const paneScale = document.getElementById('pane-transform-scale');
+      const paneSkew = document.getElementById('pane-transform-skew');
+
+      const isMoveExpr = !!(exprs.move && exprs.move.trim().length > 0);
+      const isRotateExpr = !!(exprs.rotate && exprs.rotate.trim().length > 0);
+      const isScaleExpr = !!(exprs.scale && exprs.scale.trim().length > 0);
+      const isSkewExpr = !!(exprs.skew && exprs.skew.trim().length > 0);
+
+      if (paneMove) paneMove.classList.toggle('is-expression-disabled', isMoveExpr);
+      if (paneRotate) paneRotate.classList.toggle('is-expression-disabled', isRotateExpr);
+      if (paneScale) paneScale.classList.toggle('is-expression-disabled', isScaleExpr);
+      if (paneSkew) paneSkew.classList.toggle('is-expression-disabled', isSkewExpr);
+
+      const btnExpr = document.getElementById('btn-transform-expression');
+      const activeTool = window.activeTransformTool || 'move';
+      if (btnExpr) {
+        let currentPropHasExpr = false;
+        if (activeTool === 'move') currentPropHasExpr = isMoveExpr;
+        else if (activeTool === 'rotate') currentPropHasExpr = isRotateExpr;
+        else if (activeTool === 'scale') currentPropHasExpr = isScaleExpr;
+        else if (activeTool === 'skew') currentPropHasExpr = isSkewExpr;
+        btnExpr.classList.toggle('has-expression', currentPropHasExpr);
+      }
+
+      // If expression popover is open, live update its title & content
+      const exprPopover = document.getElementById('popover-transform-expression');
+      if (exprPopover && exprPopover.classList.contains('is-open')) {
+        const propNames = {
+          move: 'Position',
+          rotate: 'Rotation',
+          scale: 'Scale',
+          skew: 'Skew'
+        };
+        const exprTitle = document.getElementById('expression-popover-title');
+        const exprTextarea = document.getElementById('expression-editor-textarea');
+        if (exprTitle) exprTitle.textContent = `${propNames[activeTool] || 'Transform'} Expression`;
+        if (exprTextarea && document.activeElement !== exprTextarea) {
+          exprTextarea.value = (exprs[activeTool] || '');
+        }
+      }
     }
     window.syncTransformControllerValues = syncTransformControllerValues;
 
@@ -7707,6 +8999,8 @@
       const btnGraphSnap = document.getElementById('btn-graph-snap');
       const btnGraphMore = document.getElementById('btn-graph-more');
       const btnToggleOvershoot = document.getElementById('btn-toggle-overshoot');
+      const btnGraphCopy = document.getElementById('btn-graph-copy');
+      const btnGraphPaste = document.getElementById('btn-graph-paste');
       const btnCopyToAll = document.getElementById('btn-graph-copy-to-all');
       const chkOvershoot = document.getElementById('chk-graph-overshoot');
       const svgChkOvershoot = document.getElementById('svg-chk-graph-overshoot');
@@ -7815,20 +9109,6 @@
               return matched.kf.easing;
             }
           }
-          const anyMatched = window.selectedKeyframes[0];
-          if (anyMatched && anyMatched.kf) {
-            const l = anyMatched.layer || (currentProjectState.layers || []).find(ly => ly.id === anyMatched.layerId) || layer;
-            if (l && l.keyframes && Array.isArray(l.keyframes[anyMatched.prop])) {
-              const kfList = l.keyframes[anyMatched.prop];
-              const idx = kfList.indexOf(anyMatched.kf);
-              if (idx === kfList.length - 1 && idx > 0 && kfList[idx - 1].easing) {
-                return kfList[idx - 1].easing;
-              }
-            }
-            if (anyMatched.kf.easing && Array.isArray(anyMatched.kf.easing) && anyMatched.kf.easing.length === 4) {
-              return anyMatched.kf.easing;
-            }
-          }
         }
 
         const { prevKf } = getSurroundingKeyframes(layer, prop, currentSec);
@@ -7849,7 +9129,8 @@
       window.getActiveEasing = getActiveEasing;
 
       function setActiveEasing(newEasing) {
-        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        const targetId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0 ? [...window.selectedLayerIds][0] : null);
+        const layer = (currentProjectState.layers || []).find(l => l.id === targetId) || (currentProjectState.layers && currentProjectState.layers[0]);
         if (!layer) return;
         const prop = window.activeKeyframeProperty || 'move';
         const pps = window.currentPixelsPerSecond || 80;
@@ -7861,12 +9142,14 @@
           Number(newEasing[3].toFixed(3))
         ];
 
-        // 1. If keyframe(s) are selected in timeline, update all selected keyframes
-        const hasSelectedKfs = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
-        if (hasSelectedKfs) {
+        // 1. If keyframe(s) for the active property are selected in timeline, update those selected keyframes
+        const relevantSelectedKfs = Array.isArray(window.selectedKeyframes)
+          ? window.selectedKeyframes.filter(it => it.kf && it.layerId === window.selectedLayerId && (it.prop === prop || !prop))
+          : [];
+        if (relevantSelectedKfs.length > 0) {
           let didUpdateKf = false;
           const affectedLayers = new Set();
-          window.selectedKeyframes.forEach(item => {
+          relevantSelectedKfs.forEach(item => {
             if (item.kf) {
               item.kf.easing = [...rounded];
               didUpdateKf = true;
@@ -7891,7 +9174,7 @@
               }
             });
             saveCurrentProjectLayers();
-            redrawComposition('setActiveEasing:selectedKeyframes');
+            if (typeof redrawComposition === 'function') redrawComposition('setActiveEasing:selectedKeyframes');
             return;
           }
         }
@@ -7904,7 +9187,7 @@
             invalidatePreviewCacheForLayer(layer);
           }
           saveCurrentProjectLayers();
-          redrawComposition('setActiveEasing:prevKf');
+          if (typeof redrawComposition === 'function') redrawComposition('setActiveEasing:prevKf');
         } else {
           if (!layer.defaultEasing) layer.defaultEasing = {};
           layer.defaultEasing[prop] = rounded;
@@ -7913,7 +9196,7 @@
             invalidatePreviewCacheForLayer(layer);
           }
           saveCurrentProjectLayers();
-          redrawComposition('setActiveEasing:defaultEasing');
+          if (typeof redrawComposition === 'function') redrawComposition('setActiveEasing:defaultEasing');
         }
       }
       window.setActiveEasing = setActiveEasing;
@@ -8224,6 +9507,9 @@
       if (btnGraphReverse) {
         btnGraphReverse.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+            window.UndoRedoManager.recordSnapshot();
+          }
           const easing = getActiveEasing();
           const reversed = [
             Number((1 - easing[2]).toFixed(3)),
@@ -8233,6 +9519,9 @@
           ];
           setActiveEasing(reversed);
           updateGraphUI();
+          if (typeof saveCurrentProjectLayers === 'function') {
+            saveCurrentProjectLayers(true);
+          }
         });
       }
 
@@ -8246,8 +9535,14 @@
       }
 
       function applyEasingPreset(presetEasing) {
+        if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+          window.UndoRedoManager.recordSnapshot();
+        }
         setActiveEasing(presetEasing);
         updateGraphUI();
+        if (typeof saveCurrentProjectLayers === 'function') {
+          saveCurrentProjectLayers(true);
+        }
         if (window.Popover) window.Popover.close();
       }
 
@@ -8298,8 +9593,9 @@
         });
       }
 
-      if (btnCopyToAll) {
-        btnCopyToAll.addEventListener('click', (e) => {
+      // Copy Graph Curve
+      if (btnGraphCopy) {
+        btnGraphCopy.addEventListener('click', (e) => {
           e.stopPropagation();
           const currentEasing = getActiveEasing();
           const rounded = [
@@ -8307,6 +9603,67 @@
             Number(currentEasing[1].toFixed(3)),
             Number(currentEasing[2].toFixed(3)),
             Number(currentEasing[3].toFixed(3))
+          ];
+          window._copiedGraphEasing = [...rounded];
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(JSON.stringify(rounded)).catch(() => {});
+            }
+          } catch (_) {}
+          if (window.Popover) window.Popover.close(false);
+          if (navigator.vibrate) try { navigator.vibrate(30); } catch (_) {}
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Graph curve copied');
+          }
+        });
+      }
+
+      // Paste Graph Curve
+      if (btnGraphPaste) {
+        btnGraphPaste.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const curveToPaste = window._copiedGraphEasing;
+          if (!curveToPaste || !Array.isArray(curveToPaste) || curveToPaste.length !== 4) {
+            if (window.Popover) window.Popover.close(false);
+            if (typeof showEffectsRackToast === 'function') {
+              showEffectsRackToast('No curve copied');
+            }
+            return;
+          }
+
+          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+            window.UndoRedoManager.recordSnapshot();
+          }
+
+          setActiveEasing(curveToPaste);
+          saveCurrentProjectLayers(true);
+          updateGraphUI();
+          if (typeof redrawComposition === 'function') {
+            redrawComposition('paste-easing');
+          }
+          if (window.Popover) window.Popover.close(false);
+          if (navigator.vibrate) try { navigator.vibrate(30); } catch (_) {}
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Graph curve pasted');
+          }
+        });
+      }
+
+      // Paste to all keyframes
+      if (btnCopyToAll) {
+        btnCopyToAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+            window.UndoRedoManager.recordSnapshot();
+          }
+          const sourceEasing = (window._copiedGraphEasing && Array.isArray(window._copiedGraphEasing) && window._copiedGraphEasing.length === 4)
+            ? window._copiedGraphEasing
+            : getActiveEasing();
+          const rounded = [
+            Number(sourceEasing[0].toFixed(3)),
+            Number(sourceEasing[1].toFixed(3)),
+            Number(sourceEasing[2].toFixed(3)),
+            Number(sourceEasing[3].toFixed(3))
           ];
 
           const prop = window.activeKeyframeProperty || 'move';
@@ -8352,13 +9709,16 @@
             });
           }
 
-          saveCurrentProjectLayers();
+          saveCurrentProjectLayers(true);
           updateGraphUI();
           if (typeof redrawComposition === 'function') {
-            redrawComposition('copy-easing-to-all-keyframes');
+            redrawComposition('paste-easing-to-all-keyframes');
           }
           if (window.Popover) window.Popover.close(false);
           if (navigator.vibrate) try { navigator.vibrate(30); } catch (_) {}
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Pasted to all keyframes');
+          }
         });
       }
 
@@ -8386,6 +9746,9 @@
         handleEl.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           e.preventDefault();
+          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+            window.UndoRedoManager.recordSnapshot();
+          }
           try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
           handleEl.classList.add('is-dragging');
           window.isTransformInteracting = true;
@@ -8674,6 +10037,127 @@
         });
       }
 
+      // C2. Expression button: Transform Expression Popover
+      const btnTransformExpression = document.getElementById('btn-transform-expression');
+      const exprPopover = document.getElementById('popover-transform-expression');
+      const exprTextarea = document.getElementById('expression-editor-textarea');
+      const exprTitle = document.getElementById('expression-popover-title');
+      const exprClearBtn = document.getElementById('btn-expression-clear');
+      const exprErrorMsg = document.getElementById('expression-error-msg');
+
+      if (btnTransformExpression && exprPopover && exprTextarea) {
+        btnTransformExpression.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const info = getSelectedLayerAndBaseDims();
+          if (!info || !info.layer) return;
+          const layer = info.layer;
+          const activeTool = window.activeTransformTool || 'move';
+          const propNames = {
+            move: 'Position',
+            rotate: 'Rotation',
+            scale: 'Scale',
+            skew: 'Skew'
+          };
+          if (exprTitle) {
+            exprTitle.textContent = `${propNames[activeTool] || 'Transform'} Expression`;
+          }
+          const curExpr = (layer.expressions && layer.expressions[activeTool]) ? layer.expressions[activeTool] : '';
+          exprTextarea.value = curExpr;
+          if (exprErrorMsg) {
+            exprErrorMsg.style.display = 'none';
+            exprErrorMsg.textContent = '';
+          }
+          if (window.Popover) {
+            window.Popover.toggle(btnTransformExpression, 'popover-transform-expression');
+            if (window.Popover.isOpen && window.Popover.isOpen()) {
+              setTimeout(() => { exprTextarea.focus(); }, 50);
+            }
+          }
+        });
+
+        exprTextarea.addEventListener('input', () => {
+          const info = getSelectedLayerAndBaseDims();
+          if (!info || !info.layer) return;
+          const layer = info.layer;
+          const activeTool = window.activeTransformTool || 'move';
+          const val = exprTextarea.value;
+          const trimmed = val.trim();
+
+          if (!layer.expressions) layer.expressions = {};
+
+          if (!trimmed) {
+            delete layer.expressions[activeTool];
+            if (exprErrorMsg) {
+              exprErrorMsg.style.display = 'none';
+              exprErrorMsg.textContent = '';
+            }
+          } else {
+            // Syntax validation check
+            try {
+              let script = trimmed;
+              if (!script.includes('return ') && !script.includes('return\n')) {
+                const lines = script.split('\n');
+                lines[lines.length - 1] = 'return (' + lines[lines.length - 1].replace(/;$/, '') + ');';
+                script = lines.join('\n');
+              }
+              new Function('time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp', script);
+              if (exprErrorMsg) {
+                exprErrorMsg.style.display = 'none';
+                exprErrorMsg.textContent = '';
+              }
+            } catch (err) {
+              if (exprErrorMsg) {
+                exprErrorMsg.style.display = 'block';
+                exprErrorMsg.textContent = err.message || 'Syntax error in expression';
+              }
+            }
+            layer.expressions[activeTool] = val;
+          }
+
+          syncTransformControllerValues();
+          if (typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(layer);
+          }
+          if (typeof redrawComposition === 'function') {
+            redrawComposition('expressionEdit');
+          }
+          if (typeof saveCurrentProjectLayers === 'function') {
+            saveCurrentProjectLayers();
+          }
+        });
+
+        if (exprClearBtn) {
+          exprClearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const info = getSelectedLayerAndBaseDims();
+            if (!info || !info.layer) return;
+            const layer = info.layer;
+            const activeTool = window.activeTransformTool || 'move';
+            if (layer.expressions) {
+              delete layer.expressions[activeTool];
+            }
+            exprTextarea.value = '';
+            if (exprErrorMsg) {
+              exprErrorMsg.style.display = 'none';
+              exprErrorMsg.textContent = '';
+            }
+            syncTransformControllerValues();
+            if (typeof invalidatePreviewCacheForLayer === 'function') {
+              invalidatePreviewCacheForLayer(layer);
+            }
+            if (typeof redrawComposition === 'function') {
+              redrawComposition('expressionClear');
+            }
+            if (typeof saveCurrentProjectLayers === 'function') {
+              saveCurrentProjectLayers();
+            }
+            if (window.Popover) {
+              window.Popover.close();
+            }
+          });
+        }
+      }
+
       // D. Back button: Graph Editor -> Transform / Blend
       const btnGraphBack = document.getElementById('btn-graph-back');
       if (btnGraphBack) {
@@ -8792,6 +10276,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           targetL = info.layer;
+          if (targetL && targetL.expressions && (targetL.expressions.move || (typeof moveAnchorSubmode !== 'undefined' && moveAnchorSubmode === 'anchor' && targetL.expressions.anchor))) return;
           bW = info.baseW;
           bH = info.baseH;
 
@@ -9050,6 +10535,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           targetL = info.layer;
+          if (targetL && targetL.expressions && (targetL.expressions.rotate || targetL.expressions.rotation || targetL.expressions.rotZ)) return;
 
           syncLayerWithEffectiveProps(targetL);
           window.isTransformInteracting = true;
@@ -9141,9 +10627,10 @@
           if (!info) return;
           const l = info.layer;
           if (l && l.type === 'adjustment') return;
+          const isAnchor = (typeof moveAnchorSubmode !== 'undefined' && moveAnchorSubmode === 'anchor');
+          if (l && l.expressions && (l.expressions.move || (isAnchor && l.expressions.anchor))) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
-          const isAnchor = (typeof moveAnchorSubmode !== 'undefined' && moveAnchorSubmode === 'anchor');
           const curVal = isAnchor ? (l.anchorZ !== undefined ? l.anchorZ : 0) : (l.posZ !== undefined ? l.posZ : 0);
           posZInit = { z: curVal, targetL: l, isAnchor };
         },
@@ -9195,6 +10682,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           const l = info.layer;
+          if (l && l.expressions && l.expressions.scale) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
           const initW = l.scaleW !== undefined ? l.scaleW : (l.normW !== undefined ? l.normW * info.baseW : info.baseW);
@@ -9293,6 +10781,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           const l = info.layer;
+          if (l && l.expressions && l.expressions.scale) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
           const initW = l.scaleW !== undefined ? l.scaleW : (l.normW !== undefined ? l.normW * info.baseW : info.baseW);
@@ -9361,6 +10850,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           const l = info.layer;
+          if (l && l.expressions && l.expressions.scale) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
           const initH = l.scaleH !== undefined ? l.scaleH : (l.normH !== undefined ? l.normH * info.baseH : info.baseH);
@@ -9429,6 +10919,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           const l = info.layer;
+          if (l && l.expressions && l.expressions.skew) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
           skewXInit = { skewX: l.skewX || 0, targetL: l };
@@ -9473,6 +10964,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           const l = info.layer;
+          if (l && l.expressions && l.expressions.skew) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
           skewYInit = { skewY: l.skewY || 0, targetL: l };
@@ -11009,11 +12501,11 @@
        CAMERA SETTINGS CONTROLLER (MODULAR & DYNAMIC)
        - Zoom, Switch Blur, Focus Distance, Blur Range, Blur Amount, Presets
        ========================================================================== */
-    function addCameraLayer() {
+    function addCameraLayer(customDur = null, customStart = null) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const currentSec = Math.abs(window.timelinePanX || 0) / pps;
-      const defaultDur = currentProjectState.defaultDuration || 5;
+      const currentSec = (customStart !== null && typeof customStart === 'number') ? customStart : (Math.abs(window.timelinePanX || 0) / pps);
+      const defaultDur = (customDur !== null && typeof customDur === 'number') ? customDur : (currentProjectState.defaultDuration || 5);
       const widthPx = Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
 
@@ -11064,13 +12556,14 @@
       }
 
       selectTimelineLayer(newLayer.id, false);
+      return newLayer;
     }
     window.addCameraLayer = addCameraLayer;
 
     // ======================================================================
     // NULL OBJECT LAYER & HIERARCHICAL PARENTING CONTROLLER
     // ======================================================================
-    function addNullLayer() {
+    function addNullLayer(autoLink = false) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
@@ -11106,6 +12599,24 @@
       };
 
       currentProjectState.layers.unshift(newLayer);
+
+      if (autoLink && (window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0))) {
+        const idSet = new Set();
+        if (window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+          window.selectedLayerIds.forEach(id => idSet.add(id));
+        }
+        if (window.selectedLayerId) idSet.add(window.selectedLayerId);
+        idSet.delete(newLayer.id);
+        const selLayers = (currentProjectState.layers || []).filter(l => idSet.has(l.id));
+        selLayers.forEach(l => {
+          if (typeof window.linkLayer === 'function') {
+            window.linkLayer(l, newLayer);
+          } else {
+            l.parentId = newLayer.id;
+          }
+        });
+      }
+
       if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(newLayer);
       saveCurrentProjectLayers();
       renderTimelineLayers();
@@ -11116,18 +12627,19 @@
       }
 
       selectTimelineLayer(newLayer.id, false);
+      return newLayer;
     }
     window.addNullLayer = addNullLayer;
 
     // ======================================================================
     // ADJUSTMENT LAYER CONTROLLER
     // ======================================================================
-    function addAdjustmentLayer() {
+    function addAdjustmentLayer(customDur = null, customStart = null) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const currentSec = Math.abs(window.timelinePanX || 0) / pps;
-      const defaultDur = currentProjectState.defaultDuration || 5;
-      const widthPx = Math.max(80, Math.round(defaultDur * pps));
+      const currentSec = (customStart !== null && typeof customStart === 'number') ? customStart : (Math.abs(window.timelinePanX || 0) / pps);
+      const defaultDur = (customDur !== null && typeof customDur === 'number') ? customDur : (currentProjectState.defaultDuration || 5);
+      const widthPx = (customDur !== null && typeof customDur === 'number') ? Math.max(1, Math.round(defaultDur * pps)) : Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
 
       const aspect = currentProjectState.aspectRatio || '16:9';
@@ -11170,8 +12682,102 @@
       }
 
       selectTimelineLayer(newLayer.id, false);
+      return newLayer;
     }
     window.addAdjustmentLayer = addAdjustmentLayer;
+
+    // ======================================================================
+    // SOLID LAYER CONTROLLER
+    // ======================================================================
+    function getRandomSolidColor() {
+      const hue = Math.floor(Math.random() * 360);
+      const sat = Math.floor(Math.random() * 25) + 65;
+      const light = Math.floor(Math.random() * 20) + 45;
+      const l = light / 100;
+      const a = (sat / 100) * Math.min(l, 1 - l);
+      const f = n => {
+        const k = (n + hue / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+    window.getRandomSolidColor = getRandomSolidColor;
+
+    function addSolidLayer(customDur = null, customStart = null, colorOption = false) {
+      currentProjectState.layers = currentProjectState.layers || [];
+      const pps = window.currentPixelsPerSecond || 80;
+      const currentSec = (customStart !== null && typeof customStart === 'number') ? customStart : (Math.abs(window.timelinePanX || 0) / pps);
+      const defaultDur = (customDur !== null && typeof customDur === 'number') ? customDur : (currentProjectState.defaultDuration || 5);
+      const widthPx = Math.max(80, Math.round(defaultDur * pps));
+      const startPx = Math.round(currentSec * pps);
+
+      const aspect = currentProjectState.aspectRatio || '16:9';
+      const res = currentProjectState.resolution || '1080p';
+      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseW = baseDims[0];
+      const baseH = baseDims[1];
+
+      const shapeProps = {
+        sizeX: baseW,
+        sizeY: baseH,
+        roundness: 0
+      };
+
+      const isBlack = (colorOption === true || colorOption === 'black' || colorOption === '#000000');
+      let targetColor;
+      if (isBlack) {
+        targetColor = '#000000';
+      } else if (typeof colorOption === 'string' && colorOption.startsWith('#')) {
+        targetColor = colorOption;
+      } else {
+        targetColor = getRandomSolidColor();
+      }
+
+      const solidCount = currentProjectState.layers.filter(l => l.type === 'shape' && (l.isSolid || (l.name && l.name.startsWith('Solid')) || (l.name && l.name.startsWith('Black Solid')))).length + 1;
+      const layerName = isBlack ? ('Black Solid ' + solidCount) : ('Solid ' + solidCount);
+
+      const newLayer = {
+        id: 'layer_solid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        name: layerName,
+        type: 'shape',
+        isSolid: true,
+        shapeType: 'rectangle',
+        shapeProps: shapeProps,
+        fillType: 'color',
+        fillColor: targetColor,
+        strokeColor: targetColor,
+        strokeWidth: 0,
+        startPx: startPx,
+        startSec: currentSec,
+        durationSec: defaultDur,
+        widthPx: widthPx,
+        posX: Math.round(baseW / 2),
+        posY: Math.round(baseH / 2),
+        posZ: 0,
+        scaleW: baseW,
+        scaleH: baseH,
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+        rotation: 0,
+        opacity: 1.0
+      };
+
+      currentProjectState.layers.unshift(newLayer);
+      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(newLayer);
+      saveCurrentProjectLayers();
+      renderTimelineLayers();
+      redrawComposition();
+
+      if (window.Drawer && window.Drawer.isOpen('timeline-add-drawer')) {
+        window.Drawer.close(false);
+      }
+
+      selectTimelineLayer(newLayer.id, false);
+      return newLayer;
+    }
+    window.addSolidLayer = addSolidLayer;
 
     // ======================================================================
     // TEXT LAYER CONTROLLER & FISHTOOL TEXT ENGINE INTEGRATION
@@ -11766,6 +13372,7 @@
       if (typeof switchLayerDrawerSubview === 'function') {
         switchLayerDrawerSubview('main');
       }
+      return newLayer;
     }
     window.addShapeLayer = addShapeLayer;
 
@@ -14274,6 +15881,7 @@
       rackMain.appendChild(toast);
       setTimeout(() => { toast.remove(); }, 1800);
     }
+    window.showEffectsRackToast = showEffectsRackToast;
 
     function syncEffectsKeyframeState(layer) {
       const btnEffectsKeyframe = document.getElementById('btn-effects-keyframe');
@@ -14418,6 +16026,22 @@
               const val = (hasKf && effFx && effFx[pId] !== undefined)
                 ? effFx[pId]
                 : (fx[pId] !== undefined ? fx[pId] : (pDef.default || 'normal'));
+              const dd = card.querySelector(`.custom-dropdown[data-param="${pId}"]`);
+              if (dd) {
+                dd.dataset.value = val;
+                const items = Array.from(dd.querySelectorAll('.custom-dropdown-item'));
+                const targetItem = dd.querySelector(`.custom-dropdown-item[data-val="${val}"]`) ||
+                  items.find(it => String(it.dataset.val).toLowerCase() === String(val).toLowerCase());
+                const label = dd.querySelector('.custom-dropdown-label');
+                if (targetItem && label) {
+                  label.textContent = targetItem.textContent;
+                } else if (label) {
+                  label.textContent = String(val).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                }
+                items.forEach(item => {
+                  item.classList.toggle('is-selected', String(item.dataset.val).toLowerCase() === String(val).toLowerCase());
+                });
+              }
               card.querySelectorAll(`.effects-segmented-btn[data-param="${pId}"]`).forEach(b => {
                 b.classList.toggle('is-active', (b.dataset.val || '').toLowerCase() === String(val).toLowerCase());
               });
@@ -14435,15 +16059,16 @@
               return;
             }
 
-            const min = pDef.min !== undefined ? pDef.min : -100;
-            const max = pDef.max !== undefined ? pDef.max : 100;
-            const unit = pDef.unit || '%';
+            const min = fx.min !== undefined ? fx.min : (pDef.min !== undefined ? pDef.min : -100);
+            const max = fx.max !== undefined ? fx.max : (pDef.max !== undefined ? pDef.max : 100);
+            const step = fx.step !== undefined ? fx.step : (pDef.step !== undefined ? pDef.step : 1);
+            const unit = fx.unit !== undefined ? fx.unit : (pDef.unit !== undefined ? pDef.unit : '');
             const valNum = (window.isTransformInteracting && fx[pId] !== undefined)
               ? fx[pId]
               : ((hasKf && effFx && effFx[pId] !== undefined)
                 ? effFx[pId]
                 : (fx[pId] !== undefined ? fx[pId] : (pDef.default || 0)));
-            const isDecimal = (pDef.step !== undefined && pDef.step < 1) || unit === 'x';
+            const isDecimal = (step < 1) || unit === 'x' || unit.includes('.');
             const val = isDecimal
               ? Math.max(min, Math.min(max, Number(parseFloat(valNum).toFixed(2))))
               : Math.max(min, Math.min(max, Math.round(valNum)));
@@ -14521,6 +16146,117 @@
     }
     window.deleteEffectFromLayer = deleteEffectFromLayer;
 
+    // ======================================================================
+    // MODULAR NUMERIC VALUE INPUT POPOVER CONTROLLER (.is-value-input-popover)
+    // ======================================================================
+    function openValueInputPopover(anchorEl, options = {}) {
+      const {
+        value = 0,
+        defaultValue = 0,
+        min = -Infinity,
+        max = Infinity,
+        step = 1,
+        onCommit = null
+      } = options;
+
+      const popover = document.getElementById('popover-value-input');
+      const inputEl = document.getElementById('popover-value-input-field');
+      const formEl = document.getElementById('popover-value-input-form');
+      if (!popover || !inputEl || !anchorEl || !window.Popover) return;
+
+      const parsedCurrent = parseFloat(value);
+      const initialVal = !isNaN(parsedCurrent) ? parsedCurrent : (parseFloat(defaultValue) || 0);
+
+      inputEl.step = step ? String(step) : 'any';
+      if (Number.isFinite(min)) inputEl.min = min; else inputEl.removeAttribute('min');
+      if (Number.isFinite(max)) inputEl.max = max; else inputEl.removeAttribute('max');
+      inputEl.value = (step && step < 1) ? initialVal.toFixed(2) : initialVal;
+
+      let isFinished = false;
+
+      function parseLiveNumber(rawVal) {
+        if (rawVal === '' || rawVal === '-' || rawVal === '+') return null;
+        let num = parseFloat(rawVal);
+        if (isNaN(num)) return null;
+        if (Number.isFinite(max) && num > max) num = max;
+        if (Number.isFinite(min) && num < min) num = min;
+        if (step && step >= 1) {
+          num = Math.round(num);
+        } else if (step && step < 1) {
+          const decimals = (step.toString().split('.')[1] || '').length || 2;
+          num = parseFloat(num.toFixed(decimals));
+        }
+        return num;
+      }
+
+      function handleLiveInput() {
+        if (isFinished) return;
+        const num = parseLiveNumber(inputEl.value);
+        if (num !== null && typeof onCommit === 'function') {
+          onCommit(num);
+        }
+      }
+
+      inputEl.oninput = handleLiveInput;
+      inputEl.onchange = handleLiveInput;
+
+      function commitValue(rawVal) {
+        if (isFinished) return;
+        isFinished = true;
+        let num = parseFloat(rawVal);
+        if (isNaN(num)) num = parseFloat(defaultValue) || 0;
+        if (Number.isFinite(min)) num = Math.max(min, num);
+        if (Number.isFinite(max)) num = Math.min(max, num);
+
+        if (step && step >= 1) {
+          num = Math.round(num);
+        } else if (step && step < 1) {
+          const decimals = (step.toString().split('.')[1] || '').length || 2;
+          num = parseFloat(num.toFixed(decimals));
+        }
+
+        if (typeof onCommit === 'function') {
+          onCommit(num);
+        }
+        if (window.Popover) window.Popover.close();
+      }
+
+      if (formEl) {
+        formEl.onsubmit = (e) => {
+          e.preventDefault();
+          commitValue(inputEl.value);
+        };
+      }
+
+      inputEl.onkeydown = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          isFinished = true;
+          if (typeof onCommit === 'function') onCommit(initialVal);
+          if (window.Popover) window.Popover.close();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          commitValue(inputEl.value);
+        }
+      };
+
+      inputEl.onblur = () => {
+        if (!isFinished && window.Popover && typeof window.Popover.isOpen === 'function' && window.Popover.isOpen()) {
+          commitValue(inputEl.value);
+        }
+      };
+
+      window.Popover.open(anchorEl, popover);
+
+      setTimeout(() => {
+        if (inputEl) {
+          inputEl.focus();
+          inputEl.select();
+        }
+      }, 50);
+    }
+    window.openValueInputPopover = openValueInputPopover;
+
     function bindEffectsCardEventListeners() {
       const rackList = document.getElementById('effects-rack-list');
       if (!rackList) return;
@@ -14532,6 +16268,10 @@
         const fxId = card.dataset.effectId;
         const fx = layer.effects.find(f => f.id === fxId);
         if (!fx) return;
+
+        const def = (window.FishEffects && window.FishEffects.registry)
+          ? window.FishEffects.registry.get(fx.type)
+          : ((window.FishEffectsRegistry) ? window.FishEffectsRegistry.get(fx.type) : null);
 
         // 1. Expand / Collapse & Swipe-to-Delete
         const header = card.querySelector('.effects-card-header');
@@ -14831,81 +16571,70 @@
 
           const badgeBtn = card.querySelector(`.fx-badge-${paramName}`);
           if (badgeBtn) {
-            badgeBtn.title = "Click to reset to default, Double-click to enter exact number";
+            badgeBtn.title = `Click to edit ${paramName} value`;
             badgeBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              const defParam = (def.params || []).find(dp => dp.id === paramName);
+              const defParam = (def && def.params) ? def.params.find(dp => dp.id === paramName) : null;
               const defaultVal = defParam ? (defParam.default !== undefined ? defParam.default : 0) : 0;
-              fx[paramName] = defaultVal;
-              if (!layer.effects || fx === layer.effects[0]) layer[paramName] = defaultVal;
-
+              const currentVal = fx[paramName] !== undefined ? fx[paramName] : defaultVal;
+              const min = defParam && defParam.min !== undefined ? defParam.min : -100;
+              const max = defParam && defParam.max !== undefined ? defParam.max : 100;
+              const step = defParam && defParam.step !== undefined ? defParam.step : 1;
+              const unit = defParam && defParam.unit !== undefined ? defParam.unit : '%';
+              const label = defParam && defParam.label ? defParam.label : paramName;
               const isAngle = defParam && (defParam.type === 'angle' || defParam.unit === '°');
-              const ticksEl = card.querySelector(`.fx-scrubber-${paramName} .jog-wheel-ticks`);
-              if (ticksEl) ticksEl.style.backgroundPosition = '0 0';
-
-              if (isAngle) {
-                const turns = Math.trunc(defaultVal / 360);
-                const rem = Math.round(defaultVal % 360);
-                badgeBtn.textContent = (turns !== 0) ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°` : `${rem >= 0 ? '+' : ''}${rem}°`;
-              } else {
-                const unit = defParam && defParam.unit ? defParam.unit : '%';
-                const min = defParam && defParam.min !== undefined ? defParam.min : -100;
-                const isDecimal = (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x';
-                const formatted = isDecimal ? Number(defaultVal).toFixed(2) : defaultVal;
-                badgeBtn.textContent = (defaultVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
-              }
 
               const propKey = `${fx.id}:${paramName}`;
               window.activeKeyframeProperty = propKey;
-
-              if (typeof recordLayerPropertyChange === 'function') {
-                recordLayerPropertyChange(layer, propKey);
-              }
-
-              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-              if (typeof redrawComposition === 'function') redrawComposition('effect-reset-val');
-              if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+              rackList.querySelectorAll('.effects-param-select-btn').forEach(b => {
+                const parent = b.closest('.effects-card');
+                const bFxId = parent ? parent.dataset.effectId : '';
+                b.classList.toggle('is-active', bFxId === fx.id && b.dataset.param === paramName);
+              });
               syncEffectsKeyframeState(layer);
               if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
                 updateTimelineKeyframeMarkersHighlight();
               }
-            });
 
-            badgeBtn.addEventListener('dblclick', (e) => {
-              e.stopPropagation();
-              const defParam = (def.params || []).find(dp => dp.id === paramName);
-              const current = fx[paramName] !== undefined ? fx[paramName] : (defParam ? defParam.default : 0);
-              const promptVal = prompt(`Enter ${defParam ? defParam.label : paramName}:`, current);
-              if (promptVal !== null) {
-                const parsed = parseFloat(promptVal);
-                if (!isNaN(parsed)) {
-                  const min = defParam && defParam.min !== undefined ? defParam.min : -Infinity;
-                  const max = defParam && defParam.max !== undefined ? defParam.max : Infinity;
-                  const clamped = Math.max(min, Math.min(max, parsed));
-                  fx[paramName] = clamped;
-                  if (!layer.effects || fx === layer.effects[0]) layer[paramName] = clamped;
+              if (typeof window.openValueInputPopover === 'function') {
+                window.openValueInputPopover(badgeBtn, {
+                  title: label,
+                  value: currentVal,
+                  defaultValue: defaultVal,
+                  min: isAngle ? -Infinity : min,
+                  max: isAngle ? Infinity : max,
+                  step: step,
+                  unit: unit,
+                  isAngle: isAngle,
+                  onCommit: (newVal) => {
+                    fx[paramName] = newVal;
+                    if (!layer.effects || fx === layer.effects[0]) layer[paramName] = newVal;
 
-                  const isAngle = defParam && (defParam.type === 'angle' || defParam.unit === '°');
-                  if (isAngle) {
-                    const turns = Math.trunc(clamped / 360);
-                    const rem = Math.round(clamped % 360);
-                    badgeBtn.textContent = (turns !== 0) ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°` : `${rem >= 0 ? '+' : ''}${rem}°`;
-                  } else {
-                    const unit = defParam && defParam.unit ? defParam.unit : '%';
-                    const isDecimal = (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x';
-                    const formatted = isDecimal ? Number(clamped).toFixed(2) : clamped;
-                    badgeBtn.textContent = (clamped >= 0 && min < 0 ? '+' : '') + formatted + unit;
+                    const ticksEl = card.querySelector(`.fx-scrubber-${paramName} .jog-wheel-ticks`);
+                    if (ticksEl) ticksEl.style.backgroundPosition = '0 0';
+
+                    if (isAngle) {
+                      const turns = Math.trunc(newVal / 360);
+                      const rem = Math.round(newVal % 360);
+                      badgeBtn.textContent = (turns !== 0) ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°` : `${rem >= 0 ? '+' : ''}${rem}°`;
+                    } else {
+                      const isDecimal = (step < 1) || unit === 'x';
+                      const formatted = isDecimal ? Number(newVal).toFixed(2) : newVal;
+                      badgeBtn.textContent = (newVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
+                    }
+
+                    if (typeof recordLayerPropertyChange === 'function') {
+                      recordLayerPropertyChange(layer, propKey);
+                    }
+                    if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+                    if (typeof redrawComposition === 'function') redrawComposition('effect-value-input');
+                    if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+                    syncEffectsKeyframeState(layer);
+                    if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
+                      updateTimelineKeyframeMarkersHighlight();
+                    }
                   }
-
-                  const propKey = `${fx.id}:${paramName}`;
-                  window.activeKeyframeProperty = propKey;
-                  if (typeof recordLayerPropertyChange === 'function') recordLayerPropertyChange(layer, propKey);
-                  if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-                  if (typeof redrawComposition === 'function') redrawComposition('effect-manual-val');
-                  if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
-                  syncEffectsKeyframeState(layer);
-                  if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
-                }
+                });
               }
             });
           }
@@ -14937,6 +16666,67 @@
             if (typeof redrawComposition === 'function') redrawComposition('effect-param-change');
             if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
             if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
+          });
+        });
+
+        // 7b. Custom Dropdown Select Controls (e.g. Wave Type, Warp Style)
+        card.querySelectorAll('.effects-custom-dropdown, .effects-control-row .custom-dropdown').forEach(dropdown => {
+          const trigger = dropdown.querySelector('.custom-dropdown-trigger');
+          const label = dropdown.querySelector('.custom-dropdown-label');
+          const items = dropdown.querySelectorAll('.custom-dropdown-item');
+          const param = dropdown.dataset.param;
+
+          if (trigger) {
+            trigger.addEventListener('click', (e) => {
+              e.stopPropagation();
+              // Close any other open dropdowns
+              document.querySelectorAll('.custom-dropdown.is-open').forEach(other => {
+                if (other !== dropdown) {
+                  other.classList.remove('is-open');
+                  const otherTrigger = other.querySelector('.custom-dropdown-trigger');
+                  if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+                  const otherCard = other.closest('.effects-card');
+                  if (otherCard) otherCard.classList.remove('has-dropdown-open');
+                }
+              });
+
+              const isOpen = dropdown.classList.toggle('is-open');
+              trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+              card.classList.toggle('has-dropdown-open', isOpen);
+            });
+          }
+
+          items.forEach(item => {
+            item.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const val = item.dataset.val;
+              dropdown.dataset.value = val;
+              if (label) label.textContent = item.textContent;
+
+              items.forEach(i => i.classList.remove('is-selected'));
+              item.classList.add('is-selected');
+
+              dropdown.classList.remove('is-open');
+              if (trigger) trigger.setAttribute('aria-expanded', 'false');
+              card.classList.remove('has-dropdown-open');
+
+              if (param) {
+                fx[param] = val;
+                if (!layer.effects || fx === layer.effects[0]) {
+                  layer[param] = val;
+                }
+
+                const propKey = `${fx.id}:${param}`;
+                if (typeof recordLayerPropertyChange === 'function') {
+                  recordLayerPropertyChange(layer, propKey);
+                }
+
+                if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+                if (typeof redrawComposition === 'function') redrawComposition('effect-dropdown-change');
+                if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+                if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
+              }
+            });
           });
         });
 
@@ -15041,11 +16831,11 @@
             fx[paramName] = val;
           } else {
             // STRICT BOUNDED MODE (e.g. Brightness, Contrast, Scale, Blur, Wave Height, Wave Width, Wave Speed)
-            const min = defParam && defParam.min !== undefined ? defParam.min : -100;
-            const max = defParam && defParam.max !== undefined ? defParam.max : 100;
+            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : -100);
+            const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : 100);
             const span = max - min;
-            const unit = defParam && defParam.unit ? defParam.unit : '%';
-            const isDecimal = (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x';
+            const unit = fx.unit !== undefined ? fx.unit : (defParam && defParam.unit ? defParam.unit : '');
+            const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x' || unit.includes('.');
 
             // Stable, dampened sensitivity curve (smooth, controlled, no jumping)
             let baseSpeed = 0.25;
@@ -15324,7 +17114,10 @@
 
         const allItemCards = effectsItemsGrid ? Array.from(effectsItemsGrid.querySelectorAll('.effects-gallery-item-card')) : [];
         allItemCards.forEach(c => {
-          c.style.display = (c.dataset.category === cat) ? '' : 'none';
+          const itemCat = (c.dataset.category || '').toLowerCase();
+          const matches = (itemCat === cat) ||
+            ((cat === 'extension' || cat === 'expression') && (itemCat === 'extension' || itemCat === 'expression'));
+          c.style.display = matches ? '' : 'none';
         });
       }
 
@@ -15446,7 +17239,8 @@
           allItemCards.forEach(c => {
             const name = (c.querySelector('.effects-gallery-item-name')?.textContent || c.dataset.effectId || '').toLowerCase();
             const cat = (c.dataset.category || '').toLowerCase();
-            const matches = name.includes(q) || cat.includes(q);
+            const isExtOrExpr = (cat === 'extension' || cat === 'expression') && ('extension'.includes(q) || 'expression'.includes(q));
+            const matches = name.includes(q) || cat.includes(q) || isExtOrExpr;
             c.style.display = matches ? '' : 'none';
             if (matches) matchedCount++;
           });
@@ -15455,7 +17249,8 @@
           allCategoryCards.forEach(c => {
             const cat = (c.dataset.category || '').toLowerCase();
             const catName = (c.querySelector('.effects-category-name')?.textContent || '').toLowerCase();
-            const matches = cat.includes(q) || catName.includes(q);
+            const isExtOrExpr = (cat === 'extension' || cat === 'expression' || catName.includes('ext') || catName.includes('expr')) && ('extension'.includes(q) || 'expression'.includes(q));
+            const matches = cat.includes(q) || catName.includes(q) || isExtOrExpr;
             c.style.display = matches ? '' : 'none';
             if (matches) matchedCatCount++;
           });
@@ -15574,7 +17369,13 @@
         { id: 'drop-shadow', name: 'Drop Shadow', category: 'layer', icon: 'assets/FXPH.svg' },
         { id: 'fill', name: 'Fill', category: 'layer', icon: 'assets/FXPH.svg' },
         { id: 'fast-box-blur', name: 'Fast Box Blur', category: 'layer', icon: 'assets/FXPH.svg' },
-        { id: 'camera-lens-blur', name: 'Camera Lens Blur', category: 'layer', icon: 'assets/FXPH.svg' }
+        { id: 'camera-lens-blur', name: 'Camera Lens Blur', category: 'layer', icon: 'assets/FXPH.svg' },
+        { id: 'expression-controls', name: 'Expression Controls', category: 'expression', icon: 'assets/FXPH.svg' },
+        { id: 'slider-control', name: 'Slider Control', category: 'expression', icon: 'assets/FXPH.svg' },
+        { id: 'point-control', name: 'Point Control', category: 'expression', icon: 'assets/FXPH.svg' },
+        { id: 'angle-control', name: 'Angle Control', category: 'expression', icon: 'assets/FXPH.svg' },
+        { id: 'checkbox-control', name: 'Checkbox Control', category: 'expression', icon: 'assets/FXPH.svg' },
+        { id: 'color-control', name: 'Color Control', category: 'expression', icon: 'assets/FXPH.svg' }
       ];
     }
     window.getAllAvailableEffects = getAllAvailableEffects;
@@ -17301,6 +19102,8 @@
           dropdown.classList.remove('is-open');
           const trigger = dropdown.querySelector('.custom-dropdown-trigger');
           if (trigger) trigger.setAttribute('aria-expanded', 'false');
+          const c = dropdown.closest('.effects-card');
+          if (c) c.classList.remove('has-dropdown-open');
         });
       });
 
@@ -17747,6 +19550,9 @@
         if (panX === lastRenderedPanX) return;
         lastRenderedPanX = panX;
         window.timelinePanX = panX;
+        const curSec = Math.max(0, -panX / pixelsPerSecond);
+        window.currentPlaybackSec = curSec;
+        window.currentSec = curSec;
 
         const panStr = `translate3d(${panX.toFixed(2)}px, 0, 0)`;
         rulerTrack.style.transform = panStr;
@@ -17823,6 +19629,9 @@
         const bounds = getTimelineBounds();
         panX = Math.max(bounds.min, Math.min(bounds.max, newPanX));
         window.timelinePanX = panX;
+        const curSec = Math.max(0, -panX / (window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80)));
+        window.currentPlaybackSec = curSec;
+        window.currentSec = curSec;
         if (immediate) {
           renderTimeline();
         } else {
@@ -18524,7 +20333,7 @@
           timelineTweenRaf = null;
         }
         if (e.button !== undefined && e.button !== 0) return;
-        if (e.target.closest('.timeline-clip-block') || e.target.closest('.timeline-layer-ctrl-pill') || e.target.closest('.timeline-lane-pill-slot') || e.target.closest('.timeline-beatmark-item')) return; // Allow clip and pill interactions
+        if (e.target.closest('.timeline-clip-block') || e.target.closest('.timeline-layer-ctrl-pill') || e.target.closest('.timeline-layer-reorder-pill') || e.target.closest('.timeline-beatmark-item')) return; // Allow clip and pill interactions
         
         isPanning = true;
         window.isTimelinePanning = true;
@@ -18681,7 +20490,7 @@
           targetEl.closest('.timeline-layer-reorder-pill')
         );
 
-        if (e && moveDist < 4 && !isInsideTimelineInteractive) {
+        if (e && moveDist < 4 && isLayersDrag && !isInsideTimelineInteractive) {
           if (typeof deselectTimelineLayer === 'function' && (window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0) || isSelectorMode)) {
             deselectTimelineLayer();
           }
@@ -18881,6 +20690,84 @@
         return selectedLayerIds.has(layerId) || selectedLayerId === layerId;
       }
 
+      function centerSelectedTimelineLayer(smooth = true, targetLayerId = null) {
+        const layerId = targetLayerId || window.selectedLayerId;
+        if (!layerId) return;
+
+        const viewport = document.getElementById('timeline-layers-viewport');
+        if (!viewport) return;
+
+        const slot = document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"]`) ||
+                     document.querySelector(`.timeline-track-lane[data-layer-id="${layerId}"]`) ||
+                     document.querySelector(`.timeline-clip-block[data-layer-id="${layerId}"]`);
+
+        const drawerContainer = document.getElementById('timeline-layer-drawer');
+        const drawerCard = document.querySelector('#timeline-layer-drawer .drawer-card');
+        const isDrawerOpen = Boolean(
+          (window.Drawer && typeof window.Drawer.isOpen === 'function' && window.Drawer.isOpen('timeline-layer-drawer')) ||
+          (drawerContainer && drawerContainer.classList.contains('is-active'))
+        );
+
+        const vpRect = viewport.getBoundingClientRect();
+        if (!vpRect || vpRect.height === 0) return;
+
+        const timelineEl = document.getElementById('main-editor-timeline');
+        const tlBottom = timelineEl ? timelineEl.getBoundingClientRect().bottom : vpRect.bottom;
+        const cardRect = drawerCard ? drawerCard.getBoundingClientRect() : null;
+        const cardHeight = drawerCard ? (drawerCard.offsetHeight || (cardRect ? cardRect.height : 0) || 260) : 260;
+        const cardRestingTop = tlBottom - cardHeight;
+        const drawerTop = (isDrawerOpen && drawerCard)
+          ? ((cardRect && cardRect.top > 0 && cardRect.top < vpRect.bottom) ? Math.min(cardRect.top, cardRestingTop) : cardRestingTop)
+          : vpRect.bottom;
+
+        const drawerH = isDrawerOpen ? Math.max(0, Math.round(tlBottom - drawerTop)) : 0;
+        if (timelineEl && drawerH > 0) {
+          timelineEl.style.setProperty('--timeline-drawer-height', `${drawerH}px`);
+        }
+
+        const visibleTop = vpRect.top;
+        const visibleBottom = isDrawerOpen ? drawerTop : vpRect.bottom;
+        const visibleHeight = visibleBottom - visibleTop;
+        const targetCenterY = visibleTop + (visibleHeight / 2);
+
+        let targetScrollTop = 0;
+        if (slot) {
+          const slotRect = slot.getBoundingClientRect();
+          const slotCenterY = slotRect.top + (slotRect.height / 2);
+          const deltaY = slotCenterY - targetCenterY;
+          targetScrollTop = Math.max(0, Math.round(viewport.scrollTop + deltaY));
+        } else {
+          const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+          const idx = layers.findIndex(l => l.id === layerId);
+          if (idx < 0) return;
+          const layerCenterInContent = 12 + (idx * 54) + 22;
+          const targetCenterInVp = targetCenterY - visibleTop;
+          targetScrollTop = Math.max(0, Math.round(layerCenterInContent - targetCenterInVp));
+        }
+
+        try {
+          if (smooth) {
+            viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+          } else {
+            viewport.scrollTop = targetScrollTop;
+          }
+        } catch (_) {
+          viewport.scrollTop = targetScrollTop;
+        }
+
+        setTimeout(() => {
+          if (Math.abs(viewport.scrollTop - targetScrollTop) > 2) {
+            viewport.scrollTop = targetScrollTop;
+          }
+        }, 80);
+        setTimeout(() => {
+          if (Math.abs(viewport.scrollTop - targetScrollTop) > 2) {
+            viewport.scrollTop = targetScrollTop;
+          }
+        }, 220);
+      }
+      window.centerSelectedTimelineLayer = centerSelectedTimelineLayer;
+
       function selectTimelineLayer(layerId, isMulti = false) {
         if (!layerId) return;
         if (typeof window.clearSelectedKeyframes === 'function') {
@@ -19053,34 +20940,8 @@
             activeCard.style.height = '';
           }
 
-          // Scroll into view if covered by drawer card
-          const scrollSelectedIntoView = () => {
-            const viewport = document.getElementById('timeline-layers-viewport');
-            const drawerCard = document.querySelector('#timeline-layer-drawer .drawer-card');
-            const slot = document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"]`);
-            if (viewport && slot) {
-              const vpRect = viewport.getBoundingClientRect();
-              const slotRect = slot.getBoundingClientRect();
-              const drawerH = (drawerCard && drawerCard.offsetHeight > 0) ? drawerCard.offsetHeight : 180;
-              // Safe clearance: keep selected layer well above drawer card
-              const safeBottom = vpRect.bottom - drawerH - 24;
-              const safeTop = vpRect.top + 8;
-
-              if (slotRect.bottom > safeBottom || slotRect.top < safeTop) {
-                const visibleHeight = safeBottom - safeTop;
-                const targetTop = safeTop + Math.max(0, (visibleHeight - slotRect.height) / 2);
-                const scrollDelta = slotRect.top - targetTop;
-                viewport.scrollTo({
-                  top: Math.max(0, Math.round(viewport.scrollTop + scrollDelta)),
-                  behavior: 'smooth'
-                });
-              }
-            }
-          };
-
-          scrollSelectedIntoView();
-          setTimeout(scrollSelectedIntoView, 60);
-          setTimeout(scrollSelectedIntoView, 180);
+          // Smoothly center selected layer in visible timeline area above drawer
+          centerSelectedTimelineLayer(true, layerId);
         }
         updateEditorHeaderMode();
         if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
@@ -19090,6 +20951,7 @@
           updateCutBarRowState();
         }
       }
+      window.selectTimelineLayer = selectTimelineLayer;
 
       function updateTimelineSpotlight() {}
       window.updateTimelineSpotlight = updateTimelineSpotlight;
@@ -19097,16 +20959,7 @@
       function toggleSelectTimelineLayer(layerId, isMulti = false) {
         if (!layerId) return;
         if (!isMulti) {
-          const drawerEl = document.getElementById('timeline-layer-drawer');
-          const isDrawerOpen = (window.Drawer && typeof window.Drawer.isOpen === 'function' && window.Drawer.isOpen('timeline-layer-drawer')) || (drawerEl && drawerEl.classList.contains('is-active'));
-          if (selectedLayerIds.has(layerId) && selectedLayerIds.size === 1) {
-            if (!isDrawerOpen) {
-              selectTimelineLayer(layerId, false);
-              return;
-            }
-            deselectTimelineLayer();
-            return;
-          }
+          // Never deselect when clicking selected layer; keep active
           selectTimelineLayer(layerId, false);
         } else {
           if (selectedLayerIds.has(layerId)) {
@@ -19262,6 +21115,20 @@
             const layer = (currentProjectState.layers || []).find(l => l.id === targetId);
             btnMotionBlur.classList.toggle('is-active', !!(layer && layer.motionBlur));
           }
+
+          const btnCollapse = document.getElementById('btn-layer-header-collapse');
+          if (btnCollapse) {
+            const targetId = selectedLayerId || (selectedLayerIds ? Array.from(selectedLayerIds)[0] : null);
+            const layer = (currentProjectState.layers || []).find(l => l.id === targetId);
+            if (count === 1 && layer && layer.type === 'precomp') {
+              btnCollapse.style.display = 'inline-flex';
+              const isCol = !!layer.collapseTransformations;
+              btnCollapse.classList.toggle('is-active', isCol);
+              btnCollapse.setAttribute('aria-pressed', String(isCol));
+            } else {
+              btnCollapse.style.display = 'none';
+            }
+          }
         } else {
           // Normal project mode
           if (prevBtn) prevBtn.setAttribute('title', 'Previous Beatmark / Frame');
@@ -19270,12 +21137,15 @@
           projectNav.style.display = 'flex';
           if (btnLink) btnLink.style.display = 'none';
           if (btnPrecomp) btnPrecomp.style.display = 'none';
+          const btnLayerCol = document.getElementById('btn-layer-header-collapse');
+          if (btnLayerCol) btnLayerCol.style.display = 'none';
 
           const projectBackBtn = document.getElementById('editor-project-back-btn');
           const projectNameInput = document.getElementById('editor-project-name');
           const precompBreadcrumb = document.getElementById('editor-precomp-breadcrumb');
           const breadcrumbProjName = document.getElementById('breadcrumb-project-name');
           const precompNameInput = document.getElementById('editor-precomp-name');
+          const btnPrecompCollapse = document.getElementById('btn-precomp-collapse');
 
           if (currentActivePrecomp) {
             if (projectBackBtn) projectBackBtn.style.display = 'none';
@@ -19290,10 +21160,17 @@
             if (precompNameInput) {
               precompNameInput.value = currentActivePrecomp.name || 'Pre-comp';
             }
+            if (btnPrecompCollapse) {
+              btnPrecompCollapse.style.display = 'inline-flex';
+              const isCol = !!currentActivePrecomp.collapseTransformations;
+              btnPrecompCollapse.classList.toggle('is-active', isCol);
+              btnPrecompCollapse.setAttribute('aria-pressed', String(isCol));
+            }
           } else {
             if (projectBackBtn) projectBackBtn.style.display = '';
             if (projectNameInput) projectNameInput.style.display = '';
             if (precompBreadcrumb) precompBreadcrumb.style.display = 'none';
+            if (btnPrecompCollapse) btnPrecompCollapse.style.display = 'none';
           }
 
           const btnSettings = document.getElementById('btn-editor-settings');
@@ -19447,6 +21324,39 @@
             btnLayerMotionBlur.classList.toggle('is-active', nextState);
             saveCurrentProjectLayers();
             redrawComposition();
+          });
+        }
+
+        // 3a-2. Collapse Transformations Toggle Button in Layer Header
+        const btnLayerCollapse = document.getElementById('btn-layer-header-collapse');
+        if (btnLayerCollapse) {
+          btnLayerCollapse.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetId = (typeof selectedLayerId !== 'undefined' && selectedLayerId) || window.selectedLayerId || (selectedLayerIds ? Array.from(selectedLayerIds)[0] : null);
+            if (!targetId || !currentProjectState.layers) return;
+            const layer = currentProjectState.layers.find(l => l.id === targetId);
+            if (!layer || layer.type !== 'precomp') return;
+
+            layer.collapseTransformations = !layer.collapseTransformations;
+            const nextState = !!layer.collapseTransformations;
+            btnLayerCollapse.classList.toggle('is-active', nextState);
+            btnLayerCollapse.setAttribute('aria-pressed', String(nextState));
+
+            layer._precompBufferCanvas = null;
+            if (window.PreviewCacheManager) {
+              if (typeof window.PreviewCacheManager.clearPool === 'function') {
+                window.PreviewCacheManager.clearPool(layer.id);
+              } else if (typeof window.PreviewCacheManager.clearAll === 'function') {
+                window.PreviewCacheManager.clearAll('all');
+              } else if (typeof window.PreviewCacheManager.clear === 'function') {
+                window.PreviewCacheManager.clear();
+              }
+            }
+            if (typeof invalidatePreviewCacheForLayer === 'function') {
+              invalidatePreviewCacheForLayer(layer);
+            }
+            saveCurrentProjectLayers();
+            redrawComposition('togglePrecompCollapse');
           });
         }
 
@@ -20192,6 +22102,19 @@
         const precompId = 'layer_precomp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const mediaId = 'media_comp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
+        const has3DChildren = clonedChildren.some(l => {
+          const rotX = Math.abs(l.rotX || 0);
+          const rotY = Math.abs(l.rotY || 0);
+          const posZ = Math.abs(l.posZ || 0);
+          const anchorZ = Math.abs(l.anchorZ || 0);
+          const has3DKeyframes = l.keyframes && (
+            (Array.isArray(l.keyframes.rotX) && l.keyframes.rotX.length > 0) ||
+            (Array.isArray(l.keyframes.rotY) && l.keyframes.rotY.length > 0) ||
+            (Array.isArray(l.keyframes.posZ) && l.keyframes.posZ.length > 0)
+          );
+          return rotX > 0.001 || rotY > 0.001 || posZ > 0.001 || anchorZ > 0.001 || !!l.is3D || !!l.collapseTransformations || has3DKeyframes;
+        });
+
         const precompLayer = {
           id: precompId,
           mediaId: mediaId,
@@ -20225,6 +22148,8 @@
           opacity: 1,
           blendMode: 'normal',
           hasAudio: clonedChildren.some(l => l.type === 'audio' || l.type === 'video' || (l.type === 'precomp' && l.hasAudio)),
+          is3D: has3DChildren,
+          collapseTransformations: has3DChildren,
           layers: clonedChildren
         };
 
@@ -20862,6 +22787,35 @@
             }
           });
         }
+
+        const btnPrecompCollapse = document.getElementById('btn-precomp-collapse');
+        if (btnPrecompCollapse) {
+          btnPrecompCollapse.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentActivePrecomp) {
+              currentActivePrecomp.collapseTransformations = !currentActivePrecomp.collapseTransformations;
+              const nextState = !!currentActivePrecomp.collapseTransformations;
+              btnPrecompCollapse.classList.toggle('is-active', nextState);
+              btnPrecompCollapse.setAttribute('aria-pressed', String(nextState));
+
+              currentActivePrecomp._precompBufferCanvas = null;
+              if (window.PreviewCacheManager) {
+                if (typeof window.PreviewCacheManager.clearPool === 'function') {
+                  window.PreviewCacheManager.clearPool(currentActivePrecomp.id);
+                } else if (typeof window.PreviewCacheManager.clearAll === 'function') {
+                  window.PreviewCacheManager.clearAll('all');
+                } else if (typeof window.PreviewCacheManager.clear === 'function') {
+                  window.PreviewCacheManager.clear();
+                }
+              }
+              if (typeof invalidatePreviewCacheForLayer === 'function') {
+                invalidatePreviewCacheForLayer(currentActivePrecomp);
+              }
+              saveCurrentProjectLayers();
+              redrawComposition('togglePrecompCollapse');
+            }
+          });
+        }
       })();
 
       // Pure PCM 16-Bit WAV Encoder Helper (Offline, Fast, Zero External Libs)
@@ -21070,7 +23024,10 @@
           const vp = document.getElementById('timeline-layers-viewport');
           if (vp) vp.classList.remove('has-drawer-open');
           const tl = document.getElementById('main-editor-timeline');
-          if (tl) tl.classList.remove('has-layer-drawer-open');
+          if (tl) {
+            tl.classList.remove('has-layer-drawer-open');
+            tl.style.removeProperty('--timeline-drawer-height');
+          }
           const drawerEl = document.getElementById('timeline-layer-drawer');
           if (drawerEl) {
             drawerEl.style.removeProperty('--spotlight-top');
@@ -21089,6 +23046,10 @@
           if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
             updateTimelineKeyframeMarkersHighlight();
           }
+          if (typeof centerSelectedTimelineLayer === 'function') {
+            centerSelectedTimelineLayer(true);
+            setTimeout(() => centerSelectedTimelineLayer(false), 280);
+          }
         }
       });
 
@@ -21103,6 +23064,9 @@
       window.addEventListener('resize', () => {
         if (window.Drawer && window.Drawer.isOpen('timeline-layer-drawer')) {
           updateTimelineSpotlight();
+          if (typeof centerSelectedTimelineLayer === 'function') {
+            centerSelectedTimelineLayer(false);
+          }
         }
       }, { passive: true });
 
@@ -21491,11 +23455,14 @@
                 list.forEach(kf => {
                   const relSec = kf.time - clipStartSec;
                   const relPx = relSec * pixelsPerSecond;
-                  if (relPx < -5 || relPx > (layer.widthPx || 320) + 5) return;
+                  const clipW = layer.widthPx || 320;
+                  if (relPx < -5 || relPx > clipW + 5) return;
+
+                  const clampedPx = Math.max(0, Math.min(clipW, relPx));
 
                   const marker = document.createElement('div');
                   marker.className = `timeline-keyframe-marker ${isActiveProp ? 'is-active-prop' : 'is-other-prop'}`;
-                  marker.style.left = `${relPx}px`;
+                  marker.style.left = `${clampedPx.toFixed(1)}px`;
                   const propLabel = prop.includes(':') ? prop.split(':')[1].toUpperCase() : prop.toUpperCase();
                   marker.title = `${propLabel} Keyframe: ${kf.time.toFixed(2)}s`;
                   marker.dataset.prop = prop;
@@ -21633,7 +23600,10 @@
                           if (item.marker) {
                             item.marker.dataset.time = shifted;
                             const rPx = (shifted - clipStartSec) * pps;
-                            item.marker.style.left = `${rPx.toFixed(1)}px`;
+                            const targetLayer = item.layer || layer;
+                            const clipW = targetLayer.widthPx || (clipDurSec * pps);
+                            const clampedPx = Math.max(0, Math.min(clipW, rPx));
+                            item.marker.style.left = `${clampedPx.toFixed(1)}px`;
                             const pl = item.prop.includes(':') ? item.prop.split(':')[1].toUpperCase() : item.prop.toUpperCase();
                             item.marker.title = `${pl} Keyframe: ${shifted.toFixed(2)}s`;
                           }
@@ -21641,7 +23611,9 @@
                       } else {
                         kf.time = newTime;
                         marker.dataset.time = newTime;
-                        marker.style.left = `${(targetRelSec * pps).toFixed(1)}px`;
+                        const clipW = layer.widthPx || (clipDurSec * pps);
+                        const clampedPx = Math.max(0, Math.min(clipW, targetRelSec * pps));
+                        marker.style.left = `${clampedPx.toFixed(1)}px`;
                         marker.title = `${prop.toUpperCase()} Keyframe: ${newTime.toFixed(2)}s`;
                         if (window.selectedKeyframes) {
                           const sItem = window.selectedKeyframes.find(it => it.kf === kf);
@@ -25430,5 +27402,7 @@
       }
     };
   </script>
+  <script src="js/openfishtools-generators3d.js"></script>
+  <script src="js/openfishtools-controller.js"></script>
 </body>
 </html>

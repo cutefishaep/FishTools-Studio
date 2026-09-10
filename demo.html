@@ -1422,10 +1422,6 @@
                   ⚙️ More Settings (Vertical Popover)
                 </button>
 
-                <button type="button" class="theme-btn" id="demo-btn-fishtool-trigger" style="padding: 10px 18px; font-size: 13px; display: inline-flex; align-items: center; gap: 8px;">
-                  <img src="assets/icon.svg" width="18" height="18" style="border-radius: 4px;" alt="FishTool">
-                  🐟 OpenFishTools (Lazy Loaded)
-                </button>
               </div>
 
               <!-- Edge Test Trigger Grid -->
@@ -1463,6 +1459,16 @@
                 <!-- Graph Options (.is-menu-popover) Trigger -->
                 <button type="button" class="theme-btn" data-popover-target="demo-popover-graph-more" style="padding: 8px 14px; font-size: 12px;">
                   📈 Graph Options (.is-menu-popover)
+                </button>
+
+                <!-- Numeric Value Input (.is-value-input-popover) Trigger -->
+                <button type="button" class="theme-btn" data-popover-target="demo-popover-value-input" style="padding: 8px 14px; font-size: 12px;">
+                  🔢 Value Input (.is-value-input-popover)
+                </button>
+
+                <!-- Expression (.is-expression-popover) Trigger -->
+                <button type="button" class="theme-btn" data-popover-target="demo-popover-expression" style="padding: 8px 14px; font-size: 12px;">
+                  𝑓𝑥 Expression (.is-expression-popover)
                 </button>
               </div>
 
@@ -2986,6 +2992,19 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
+                  <button type="button" class="editor-layer-collapse-btn is-active" title="Collapse Transformations / Continuously Rasterize" onclick="this.classList.toggle('is-active')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+                      <line x1="12" y1="2.5" x2="12" y2="5.5"/>
+                      <line x1="12" y1="18.5" x2="12" y2="21.5"/>
+                      <line x1="2.5" y1="12" x2="5.5" y2="12"/>
+                      <line x1="18.5" y1="12" x2="21.5" y2="12"/>
+                      <line x1="5.28" y1="5.28" x2="7.4" y2="7.4"/>
+                      <line x1="16.6" y1="16.6" x2="18.72" y2="18.72"/>
+                      <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
+                      <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
+                    </svg>
+                  </button>
                   <button type="button" class="editor-layer-precomp-btn" title="Precompose Layer(s)" style="display: inline-flex;">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h6v4H7zm4 6h6v4h-6z"/></svg>
                   </button>
@@ -3005,7 +3024,7 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                 Copy
               </button>
             </div>
-            <pre class="code-snippet-body"><code id="code-precomp-breadcrumb">&lt;!-- Precompose Breadcrumb Navigation --&gt;
+            <pre class="code-snippet-body"><code id="code-precomp-breadcrumb">&lt;!-- Precompose Breadcrumb Navigation with Collapse Transformations Switch --&gt;
 &lt;div class="editor-precomp-breadcrumb" id="editor-precomp-breadcrumb"&gt;
   &lt;button type="button" class="editor-breadcrumb-btn" id="btn-precomp-exit" title="Exit to Main Composition"&gt;
     &lt;svg viewBox="0 0 24 24" fill="currentColor"&gt;&lt;path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/&gt;&lt;/svg&gt;
@@ -3015,7 +3034,22 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
     &lt;svg viewBox="0 0 24 24" fill="currentColor"&gt;&lt;path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/&gt;&lt;/svg&gt;
   &lt;/span&gt;
   &lt;input type="text" class="editor-title-input editor-precomp-name-input" id="editor-precomp-name" value="Pre-comp 1" placeholder="Precompose Name..." autocomplete="off" spellcheck="false"&gt;
-&lt;/div&gt;</code></pre>
+&lt;/div&gt;
+
+&lt;!-- Collapse Transformations (3D Group) Button --&gt;
+&lt;button type="button" class="editor-layer-collapse-btn" id="btn-layer-header-collapse" title="For Comp layer: Collapse Transformations; For vector layer: Continuously Rasterize"&gt;
+  &lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"&gt;
+    &lt;circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/&gt;
+    &lt;line x1="12" y1="2.5" x2="12" y2="5.5"/&gt;
+    &lt;line x1="12" y1="18.5" x2="12" y2="21.5"/&gt;
+    &lt;line x1="2.5" y1="12" x2="5.5" y2="12"/&gt;
+    &lt;line x1="18.5" y1="12" x2="21.5" y2="12"/&gt;
+    &lt;line x1="5.28" y1="5.28" x2="7.4" y2="7.4"/&gt;
+    &lt;line x1="16.6" y1="16.6" x2="18.72" y2="18.72"/&gt;
+    &lt;line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/&gt;
+    &lt;line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/&gt;
+  &lt;/svg&gt;
+&lt;/button&gt;</code></pre>
           </div>
         </article>
 
@@ -3223,6 +3257,25 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                             </div>
                             <button type="button" class="effects-param-value-btn">+0%</button>
                           </div>
+
+                          <div class="effects-control-row effects-control-row-select">
+                            <div class="effects-param-label-static">Wave Type</div>
+                            <div class="custom-dropdown effects-custom-dropdown" data-value="sine">
+                              <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select Wave Type">
+                                <span class="custom-dropdown-label">Sine</span>
+                                <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M7 10l5 5 5-5z"/>
+                                </svg>
+                              </button>
+                              <div class="custom-dropdown-menu" role="listbox">
+                                <div class="custom-dropdown-item is-selected" role="option" data-val="sine">Sine</div>
+                                <div class="custom-dropdown-item" role="option" data-val="triangle">Triangle</div>
+                                <div class="custom-dropdown-item" role="option" data-val="square">Square</div>
+                                <div class="custom-dropdown-item" role="option" data-val="sawtooth">Sawtooth</div>
+                                <div class="custom-dropdown-item" role="option" data-val="smooth-noise">Smooth Noise</div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3308,6 +3361,10 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                     <div class="effects-category-card" onclick="document.getElementById('demo-effects-items-view').style.display = 'flex'; this.parentElement.style.display = 'none'; document.querySelector('.effects-items-category-title').textContent = 'Layer';">
                       <div class="effects-category-card-overlay"></div>
                       <span class="effects-category-name">Layer</span>
+                    </div>
+                    <div class="effects-category-card" onclick="document.getElementById('demo-effects-items-view').style.display = 'flex'; this.parentElement.style.display = 'none'; document.querySelector('.effects-items-category-title').textContent = 'Expression';">
+                      <div class="effects-category-card-overlay"></div>
+                      <span class="effects-category-name">Expression</span>
                     </div>
                   </div>
 
@@ -3466,6 +3523,18 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
                           <img src="assets/FXPH.svg" alt="Camera Lens Blur" class="effects-gallery-item-img">
                         </div>
                         <span class="effects-gallery-item-name">Camera Lens Blur</span>
+                      </div>
+                      <div class="effects-gallery-item-card" onclick="alert('Expression Controls added!')">
+                        <div class="effects-gallery-item-thumb">
+                          <img src="assets/FXPH.svg" alt="Expression Controls" class="effects-gallery-item-img">
+                        </div>
+                        <span class="effects-gallery-item-name">Expression Controls</span>
+                      </div>
+                      <div class="effects-gallery-item-card" onclick="alert('Slider Control added!')">
+                        <div class="effects-gallery-item-thumb">
+                          <img src="assets/FXPH.svg" alt="Slider Control" class="effects-gallery-item-img">
+                        </div>
+                        <span class="effects-gallery-item-name">Slider Control</span>
                       </div>
                     </div>
                   </div>
@@ -5111,18 +5180,6 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
     </div>
   </div>
 
-  <!-- Popover 5: Dynamic Embedded OpenFishTools Panel (.is-embed-panel) -->
-  <div class="popover-card is-embed-panel" id="demo-popover-fishtools" role="dialog" aria-hidden="true">
-    <div class="popover-tail" aria-hidden="true"></div>
-    
-    <div class="popover-embed-body" id="demo-fishtools-body">
-      <!-- 1. Minimalist Flat Loading State -->
-      <div class="popover-loader-box" id="demo-fishtools-loader">
-        <div class="popover-flat-spinner"></div>
-        <span>Loading OpenFishTools...</span>
-      </div>
-    </div>
-  </div>
 
   <!-- Popover 6: Modular Layer Context Menu (.is-menu-popover) -->
   <div class="popover-card is-menu-popover" id="demo-popover-context-menu" role="dialog" aria-hidden="true" data-popover-placement="bottom">
@@ -5188,7 +5245,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   </div>
 
   <!-- Popover 8: Graph Editor More Options (.is-menu-popover) -->
-  <div class="popover-card is-menu-popover" id="demo-popover-graph-more" role="dialog" aria-hidden="true" style="min-width: 190px;">
+  <div class="popover-card is-menu-popover" id="demo-popover-graph-more" role="dialog" aria-hidden="true" style="min-width: 170px;">
     <div class="popover-tail" aria-hidden="true"></div>
     <div class="popover-menu-list">
       <button type="button" class="popover-menu-item" onclick="Popover.close()">
@@ -5197,6 +5254,36 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
         </span>
         <span>Enable Overshoot</span>
       </button>
+      <div class="popover-menu-divider"></div>
+      <button type="button" class="popover-menu-item" onclick="Popover.close()">
+        <span>Copy</span>
+      </button>
+      <button type="button" class="popover-menu-item" onclick="Popover.close()">
+        <span>Paste</span>
+      </button>
+      <button type="button" class="popover-menu-item" onclick="Popover.close()">
+        <span>Paste to all</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Popover 8b: Modular Numeric Value Input (.is-value-input-popover) -->
+  <div class="popover-card is-value-input-popover" id="demo-popover-value-input" role="dialog" aria-hidden="true">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <form class="popover-value-form" onsubmit="event.preventDefault(); Popover.close();">
+      <input type="number" step="1" class="popover-value-field" value="25" autocomplete="off" spellcheck="false">
+    </form>
+  </div>
+
+  <!-- Popover 8c: Modular Transform Expression (.is-expression-popover) -->
+  <div class="popover-card is-expression-popover" id="demo-popover-expression" role="dialog" aria-hidden="true" style="min-width: 260px; max-width: 320px;">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="expression-popover-header">
+      <span class="expression-popover-title">Position Expression</span>
+      <button type="button" class="expression-clear-btn" onclick="const ta = this.closest('.popover-card').querySelector('.expression-textarea'); if(ta) ta.value=''; Popover.close();" title="Clear Expression">Clear</button>
+    </div>
+    <div class="expression-popover-body">
+      <textarea class="expression-textarea" placeholder="e.g. [value[0] + effect(&quot;Slider Control&quot;)(&quot;Slider&quot;), value[1]]" spellcheck="false" autocomplete="off" rows="3">wiggle(5, 30)</textarea>
     </div>
   </div>
 
@@ -5307,7 +5394,6 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="js/drawer.js"></script>
   <script src="js/switch.js"></script>
   <script src="js/context-menu.js"></script>
-  <script src="js/fishtools-adapter.js?v=4"></script>
   <script src="js/wireframe.js?v=3"></script>
   <script src="js/effects.js?v=4"></script>
   <script src="effects/brightness_contrast.js"></script>
@@ -5330,6 +5416,22 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="effects/swing.js"></script>
   <script src="effects/drop_shadow.js"></script>
   <script src="effects/fill.js"></script>
+  <script src="effects/expression_controls.js"></script>
+  <script src="effects/slider_control.js"></script>
+  <script src="effects/point_control.js"></script>
+  <script src="effects/angle_control.js"></script>
+  <script src="effects/checkbox_control.js"></script>
+  <script src="effects/color_control.js"></script>
+  <script src="effects/star_burst.js"></script>
+  <script src="effects/grid.js"></script>
+  <script src="effects/radio_waves.js"></script>
+  <script src="effects/scanline.js"></script>
+  <script src="effects/mono.js"></script>
+  <script src="effects/glow_aura.js"></script>
+  <script src="effects/solid_aura.js"></script>
+  <script src="effects/bevel.js"></script>
+  <script src="effects/shatter.js"></script>
+  <script src="effects/deep_glow.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/template-editor.js"></script>
@@ -5829,40 +5931,15 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       }
     })();
 
-    // Dynamic On-Demand Lazy Loader for OpenFishTools Panel inside Popover
-    (function initFishToolsLoader() {
-      const triggerBtn = document.getElementById('demo-btn-fishtool-trigger');
-      const popoverEl = document.getElementById('demo-popover-fishtools');
-      const bodyEl = document.getElementById('demo-fishtools-body');
-      const loaderEl = document.getElementById('demo-fishtools-loader');
-
-      if (!triggerBtn || !popoverEl || !bodyEl) return;
-
-      let isLoaded = false;
-
-      triggerBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // 1. Open Popover anchored to button immediately
-        Popover.open(triggerBtn, 'demo-popover-fishtools');
-
-        // 2. Perform on-demand lazy load only on first click
-        if (!isLoaded) {
-          isLoaded = true;
-          if (loaderEl) loaderEl.style.display = 'flex';
-
-          const iframe = document.createElement('iframe');
-          iframe.className = 'popover-embed-frame';
-          iframe.id = 'demo-fishtools-frame';
-          iframe.title = 'OpenFishTools Panel';
-          bodyEl.appendChild(iframe);
-
-          if (window.FishToolsAdapter) {
-            window.FishToolsAdapter.loadIntoIframe(iframe, loaderEl);
-          }
-        }
-      });
+    // Numeric Value Input Popover Live Input Showcase
+    (function initDemoValuePopover() {
+      const triggerBtn = document.querySelector('[data-popover-target="demo-popover-value-input"]');
+      const inputEl = document.querySelector('#demo-popover-value-input .popover-value-field');
+      if (triggerBtn && inputEl) {
+        inputEl.addEventListener('input', () => {
+          triggerBtn.textContent = `🔢 Value: ${inputEl.value || 0}`;
+        });
+      }
     })();
 
     // Modular Context Menu & Press-Hold Action Showcase
@@ -6303,7 +6380,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       if ('brightness/contrast'.includes(q) || 'brightness'.includes(q) || 'contrast'.includes(q) || 'tile'.includes(q) || 'wave warp'.includes(q) || 'warp'.includes(q) || 'transform'.includes(q) || 'oscillate'.includes(q) || 'swing'.includes(q)) {
         if (catGrid) catGrid.style.display = 'none';
         if (itemsView) itemsView.style.display = 'flex';
-      } else if ('lightning'.includes(q) || 'warp'.includes(q) || 'movement'.includes(q)) {
+      } else if ('lightning'.includes(q) || 'warp'.includes(q) || 'movement'.includes(q) || 'layer'.includes(q) || 'expression'.includes(q)) {
         if (catGrid) catGrid.style.display = 'grid';
         if (itemsView) itemsView.style.display = 'none';
       } else {

@@ -671,6 +671,11 @@ window.FishDatabase = (function () {
                   m.dataUrl = URL.createObjectURL(m.blob);
                 } catch (_) {}
               }
+              if (m && m.thumbBlob && (!m.thumbUrl || m.thumbUrl.startsWith('blob:'))) {
+                try {
+                  m.thumbUrl = URL.createObjectURL(m.thumbBlob);
+                } catch (_) {}
+              }
             });
             resolve(items);
           };

@@ -386,8 +386,15 @@
       }
     }
 
+    clearPool(compId) {
+      if (compId) {
+        this.deletePool(compId);
+      }
+      this.clearAll('all');
+    }
+
     clear() {
-      this.clearAll('current');
+      this.clearAll('all');
     }
 
     /**

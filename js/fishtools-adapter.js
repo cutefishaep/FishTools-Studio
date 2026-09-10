@@ -428,6 +428,14 @@ window.FishToolsBridge = (function () {
   }
 
   function executeTool(toolName, ...args) {
+    const directExec = (typeof window.executeFishTool === 'function')
+      ? window.executeFishTool
+      : (window.parent && typeof window.parent.executeFishTool === 'function' ? window.parent.executeFishTool : null);
+    if (directExec) {
+      const res = directExec(toolName, ...args);
+      if (res !== undefined) return res;
+    }
+
     if (toolName === 'setAnchorPoint') {
       return setAnchorPoint(args[0]);
     }
@@ -486,6 +494,11 @@ window.FishToolsBridge = (function () {
         return window.changeCompositionFPS(fps);
       }
       return 'true';
+    }
+    if (toolName === 'CUBE' || (typeof toolName === 'string' && toolName.indexOf('GEN_3D') === 0)) {
+      if (typeof window.executeFishTool === 'function') {
+        return window.executeFishTool(toolName, ...args);
+      }
     }
     // --- Toolbox & Layer Helpers ---
     function mirrorLayers(alter = false) {
@@ -714,6 +727,35 @@ window.FishToolsBridge = (function () {
 
     // --- Beat Effects Helpers ---
     function applyBeatKeyframes(type) {
+      const fnNull = (typeof window.applyBeatNullTool === 'function')
+        ? window.applyBeatNullTool
+        : (window.parent && typeof window.parent.applyBeatNullTool === 'function' ? window.parent.applyBeatNullTool : null);
+      if (typeof fnNull === 'function' && (type === 'OSCILLATE' || type === 'SWING' || type === 'Y_BEAT' || type === 'Y_FLIP' || type === 'X_BEAT' || type === 'X_FLIP' || type === 'SCALE_BEAT' || type === 'SCALE_OVERLAP')) {
+        return fnNull(type);
+      }
+      const fnExec = (typeof window.executeFishTool === 'function')
+        ? window.executeFishTool
+        : (window.parent && typeof window.parent.executeFishTool === 'function' ? window.parent.executeFishTool : null);
+      if (typeof fnExec === 'function' && (type === 'OSCILLATE' || type === 'SWING' || type === 'Y_BEAT' || type === 'Y_FLIP' || type === 'X_BEAT' || type === 'X_FLIP' || type === 'SCALE_BEAT' || type === 'SCALE_OVERLAP')) {
+        return fnExec(type);
+      }
+      if (type === 'EXPO' || type === 'FLASH') {
+        const fn = (typeof window.applyBeatFlashEffect === 'function')
+          ? window.applyBeatFlashEffect
+          : (window.parent && typeof window.parent.applyBeatFlashEffect === 'function' ? window.parent.applyBeatFlashEffect : null);
+        if (typeof fn === 'function') {
+          return fn();
+        }
+      }
+      if (type === 'LENS') {
+        const fn = (typeof window.applyBeatBlurEffect === 'function')
+          ? window.applyBeatBlurEffect
+          : (window.parent && typeof window.parent.applyBeatBlurEffect === 'function' ? window.parent.applyBeatBlurEffect : null);
+        if (typeof fn === 'function') {
+          return fn(false);
+        }
+      }
+
       const selected = getSelectedLayers();
       if (selected.length === 0) {
         return JSON.stringify({
@@ -724,133 +766,28 @@ window.FishToolsBridge = (function () {
         });
       }
 
-      const [baseW, baseH] = getResolutionDims();
-
-      selected.forEach(layer => {
-        const dims = getLayerDimensions(layer, baseW, baseH);
-        const origPosX = layer.posX !== undefined ? layer.posX : (baseW / 2);
-        const origPosY = layer.posY !== undefined ? layer.posY : (baseH / 2);
-        const origScaleW = layer.scaleW !== undefined ? layer.scaleW : dims.w;
-        const origScaleH = layer.scaleH !== undefined ? layer.scaleH : dims.h;
-
-        const markers = getActiveBeatMarkers(layer);
-        if (!layer.keyframes) layer.keyframes = {};
-
-        if (type === 'Y_BEAT' || type === 'Y_FLIP') {
-          const kfs = [];
-          markers.forEach((t, idx) => {
-            const delta = (type === 'Y_FLIP' && idx % 2 === 1) ? -60 : 60;
-            kfs.push({
-              time: Number(t.toFixed(3)),
-              value: { posX: origPosX, posY: Number((origPosY + delta).toFixed(2)) },
-              easing: [0.15, 0.85, 0.20, 1.0]
-            });
-            kfs.push({
-              time: Number((t + 0.20).toFixed(3)),
-              value: { posX: origPosX, posY: origPosY },
-              easing: [0.15, 0.85, 0.20, 1.0]
-            });
-          });
-          kfs.sort((a, b) => a.time - b.time);
-          layer.keyframes.move = kfs;
-          window.activeKeyframeProperty = 'move';
-        } else if (type === 'X_BEAT' || type === 'X_FLIP') {
-          const kfs = [];
-          markers.forEach((t, idx) => {
-            const delta = (type === 'X_FLIP' && idx % 2 === 1) ? -60 : 60;
-            kfs.push({
-              time: Number(t.toFixed(3)),
-              value: { posX: Number((origPosX + delta).toFixed(2)), posY: origPosY },
-              easing: [0.15, 0.85, 0.20, 1.0]
-            });
-            kfs.push({
-              time: Number((t + 0.20).toFixed(3)),
-              value: { posX: origPosX, posY: origPosY },
-              easing: [0.15, 0.85, 0.20, 1.0]
-            });
-          });
-          kfs.sort((a, b) => a.time - b.time);
-          layer.keyframes.move = kfs;
-          window.activeKeyframeProperty = 'move';
-        } else if (type === 'SCALE_BEAT') {
-          const kfs = [];
-          markers.forEach(t => {
-            kfs.push({
-              time: Number(t.toFixed(3)),
-              value: { scaleW: Math.round(origScaleW * 1.18), scaleH: Math.round(origScaleH * 1.18) },
-              easing: [0.15, 0.85, 0.20, 1.0]
-            });
-            kfs.push({
-              time: Number((t + 0.20).toFixed(3)),
-              value: { scaleW: origScaleW, scaleH: origScaleH },
-              easing: [0.15, 0.85, 0.20, 1.0]
-            });
-          });
-          kfs.sort((a, b) => a.time - b.time);
-          layer.keyframes.scale = kfs;
-          window.activeKeyframeProperty = 'scale';
-        } else if (type === 'SCALE_OVERLAP') {
-          const kfs = [];
-          markers.forEach(t => {
-            kfs.push({
-              time: Number(t.toFixed(3)),
-              value: { scaleW: Math.round(origScaleW * 1.25), scaleH: Math.round(origScaleH * 1.25) },
-              easing: [0.12, 0.88, 0.15, 1.0]
-            });
-            kfs.push({
-              time: Number((t + 0.12).toFixed(3)),
-              value: { scaleW: Math.round(origScaleW * 0.96), scaleH: Math.round(origScaleH * 0.96) },
-              easing: [0.20, 0.80, 0.20, 1.0]
-            });
-            kfs.push({
-              time: Number((t + 0.25).toFixed(3)),
-              value: { scaleW: origScaleW, scaleH: origScaleH },
-              easing: [0.20, 0.80, 0.20, 1.0]
-            });
-          });
-          kfs.sort((a, b) => a.time - b.time);
-          layer.keyframes.scale = kfs;
-          window.activeKeyframeProperty = 'scale';
-        } else if (type === 'EXPO') {
-          let fx = (layer.effects || []).find(f => f.type === 'exposure-gamma' || f.name === 'exposure-gamma');
-          if (!fx) {
-            if (typeof window.applyEffectToSelectedLayers === 'function') {
-              window.applyEffectToSelectedLayers('exposure-gamma');
-              fx = (layer.effects || []).find(f => f.type === 'exposure-gamma' || f.name === 'exposure-gamma');
-            }
-          }
-          if (fx) {
-            const scopedKey = `${fx.id}:exposure`;
-            const kfs = [];
-            markers.forEach(t => {
-              kfs.push({
-                time: Number(t.toFixed(3)),
-                value: { exposure: 1.5 },
-                easing: [0.1, 0.9, 0.2, 1.0]
-              });
-              kfs.push({
-                time: Number((t + 0.15).toFixed(3)),
-                value: { exposure: 0.0 },
-                easing: [0.1, 0.9, 0.2, 1.0]
-              });
-            });
-            kfs.sort((a, b) => a.time - b.time);
-            layer.keyframes[scopedKey] = kfs;
-            layer.keyframes.exposure = kfs;
-            window.activeKeyframeProperty = scopedKey;
-          }
-        }
-
-        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
-          window.invalidatePreviewCacheForLayer(layer);
-        }
+      return JSON.stringify({
+        error: true,
+        tool: type,
+        type: 'warn',
+        message: 'Beat Null Rig controller not loaded.'
       });
-
-      commitChanges('beat_' + type);
-      return 'true';
     }
 
     function applyPanningKeyframes(type) {
+      const fnNull = (typeof window.applyBeatNullTool === 'function')
+        ? window.applyBeatNullTool
+        : (window.parent && typeof window.parent.applyBeatNullTool === 'function' ? window.parent.applyBeatNullTool : null);
+      if (typeof fnNull === 'function') {
+        return fnNull(type === 'PANNING' ? 'PANNING_MIX_ALL' : type);
+      }
+      const fnExec = (typeof window.executeFishTool === 'function')
+        ? window.executeFishTool
+        : (window.parent && typeof window.parent.executeFishTool === 'function' ? window.parent.executeFishTool : null);
+      if (typeof fnExec === 'function') {
+        return fnExec(type === 'PANNING' ? 'PANNING_MIX_ALL' : type);
+      }
+
       const selected = getSelectedLayers();
       if (selected.length === 0) {
         return JSON.stringify({
@@ -861,79 +798,12 @@ window.FishToolsBridge = (function () {
         });
       }
 
-      const pps = window.currentPixelsPerSecond || 80;
-      const [baseW, baseH] = getResolutionDims();
-
-      selected.forEach(layer => {
-        const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
-        const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
-        const clipEnd = clipStart + clipDur;
-
-        const dims = getLayerDimensions(layer, baseW, baseH);
-        const origPosX = layer.posX !== undefined ? layer.posX : (baseW / 2);
-        const origPosY = layer.posY !== undefined ? layer.posY : (baseH / 2);
-        const origRotZ = layer.rotZ !== undefined ? layer.rotZ : (layer.rotation || 0);
-        const origScaleW = layer.scaleW !== undefined ? layer.scaleW : dims.w;
-        const origScaleH = layer.scaleH !== undefined ? layer.scaleH : dims.h;
-
-        if (!layer.keyframes) layer.keyframes = {};
-
-        const hasPos = (type === 'PANNING_POS' || type === 'PANNING_MIX_PR' || type === 'PANNING_MIX_ALL');
-        const hasRot = (type === 'PANNING_ROT' || type === 'PANNING_MIX_PR' || type === 'PANNING_MIX_ALL');
-        const hasScale = (type === 'PANNING_SCALE' || type === 'PANNING_MIX_ALL');
-
-        if (hasPos) {
-          layer.keyframes.move = [
-            {
-              time: Number(clipStart.toFixed(3)),
-              value: { posX: Number((origPosX - 40).toFixed(2)), posY: Number((origPosY - 20).toFixed(2)) },
-              easing: [0.4, 0.0, 0.2, 1.0]
-            },
-            {
-              time: Number(clipEnd.toFixed(3)),
-              value: { posX: Number((origPosX + 40).toFixed(2)), posY: Number((origPosY + 20).toFixed(2)) },
-              easing: [0.4, 0.0, 0.2, 1.0]
-            }
-          ];
-        }
-
-        if (hasRot) {
-          layer.keyframes.rotate = [
-            {
-              time: Number(clipStart.toFixed(3)),
-              value: { rotZ: Number((origRotZ - 4).toFixed(2)), rotation: Number((origRotZ - 4).toFixed(2)) },
-              easing: [0.4, 0.0, 0.2, 1.0]
-            },
-            {
-              time: Number(clipEnd.toFixed(3)),
-              value: { rotZ: Number((origRotZ + 4).toFixed(2)), rotation: Number((origRotZ + 4).toFixed(2)) },
-              easing: [0.4, 0.0, 0.2, 1.0]
-            }
-          ];
-        }
-
-        if (hasScale) {
-          layer.keyframes.scale = [
-            {
-              time: Number(clipStart.toFixed(3)),
-              value: { scaleW: origScaleW, scaleH: origScaleH },
-              easing: [0.4, 0.0, 0.2, 1.0]
-            },
-            {
-              time: Number(clipEnd.toFixed(3)),
-              value: { scaleW: Math.round(origScaleW * 1.18), scaleH: Math.round(origScaleH * 1.18) },
-              easing: [0.4, 0.0, 0.2, 1.0]
-            }
-          ];
-        }
-
-        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
-          window.invalidatePreviewCacheForLayer(layer);
-        }
+      return JSON.stringify({
+        error: true,
+        tool: type,
+        type: 'warn',
+        message: 'Panning Null Rig controller not loaded.'
       });
-
-      commitChanges('panning_' + type);
-      return 'true';
     }
 
     // --- Toolbox: Layers ---
@@ -1048,42 +918,73 @@ window.FishToolsBridge = (function () {
     }
 
     // --- Beat Effects: Current ---
-    if (toolName === 'GHST') {
-      return applyEffectSafely('rgb-split');
-    }
-    if (toolName === 'WARP') {
-      return applyEffectSafely('wave-warp');
-    }
-    if (toolName === 'FISHEYE') {
-      return applyEffectSafely('warp');
-    }
-    if (toolName === 'MIDWAVE') {
-      return applyEffectSafely('wave-warp');
-    }
-    if (toolName === 'HUESPIN') {
-      return applyEffectSafely('hue-shift');
+    if (toolName === 'GHST' || toolName === 'WARP' || toolName === 'FISHEYE' || toolName === 'MIDWAVE' || toolName === 'HUESPIN' || toolName === 'EXPO' || toolName === 'FLASH' || toolName === 'LENS' ||
+        toolName === 'OSCILLATE' || toolName === 'SWING' ||
+        toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' ||
+        toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP' ||
+        (typeof toolName === 'string' && (toolName === 'PANNING' || toolName.indexOf('PANNING_') === 0))) {
+      const exec = (typeof window.executeFishTool === 'function')
+        ? window.executeFishTool
+        : (window.parent && typeof window.parent.executeFishTool === 'function' ? window.parent.executeFishTool : null);
+      if (typeof exec === 'function') {
+        return exec(toolName, ...args);
+      }
+      const fnNull = (typeof window.applyBeatNullTool === 'function')
+        ? window.applyBeatNullTool
+        : (window.parent && typeof window.parent.applyBeatNullTool === 'function' ? window.parent.applyBeatNullTool : null);
+      if (typeof fnNull === 'function' && (toolName === 'OSCILLATE' || toolName === 'SWING' || toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' || toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP' || toolName === 'PANNING' || (typeof toolName === 'string' && toolName.indexOf('PANNING_') === 0))) {
+        return fnNull(toolName === 'PANNING' ? 'PANNING_MIX_ALL' : toolName);
+      }
+      const fn = (typeof window.applyBeatFlashEffect === 'function')
+        ? window.applyBeatFlashEffect
+        : (window.parent && typeof window.parent.applyBeatFlashEffect === 'function' ? window.parent.applyBeatFlashEffect : null);
+      if (typeof fn === 'function' && (toolName === 'EXPO' || toolName === 'FLASH')) {
+        return fn();
+      }
+      const fnBlur = (typeof window.applyBeatBlurEffect === 'function')
+        ? window.applyBeatBlurEffect
+        : (window.parent && typeof window.parent.applyBeatBlurEffect === 'function' ? window.parent.applyBeatBlurEffect : null);
+      if (typeof fnBlur === 'function' && toolName === 'LENS') {
+        return fnBlur(...args);
+      }
     }
 
-    // --- Beat Effects: Continuous ---
-    if (toolName === 'EXPO') {
-      return applyBeatKeyframes('EXPO');
+    // --- Beat Effects: Continuous Fallbacks ---
+    if (toolName === 'EXPO' || toolName === 'FLASH') {
+      return applyBeatKeyframes(toolName);
     }
     if (toolName === 'LENS') {
-      return applyEffectSafely('camera-lens-blur');
+      const fnBlur = (typeof window.applyBeatBlurEffect === 'function')
+        ? window.applyBeatBlurEffect
+        : (window.parent && typeof window.parent.applyBeatBlurEffect === 'function' ? window.parent.applyBeatBlurEffect : null);
+      if (typeof fnBlur === 'function') {
+        return fnBlur(...args);
+      }
+      return applyBeatKeyframes('LENS');
     }
-    if (toolName === 'OSCILLATE') {
-      return applyEffectSafely('oscillate');
-    }
-    if (toolName === 'SWING') {
-      return applyEffectSafely('swing');
-    }
-    if (toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' || toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP') {
+    if (toolName === 'OSCILLATE' || toolName === 'SWING' || toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' || toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP') {
       return applyBeatKeyframes(toolName);
     }
 
     // --- Beat Effects: Panning ---
     if (typeof toolName === 'string' && toolName.indexOf('PANNING') === 0) {
       return applyPanningKeyframes(toolName);
+    }
+
+    // --- Transitions ---
+    if (typeof toolName === 'string' && toolName.indexOf('TRANS_') === 0) {
+      const exec = (typeof window.executeFishTool === 'function')
+        ? window.executeFishTool
+        : (window.parent && typeof window.parent.executeFishTool === 'function' ? window.parent.executeFishTool : null);
+      if (typeof exec === 'function') {
+        return exec(toolName, ...args);
+      }
+      const fn = (typeof window.applyTransitionKeyframes === 'function')
+        ? window.applyTransitionKeyframes
+        : (window.parent && typeof window.parent.applyTransitionKeyframes === 'function' ? window.parent.applyTransitionKeyframes : null);
+      if (typeof fn === 'function') {
+        return fn(toolName);
+      }
     }
 
     if (toolName === 'PNG') {
@@ -1117,14 +1018,25 @@ window.FishToolsAdapter = (function () {
   async function getAdaptedHtml() {
     if (!cachedTemplate) {
       let rawHtml = '';
+      let isLocal = false;
       try {
-        const response = await fetch(CDN_BASE + 'index.html');
-        if (!response.ok) throw new Error('CDN status ' + response.status);
-        rawHtml = await response.text();
-      } catch (err) {
-        console.warn('CDN fetch failed, trying GitHub raw fallback...', err);
-        const fallbackRes = await fetch(RAW_FALLBACK);
-        rawHtml = await fallbackRes.text();
+        const localRes = await fetch('Extension/extension.html');
+        if (localRes.ok) {
+          rawHtml = await localRes.text();
+          isLocal = true;
+        } else {
+          throw new Error('Local status ' + localRes.status);
+        }
+      } catch (localErr) {
+        try {
+          const response = await fetch(CDN_BASE + 'index.html');
+          if (!response.ok) throw new Error('CDN status ' + response.status);
+          rawHtml = await response.text();
+        } catch (err) {
+          console.warn('CDN fetch failed, trying GitHub raw fallback...', err);
+          const fallbackRes = await fetch(RAW_FALLBACK);
+          rawHtml = await fallbackRes.text();
+        }
       }
 
       // 1. Parse HTML with DOMParser for clean, robust manipulation
@@ -1228,8 +1140,16 @@ window.FishToolsAdapter = (function () {
         shakeBtn.style.setProperty('cursor', 'not-allowed', 'important');
       }
 
-      // 7. Convert all Relative URLs in <link>, <script>, <img> to GitHub CDN Absolute URLs
-      const CLIENT_BASE = CDN_BASE;
+      // Configure LENS button: left click = Fast Box Blur, right click = Lens Blur
+      const lensBtn = doc.querySelector('.tool-btn[data-tool="LENS"]');
+      if (lensBtn) {
+        lensBtn.classList.add('has-context');
+        lensBtn.setAttribute('data-has-alter', 'true');
+        lensBtn.setAttribute('title', 'Left click: Fast Box Blur | Right click: Lens Blur');
+      }
+
+      // 7. Convert all Relative URLs in <link>, <script>, <img> to Absolute or Extension/ URLs
+      const CLIENT_BASE = isLocal ? 'Extension/' : CDN_BASE;
 
       doc.querySelectorAll('link[href]').forEach(el => {
         const href = el.getAttribute('href');
@@ -1394,6 +1314,13 @@ window.FishToolsAdapter = (function () {
         window.FishTools = {
           executeTool: function (toolName) {
             var args = Array.prototype.slice.call(arguments, 1);
+            var parentExec = (window.parent && typeof window.parent.executeFishTool === 'function')
+              ? window.parent.executeFishTool
+              : (typeof window.executeFishTool === 'function' ? window.executeFishTool : null);
+            if (parentExec) {
+              var r = parentExec.apply(window.parent || window, [toolName].concat(args));
+              if (r !== undefined) return r;
+            }
             var bridge = (window.parent && window.parent.FishToolsBridge) || window.FishToolsBridge;
             if (bridge && typeof bridge.executeTool === 'function') {
               return bridge.executeTool.apply(bridge, [toolName].concat(args));

@@ -135,6 +135,22 @@
   background-color: var(--bg-canvas);
 }
 
+.transform-nav-btn.has-expression {
+  color: var(--color-primary);
+  position: relative;
+}
+
+.transform-nav-btn.has-expression::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+}
+
 .transform-nav-btn .svg-icon,
 .transform-nav-btn svg {
   width: 20px;
@@ -237,6 +253,41 @@
 
 .transform-pane.is-active {
   display: flex;
+}
+
+.transform-pane.is-expression-disabled {
+  pointer-events: none;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.transform-pane.is-expression-disabled * {
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
+.transform-pane-expression-badge {
+  display: none;
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  z-index: 10;
+  pointer-events: none;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.transform-pane.is-expression-disabled .transform-pane-expression-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Top Value Indicators (Pill Boxes) - Pure Fluid & Flexible */
@@ -922,6 +973,8 @@
   height: 100%;
   pointer-events: none;
   z-index: 4;
+  overflow: visible;
+  border-radius: inherit;
 }
 
 /* Diamond Keyframe Marker (Strictly NO Hover - Pure Flat Stability) */

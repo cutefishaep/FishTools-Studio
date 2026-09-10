@@ -616,6 +616,57 @@ html, body {
   color: var(--bg-canvas);
 }
 
+.editor-layer-collapse-btn,
+.editor-precomp-collapse-btn {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: none;
+  outline: none !important;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.editor-layer-collapse-btn svg,
+.editor-precomp-collapse-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
+}
+
+.editor-layer-collapse-btn:hover,
+.editor-precomp-collapse-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary-hover);
+}
+
+.editor-layer-collapse-btn:active,
+.editor-precomp-collapse-btn:active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.editor-layer-collapse-btn.is-active,
+.editor-precomp-collapse-btn.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.editor-layer-collapse-btn.is-active:hover,
+.editor-precomp-collapse-btn.is-active:hover {
+  background-color: var(--color-primary-hover);
+  color: var(--bg-canvas);
+}
+
 .editor-header-right-actions {
   display: flex;
   align-items: center;
@@ -806,16 +857,29 @@ html, body {
   }
 
   .timeline-layers-viewport {
-    padding-bottom: 48px;
-    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    background-color: var(--bg-panel-hover);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    z-index: 15;
+    padding: 12px 0 48px;
+    padding: 12px 0 calc(48px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    cursor: grab;
+    user-select: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .timeline-layers-viewport.has-drawer-open,
   .editor-timeline.has-drawer-open .timeline-layers-viewport,
   .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
-  .editor-timeline:has(.drawer-container.is-active) .timeline-layers-viewport {
-    padding-bottom: 130px;
-    padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+  .editor-timeline:has(.drawer-container.is-active) .timeline-layers-viewport,
+  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
+    padding-bottom: max(75vh, calc(var(--timeline-drawer-height, 380px) + 240px));
+    padding-bottom: max(75vh, calc(var(--timeline-drawer-height, 380px) + 240px + env(safe-area-inset-bottom, 0px)));
   }
 
   .timeline-fab-add {
@@ -1303,9 +1367,10 @@ html, body {
 /* Generous bottom clearance when layer drawer is active
    so the lowest layer can effortlessly scroll completely above the drawer card */
 .timeline-layers-viewport.has-drawer-open,
+.editor-timeline.has-drawer-open .timeline-layers-viewport,
 .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
 .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
-  padding-bottom: 240px;
+  padding-bottom: max(75vh, calc(var(--timeline-drawer-height, 380px) + 240px));
 }
 
 .timeline-layers-viewport:active,

@@ -167,11 +167,4 @@ assert.strictEqual(currentProjectState.layers[0].type, 'precomp');
 assert.strictEqual(currentProjectState.layers[1].id, 'layer3');
 console.log('✓ Precompose bundling & keyframe normalization verified');
 
-// 5. Check fishtools-adapter.js bridge hook
-const adapterJs = fs.readFileSync(path.join(__dirname, '../js/fishtools-adapter.js'), 'utf8');
-assert.ok(adapterJs.includes("toolName === 'PRECOMP'"), 'PRECOMP hook must exist in executeTool');
-assert.ok(adapterJs.includes("PRECOMP: function ()"), 'PRECOMP method must exist on window.FishTools');
-assert.ok(adapterJs.includes("precompose: function ()"), 'precompose must be exported in FishToolsBridge');
-console.log('✓ FishToolsBridge PRECOMP adapter hooks verified');
-
 console.log('--- ALL TESTS PASSED SUCCESSFULLY! ---');

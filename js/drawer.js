@@ -171,6 +171,12 @@ class DrawerManager {
         // If dragged down near minimum, smoothly close the drawer
         if (currentH <= minAllowedHeight + 10) {
           this.close();
+        } else if (currentContainer && currentContainer.id === 'timeline-layer-drawer') {
+          const mainTl = document.getElementById('main-editor-timeline');
+          if (mainTl) mainTl.style.setProperty('--timeline-drawer-height', `${Math.round(currentH)}px`);
+          if (typeof window.centerSelectedTimelineLayer === 'function') {
+            window.centerSelectedTimelineLayer(true);
+          }
         }
       }
 

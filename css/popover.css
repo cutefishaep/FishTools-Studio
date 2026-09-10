@@ -862,6 +862,138 @@
   background-color: var(--color-danger-hover);
 }
 
+/* ==========================================================================
+   MODULAR VALUE INPUT POPOVER (.is-value-input-popover)
+   Direct keyboard numeric input for effect & controller value badges
+   ========================================================================== */
+.popover-card.is-value-input-popover {
+  padding: 4px;
+  min-width: unset;
+  width: auto;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.popover-value-form {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.popover-value-field {
+  width: 80px;
+  height: 28px;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0 6px;
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+  -moz-appearance: textfield;
+}
+
+.popover-value-field::-webkit-inner-spin-button,
+.popover-value-field::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.popover-value-field:focus {
+  border-color: var(--color-primary);
+}
+
+/* ==========================================================================
+   TRANSFORM EXPRESSION POPOVER (.is-expression-popover)
+   Pure Flat & Fast | 100% Theme Tokens | No Blur | No Shadow
+   ========================================================================== */
+.popover-card.is-expression-popover {
+  width: 290px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+}
+
+.expression-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.expression-popover-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.expression-clear-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.12s, background-color 0.12s;
+  outline: none;
+}
+
+.expression-clear-btn:hover {
+  color: var(--color-danger);
+  background-color: var(--bg-panel-hover);
+}
+
+.expression-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.expression-textarea {
+  width: 100%;
+  min-height: 80px;
+  max-height: 180px;
+  resize: vertical;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.expression-textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.expression-error-msg {
+  font-size: 10px;
+  color: var(--color-danger);
+  line-height: 1.3;
+}
+
+
+
 
 
 

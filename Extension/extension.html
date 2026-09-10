@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fish Tools</title>
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/fonts.css">
+    <script>
+        // Standalone Web Browser Polyfill for OpenFishTools Extension
+        window.__adobe_cep__ = window.__adobe_cep__ || {
+            getHostEnvironment: function () {
+                return JSON.stringify({
+                    appId: 'PHXS',
+                    appName: 'FishTools Studio',
+                    appVersion: 'Web App',
+                    appLocale: 'en_US',
+                    appUILocale: 'en_US',
+                    isAppOnline: true,
+                    appSkinInfo: {
+                        baseFontFamily: 'Roboto, sans-serif',
+                        baseFontSize: 12,
+                        appBarBackgroundColor: { color: { red: 13, green: 17, blue: 13 } },
+                        panelBackgroundColor: { color: { red: 13, green: 17, blue: 13 } }
+                    }
+                });
+            },
+            evalScript: function (script, callback) {
+                if (typeof callback === 'function') callback('true');
+            },
+            invokeSync: function () {
+                return JSON.stringify({ error: 0 });
+            },
+            getSystemPath: function () {
+                return '/';
+            },
+            setPanelFlyoutMenu: function () {},
+            openURLInDefaultBrowser: function (url) {
+                window.open(url, '_blank');
+            },
+            addEventListener: function () {},
+            removeEventListener: function () {},
+            dispatchEvent: function () {},
+            requestOpenExtension: function () {},
+            closeExtension: function () {}
+        };
+    </script>
+    <script src="./js/libs/CSInterface.js"></script>
+    <script src="./js/polyfills.js"></script>
+</head>
+
+<body class="style-simple">
+
+    <div id="splash-screen">
+        <div class="splash-content">
+            <img src="./assets/Logo.svg" alt="Fish Tools Logo" class="splash-logo">
+            <div class="splash-text">FishTools Lite</div>
+        </div>
+    </div>
+
+    <div class="content-container">
+
+        
+        <div id="tab-main" class="tab-content active">
+
+            <div class="card">
+                <h3>Stopwatch</h3>
+                <div class="timer-display" id="stopwatch-display">00:00:00</div>
+                <div class="stopwatch-controls">
+                    <button id="sw-start" class="sw-btn" title="Start"><span
+                            class="material-icons">play_arrow</span></button>
+                    <button id="sw-stop" class="sw-btn" title="Pause"><span class="material-icons">pause</span></button>
+                    <button id="sw-reset" class="sw-btn" title="Reset"><span
+                            class="material-icons">refresh</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Sticky Note</h3>
+                <textarea id="dashboard-sticky-note" placeholder="Write your project notes here..."></textarea>
+            </div>
+
+            <div class="card">
+                <h3>To Do List</h3>
+                <div class="todo-input-group">
+                    <input type="text" id="todo-input" placeholder="Add a new task...">
+                    <button id="btn-add-todo">+</button>
+                </div>
+                <ul id="todo-list"></ul>
+            </div>
+
+            <div class="card">
+                <h3>Log</h3>
+                <p id="tip-content">Loading log...</p>
+            </div>
+
+        </div>
+
+        
+        <div id="tab-tools" class="tab-content">
+
+            <div class="card">
+                <h3>Anchor Point</h3>
+                <div class="anchor-grid-wrapper">
+                    <div class="anchor-grid">
+                        <div class="anchor-cell" data-pos="1" title="Top Left"></div>
+                        <div class="anchor-cell" data-pos="2" title="Top Center"></div>
+                        <div class="anchor-cell" data-pos="3" title="Top Right"></div>
+                        <div class="anchor-cell" data-pos="4" title="Middle Left"></div>
+                        <div class="anchor-cell anchor-active" data-pos="5" title="Center"></div>
+                        <div class="anchor-cell" data-pos="6" title="Middle Right"></div>
+                        <div class="anchor-cell" data-pos="7" title="Bottom Left"></div>
+                        <div class="anchor-cell" data-pos="8" title="Bottom Center"></div>
+                        <div class="anchor-cell" data-pos="9" title="Bottom Right"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Cut</h3>
+                </div>
+                <div class="toolbox-grid col-3">
+                    <button class="tool-btn" data-tool="CUT_FRONT" title="Trim In">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 24px;">
+                            <span
+                                style="font-size: 22px; font-weight: bold; font-family: monospace; line-height: 1;">[</span>
+                        </div>
+                        <span class="tool-label">FRONT</span>
+                    </button>
+                    <button class="tool-btn" data-tool="CUT_MID" title="Split Layer">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 24px;">
+                            <span
+                                style="font-size: 22px; font-weight: bold; font-family: monospace; line-height: 1; margin-right: -2px;">]</span>
+                            <span
+                                style="font-size: 22px; font-weight: bold; font-family: monospace; line-height: 1; margin-left: -2px;">[</span>
+                        </div>
+                        <span class="tool-label">MIDDLE</span>
+                    </button>
+                    <button class="tool-btn" data-tool="CUT_BACK" title="Trim Out">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 24px;">
+                            <span
+                                style="font-size: 22px; font-weight: bold; font-family: monospace; line-height: 1;">]</span>
+                        </div>
+                        <span class="tool-label">BACK</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Align</h3>
+                </div>
+                <div class="toolbox-grid fixed-3x2">
+                    <button class="tool-btn" data-tool="ALIGN_LEFT" title="Align Left"><span
+                            class="material-icons">align_horizontal_left</span><span
+                            class="tool-label">LEFT</span></button>
+                    <button class="tool-btn" data-tool="ALIGN_HCENTER" title="Align Horizontal Center"><span
+                            class="material-icons">align_horizontal_center</span><span
+                            class="tool-label">H-MID</span></button>
+                    <button class="tool-btn" data-tool="ALIGN_RIGHT" title="Align Right"><span
+                            class="material-icons">align_horizontal_right</span><span
+                            class="tool-label">RIGHT</span></button>
+                    <button class="tool-btn" data-tool="ALIGN_TOP" title="Align Top"><span
+                            class="material-icons">align_vertical_top</span><span class="tool-label">TOP</span></button>
+                    <button class="tool-btn" data-tool="ALIGN_VCENTER" title="Align Vertical Center"><span
+                            class="material-icons">align_vertical_center</span><span
+                            class="tool-label">V-MID</span></button>
+                    <button class="tool-btn" data-tool="ALIGN_BOTTOM" title="Align Bottom"><span
+                            class="material-icons">align_vertical_bottom</span><span
+                            class="tool-label">BOTTOM</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Actions</h3>
+                <div class="toolbox-grid col-5">
+                    <button id="btn-precomp" class="tool-btn has-context" title="Precomp"><span
+                            class="material-icons">layers</span><span class="tool-label">PRECOMP</span></button>
+                    <button id="btn-center" class="tool-btn" title="Center Layer"><span
+                            class="material-icons">filter_center_focus</span><span
+                            class="tool-label">CENTER</span></button>
+                    <button id="btn-overlap" class="tool-btn" title="Overlap"><span
+                            class="material-icons">auto_awesome_motion</span><span
+                            class="tool-label">OVERLAP</span></button>
+                    <button id="btn-screenshot" class="tool-btn" title="Screenshot"><span
+                            class="material-icons">camera_alt</span><span class="tool-label">SHOT</span></button>
+                    <button id="btn-dup-comp" class="tool-btn" title="Duplicate Comp"><span
+                            class="material-icons">file_copy</span><span class="tool-label">DUP</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Format</h3>
+                
+                <div class="section-label">Ratio</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn btn-ratio" data-width="1080" data-height="1080" title="1:1 Ratio (1080x1080)">
+                        <span class="material-icons">crop_square</span>
+                        <span class="tool-label">1:1</span>
+                    </button>
+                    <button class="tool-btn btn-ratio" data-width="1920" data-height="1080" title="16:9 Ratio (1920x1080)">
+                        <span class="material-icons">crop_16_9</span>
+                        <span class="tool-label">16:9</span>
+                    </button>
+                    <button class="tool-btn btn-ratio" data-width="1080" data-height="1920" title="9:16 Ratio (1080x1920)">
+                        <span class="material-icons">crop_portrait</span>
+                        <span class="tool-label">9:16</span>
+                    </button>
+                    <button class="tool-btn btn-ratio" data-width="1080" data-height="1440" title="3:4 Ratio (1080x1440)">
+                        <span class="material-icons">aspect_ratio</span>
+                        <span class="tool-label">3:4</span>
+                    </button>
+                    <button class="tool-btn btn-ratio" data-width="1440" data-height="1080" title="4:3 Ratio (1440x1080)">
+                        <span class="material-icons">crop_landscape</span>
+                        <span class="tool-label">4:3</span>
+                    </button>
+                </div>
+
+                <div class="section-label">FPS</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn btn-fps" data-fps="15" title="Set to 15 FPS">
+                        <span class="material-icons">av_timer</span>
+                        <span class="tool-label">15 FPS</span>
+                    </button>
+                    <button class="tool-btn btn-fps" data-fps="30" title="Set to 30 FPS">
+                        <span class="material-icons">av_timer</span>
+                        <span class="tool-label">30 FPS</span>
+                    </button>
+                    <button class="tool-btn btn-fps" data-fps="50" title="Set to 50 FPS">
+                        <span class="material-icons">av_timer</span>
+                        <span class="tool-label">50 FPS</span>
+                    </button>
+                    <button class="tool-btn btn-fps" data-fps="60" title="Set to 60 FPS">
+                        <span class="material-icons">av_timer</span>
+                        <span class="tool-label">60 FPS</span>
+                    </button>
+                    <button class="tool-btn btn-fps" data-fps="120" title="Set to 120 FPS">
+                        <span class="material-icons">av_timer</span>
+                        <span class="tool-label">120 FPS</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Toolbox</h3>
+                </div>
+                <div class="section-label">Layer</div>
+                <div class="toolbox-grid col-4">
+                    <button class="tool-btn" data-tool="FRZ" title="Freeze Frame"><span
+                            class="material-icons">ac_unit</span><span class="tool-label">FRZ</span></button>
+                    <button class="tool-btn has-context" data-tool="FIT" data-has-alter="true" title="Fit to Comp"><span
+                            class="material-icons">fit_screen</span><span class="tool-label">FIT</span></button>
+                    <button class="tool-btn" data-tool="DSH" title="Drop Shadow"><span
+                            class="material-icons">filter_drama</span><span class="tool-label">DSH</span></button>
+                    <button class="tool-btn has-context" data-tool="MIR" data-has-alter="true" title="Mirror"><span
+                            class="material-icons">flip</span><span class="tool-label">MIR</span></button>
+                </div>
+                <div class="section-label">Create</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn" data-tool="SHA" title="Shape"><span
+                            class="material-icons">pentagon</span><span class="tool-label">SHA</span></button>
+                    <button class="tool-btn has-context" data-tool="SOL" data-has-alter="true" title="Solid"><span
+                            class="material-icons">rectangle</span><span class="tool-label">SOL</span></button>
+                    <button class="tool-btn has-context" data-tool="NUL" data-has-alter="true" title="Null"><span
+                            class="material-icons">control_camera</span><span class="tool-label">NUL</span></button>
+                    <button class="tool-btn" data-tool="CAM" title="Camera"><span
+                            class="material-icons">videocam</span><span class="tool-label">CAM</span></button>
+                    <button class="tool-btn" data-tool="ADJ" title="Adjustment"><span
+                            class="material-icons">tune</span><span class="tool-label">ADJ</span></button>
+                </div>
+
+                <div class="section-label">Effects</div>
+                <div class="toolbox-grid col-6">
+                    <button class="tool-btn" data-tool="FILL" title="Fill"><span
+                            class="material-icons">format_color_fill</span><span class="tool-label">FILL</span></button>
+                    <button class="tool-btn" data-tool="TINT" title="Tint"><span
+                            class="material-icons">gradient</span><span class="tool-label">TINT</span></button>
+                    <button class="tool-btn has-context" data-tool="BLUR" data-has-alter="true" title="Blur"><span
+                            class="material-icons">blur_on</span><span class="tool-label">BLUR</span></button>
+                    <button class="tool-btn" data-tool="LUM" title="Lumetri"><span
+                            class="material-icons">contrast</span><span class="tool-label">LUM</span></button>
+                    <button class="tool-btn" data-tool="CURV" title="Curves"><span
+                            class="material-icons">show_chart</span><span class="tool-label">CURV</span></button>
+                    <button class="tool-btn" data-tool="HUE" title="Hue"><span
+                            class="material-icons">palette</span><span class="tool-label">HUE</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Velocity</h3>
+                </div>
+                <div class="toolbox-grid col-2">
+                    <button class="tool-btn" data-tool="TWIX" title="Twixtor"><span
+                            class="material-icons">speed</span><span class="tool-label">TWIXTOR</span></button>
+                    <button class="tool-btn" data-tool="TMRE" title="Time Remap"><span
+                            class="material-icons">update</span><span class="tool-label">T-REMAP</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Beat Effects</h3>
+                </div>
+                <div class="section-label">Current</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn" data-tool="GHST" title="Ghost Effect"><span
+                            class="material-icons">auto_awesome_motion</span><span
+                            class="tool-label">GHOST</span></button>
+                    <button class="tool-btn" data-tool="WARP" title="Wave Warp"><span
+                            class="material-icons">waves</span><span class="tool-label">WARP</span></button>
+                    <button class="tool-btn" data-tool="FISHEYE" title="Fish Eye Ripple"><span
+                            class="material-icons">remove_red_eye</span><span class="tool-label">FISH
+                            EYE</span></button>
+                    <button class="tool-btn" data-tool="MIDWAVE" title="Mid-Wave"><span
+                            class="material-icons">water_drop</span><span class="tool-label">MID-WAVE</span></button>
+                    <button class="tool-btn" data-tool="HUESPIN" title="Hue Spin"><span
+                            class="material-icons">palette</span><span class="tool-label">HUE SPIN</span></button>
+                </div>
+                <div class="section-label">Continuous</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn" data-tool="EXPO" title="Flash"><span
+                            class="material-icons">flash_on</span><span class="tool-label">FLASH</span></button>
+                    <button class="tool-btn" data-tool="SHKE" title="S_Shake"><span
+                            class="material-icons">vibration</span><span class="tool-label">S_SHAKE</span></button>
+                    <button class="tool-btn has-context" data-tool="LENS" data-has-alter="true" title="Left click: Fast Box Blur | Right click: Lens Blur"><span
+                            class="material-icons">blur_circular</span><span class="tool-label">LENS</span></button>
+                    <button class="tool-btn" data-tool="OSCILLATE" title="Oscillate"><span
+                            class="material-icons">wifi</span><span class="tool-label">OSCILLATE</span></button>
+                    <button class="tool-btn" data-tool="Y_BEAT" title="Y Beat"><span
+                            class="material-icons">south</span><span class="tool-label">Y BEAT</span></button>
+                    <button class="tool-btn" data-tool="Y_FLIP" title="Y Flip - Alternating Y beat"><span
+                            class="material-icons">swap_vert</span><span class="tool-label">Y FLIP</span></button>
+                    <button class="tool-btn" data-tool="X_BEAT" title="X Beat"><span
+                            class="material-icons">east</span><span class="tool-label">X BEAT</span></button>
+                    <button class="tool-btn" data-tool="X_FLIP" title="X Flip - Alternating mirror X beat"><span
+                            class="material-icons">flip</span><span class="tool-label">X FLIP</span></button>
+                    <button class="tool-btn" data-tool="SCALE_BEAT" title="Scale Beat"><span
+                            class="material-icons">zoom_in</span><span class="tool-label">SCALE BEAT</span></button>
+                    <button class="tool-btn" data-tool="SCALE_OVERLAP" title="Scale Overlap"><span
+                            class="material-icons">aspect_ratio</span><span class="tool-label">SCALE OVER</span></button>
+                    <button class="tool-btn" data-tool="SWING" title="Swing"><span
+                            class="material-icons">360</span><span class="tool-label">SWING</span></button>
+                </div>
+                <div class="section-label">Panning</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn" data-tool="PANNING_POS" title="Panning Position"><span
+                            class="material-icons">open_with</span><span class="tool-label">POSITION</span></button>
+                    <button class="tool-btn" data-tool="PANNING_ROT" title="Panning Rotation"><span
+                            class="material-icons">autorenew</span><span class="tool-label">ROTATION</span></button>
+                    <button class="tool-btn" data-tool="PANNING_SCALE" title="Panning Scale"><span
+                            class="material-icons">aspect_ratio</span><span class="tool-label">SCALE</span></button>
+                    <button class="tool-btn" data-tool="PANNING_MIX_PR" title="Panning Mix Position & Rotation"><span
+                            class="material-icons">tune</span><span class="tool-label">MIX PR</span></button>
+                    <button class="tool-btn" data-tool="PANNING_MIX_ALL" title="Panning Mix All (Pos, Rot & Scale)"><span
+                            class="material-icons">widgets</span><span class="tool-label">MIX ALL</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Transitions</h3>
+                </div>
+                <div class="toolbox-grid col-4">
+                    <button class="tool-btn" data-tool="TRANS_FADE_IN" title="Fade In"><span
+                            class="material-icons">flip_to_front</span><span class="tool-label">FADE IN</span></button>
+                    <button class="tool-btn" data-tool="TRANS_FADE_OUT" title="Fade Out"><span
+                            class="material-icons">flip_to_back</span><span class="tool-label">FADE OUT</span></button>
+                    <button class="tool-btn" data-tool="TRANS_SCALE_IN" title="Scale In"><span
+                            class="material-icons">zoom_in_map</span><span class="tool-label">SCALE IN</span></button>
+                    <button class="tool-btn" data-tool="TRANS_SCALE_OUT" title="Scale Out"><span
+                            class="material-icons">zoom_out_map</span><span class="tool-label">SCALE OUT</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Cutefish Style</h3>
+                </div>
+
+                <div class="section-label">Background <small>(Adj Layer)</small></div>
+                <div class="toolbox-grid col-3">
+                    <button class="tool-btn" data-tool="CF_COLORIZE" title="Tint with random color"><span
+                            class="material-icons">palette</span><span class="tool-label">COLORIZE</span></button>
+                    <button class="tool-btn" data-tool="CF_SCANLINE" title="S_TVDamage Scanline"><span
+                            class="material-icons">reorder</span><span class="tool-label">SCANLINE</span></button>
+                    <button class="tool-btn" data-tool="CF_MONO" title="Black & White"><span
+                            class="material-icons">tonality</span><span class="tool-label">MONO</span></button>
+                </div>
+
+                <div class="section-label">Object <small>(Solid Layer)</small></div>
+                <div class="toolbox-grid col-3">
+                    <button class="tool-btn" data-tool="CF_STARBURST" title="Star Burst Style"><span
+                            class="material-icons">auto_awesome</span><span class="tool-label">BURST</span></button>
+                    <button class="tool-btn" data-tool="CF_GRID" title="Grid Style"><span
+                            class="material-icons">grid_on</span><span class="tool-label">GRID</span></button>
+                    <button class="tool-btn" data-tool="CF_RADIO" title="Star Radio Style"><span
+                            class="material-icons">radio</span><span class="tool-label">RADIO</span></button>
+                </div>
+
+                <div class="section-label">Effects <small>(Apply to Sel)</small></div>
+                <div class="toolbox-grid col-3">
+                    <button class="tool-btn" data-tool="CF_GLOW_AURA" title="S_GlowAura Style"><span
+                            class="material-icons">filter_vintage</span><span class="tool-label">GLOW
+                            AURA</span></button>
+                    <button class="tool-btn" data-tool="CF_SOLID_AURA" title="Solid Aura Style"><span
+                            class="material-icons">blur_on</span><span class="tool-label">SOLID AURA</span></button>
+                    <button class="tool-btn" data-tool="CF_DROP_BEVEL" title="Drop Bevel Style"><span
+                            class="material-icons">layers</span><span class="tool-label">DROP BEVEL</span></button>
+                </div>
+
+                <div class="section-label">Shatter <small>(Apply to Sel)</small></div>
+                <div class="toolbox-grid col-2">
+                    <button class="tool-btn" data-tool="CF_SHATTER_SIMPLE" title="Shatter Simple">
+                        <span class="material-icons">vibration</span>
+                        <span class="tool-label">SIMPLE</span>
+                    </button>
+                    <button class="tool-btn" data-tool="CF_SHATTER_SLOW" title="Shatter Slow (0 Gravity)">
+                        <span class="material-icons">slow_motion_video</span>
+                        <span class="tool-label">SLOW</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Color Palette</h3>
+                <div class="palette-controls">
+                    <div id="palette-base-trigger" class="btn-secondary color-trigger" title="Pick Base Color">
+                        <span class="material-icons">colorize</span>
+                        <input type="hidden" id="palette-base-color" value="#ffb400">
+                    </div>
+                    <select id="palette-scheme">
+                        <option value="analogous" selected>Analogous</option>
+                        <option value="complementary">Complementary</option>
+                        <option value="triadic">Triadic</option>
+                        <option value="hue">Hue Mode</option>
+                    </select>
+                    <input type="number" id="palette-count" value="1" min="1" max="10" class="input-sm">
+                    <button id="btn-generate-palette" class="btn-secondary icon-only" title="Randomize"><span
+                            class="material-icons">shuffle</span></button>
+                </div>
+                <div id="palette-container"></div>
+                <div class="saved-palettes-section">
+                    <span class="section-label">Saved Palettes</span>
+                    <div id="saved-palettes-list" class="saved-list"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Cube Generator</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="status-label">WIDTH</label>
+                        <input type="number" id="cube-width" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="status-label">HEIGHT</label>
+                        <input type="number" id="cube-height" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="status-label">DEPTH</label>
+                        <input type="number" id="cube-depth" value="100">
+                    </div>
+                </div>
+                <label class="switch-container">
+                    <span class="switch">
+                        <input type="checkbox" id="cube-use-layer">
+                        <span class="slider"></span>
+                    </span>
+                    <span class="switch-label">Use Layer Dimensions</span>
+                </label>
+                <button id="btn-create-cube" class="btn-secondary w-full mt-8">CREATE CUBE</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>3D Generator</h3>
+                </div>
+                <div class="section-label">Basic 3D</div>
+                <div class="toolbox-grid col-3">
+                    <button class="tool-btn" data-tool="GEN_3D_3SPLIT" title="3D 3-Split"><span
+                            class="material-icons">view_column</span><span class="tool-label">3 SPLIT</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_2SPLIT" title="3D 2-Split"><span
+                            class="material-icons">splitscreen</span><span class="tool-label">2 SPLIT</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_TUNNEL" title="3D Depth Tunnel"><span
+                            class="material-icons">filter_tilt_shift</span><span class="tool-label">TUNNEL</span></button>
+                </div>
+
+                <div class="section-label">Devices & Tech</div>
+                <div class="toolbox-grid col-4">
+                    <button class="tool-btn" data-tool="GEN_3D_PHONE" title="3D Phone"><span
+                            class="material-icons">smartphone</span><span class="tool-label">PHONE</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_ZFLIP" title="3D Z Flip"><span
+                            class="material-icons">phone_android</span><span class="tool-label">Z FLIP</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_ZFOLD" title="3D Z Fold"><span
+                            class="material-icons">menu_book</span><span class="tool-label">Z FOLD</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_TABLET" title="3D Tablet"><span
+                            class="material-icons">tablet_mac</span><span class="tool-label">TABLET</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_LAPTOP" title="3D Laptop"><span
+                            class="material-icons">laptop_mac</span><span class="tool-label">LAPTOP</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_MONITOR" title="3D Monitor"><span
+                            class="material-icons">desktop_windows</span><span class="tool-label">MONITOR</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_PC" title="3D PC Tower"><span
+                            class="material-icons">computer</span><span class="tool-label">PC TOWER</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_CRT" title="3D CRT TV"><span
+                            class="material-icons">tv</span><span class="tool-label">CRT TV</span></button>
+                </div>
+
+                <div class="section-label">Room & Furniture</div>
+                <div class="toolbox-grid col-3">
+                    <button class="tool-btn" data-tool="GEN_3D_ROOM" title="3D Room"><span
+                            class="material-icons">roofing</span><span class="tool-label">ROOM</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_DOOR" title="3D Door"><span
+                            class="material-icons">door_front</span><span class="tool-label">DOOR</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_WINDOW" title="3D Window"><span
+                            class="material-icons">window</span><span class="tool-label">WINDOW</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_TABLE" title="3D Table"><span
+                            class="material-icons">table_restaurant</span><span class="tool-label">TABLE</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_DESK" title="3D Desk"><span
+                            class="material-icons">desk</span><span class="tool-label">DESK</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_CABINET" title="3D Cabinet"><span
+                            class="material-icons">inventory_2</span><span class="tool-label">CABINET</span></button>
+                </div>
+
+                <div class="section-label">Props & Character</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn" data-tool="GEN_3D_BOX" title="3D Box"><span
+                            class="material-icons">view_in_ar</span><span class="tool-label">BOX</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_BOOK" title="3D Book"><span
+                            class="material-icons">auto_stories</span><span class="tool-label">BOOK</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_BINDER" title="3D Binder"><span
+                            class="material-icons">folder_special</span><span class="tool-label">BINDER</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_GLASSES" title="3D Glasses"><span
+                            class="material-icons">visibility</span><span class="tool-label">GLASSES</span></button>
+                    <button class="tool-btn" data-tool="GEN_3D_MC" title="3D MC Character"><span
+                            class="material-icons">accessibility_new</span><span class="tool-label">MC 3D</span></button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Bubble Text</h3>
+                <textarea id="bubble-text-input" placeholder="Type your message here..."></textarea>
+                <div class="form-row mt-8">
+                    <div class="form-group">
+                        <label class="status-label">RADIUS</label>
+                        <input type="number" id="bubble-radius" value="18" min="0" max="100">
+                    </div>
+                    <label class="switch-container">
+                        <span class="switch">
+                            <input type="checkbox" id="bubble-is-sender">
+                            <span class="slider"></span>
+                        </span>
+                        <span class="switch-label" id="bubble-mode-label">Receiver</span>
+                    </label>
+                </div>
+                <div id="bubble-preview-container">
+                    <div id="bubble-preview-bubble">Preview</div>
+                </div>
+                <button id="btn-generate-bubble" class="btn-secondary w-full">GENERATE</button>
+            </div>
+
+         </div>
+
+         
+        <div id="tab-settings" class="tab-content">
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Appearance</h3>
+                </div>
+                <div class="settings-row">
+                    <span class="status-label" style="margin:0;">ANIMATIONS</span>
+                    <label class="switch-container" style="margin:0;">
+                        <span class="switch">
+                            <input type="checkbox" id="anim-toggle" checked>
+                            <span class="slider"></span>
+                        </span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <span class="status-label" style="margin:0;">SNAP SCROLL</span>
+                    <label class="switch-container" style="margin:0;">
+                        <span class="switch">
+                            <input type="checkbox" id="snap-scroll-toggle">
+                            <span class="slider"></span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Donation</h3>
+                <p class="text-muted mb-8">Your support keeps this project alive.</p>
+                <div class="toolbox-grid col-2">
+                    <button id="btn-paypal" class="btn-secondary">PAYPAL</button>
+                    <button id="btn-qris" class="btn-secondary">QRIS</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Report Bug</h3>
+                <p class="text-muted mb-8">Found a bug? Let us know so we can fix it.</p>
+                <button id="btn-report-bug" class="btn-secondary w-full">REPORT BUG</button>
+            </div>
+
+            <div class="card">
+                <h3>Credit</h3>
+                <div class="credit-grid toolbox-grid">
+                    <button class="credit-btn" id="btn-yt">
+                        <svg class="credit-icon" viewBox="0 0 24 24">
+                            <path
+                                d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.3 3.5-6.3 3.5z" />
+                        </svg>
+                        <span class="credit-label">YouTube</span>
+                        <span class="credit-handle">@cutefishYT</span>
+                    </button>
+                    <button class="credit-btn" id="btn-tt-aep">
+                        <svg class="credit-icon" viewBox="0 0 24 24">
+                            <path
+                                d="M19.6 2.7h-3.3v12.4a3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3c.28 0 .55.04.8.1V8.8a6.4 6.4 0 0 0-.8-.05 6.3 6.3 0 0 0-6.3 6.3 6.3 6.3 0 0 0 6.3 6.3 6.3 6.3 0 0 0 6.3-6.3V8.6a9.8 9.8 0 0 0 5.7 1.8V7.1a6.6 6.6 0 0 1-6.7-4.4z" />
+                        </svg>
+                        <span class="credit-label">TikTok AEP</span>
+                        <span class="credit-handle">@cutefishaep</span>
+                    </button>
+                    <button class="credit-btn" id="btn-tt-rbx">
+                        <svg class="credit-icon" viewBox="0 0 24 24">
+                            <path
+                                d="M19.6 2.7h-3.3v12.4a3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3c.28 0 .55.04.8.1V8.8a6.4 6.4 0 0 0-.8-.05 6.3 6.3 0 0 0-6.3 6.3 6.3 6.3 0 0 0 6.3 6.3 6.3 6.3 0 0 0 6.3-6.3V8.6a9.8 9.8 0 0 0 5.7 1.8V7.1a6.6 6.6 0 0 1-6.7-4.4z" />
+                        </svg>
+                        <span class="credit-label">TikTok RBX</span>
+                        <span class="credit-handle">@cutefishrbx</span>
+                    </button>
+                    <button class="credit-btn" id="btn-ig">
+                        <svg class="credit-icon" viewBox="0 0 24 24">
+                            <path
+                                d="M12 2.2c2.67 0 2.99.01 4.04.06.98.04 1.5.2 1.86.34.47.18.8.4 1.15.74.35.35.57.68.74 1.15.14.36.3.88.34 1.86.05 1.05.06 1.37.06 4.04s-.01 2.99-.06 4.04c-.04.98-.2 1.5-.34 1.86a3.1 3.1 0 0 1-.74 1.15 3.1 3.1 0 0 1-1.15.74c-.36.14-.88.3-1.86.34-1.05.05-1.37.06-4.04.06s-2.99-.01-4.04-.06c-.98-.04-1.5-.2-1.86-.34a3.1 3.1 0 0 1-1.15-.74 3.1 3.1 0 0 1-.74-1.15c-.14-.36-.3-.88-.34-1.86C2.21 15.19 2.2 14.87 2.2 12.2s.01-2.99.06-4.04c.04-.98.2-1.5.34-1.86.18-.47.4-.8.74-1.15a3.1 3.1 0 0 1 1.15-.74c.36-.14.88-.3 1.86-.34 1.05-.05 1.37-.06 4.04-.06zm0 3.7a5.7 5.7 0 1 0 0 11.4 5.7 5.7 0 0 0 0-11.4zm0 9.4a3.7 3.7 0 1 1 0-7.4 3.7 3.7 0 0 1 0 7.4zm6.8-9.6a1.34 1.34 0 1 0 0 2.68 1.34 1.34 0 0 0 0-2.68z" />
+                        </svg>
+                        <span class="credit-label">Instagram</span>
+                        <span class="credit-handle">@cutefishaep</span>
+                    </button>
+                    <button class="credit-btn" id="btn-gh">
+                        <svg class="credit-icon" viewBox="0 0 24 24">
+                            <path
+                                d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3z" />
+                        </svg>
+                        <span class="credit-label">GitHub</span>
+                        <span class="credit-handle">cutefishaep</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="footer">Made with <span class="material-icons heart">favorite</span> in Indonesia</div>
+        </div>
+
+    </div>
+
+    
+    <nav class="floating-nav">
+        <button class="tab-btn active" data-tab="main" title="Dashboard">
+            <span class="material-icons">home</span>
+            <span class="tab-label">Main</span>
+        </button>
+        <button class="tab-btn" data-tab="tools" title="Tools">
+            <span class="material-icons">construction</span>
+            <span class="tab-label">Tools</span>
+        </button>
+        <button class="tab-btn" data-tab="settings" title="Settings">
+            <span class="material-icons">settings</span>
+            <span class="tab-label">Settings</span>
+        </button>
+    </nav>
+
+    
+    <div id="qris-modal" class="modal-overlay">
+        <div class="modal-box">
+            <p class="status-label">SECURE PAYMENT</p>
+            <div id="qrcode" class="qr-wrap"></div>
+            <p class="text-muted mb-8">SCAN TO SUPPORT DEV</p>
+            <button id="close-qris" class="btn-danger w-full">CLOSE</button>
+        </div>
+    </div>
+
+    <script src="./js/filestore.js"></script>
+    <script src="./js/modules/colorpicker.js"></script>
+    <script src="./js/modules/settings.js"></script>
+    <script src="./js/modules/tips.js"></script>
+    <script src="./js/modules/stopwatch.js"></script>
+    <script src="./js/modules/modal.js"></script>
+    <script src="./js/modules/tools.js"></script>
+    <script src="./js/modules/colorpalette.js"></script>
+    <script src="./js/modules/dashboard.js"></script>
+    <script src="./js/modules/bubbletext.js"></script>
+    <script src="./js/modules/cardnav.js"></script>
+    <script src="./js/main.js"></script>
+    <div id="custom-tooltip"></div>
+
+</body>
+
+</html>

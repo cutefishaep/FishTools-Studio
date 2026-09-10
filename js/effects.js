@@ -127,6 +127,7 @@
           const fx = layer.effects[i];
           if (!fx || fx.disabled === true) continue;
           const def = FishEffectsRegistry.get(fx.type);
+          if (def && def.category === 'expression') continue;
           if (def && typeof def.filter === 'function') {
             const fStr = def.filter(fx);
             if (fStr) parts.push(fStr);
@@ -185,13 +186,17 @@
       return entry;
     },
 
-    renderLayer(ctx, el, layer, bounds) {
+    renderLayer(ctx, el, layer, bounds, currentSec) {
       if (!ctx || !el) return;
       const bx = bounds && bounds.x !== undefined ? bounds.x : 0;
       const by = bounds && bounds.y !== undefined ? bounds.y : 0;
       const bw = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
       const bh = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
       const normBounds = { x: bx, y: by, w: bw, h: bh };
+
+      const effectiveSec = (typeof currentSec === 'number' && !isNaN(currentSec))
+        ? currentSec
+        : (layer && typeof layer._currentSec === 'number' ? layer._currentSec : (typeof window !== 'undefined' ? (window.currentPlaybackSec !== undefined ? window.currentPlaybackSec : window.currentSec) : 0));
 
       const effects = Array.isArray(layer && layer.effects) ? layer.effects.filter(f => f && !f.disabled) : [];
       if (effects.length === 0) {
@@ -205,7 +210,8 @@
 
       const renderEffects = effects.filter(f => {
         const def = FishEffectsRegistry.get(f.type);
-        return def && typeof def.render === 'function';
+        if (!def || def.category === 'expression') return false;
+        return typeof def.render === 'function';
       });
 
       if (renderEffects.length === 0) {
@@ -223,7 +229,7 @@
       if (renderEffects.length === 1) {
         const fx = renderEffects[0];
         const def = FishEffectsRegistry.get(fx.type);
-        def.render(ctx, el, layer, normBounds, fx);
+        def.render(ctx, el, layer, normBounds, fx, effectiveSec);
         return;
       }
 
@@ -259,7 +265,7 @@
           buf.ctx.clearRect(0, 0, pipeW, pipeH);
         }
 
-        def.render(targetCtx, currentSource, layer, targetBounds, fx);
+        def.render(targetCtx, currentSource, layer, targetBounds, fx, effectiveSec);
 
         if (!isLast) {
           currentSource = buf.canvas;
@@ -331,6 +337,7 @@
         const fx = layer.effects[i];
         if (!fx || fx.disabled === true) continue;
         const def = FishEffectsRegistry.get(fx.type);
+        if (def && def.category === 'expression') continue;
         if (def && typeof def.renderPost === 'function') {
           def.renderPost(ctx, el, layer, bounds, fx);
         }
@@ -385,17 +392,46 @@
         if (type === 'select') {
           const selectVal = (fx[p.id] !== undefined ? fx[p.id] : (p.default || 'normal')).toLowerCase();
           const opts = Array.isArray(p.options) && p.options.length > 0 ? p.options : ['normal', 'multiply', 'overlay'];
-          const btns = opts.map(opt => `
-            <button type="button" class="effects-segmented-btn ${selectVal === opt.toLowerCase() ? 'is-active' : ''}" data-param="${p.id}" data-val="${opt}" title="${opt}">
-              ${opt.charAt(0).toUpperCase() + opt.slice(1)}
-            </button>
-          `).join('');
+
+          if (p.display === 'segmented') {
+            const btns = opts.map(opt => `
+              <button type="button" class="effects-segmented-btn ${selectVal === opt.toLowerCase() ? 'is-active' : ''}" data-param="${p.id}" data-val="${opt}" title="${opt}">
+                ${opt.charAt(0).toUpperCase() + opt.slice(1)}
+              </button>
+            `).join('');
+
+            return `
+              <div class="effects-control-row effects-control-row-select" data-param="${p.id}">
+                <div class="effects-param-label-static">${p.label || p.id}</div>
+                <div class="effects-segmented-group" data-param="${p.id}">
+                  ${btns}
+                </div>
+              </div>
+            `;
+          }
+
+          const formatLabel = (str) => String(str).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          const currentOpt = opts.find(o => o.toLowerCase() === selectVal) || opts[0] || selectVal;
+          const currentLabel = formatLabel(currentOpt);
+          const items = opts.map(opt => {
+            const isSelected = opt.toLowerCase() === selectVal;
+            const labelText = formatLabel(opt);
+            return `<div class="custom-dropdown-item ${isSelected ? 'is-selected' : ''}" role="option" data-val="${opt}" title="${labelText}">${labelText}</div>`;
+          }).join('');
 
           return `
             <div class="effects-control-row effects-control-row-select" data-param="${p.id}">
               <div class="effects-param-label-static">${p.label || p.id}</div>
-              <div class="effects-segmented-group" data-param="${p.id}">
-                ${btns}
+              <div class="custom-dropdown effects-custom-dropdown" data-param="${p.id}" data-value="${currentOpt}">
+                <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select ${p.label || p.id}">
+                  <span class="custom-dropdown-label">${currentLabel}</span>
+                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 10l5 5 5-5z"/>
+                  </svg>
+                </button>
+                <div class="custom-dropdown-menu" role="listbox">
+                  ${items}
+                </div>
               </div>
             </div>
           `;
@@ -445,15 +481,15 @@
                 <div class="jog-wheel-ticks"></div>
                 <div class="jog-wheel-needle"></div>
               </div>
-              <button type="button" class="effects-param-value-btn fx-badge-${p.id}" data-param="${p.id}" title="Reset ${p.label || p.id} to ${p.default || 0}${unit}">
+              <button type="button" class="effects-param-value-btn fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">
                 ${badgeText}
               </button>
             </div>
           `;
         }
 
-        const min = p.min !== undefined ? p.min : -100;
-        const max = p.max !== undefined ? p.max : 100;
+        const min = fx.min !== undefined ? fx.min : (p.min !== undefined ? p.min : -100);
+        const max = fx.max !== undefined ? fx.max : (p.max !== undefined ? p.max : 100);
         const propKey = `${fx.id}:${p.id}`;
         const hasKf = layer && layer.keyframes && (
           (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
@@ -462,14 +498,15 @@
         const rawVal = (hasKf && effFx && effFx[p.id] !== undefined)
           ? effFx[p.id]
           : (fx[p.id] !== undefined ? fx[p.id] : (p.default || 0));
-        const isDecimal = (p.step !== undefined && p.step < 1) || p.unit === 'x';
+        const step = fx.step !== undefined ? fx.step : (p.step !== undefined ? p.step : 1);
+        const unit = fx.unit !== undefined ? fx.unit : (p.unit || '%');
+        const isDecimal = (step < 1) || unit === 'x' || unit.includes('.');
         const numVal = isDecimal
           ? Math.max(min, Math.min(max, Number(parseFloat(rawVal).toFixed(2))))
           : Math.max(min, Math.min(max, Math.round(rawVal)));
         const isParamActive = (selectedProp === propKey) ||
           (!selectedProp && fx === layer.effects[0] && p.id === def.params[0].id) ||
           (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
-        const unit = p.unit || '%';
         const formattedVal = isDecimal ? numVal.toFixed(2) : numVal;
         const badgeText = (numVal >= 0 && min < 0 ? '+' : '') + formattedVal + unit;
 
@@ -482,7 +519,7 @@
               <div class="jog-wheel-ticks"></div>
               <div class="jog-wheel-needle"></div>
             </div>
-            <button type="button" class="effects-param-value-btn fx-badge-${p.id}" data-param="${p.id}" title="Reset ${p.label || p.id} to ${p.default || 0}${unit}">
+            <button type="button" class="effects-param-value-btn fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">
               ${badgeText}
             </button>
           </div>

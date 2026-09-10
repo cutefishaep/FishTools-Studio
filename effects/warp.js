@@ -99,25 +99,15 @@
     '        p_src = vec2(rotAp.x / max(u_aspect, 1.0), rotAp.y / max(1.0 / u_aspect, 1.0));',
     '      }',
     '    } else if (u_style == 3) {',
-    '      // --- FISHEYE (True 2D Optical Barrel & Pincushion Lens) ---',
-    '      // Full 360-degree radial optical lens distortion with subpixel bilinear fidelity',
-    '      vec2 ap = vec2(p.x * max(u_aspect, 1.0), p.y * max(1.0 / u_aspect, 1.0));',
-    '      float r = length(ap);',
-    '      if (r > 0.0001) {',
-    '        float rNorm = r / 1.4142;',
-    '        float k = b * 0.85;',
-    '        float r_src = r;',
-    '        if (k >= 0.0) {',
-    '          // Barrel distortion: convex fisheye bubble',
-    '          r_src = r * (1.0 + k * rNorm * rNorm + k * 0.5 * rNorm * rNorm * rNorm * rNorm);',
-    '        } else {',
-    '          // Pincushion distortion: concave optical pinch',
-    '          float denom = max(0.1, 1.0 + k * 0.8 * rNorm * rNorm);',
-    '          r_src = r / denom;',
-    '        }',
-    '        vec2 ap_src = ap * (r_src / r);',
-    '        p_src = vec2(ap_src.x / max(u_aspect, 1.0), ap_src.y / max(1.0 / u_aspect, 1.0));',
-    '      }',
+    '      // --- FISHEYE (Boundary-Anchored Full-Frame After Effects Warp) ---',
+    '      // Pins all 4 boundaries strictly to [-1, 1] without outer cutouts',
+    '      float k = (b < 0.0) ? (-b * 1.6) : (-b * 0.65);',
+    '      float fx = k * (1.0 - p.y * p.y);',
+    '      float fy = k * (1.0 - p.x * p.x);',
+    '      float oneMinusAbsX = 1.0 - abs(p.x);',
+    '      float oneMinusAbsY = 1.0 - abs(p.y);',
+    '      p_src.x = p.x * (1.0 + fx * oneMinusAbsX * oneMinusAbsX);',
+    '      p_src.y = p.y * (1.0 + fy * oneMinusAbsY * oneMinusAbsY);',
     '    } else if (u_style == 4) {',
     '      // --- SQUEEZE ---',
     '      // 2D Hourglass waist pinch along both axes',
@@ -131,12 +121,17 @@
     '  // Map source centered coordinates back to texture UV [0, 1]',
     '  vec2 uv_src = p_src * 0.5 + 0.5;',
     '',
-    '  // Clean boundary handling: zero bleed, zero artifacts outside quad',
-    '  if (uv_src.x < 0.0 || uv_src.x > 1.0 || uv_src.y < 0.0 || uv_src.y > 1.0) {',
-    '    gl_FragColor = vec4(0.0);',
-    '  } else {',
-    '    // Hardware linear texture interpolation (100% anti-aliased, zero jagged seams)',
+    '  if (u_style == 3) {',
+    '    // Fisheye: full-frame pinned coverage, guaranteed within bounds',
+    '    uv_src = clamp(uv_src, 0.0, 1.0);',
     '    gl_FragColor = texture2D(u_image, uv_src);',
+    '  } else {',
+    '    // Clean boundary handling for geometric mesh shapes (Arc, etc.)',
+    '    if (uv_src.x < 0.0 || uv_src.x > 1.0 || uv_src.y < 0.0 || uv_src.y > 1.0) {',
+    '      gl_FragColor = vec4(0.0);',
+    '    } else {',
+    '      gl_FragColor = texture2D(u_image, uv_src);',
+    '    }',
     '  }',
     '}'
   ].join('\n');
@@ -367,22 +362,15 @@
         y = rotAy / Math.max(1.0 / aspect, 1.0);
       }
     } else if (style === 'fisheye') {
-      const ax = x * Math.max(aspect, 1.0);
-      const ay = y * Math.max(1.0 / aspect, 1.0);
-      const r = Math.sqrt(ax * ax + ay * ay);
-      if (r > 0.0001) {
-        const rNorm = r / 1.4142;
-        const k = b * 0.85;
-        let rDst;
-        if (k >= 0) {
-          rDst = r / (1.0 + k * rNorm * rNorm + k * 0.5 * rNorm * rNorm * rNorm * rNorm);
-        } else {
-          rDst = r * Math.max(0.1, 1.0 - k * 0.8 * rNorm * rNorm);
-        }
-        const scale = rDst / r;
-        x = (ax * scale) / Math.max(aspect, 1.0);
-        y = (ay * scale) / Math.max(1.0 / aspect, 1.0);
-      }
+      // --- FISHEYE (Forward Mesh Mapping) ---
+      // Forward displacement moves vertices towards center for pinch (b < 0), away for bulge (b > 0)
+      const kFwd = (b < 0) ? (b * 0.5) : (b * 0.75);
+      const fx = kFwd * (1.0 - y * y);
+      const fy = kFwd * (1.0 - x * x);
+      const oneMinusAbsX = 1.0 - Math.abs(x);
+      const oneMinusAbsY = 1.0 - Math.abs(y);
+      x = x * (1.0 + fx * oneMinusAbsX * oneMinusAbsX);
+      y = y * (1.0 + fy * oneMinusAbsY * oneMinusAbsY);
     } else if (style === 'squeeze') {
       const waistX = 1.0 - b * 0.6 * (1.0 - y * y);
       const waistY = 1.0 + b * 0.3 * (1.0 - x * x);

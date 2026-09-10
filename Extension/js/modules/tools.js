@@ -1,0 +1,207 @@
+'use strict';
+
+(function () {
+    var NS = "FishTools";
+
+    window.ToolboxModule = function ToolboxModule() {
+        this.csInterface = null;
+    };
+
+    ToolboxModule.prototype.init = function () {
+        this.csInterface = new CSInterface();
+        this._bindToolButtons();
+        this._bindAnchorGrid();
+        this._bindActionButtons();
+        this._bindFormatButtons();
+    };
+
+    ToolboxModule.prototype._runTool = function (toolName) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        var result;
+        var directExecuted = false;
+        try {
+            if (window.parent && typeof window.parent.executeFishTool === 'function') {
+                result = window.parent.executeFishTool.apply(window.parent, [toolName].concat(args));
+                directExecuted = true;
+            }
+        } catch (_) {}
+        if (!directExecuted && window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'fishtools-run-tool',
+                tool: toolName,
+                args: args
+            }, '*');
+        }
+        if (result && typeof result === 'string') {
+            try {
+                var parsed = JSON.parse(result);
+                if (parsed && parsed.error && parsed.message && typeof ModalModule !== 'undefined' && typeof ModalModule.alert === 'function') {
+                    ModalModule.alert(parsed.message, parsed.tool || 'Warning', parsed.type || 'warn');
+                }
+            } catch (_) {}
+        }
+        return result;
+    };
+
+    ToolboxModule.prototype._bindToolButtons = function () {
+        var self = this;
+        var buttons = document.querySelectorAll('.tool-btn[data-tool]');
+        buttons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var toolName = btn.getAttribute('data-tool');
+                var alter = btn.getAttribute('data-alter');
+                var hasAlter = btn.getAttribute('data-has-alter');
+
+                btn.classList.add('tool-btn--active');
+                setTimeout(function () { btn.classList.remove('tool-btn--active'); }, 200);
+
+                if (hasAlter === 'true') {
+                    self._runTool(toolName, false);
+                } else if (alter !== null) {
+                    self._runTool(toolName, alter === 'true');
+                } else {
+                    self._runTool(toolName);
+                }
+            });
+
+            btn.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                var toolName = btn.getAttribute('data-tool');
+                var hasAlter = btn.getAttribute('data-has-alter');
+                if (hasAlter === 'true') {
+                    btn.classList.add('tool-btn--active');
+                    setTimeout(function () { btn.classList.remove('tool-btn--active'); }, 200);
+                    self._runTool(toolName, true);
+                }
+            });
+        });
+    };
+
+    ToolboxModule.prototype._bindAnchorGrid = function () {
+        var self = this;
+        var cells = document.querySelectorAll('.anchor-cell');
+        cells.forEach(function (cell) {
+            cell.addEventListener('click', function () {
+                var pos = parseInt(cell.getAttribute('data-pos'), 10);
+
+                var allCells = document.querySelectorAll('.anchor-cell');
+                allCells.forEach(function (c) { c.classList.remove('anchor-active'); });
+                cell.classList.add('anchor-active');
+
+                self._runTool('setAnchorPoint', pos);
+            });
+        });
+    };
+
+    ToolboxModule.prototype._bindActionButtons = function () {
+        var self = this;
+        var btnPrecomp = document.getElementById('btn-precomp');
+        if (btnPrecomp) {
+            btnPrecomp.addEventListener('click', function () {
+                self._runTool('PRECOMP');
+            });
+            btnPrecomp.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                btnPrecomp.classList.add('tool-btn--active');
+                setTimeout(function () { btnPrecomp.classList.remove('tool-btn--active'); }, 200);
+                self._runTool('PRECOMP_AUTOCROP');
+            });
+        }
+        var btnCenter = document.getElementById('btn-center');
+        if (btnCenter) {
+            btnCenter.addEventListener('click', function () {
+                self._runTool('CENTERINCOMP');
+            });
+        }
+        var btnOverlap = document.getElementById('btn-overlap');
+        if (btnOverlap) {
+            btnOverlap.addEventListener('click', function () {
+                self._runTool('OVERLAP');
+            });
+        }
+        var btnScreenshot = document.getElementById('btn-screenshot');
+        if (btnScreenshot) {
+            btnScreenshot.addEventListener('click', function () {
+                self._runTool('PNG');
+            });
+        }
+        var btnCreateCube = document.getElementById('btn-create-cube');
+        if (btnCreateCube) {
+            btnCreateCube.addEventListener('click', function () {
+                var w = document.getElementById('cube-width').value;
+                var h = document.getElementById('cube-height').value;
+                var d = document.getElementById('cube-depth').value;
+                var useLayer = document.getElementById('cube-use-layer').checked;
+                self._runTool('CUBE', w, h, d, useLayer);
+            });
+        }
+        var btnPurgeAll = document.getElementById('btn-purge-all');
+        if (btnPurgeAll) {
+            btnPurgeAll.addEventListener('click', function () {
+                ModalModule.confirm("Are you sure you want to purge ALL caches, memory, and undo history?", "Purge All", function (confirmed) {
+                    if (confirmed) self._runTool('PURGE', 'ALL');
+                });
+            });
+        }
+        var btnDupComp = document.getElementById('btn-dup-comp');
+        if (btnDupComp) {
+            btnDupComp.addEventListener('click', function () {
+                btnDupComp.classList.add('tool-btn--active');
+                setTimeout(function () { btnDupComp.classList.remove('tool-btn--active'); }, 200);
+                self._runTool('DUP');
+            });
+        }
+        var btnPurgeCache = document.getElementById('btn-purge-cache');
+        if (btnPurgeCache) {
+            btnPurgeCache.addEventListener('click', function () {
+                ModalModule.confirm("Are you sure you want to purge all DISK CACHE?", "Purge Cache", function (confirmed) {
+                    if (confirmed) self._runTool('PURGE', 'CACHE');
+                });
+            });
+        }
+        var btnPurgeMemory = document.getElementById('btn-purge-memory');
+        if (btnPurgeMemory) {
+            btnPurgeMemory.addEventListener('click', function () {
+                ModalModule.confirm("Are you sure you want to purge all IMAGE MEMORY?", "Purge Memory", function (confirmed) {
+                    if (confirmed) self._runTool('PURGE', 'MEMORY');
+                });
+            });
+        }
+        var btnPurgeUndo = document.getElementById('btn-purge-undo');
+        if (btnPurgeUndo) {
+            btnPurgeUndo.addEventListener('click', function () {
+                ModalModule.confirm("Are you sure you want to clear UNDO history? This cannot be undone.", "Purge Undo", function (confirmed) {
+                    if (confirmed) self._runTool('PURGE', 'UNDO');
+                });
+            });
+        }
+    };
+
+    ToolboxModule.prototype._bindFormatButtons = function () {
+        var self = this;
+        var ratioButtons = document.querySelectorAll('.btn-ratio');
+        ratioButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var w = btn.getAttribute('data-width');
+                var h = btn.getAttribute('data-height');
+                
+                btn.classList.add('tool-btn--active');
+                setTimeout(function () { btn.classList.remove('tool-btn--active'); }, 200);
+                
+                self._runTool('changeCompRatio', w, h);
+            });
+        });
+        
+        var fpsButtons = document.querySelectorAll('.btn-fps');
+        fpsButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var fps = btn.getAttribute('data-fps');
+                
+                btn.classList.add('tool-btn--active');
+                setTimeout(function () { btn.classList.remove('tool-btn--active'); }, 200);
+                
+                self._runTool('changeCompFPS', fps);
+            });
+        });
+    };
+})();

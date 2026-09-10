@@ -346,7 +346,7 @@ const Popover = (function () {
     if (activeTrigger && typeof activeTrigger.contains === 'function' && activeTrigger.contains(e.target)) return; // Clicked active trigger
 
     // If clicking any other popover trigger, do not close via pointerdown! Let the trigger's click switch/toggle smoothly
-    const otherTrigger = e.target.closest && e.target.closest('[data-popover-target], .ctrl-btn-fish, #editor-btn-fishtool-trigger');
+    const otherTrigger = e.target.closest && e.target.closest('[data-popover-target]');
     if (otherTrigger) return;
 
     close();
@@ -374,8 +374,10 @@ const Popover = (function () {
   });
 
   // Auto-bind elements with data-popover-target attribute
-  document.addEventListener('DOMContentLoaded', () => {
+  function initPopoverTriggers() {
     document.querySelectorAll('[data-popover-target]').forEach(trigger => {
+      if (trigger._hasPopoverBound) return;
+      trigger._hasPopoverBound = true;
       trigger.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -383,7 +385,13 @@ const Popover = (function () {
         toggle(trigger, targetId);
       });
     });
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPopoverTriggers);
+  } else {
+    initPopoverTriggers();
+  }
 
   return {
     open,

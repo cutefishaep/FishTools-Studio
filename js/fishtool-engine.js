@@ -324,7 +324,8 @@
       this._fxCtx.clearRect(0, 0, w, h);
 
       const fakeLayer = Object.assign({}, layer, { effects: activeFx });
-      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: 0, y: 0, w, h });
+      const curSec = (typeof window !== 'undefined' && window.currentPlaybackSec !== undefined) ? window.currentPlaybackSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : 0);
+      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: 0, y: 0, w, h }, curSec);
       return { el: this._fxCanvas, padX: 0, padY: 0, origW: w, origH: h };
     }
 
@@ -689,7 +690,7 @@
       const anchorZ = (layer.anchorZ || 0) * bufferScale;
 
       const hasCamera = !!camera;
-      const is3D = hasCamera || Math.abs(rotX) > 0.001 || Math.abs(rotY) > 0.001 || Math.abs(posZ) > 0.001 || Math.abs(anchorZ) > 0.001;
+      const is3D = hasCamera || Math.abs(rotX) > 0.001 || Math.abs(rotY) > 0.001 || Math.abs(posZ) > 0.001 || Math.abs(anchorZ) > 0.001 || !!layer.is3D || !!layer.collapseTransformations;
 
       const camLens = Math.max(1, camera ? (camera.cameraLens !== undefined ? camera.cameraLens : 50) : 50);
       const camZoom = camera ? (camera.cameraZoom !== undefined ? camera.cameraZoom : 100) : 100;
@@ -951,8 +952,9 @@
         try {
           const drawX = -absW / 2 - (bounds.anchorX || 0);
           const drawY = -absH / 2 - (bounds.anchorY || 0);
+          const curSec = (typeof window !== 'undefined' && window.currentPlaybackSec !== undefined) ? window.currentPlaybackSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : 0);
           if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-            window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH });
+            window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH }, curSec);
           } else {
             ctx.drawImage(el, drawX, drawY, absW, absH);
           }
@@ -1255,6 +1257,7 @@
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
       gl.depthMask(true);
+      gl.disable(gl.CULL_FACE);
 
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

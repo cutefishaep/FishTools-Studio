@@ -15,10 +15,11 @@
       { id: 'offset', label: 'Offset', type: 'number', min: -50, max: 50, default: 0, unit: '%' }
     ],
     filter(fx) {
-      const exp = (fx.exposure || 0) / 50;
+      let exp = (fx.exposure !== undefined ? fx.exposure : 0);
+      if (Math.abs(exp) > 20) exp = exp / 50;
       const off = (fx.offset || 0) / 100;
       const gam = 1 + (fx.gamma || 0) / 100;
-      const br = Math.pow(2, exp) + off;
+      const br = Math.max(0, Math.pow(2, exp) + off);
       return `brightness(${br.toFixed(3)}) contrast(${gam.toFixed(3)})`;
     }
   });

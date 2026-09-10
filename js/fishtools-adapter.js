@@ -919,6 +919,9 @@ window.FishToolsBridge = (function () {
 
     // --- Beat Effects: Current ---
     if (toolName === 'GHST' || toolName === 'WARP' || toolName === 'FISHEYE' || toolName === 'MIDWAVE' || toolName === 'HUESPIN' || toolName === 'EXPO' || toolName === 'FLASH' || toolName === 'LENS' ||
+        toolName === 'PRESET_WARP1' || toolName === 'WARP1' ||
+        toolName === 'PRESET_WARP2' || toolName === 'WARP2' ||
+        toolName === 'PRESET_WARP3' || toolName === 'WARP3' ||
         toolName === 'OSCILLATE' || toolName === 'SWING' ||
         toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' ||
         toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP' ||

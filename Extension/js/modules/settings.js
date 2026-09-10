@@ -311,14 +311,113 @@ SettingsModule.prototype.setupDebugTools = function () {
             return host.getSelectedLayerDebugState();
         }
         var pState = host.currentProjectState || window.currentProjectState;
-        if (pState && Array.isArray(pState.layers)) {
-            var selId = host.selectedLayerId ||
-                (host.selectedLayerIds && host.selectedLayerIds.size === 1
-                    ? Array.from(host.selectedLayerIds)[0]
-                    : null);
-            var layer = pState.layers.find(function (l) { return l.id === selId; });
-            if (!layer) return null;
-            var SKIP_KEYS = { dataUrl: 1, thumbUrl: 1, audioPcmData: 1, _precompBufferCanvas: 1, _cachedImageBitmap: 1, _bitmapCache: 1 };
+        var layers = (pState && Array.isArray(pState.layers)) ? pState.layers : [];
+
+        var selectedIds = new Set();
+        var selIdsSource = host.selectedLayerIds || window.selectedLayerIds;
+        if (selIdsSource) {
+            if (typeof selIdsSource.forEach === 'function') {
+                selIdsSource.forEach(function (id) { if (id) selectedIds.add(id); });
+            } else if (Array.isArray(selIdsSource)) {
+                selIdsSource.forEach(function (id) { if (id) selectedIds.add(id); });
+            }
+        }
+        var selIdSingle = host.selectedLayerId || window.selectedLayerId;
+        if (selIdSingle) selectedIds.add(selIdSingle);
+
+        var selectedLayers = layers.filter(function (l) { return selectedIds.has(l.id); });
+        if (selectedLayers.length === 0) return null;
+
+        var fps = (typeof host.getProjectFps === 'function')
+            ? host.getProjectFps()
+            : (parseInt(pState && pState.fps, 10) || 60);
+        var pps = host.currentPixelsPerSecond || 80;
+        var curPanX = host.timelinePanX !== undefined ? Math.min(0, host.timelinePanX) : 0;
+        var curSecRaw = host.currentSec !== undefined
+            ? host.currentSec
+            : (host.currentPlaybackSec !== undefined ? host.currentPlaybackSec : Math.max(0, -curPanX) / pps);
+        var curPlayheadSec = Number(curSecRaw.toFixed(4));
+        var curPlayheadFrame = Math.round(curPlayheadSec * fps);
+
+        var sortedLayers = selectedLayers.slice().sort(function (a, b) {
+            var sA = a.startSec !== undefined ? Number(a.startSec) : ((Number(a.startPx) || 0) / pps);
+            var sB = b.startSec !== undefined ? Number(b.startSec) : ((Number(b.startPx) || 0) / pps);
+            return sA - sB;
+        });
+
+        var concatTotalSec = 0;
+        var concatTotalFrames = 0;
+        var earliestSpan = Infinity;
+        var latestSpan = -Infinity;
+
+        var layersTimeline = sortedLayers.map(function (l, idx) {
+            var sSec = l.startSec !== undefined ? Number(l.startSec) : ((Number(l.startPx) || 0) / pps);
+            var dSec = l.durationSec !== undefined ? Number(l.durationSec) : ((Number(l.widthPx) || 400) / pps);
+            var eSec = sSec + dSec;
+            var sFrame = Math.round(sSec * fps);
+            var dFrames = Math.round(dSec * fps);
+            var eFrame = sFrame + dFrames;
+
+            if (sSec < earliestSpan) earliestSpan = sSec;
+            if (eSec > latestSpan) latestSpan = eSec;
+
+            var qStartSec = concatTotalSec;
+            var qEndSec = qStartSec + dSec;
+            var qStartFrame = concatTotalFrames;
+            var qEndFrame = qStartFrame + dFrames;
+
+            concatTotalSec += dSec;
+            concatTotalFrames += dFrames;
+
+            var isInside = (curPlayheadSec >= sSec && curPlayheadSec <= eSec);
+            var lSec = curPlayheadSec - sSec;
+            var lFrame = Math.round(lSec * fps);
+            var lProg = dSec > 0 ? Math.max(0, Math.min(100, (lSec / dSec) * 100)).toFixed(2) + '%' : '0%';
+
+            var w = Math.round(Math.abs(l.mediaWidth || l.scaleW || l.widthPx || 1920));
+            var h = Math.round(Math.abs(l.mediaHeight || l.scaleH || 1080));
+
+            return {
+                index: idx,
+                id: l.id,
+                name: l.name || ('Layer ' + (idx + 1)),
+                type: l.type || 'unknown',
+                dimensions: { width: w, height: h, scaleW: l.scaleW || 1, scaleH: l.scaleH || 1 },
+                timeline: { startSec: Number(sSec.toFixed(3)), durationSec: Number(dSec.toFixed(3)), endSec: Number(eSec.toFixed(3)), startFrame: sFrame, durationFrames: dFrames, endFrame: eFrame },
+                concatenatedSequence: { seqStartSec: Number(qStartSec.toFixed(3)), seqDurationSec: Number(dSec.toFixed(3)), seqEndSec: Number(qEndSec.toFixed(3)), seqStartFrame: qStartFrame, seqDurationFrames: dFrames, seqEndFrame: qEndFrame },
+                playhead: { isCurrentFrameInside: isInside, localSec: Number(lSec.toFixed(3)), localFrame: lFrame, localProgressPercent: lProg }
+            };
+        });
+
+        if (earliestSpan === Infinity) earliestSpan = 0;
+        if (latestSpan === -Infinity) latestSpan = 0;
+        var spanDurSec = Math.max(0, latestSpan - earliestSpan);
+        var spanDurFrames = Math.round(spanDurSec * fps);
+        var spanCurSec = curPlayheadSec - earliestSpan;
+        var spanCurFrame = curPlayheadFrame - Math.round(earliestSpan * fps);
+
+        var activeLayers = layersTimeline.filter(function (it) { return it.playhead.isCurrentFrameInside; });
+        var primActive = activeLayers.length > 0 ? activeLayers[activeLayers.length - 1] : null;
+        var seqCurSec = 0;
+        var seqCurFrame = 0;
+        var pStatus = '';
+
+        if (primActive) {
+            var clSec = Math.max(0, Math.min(primActive.timeline.durationSec, primActive.playhead.localSec));
+            var clFrame = Math.max(0, Math.min(primActive.timeline.durationFrames, primActive.playhead.localFrame));
+            seqCurSec = primActive.concatenatedSequence.seqStartSec + clSec;
+            seqCurFrame = primActive.concatenatedSequence.seqStartFrame + clFrame;
+            pStatus = 'In "' + primActive.name + '" (layer ' + (primActive.index + 1) + '/' + sortedLayers.length + '), frame ' + clFrame + '/' + primActive.timeline.durationFrames;
+        } else if (curPlayheadSec < earliestSpan) {
+            pStatus = 'Before selected layers span';
+        } else if (curPlayheadSec > latestSpan) {
+            pStatus = 'After selected layers span';
+        } else {
+            pStatus = 'In timeline gap between layers';
+        }
+
+        var SKIP_KEYS = { dataUrl: 1, thumbUrl: 1, audioPcmData: 1, _precompBufferCanvas: 1, _cachedImageBitmap: 1, _bitmapCache: 1 };
+        var cleanLayers = sortedLayers.map(function (layer) {
             var clone = {};
             for (var k in layer) {
                 if (SKIP_KEYS[k]) {
@@ -331,21 +430,63 @@ SettingsModule.prototype.setupDebugTools = function () {
                     clone[k] = layer[k];
                 }
             }
-            return { layer: layer, clean: clone };
-        }
-        return null;
+            return clone;
+        });
+
+        var analysis = {
+            selectedLayersCount: sortedLayers.length,
+            projectFps: fps,
+            currentPlayhead: { sec: curPlayheadSec, frame: curPlayheadFrame },
+            concatenatedDuration: {
+                totalDurationSec: Number(concatTotalSec.toFixed(3)),
+                totalDurationFrames: concatTotalFrames,
+                currentPositionSec: Number(seqCurSec.toFixed(3)),
+                currentPositionFrame: seqCurFrame,
+                progressPercent: concatTotalSec > 0 ? ((seqCurSec / concatTotalSec) * 100).toFixed(2) + '%' : '0%',
+                activeLayerIndex: primActive ? primActive.index : null,
+                activeLayerName: primActive ? primActive.name : null,
+                status: pStatus
+            },
+            timelineSpan: {
+                earliestStartSec: Number(earliestSpan.toFixed(3)),
+                latestEndSec: Number(latestSpan.toFixed(3)),
+                totalDurationSec: Number(spanDurSec.toFixed(3)),
+                totalDurationFrames: spanDurFrames,
+                currentOffsetSec: Number(spanCurSec.toFixed(3)),
+                currentOffsetFrame: spanCurFrame,
+                progressPercent: spanDurSec > 0 ? Math.max(0, Math.min(100, (spanCurSec / spanDurSec) * 100)).toFixed(2) + '%' : '0%'
+            },
+            layersOverview: layersTimeline
+        };
+
+        return {
+            layer: sortedLayers[0],
+            layers: sortedLayers,
+            clean: { analysis: analysis, layers: cleanLayers },
+            cleanLayers: cleanLayers,
+            analysis: analysis,
+            playheadStatus: pStatus
+        };
     }
 
     fetchBtn.addEventListener('click', function () {
         var res = getDebugInfo();
-        if (!res || !res.layer) {
+        if (!res || !res.layers || res.layers.length === 0) {
             output.value = '';
-            if (status) status.textContent = '⚠ No layer selected — select a layer on the timeline first.';
+            if (status) status.textContent = '⚠ No layer selected — select one or more layers on the timeline first.';
             return;
         }
         try {
             output.value = JSON.stringify(res.clean, null, 2);
-            if (status) status.textContent = '✓ Fetched: ' + (res.layer.name || res.layer.id) + ' (' + (res.layer.type || 'unknown') + ')';
+            var an = res.analysis;
+            if (an && an.selectedLayersCount > 1) {
+                if (status) status.textContent = '✓ Fetched ' + an.selectedLayersCount + ' layers | Combined: ' + an.concatenatedDuration.totalDurationSec + 's (' + an.concatenatedDuration.totalDurationFrames + 'f) | ' + an.concatenatedDuration.status;
+            } else if (an && an.selectedLayersCount === 1) {
+                var l0 = an.layersOverview[0];
+                if (status) status.textContent = '✓ Fetched: ' + l0.name + ' (' + l0.type + ') | Dur: ' + l0.timeline.durationSec + 's (' + l0.timeline.durationFrames + 'f) | Frame ' + l0.playhead.localFrame + '/' + l0.timeline.durationFrames;
+            } else {
+                if (status) status.textContent = '✓ Fetched: ' + ((res.layer && (res.layer.name || res.layer.id)) || 'layers');
+            }
         } catch (e) {
             output.value = String(e);
             if (status) status.textContent = '✗ Serialization error';
@@ -355,7 +496,7 @@ SettingsModule.prototype.setupDebugTools = function () {
     if (copyBtn) {
         copyBtn.addEventListener('click', function () {
             if (!output.value) {
-                if (status) status.textContent = '⚠ Nothing to copy — fetch a layer first.';
+                if (status) status.textContent = '⚠ Nothing to copy — fetch layer(s) first.';
                 return;
             }
             try {

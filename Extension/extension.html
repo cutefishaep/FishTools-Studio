@@ -321,6 +321,15 @@
                     <button class="tool-btn" data-tool="PANNING_MIX_ALL" title="Panning Mix All (Pos, Rot & Scale)"><span
                             class="material-icons">widgets</span><span class="tool-label">MIX ALL</span></button>
                 </div>
+                <div class="section-label">Preset</div>
+                <div class="toolbox-grid col-5">
+                    <button class="tool-btn" data-tool="PRESET_WARP1" title="Warp1 Preset"><span
+                            class="material-icons">folder</span><span class="tool-label">WARP1</span></button>
+                    <button class="tool-btn" data-tool="PRESET_WARP2" title="Warp2 Preset"><span
+                            class="material-icons">folder</span><span class="tool-label">WARP2</span></button>
+                    <button class="tool-btn" data-tool="PRESET_WARP3" title="Warp3 Preset"><span
+                            class="material-icons">folder</span><span class="tool-label">WARP3</span></button>
+                </div>
             </div>
 
             <div class="card">
@@ -561,7 +570,7 @@
                 <div class="settings-row">
                     <span class="status-label" style="margin:0;">LAYER INSPECTOR</span>
                     <div style="display: flex; gap: 6px;">
-                        <button type="button" id="btn-debug-fetch-layer" class="btn-secondary" title="Fetch Selected Layer">
+                        <button type="button" id="btn-debug-fetch-layer" class="btn-secondary" title="Fetch Selected Layer(s)">
                             <span class="material-icons" style="font-size: 13px; margin-right: 4px;">refresh</span>
                             <span>FETCH</span>
                         </button>
@@ -571,7 +580,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 8px;">
-                    <textarea id="debug-layer-output" readonly spellcheck="false" placeholder="Select a layer then click 'FETCH' to inspect its full state..." style="
+                    <textarea id="debug-layer-output" readonly spellcheck="false" placeholder="Select one or more layers then click 'FETCH' to inspect full state and duration analysis..." style="
                         width: 100%; min-height: 120px; max-height: 240px; resize: vertical;
                         background: var(--surface2); color: var(--text);
                         border: 1px solid var(--border); border-radius: 4px;

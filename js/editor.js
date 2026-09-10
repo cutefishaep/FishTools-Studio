@@ -1920,8 +1920,10 @@
       const pixelsPerSecond = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? Math.min(0, window.timelinePanX) : 0;
       const currentSec = (overrideSec !== null && overrideSec !== undefined) ? Math.max(0, overrideSec) : (Math.max(0, -currentPanX) / pixelsPerSecond);
-      window.currentSec = currentSec;
-      window.currentPlaybackSec = currentSec;
+      if (overrideSec === null || overrideSec === undefined) {
+        window.currentSec = currentSec;
+        window.currentPlaybackSec = currentSec;
+      }
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
       const frameIndex = Math.round(currentSec * fps);
 
@@ -14979,32 +14981,280 @@
       }
     }
 
-    // ── Debug State Helper: Fetch Layer & Sanitize ────────────────────────────
+    // ── Debug State Helper: Multi-Layer Fetch & Duration Analysis ──────────────
     window.getSelectedLayerDebugState = function() {
-      const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
-      const selId = window.selectedLayerId ||
-        (window.selectedLayerIds && window.selectedLayerIds.size === 1
-          ? Array.from(window.selectedLayerIds)[0] : null);
-      const layer = layers.find(l => l.id === selId) || null;
-      if (!layer) return null;
+      const host = window;
+      const pState = host.currentProjectState || (window.parent && window.parent.currentProjectState);
+      const layers = (pState && pState.layers) || [];
 
-      const SKIP_KEYS = new Set(['dataUrl', 'thumbUrl', 'audioPcmData', '_precompBufferCanvas',
-                                  '_cachedImageBitmap', '_bitmapCache']);
-      const clone = {};
-      for (const k of Object.keys(layer)) {
-        if (SKIP_KEYS.has(k)) {
-          clone[k] = '[omitted]';
-        } else if (layer[k] && typeof layer[k] === 'object' && !Array.isArray(layer[k]) &&
-                   !(layer[k] instanceof HTMLElement) &&
-                   !(layer[k] instanceof HTMLCanvasElement)) {
-          try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = String(layer[k]); }
-        } else if (Array.isArray(layer[k])) {
-          try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = '[array]'; }
-        } else {
-          clone[k] = layer[k];
+      // Collect all selected layer IDs (supports single & multi-selection)
+      const selectedIds = new Set();
+      const selIdsSource = host.selectedLayerIds || (window.parent && window.parent.selectedLayerIds);
+      if (selIdsSource) {
+        if (typeof selIdsSource.forEach === 'function') {
+          selIdsSource.forEach(id => { if (id) selectedIds.add(id); });
+        } else if (Array.isArray(selIdsSource)) {
+          selIdsSource.forEach(id => { if (id) selectedIds.add(id); });
         }
       }
-      return { layer: layer, clean: clone };
+      const selIdSingle = host.selectedLayerId || (window.parent && window.parent.selectedLayerId);
+      if (selIdSingle) {
+        selectedIds.add(selIdSingle);
+      }
+
+      const selectedLayers = layers.filter(l => selectedIds.has(l.id));
+      if (selectedLayers.length === 0) return null;
+
+      // Project FPS & Timing
+      const fps = (typeof host.getProjectFps === 'function')
+        ? host.getProjectFps()
+        : (window.parent && typeof window.parent.getProjectFps === 'function')
+          ? window.parent.getProjectFps()
+          : (parseInt(pState && pState.fps, 10) || 60);
+
+      const pps = host.currentPixelsPerSecond || (window.parent && window.parent.currentPixelsPerSecond) || 80;
+      const timelinePanX = (host.timelinePanX !== undefined)
+        ? host.timelinePanX
+        : (window.parent && window.parent.timelinePanX !== undefined ? window.parent.timelinePanX : 0);
+      const currentPanX = Math.min(0, timelinePanX);
+
+      const currentSecRaw = (typeof host.getCurrentPlayheadTime === 'function')
+        ? host.getCurrentPlayheadTime()
+        : (window.parent && typeof window.parent.getCurrentPlayheadTime === 'function')
+          ? window.parent.getCurrentPlayheadTime()
+          : (host.currentSec !== undefined)
+            ? host.currentSec
+            : Math.max(0, -currentPanX) / pps;
+
+      const currentPlayheadSec = Number(currentSecRaw.toFixed(4));
+      const currentPlayheadFrame = Math.round(currentPlayheadSec * fps);
+
+      // Sort selected layers by timeline startSec ascending
+      const sortedLayers = [...selectedLayers].sort((a, b) => {
+        const startA = a.startSec !== undefined ? Number(a.startSec) : ((Number(a.startPx) || 0) / pps);
+        const startB = b.startSec !== undefined ? Number(b.startSec) : ((Number(b.startPx) || 0) / pps);
+        return startA - startB;
+      });
+
+      // Timecode helper
+      function formatTimecode(frame, rate) {
+        const totalSec = Math.max(0, Math.floor(frame / rate));
+        const f = Math.max(0, frame % rate);
+        const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+        const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+        const s = String(totalSec % 60).padStart(2, '0');
+        return `${h}:${m}:${s}:${String(f).padStart(2, '0')}`;
+      }
+
+      // Compute sequential & span timing
+      let concatenatedTotalSec = 0;
+      let concatenatedTotalFrames = 0;
+      let earliestSpanStartSec = Infinity;
+      let latestSpanEndSec = -Infinity;
+
+      const layersTimeline = sortedLayers.map((l, index) => {
+        const startSec = l.startSec !== undefined ? Number(l.startSec) : ((Number(l.startPx) || 0) / pps);
+        const durSec = l.durationSec !== undefined ? Number(l.durationSec) : ((Number(l.widthPx) || 400) / pps);
+        const endSec = startSec + durSec;
+        const startFrame = Math.round(startSec * fps);
+        const durFrames = Math.round(durSec * fps);
+        const endFrame = startFrame + durFrames;
+
+        if (startSec < earliestSpanStartSec) earliestSpanStartSec = startSec;
+        if (endSec > latestSpanEndSec) latestSpanEndSec = endSec;
+
+        const seqStartSec = concatenatedTotalSec;
+        const seqEndSec = seqStartSec + durSec;
+        const seqStartFrame = concatenatedTotalFrames;
+        const seqEndFrame = seqStartFrame + durFrames;
+
+        concatenatedTotalSec += durSec;
+        concatenatedTotalFrames += durFrames;
+
+        const isCurrentInside = (currentPlayheadSec >= startSec && currentPlayheadSec <= endSec);
+        const localSec = currentPlayheadSec - startSec;
+        const localFrame = Math.round(localSec * fps);
+        const localProgress = durSec > 0
+          ? Math.max(0, Math.min(100, (localSec / durSec) * 100)).toFixed(2) + '%'
+          : '0%';
+
+        const width = Math.round(Math.abs(l.mediaWidth || l.scaleW || l.widthPx || 1920));
+        const height = Math.round(Math.abs(l.mediaHeight || l.scaleH || 1080));
+
+        const clampedLocalSec = Math.max(0, Math.min(durSec, localSec));
+        const clampedLocalFrame = Math.max(0, Math.min(durFrames, localFrame));
+        const posInConcatenatedSec = seqStartSec + clampedLocalSec;
+        const posInConcatenatedFrame = seqStartFrame + clampedLocalFrame;
+        const posInConcatenatedProgress = (concatenatedTotalSec + durSec) > 0
+          ? ((posInConcatenatedSec / (seqEndSec || 1)) * 100).toFixed(2) + '%'
+          : '0%';
+
+        return {
+          index,
+          id: l.id,
+          name: l.name || `Layer ${index + 1}`,
+          type: l.type || 'unknown',
+          dimensions: {
+            width,
+            height,
+            scaleW: l.scaleW !== undefined ? l.scaleW : 1,
+            scaleH: l.scaleH !== undefined ? l.scaleH : 1
+          },
+          timeline: {
+            startSec: Number(startSec.toFixed(3)),
+            durationSec: Number(durSec.toFixed(3)),
+            endSec: Number(endSec.toFixed(3)),
+            startFrame,
+            durationFrames: durFrames,
+            endFrame
+          },
+          concatenatedSequence: {
+            seqStartSec: Number(seqStartSec.toFixed(3)),
+            seqDurationSec: Number(durSec.toFixed(3)),
+            seqEndSec: Number(seqEndSec.toFixed(3)),
+            seqStartFrame,
+            seqDurationFrames: durFrames,
+            seqEndFrame
+          },
+          playhead: {
+            isCurrentFrameInside: isCurrentInside,
+            localSec: Number(localSec.toFixed(3)),
+            localFrame,
+            localProgressPercent: localProgress,
+            positionInConcatenated: isCurrentInside ? {
+              sec: Number(posInConcatenatedSec.toFixed(3)),
+              frame: posInConcatenatedFrame,
+              progressPercent: concatenatedTotalSec > 0
+                ? ((posInConcatenatedSec / concatenatedTotalSec) * 100).toFixed(2) + '%'
+                : '0%'
+            } : null
+          }
+        };
+      });
+
+      if (earliestSpanStartSec === Infinity) earliestSpanStartSec = 0;
+      if (latestSpanEndSec === -Infinity) latestSpanEndSec = 0;
+      const spanDurationSec = Math.max(0, latestSpanEndSec - earliestSpanStartSec);
+      const spanDurationFrames = Math.round(spanDurationSec * fps);
+      const spanCurrentSec = currentPlayheadSec - earliestSpanStartSec;
+      const spanCurrentFrame = currentPlayheadFrame - Math.round(earliestSpanStartSec * fps);
+      const spanProgressPercent = spanDurationSec > 0
+        ? Math.max(0, Math.min(100, (spanCurrentSec / spanDurationSec) * 100)).toFixed(2) + '%'
+        : '0%';
+
+      // Determine active layers and sequence playhead position
+      const activeLayers = layersTimeline.filter(item => item.playhead.isCurrentFrameInside);
+      let primaryActiveLayer = activeLayers.length > 0 ? activeLayers[activeLayers.length - 1] : null;
+      let seqCurrentSec = 0;
+      let seqCurrentFrame = 0;
+      let playheadStatus = '';
+
+      if (primaryActiveLayer) {
+        const clampedLocalSec = Math.max(0, Math.min(primaryActiveLayer.timeline.durationSec, primaryActiveLayer.playhead.localSec));
+        const clampedLocalFrame = Math.max(0, Math.min(primaryActiveLayer.timeline.durationFrames, primaryActiveLayer.playhead.localFrame));
+        seqCurrentSec = primaryActiveLayer.concatenatedSequence.seqStartSec + clampedLocalSec;
+        seqCurrentFrame = primaryActiveLayer.concatenatedSequence.seqStartFrame + clampedLocalFrame;
+        const progressInSeq = concatenatedTotalSec > 0
+          ? ((seqCurrentSec / concatenatedTotalSec) * 100).toFixed(1) + '%'
+          : '0%';
+        playheadStatus = `In "${primaryActiveLayer.name}" (layer ${primaryActiveLayer.index + 1}/${sortedLayers.length}), frame ${clampedLocalFrame}/${primaryActiveLayer.timeline.durationFrames} | Sequence: frame ${seqCurrentFrame}/${concatenatedTotalFrames} (${progressInSeq})`;
+      } else if (currentPlayheadSec < earliestSpanStartSec) {
+        seqCurrentSec = 0;
+        seqCurrentFrame = 0;
+        const offsetSec = (earliestSpanStartSec - currentPlayheadSec).toFixed(3);
+        const offsetFrames = Math.round((earliestSpanStartSec - currentPlayheadSec) * fps);
+        playheadStatus = `Before selected layers span (-${offsetSec}s / -${offsetFrames}f)`;
+      } else if (currentPlayheadSec > latestSpanEndSec) {
+        seqCurrentSec = concatenatedTotalSec;
+        seqCurrentFrame = concatenatedTotalFrames;
+        const offsetSec = (currentPlayheadSec - latestSpanEndSec).toFixed(3);
+        const offsetFrames = Math.round((currentPlayheadSec - latestSpanEndSec) * fps);
+        playheadStatus = `After selected layers span (+${offsetSec}s / +${offsetFrames}f)`;
+      } else {
+        let prev = null;
+        for (const item of layersTimeline) {
+          if (item.timeline.endSec <= currentPlayheadSec) prev = item;
+        }
+        if (prev) {
+          seqCurrentSec = prev.concatenatedSequence.seqEndSec;
+          seqCurrentFrame = prev.concatenatedSequence.seqEndFrame;
+          playheadStatus = `In timeline gap after "${prev.name}"`;
+        } else {
+          seqCurrentSec = 0;
+          seqCurrentFrame = 0;
+          playheadStatus = 'In timeline gap before layers';
+        }
+      }
+
+      const seqProgressPercent = concatenatedTotalSec > 0
+        ? Math.max(0, Math.min(100, (seqCurrentSec / concatenatedTotalSec) * 100)).toFixed(2) + '%'
+        : '0%';
+
+      // Sanitize layer properties (strip heavy binary fields, keep all keyframes, effects, etc.)
+      const SKIP_KEYS = new Set(['dataUrl', 'thumbUrl', 'audioPcmData', '_precompBufferCanvas',
+                                  '_cachedImageBitmap', '_bitmapCache']);
+      const cleanLayers = sortedLayers.map(layer => {
+        const clone = {};
+        for (const k of Object.keys(layer)) {
+          if (SKIP_KEYS.has(k)) {
+            clone[k] = '[omitted]';
+          } else if (layer[k] && typeof layer[k] === 'object' && !Array.isArray(layer[k]) &&
+                     !(layer[k] instanceof HTMLElement) &&
+                     !(layer[k] instanceof HTMLCanvasElement)) {
+            try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = String(layer[k]); }
+          } else if (Array.isArray(layer[k])) {
+            try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = '[array]'; }
+          } else {
+            clone[k] = layer[k];
+          }
+        }
+        return clone;
+      });
+
+      const analysis = {
+        selectedLayersCount: sortedLayers.length,
+        projectFps: fps,
+        currentPlayhead: {
+          sec: currentPlayheadSec,
+          frame: currentPlayheadFrame,
+          timecode: formatTimecode(currentPlayheadFrame, fps)
+        },
+        concatenatedDuration: {
+          totalDurationSec: Number(concatenatedTotalSec.toFixed(3)),
+          totalDurationFrames: concatenatedTotalFrames,
+          currentPositionSec: Number(seqCurrentSec.toFixed(3)),
+          currentPositionFrame: seqCurrentFrame,
+          progressPercent: seqProgressPercent,
+          activeLayerIndex: primaryActiveLayer ? primaryActiveLayer.index : null,
+          activeLayerName: primaryActiveLayer ? primaryActiveLayer.name : null,
+          activeLayers: activeLayers.map(a => ({ index: a.index, name: a.name })),
+          status: playheadStatus
+        },
+        timelineSpan: {
+          earliestStartSec: Number(earliestSpanStartSec.toFixed(3)),
+          latestEndSec: Number(latestSpanEndSec.toFixed(3)),
+          totalDurationSec: Number(spanDurationSec.toFixed(3)),
+          totalDurationFrames: spanDurationFrames,
+          currentOffsetSec: Number(spanCurrentSec.toFixed(3)),
+          currentOffsetFrame: spanCurrentFrame,
+          progressPercent: spanProgressPercent
+        },
+        layersOverview: layersTimeline
+      };
+
+      const cleanPayload = {
+        analysis,
+        layers: cleanLayers
+      };
+
+      return {
+        layer: sortedLayers[0],
+        layers: sortedLayers,
+        clean: cleanPayload,
+        cleanLayers,
+        analysis,
+        playheadStatus
+      };
     };
 
     // If debug card DOM elements exist locally in main window, bind them
@@ -15017,14 +15267,24 @@
 
       fetchBtn.addEventListener('click', () => {
         const res = window.getSelectedLayerDebugState();
-        if (!res || !res.layer) {
+        if (!res || !res.layers || res.layers.length === 0) {
           output.value = '';
-          if (status) status.textContent = '⚠ No layer selected — select a layer on the timeline first.';
+          if (status) status.textContent = '⚠ No layer selected — select one or more layers on the timeline first.';
           return;
         }
         try {
           output.value = JSON.stringify(res.clean, null, 2);
-          if (status) status.textContent = `✓ Fetched: ${res.layer.name || res.layer.id} (${res.layer.type || 'unknown'})`;
+          if (status) {
+            const an = res.analysis;
+            if (an && an.selectedLayersCount > 1) {
+              status.textContent = `✓ Fetched ${an.selectedLayersCount} layers | Combined: ${an.concatenatedDuration.totalDurationSec}s (${an.concatenatedDuration.totalDurationFrames}f) | ${an.concatenatedDuration.status}`;
+            } else if (an && an.selectedLayersCount === 1) {
+              const l0 = an.layersOverview[0];
+              status.textContent = `✓ Fetched: ${l0.name} (${l0.type}) | Dur: ${l0.timeline.durationSec}s (${l0.timeline.durationFrames}f) | Frame ${l0.playhead.localFrame}/${l0.timeline.durationFrames}`;
+            } else {
+              status.textContent = `✓ Fetched: ${res.layer.name || res.layer.id}`;
+            }
+          }
         } catch (e) {
           output.value = String(e);
           if (status) status.textContent = '✗ Serialization error';
@@ -15034,7 +15294,7 @@
       if (copyBtn) {
         copyBtn.addEventListener('click', () => {
           if (!output.value) {
-            if (status) status.textContent = '⚠ Nothing to copy — fetch a layer first.';
+            if (status) status.textContent = '⚠ Nothing to copy — fetch layer(s) first.';
             return;
           }
           try {
@@ -16676,6 +16936,7 @@
         return Math.max(0, -curPan / pps);
       }
       window.getCurrentPlayheadTime = getCurrentPlayheadTime;
+      window.getTimelineCurrentSec = getCurrentPlayheadTime;
 
       function renderTimeline() {
         rafScheduled = false;

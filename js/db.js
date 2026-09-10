@@ -447,6 +447,9 @@ window.FishDatabase = (function () {
   async function saveProject(project) {
     if (!project || !project.id) return;
     project.updatedAt = new Date().toISOString();
+    delete project.cache;
+    delete project.previewCache;
+    delete project.renderedFrames;
 
     // 1. Sync to localStorage
     var list = getLocalProjects();
@@ -599,13 +602,13 @@ window.FishDatabase = (function () {
         try {
           var tx = db.transaction('media', 'readwrite');
           var store = tx.objectStore('media');
-          var req = store.put(mediaItem);
-          req.onsuccess = function () {
+          store.put(mediaItem);
+          tx.oncomplete = function () {
             // Also keep light metadata in local fallback
             saveMetaToLocal(mediaItem);
             resolve(mediaItem);
           };
-          req.onerror = function () {
+          tx.onerror = function () {
             saveToLocalFull(mediaItem);
             resolve(mediaItem);
           };
@@ -623,9 +626,10 @@ window.FishDatabase = (function () {
       try {
         var list = getLocalMedia();
         var clone = Object.assign({}, item);
-        if (clone.dataUrl && (clone.dataUrl.startsWith('data:') || clone.dataUrl.length > 200)) {
-          clone.dataUrl = ''; // Full data kept safely in IndexedDB
-        }
+        delete clone.blob; // Never keep binary blob in localStorage copy!
+        delete clone.thumbBlob;
+        clone.dataUrl = ''; // Full data kept safely in IndexedDB
+        clone.thumbUrl = '';
         var idx = list.findIndex(function (m) { return m.id === clone.id; });
         if (idx >= 0) list[idx] = clone;
         else list.push(clone);
@@ -637,9 +641,10 @@ window.FishDatabase = (function () {
       try {
         var list = getLocalMedia();
         var clone = Object.assign({}, item);
-        if (clone.dataUrl && (clone.dataUrl.startsWith('data:') || clone.dataUrl.length > 200)) {
-          clone.dataUrl = '';
-        }
+        delete clone.blob;
+        delete clone.thumbBlob;
+        clone.dataUrl = '';
+        clone.thumbUrl = '';
         var idx = list.findIndex(function (m) { return m.id === clone.id; });
         if (idx >= 0) list[idx] = clone;
         else list.push(clone);
@@ -952,6 +957,10 @@ window.FishDatabase = (function () {
     projectData.thumbnail = '';
     delete projectData.isImported;
     delete projectData.cache;
+    delete projectData.previewCache;
+    delete projectData.renderedFrames;
+    delete projectData.videoFrames;
+    delete projectData.extractedFrames;
 
     // Remove any internal _... keys from project root
     Object.keys(projectData).forEach(function (k) {
@@ -968,7 +977,10 @@ window.FishDatabase = (function () {
     function cleanLayer(l) {
       if (!l) return l;
 
-      // 1. Strip all frame extraction caches and temporary canvas buffers
+      // 1. Strip all frame extraction caches, preview caches, and temporary canvas buffers
+      delete l.cache;
+      delete l.previewCache;
+      delete l.renderedFrames;
       delete l.videoFrames;
       delete l.extractedFrames;
       delete l._cachedFrames;
@@ -983,6 +995,12 @@ window.FishDatabase = (function () {
       delete l._extractComplete;
       delete l._cachedStartSec;
       delete l._cachedEndSec;
+      delete l._lastRenderedFrame;
+      delete l._interpCache;
+      delete l._precompCacheProgress;
+      delete l._precompCacheComplete;
+      delete l._extractProgress;
+      delete l._previewCache;
 
       // 2. Strip transient _... properties
       Object.keys(l).forEach(function (k) {
@@ -1164,10 +1182,20 @@ window.FishDatabase = (function () {
     projectData.previewUrl = '';
     projectData.thumbnail = '';
     delete projectData.cache;
+    delete projectData.previewCache;
+    delete projectData.renderedFrames;
+    delete projectData.videoFrames;
+    delete projectData.extractedFrames;
     delete projectData.isImported;
+    Object.keys(projectData).forEach(function (k) {
+      if (k.startsWith('_')) delete projectData[k];
+    });
 
     function sanitizeImportedLayer(l) {
       if (!l) return l;
+      delete l.cache;
+      delete l.previewCache;
+      delete l.renderedFrames;
       delete l.videoFrames;
       delete l.extractedFrames;
       delete l._cachedFrames;
@@ -1182,14 +1210,23 @@ window.FishDatabase = (function () {
       delete l._extractComplete;
       delete l._cachedStartSec;
       delete l._cachedEndSec;
+      delete l._lastRenderedFrame;
+      delete l._interpCache;
+      delete l._precompCacheProgress;
+      delete l._precompCacheComplete;
+      delete l._extractProgress;
+      delete l._previewCache;
+
+      // Strip all internal transient _... keys
+      Object.keys(l).forEach(function (k) {
+        if (k.startsWith('_') && k !== '_userResized') delete l[k];
+      });
 
       // Clean invalid blob URLs from previous session
       if (l.dataUrl && (l.dataUrl.startsWith('blob:') || (l.mediaId && l.dataUrl.startsWith('data:')))) {
         l.dataUrl = '';
       }
-      if (l.thumbUrl && l.thumbUrl.startsWith('blob:')) {
-        l.thumbUrl = '';
-      }
+      l.thumbUrl = '';
       if (l.fillMediaUrl && (l.fillMediaUrl.startsWith('blob:') || (l.fillMediaId && l.fillMediaUrl.startsWith('data:')))) {
         l.fillMediaUrl = '';
       }

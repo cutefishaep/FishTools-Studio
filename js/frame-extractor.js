@@ -60,7 +60,7 @@
       // sourceKey -> { sourceKey, dataUrl, frames: Map<frameIdx, ImageBitmap>, cachedFrameIndices: Set<number>, fps, width, height, duration, isExtracting, isDbLoaded, dbLoadPromise, activeVideo, pendingFrames: Set<frameIdx>, _fetchingFrames: Set<number> }
       this.sources = new Map();
       this._targetFps = 60;
-      this.maxRamFrames = 300; // 5 seconds of uncompressed 60 FPS lookahead frames in RAM
+      this.maxRamFrames = 120; // 2 seconds of uncompressed 60 FPS lookahead frames in RAM (prevents OOM browser crashes)
       this._db = null;
       this._dbPromise = null;
       this._saveQueue = [];

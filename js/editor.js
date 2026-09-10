@@ -518,8 +518,8 @@
                 contrast: l.contrast !== undefined ? l.contrast : 0,
                 effectsDisabled: !!l.effectsDisabled,
                 effects: Array.isArray(l.effects) ? JSON.parse(JSON.stringify(l.effects)) : undefined,
-                thumbUrl: l.thumbUrl || '',
-                dataUrl: l.dataUrl || '',
+                thumbUrl: '',
+                dataUrl: (l.mediaId ? '' : (l.dataUrl || '')),
                 mediaWidth: l.mediaWidth || null,
                 mediaHeight: l.mediaHeight || null,
                 _userResized: !!l._userResized,
@@ -624,7 +624,7 @@
     // Save project as .ofts zip file
     async function exportCurrentProjectOFTSAction() {
       if (currentProjectState.id && window.FishDatabase) {
-        await saveCurrentProjectLayers();
+        await saveCurrentProjectLayers(true);
         const success = await window.FishDatabase.exportProjectToOFTS(currentProjectState.id);
         if (success && window.Modal) {
           window.Modal.close();
@@ -14838,7 +14838,8 @@
           const projectMedias = await window.FishDatabase.getProjectMedia(currentProjectState.id);
           if (Array.isArray(projectMedias) && projectMedias.length > 0) {
             const mediaMap = new Map(projectMedias.map(m => [m.id, m]));
-            currentProjectState.layers.forEach(l => {
+            const hydrateLayer = (l) => {
+              if (!l) return;
               let m = l.mediaId ? mediaMap.get(l.mediaId) : null;
               if (!m && (l.type === 'video' || l.type === 'image' || l.type === 'audio')) {
                 // Fallback matching by name and type, or single media item match
@@ -14875,7 +14876,11 @@
                 if (!l.fillMediaUrl && (fm.thumbUrl || fm.dataUrl)) l.fillMediaUrl = fm.thumbUrl || fm.dataUrl;
                 if (!l.fillMediaName && fm.name) l.fillMediaName = fm.name;
               }
-            });
+              if (Array.isArray(l.layers)) {
+                l.layers.forEach(hydrateLayer);
+              }
+            };
+            currentProjectState.layers.forEach(hydrateLayer);
             if (window.layerMediaCache) window.layerMediaCache.clear();
             if (typeof saveCurrentProjectLayers === 'function' && Array.isArray(currentProjectState.layers) && currentProjectState.layers.length > 0) {
               saveCurrentProjectLayers();
@@ -14966,12 +14971,13 @@
       const initialFps = currentProjectState.fps || 60;
       window.currentTimelineFps = initialFps;
       if (window.PreviewCacheManager) {
+        window.PreviewCacheManager.clearAll('all');
         window.PreviewCacheManager.init({ defaultFps: initialFps });
         window.PreviewCacheManager.setDraftMode(isDraftActive);
         window.PreviewCacheManager.setIdleCacheEnabled(savedIdleCache);
-        // Do NOT clearAll here — let the cache survive project load for instant re-play
       }
       if (window.VideoFrameExtractor) {
+        window.VideoFrameExtractor.clearAll();
         window.VideoFrameExtractor.setFps(initialFps);
       }
 
@@ -19185,6 +19191,8 @@
         const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
         const baseW = baseDims[0];
         const baseH = baseDims[1];
+        const centerPosX = Math.round(baseW / 2);
+        const centerPosY = Math.round(baseH / 2);
 
         const nullsCreated = [];
 
@@ -19215,6 +19223,32 @@
               1.0
             ];
 
+            let val1, val2;
+            if (prop === 'move') {
+              val1 = { posX: centerPosX, posY: centerPosY, posZ: 0 };
+              const dx = endKf.value.posX - startKf.value.posX;
+              const dy = endKf.value.posY - startKf.value.posY;
+              const dz = (endKf.value.posZ || 0) - (startKf.value.posZ || 0);
+              val2 = { posX: centerPosX + dx, posY: centerPosY + dy, posZ: dz };
+            } else if (prop === 'scale') {
+              const sW0 = (startKf.value.scaleW !== undefined) ? startKf.value.scaleW : 100;
+              const sH0 = (startKf.value.scaleH !== undefined) ? startKf.value.scaleH : 100;
+              const sW1 = (endKf.value.scaleW !== undefined) ? endKf.value.scaleW : 100;
+              const sH1 = (endKf.value.scaleH !== undefined) ? endKf.value.scaleH : 100;
+              const rW = (sW0 !== 0) ? (sW1 / sW0) : 1;
+              const rH = (sH0 !== 0) ? (sH1 / sH0) : 1;
+              val1 = { scaleW: 100, scaleH: 100 };
+              val2 = { scaleW: Number((100 * rW).toFixed(3)), scaleH: Number((100 * rH).toFixed(3)) };
+            } else if (prop === 'rotate') {
+              const rZ0 = startKf.value.rotZ !== undefined ? startKf.value.rotZ : (startKf.value.rotation || 0);
+              const rZ1 = endKf.value.rotZ !== undefined ? endKf.value.rotZ : (endKf.value.rotation || 0);
+              const deltaRotZ = rZ1 - rZ0;
+              const deltaRotX = (endKf.value.rotX || 0) - (startKf.value.rotX || 0);
+              const deltaRotY = (endKf.value.rotY || 0) - (startKf.value.rotY || 0);
+              val1 = { rotZ: 0, rotation: 0, rotX: 0, rotY: 0 };
+              val2 = { rotZ: deltaRotZ, rotation: deltaRotZ, rotX: deltaRotX, rotY: deltaRotY };
+            }
+
             const nullId = 'layer_null_overlap_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
             const nullName = `Overlap_${propLabel}_${i + 1}`;
 
@@ -19226,11 +19260,11 @@
               durationSec: Number(nullDuration.toFixed(4)),
               startPx: Math.round(nullStartTime * pps),
               widthPx: Math.round(nullDuration * pps),
-              posX: layer.posX !== undefined ? layer.posX : Math.round(baseW / 2),
-              posY: layer.posY !== undefined ? layer.posY : Math.round(baseH / 2),
-              posZ: layer.posZ || 0,
-              scaleW: layer.scaleW || 240,
-              scaleH: layer.scaleH || 240,
+              posX: centerPosX,
+              posY: centerPosY,
+              posZ: 0,
+              scaleW: 100,
+              scaleH: 100,
               rotX: 0,
               rotY: 0,
               rotZ: 0,
@@ -19240,12 +19274,12 @@
                 [prop]: [
                   {
                     time: Number(nullStartTime.toFixed(4)),
-                    value: JSON.parse(JSON.stringify(startKf.value)),
+                    value: val1,
                     easing: easeCurve
                   },
                   {
                     time: Number(nullEndTime.toFixed(4)),
-                    value: JSON.parse(JSON.stringify(endKf.value)),
+                    value: val2,
                     easing: [0.33, 0.0, 0.67, 1.0]
                   }
                 ]
@@ -19257,40 +19291,69 @@
         });
 
         if (nullsCreated.length > 0) {
-          // Insert null layers into project layers immediately before the target layer
-          const targetIdx = layers.findIndex(l => l.id === layer.id);
-          layers.splice(targetIdx >= 0 ? targetIdx : 0, 0, ...nullsCreated);
-
-          // Reverse nulls for leapfrog hierarchy: layer -> null[0] -> null[1] -> ...
-          const reversedNulls = [...nullsCreated].reverse();
-
-          if (typeof window.linkLayer === 'function') {
-            window.linkLayer(layer, reversedNulls[0]);
-            for (let n = 0; n < reversedNulls.length - 1; n++) {
-              window.linkLayer(reversedNulls[n], reversedNulls[n + 1]);
-            }
-          }
-
-          // Reset transformed properties and delete keyframes from original layer (matching JSX)
+          // Reset transformed properties on original layer to Keyframe 0 values before deleting keyframes
           qualifyingProps.forEach(prop => {
-            delete layer.keyframes[prop];
-            if (prop === 'scale') {
-              layer.scaleW = 100;
-              layer.scaleH = 100;
+            const sortedKfs = [...layer.keyframes[prop]].sort((a, b) => a.time - b.time);
+            const firstKf = sortedKfs[0];
+
+            if (prop === 'move') {
+              layer.posX = firstKf.value.posX !== undefined ? firstKf.value.posX : centerPosX;
+              layer.posY = firstKf.value.posY !== undefined ? firstKf.value.posY : centerPosY;
+              layer.posZ = firstKf.value.posZ || 0;
+            } else if (prop === 'scale') {
+              layer.scaleW = firstKf.value.scaleW !== undefined ? firstKf.value.scaleW : (layer.scaleW || 100);
+              layer.scaleH = firstKf.value.scaleH !== undefined ? firstKf.value.scaleH : (layer.scaleH || 100);
             } else if (prop === 'rotate') {
-              layer.rotZ = 0;
-              layer.rotX = 0;
-              layer.rotY = 0;
-              layer.rotation = 0;
+              const rZ = firstKf.value.rotZ !== undefined ? firstKf.value.rotZ : (firstKf.value.rotation || 0);
+              layer.rotZ = rZ;
+              layer.rotX = firstKf.value.rotX || 0;
+              layer.rotY = firstKf.value.rotY || 0;
+              layer.rotation = rZ;
             }
+
+            delete layer.keyframes[prop];
           });
 
           if (Object.keys(layer.keyframes).length === 0) {
             delete layer.keyframes;
           }
 
+          // Preserve existing layer parent if any
+          const origParentId = layer.parentId || null;
+          const origParentBind = layer.parentBind || null;
+
+          // Wire leapfrog hierarchy: layer -> null[0] -> null[1] -> ... -> null[last] (-> origParent)
+          const neutralBind = {
+            parentPosX: centerPosX,
+            parentPosY: centerPosY,
+            parentPosZ: 0,
+            parentRotX: 0,
+            parentRotY: 0,
+            parentRotZ: 0,
+            parentScaleW: 100,
+            parentScaleH: 100
+          };
+
+          layer.parentId = nullsCreated[0].id;
+          layer.parentBind = Object.assign({}, neutralBind);
+
+          for (let n = 0; n < nullsCreated.length - 1; n++) {
+            nullsCreated[n].parentId = nullsCreated[n + 1].id;
+            nullsCreated[n].parentBind = Object.assign({}, neutralBind);
+          }
+
+          if (origParentId) {
+            nullsCreated[nullsCreated.length - 1].parentId = origParentId;
+            nullsCreated[nullsCreated.length - 1].parentBind = origParentBind;
+          }
+
+          // Insert null layers into project layers immediately before the target layer
+          const targetIdx = layers.findIndex(l => l.id === layer.id);
+          layers.splice(targetIdx >= 0 ? targetIdx : 0, 0, ...nullsCreated);
+
           if (typeof invalidatePreviewCacheForLayer === 'function') {
             invalidatePreviewCacheForLayer(layer);
+            nullsCreated.forEach(nl => invalidatePreviewCacheForLayer(nl));
           }
           renderTimelineLayers();
           redrawComposition('overlap');

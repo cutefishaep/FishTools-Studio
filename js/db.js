@@ -441,6 +441,23 @@ window.FishDatabase = (function () {
   }
 
   /**
+   * Helper: formats bytes into human-readable string (B, KB, MB, GB)
+   * @param {number} bytes
+   * @returns {string}
+   */
+  function formatBytes(bytes) {
+    if (typeof bytes !== 'number' || isNaN(bytes) || bytes <= 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var k = 1024;
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    if (i >= units.length) i = units.length - 1;
+    if (i === 0) return bytes + ' B';
+    var val = bytes / Math.pow(k, i);
+    var formatted = val >= 100 ? Math.round(val) : parseFloat(val.toFixed(1));
+    return formatted + ' ' + units[i];
+  }
+
+  /**
    * Saves or updates a project object
    * @param {Object} project
    */
@@ -450,6 +467,16 @@ window.FishDatabase = (function () {
     delete project.cache;
     delete project.previewCache;
     delete project.renderedFrames;
+
+    // Default or update JSON size if missing or legacy '12 KB'
+    if (!project.size || project.size === '12 KB') {
+      try {
+        var str = JSON.stringify(project);
+        var b = (typeof Blob !== 'undefined') ? new Blob([str]).size : str.length;
+        project.size = formatBytes(b);
+        project.sizeBytes = b;
+      } catch (_) {}
+    }
 
     // 1. Sync to localStorage
     var list = getLocalProjects();
@@ -464,7 +491,7 @@ window.FishDatabase = (function () {
     // 2. Sync to IndexedDB with persistence guarantee
     var db = await openDB();
     if (db) {
-      return new Promise(function (resolve) {
+      await new Promise(function (resolve) {
         try {
           var tx = db.transaction('projects', 'readwrite');
           var store = tx.objectStore('projects');
@@ -482,10 +509,387 @@ window.FishDatabase = (function () {
           resolve(project);
         }
       });
+    } else {
+      window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'save', project: project } }));
     }
 
-    window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'save', project: project } }));
+    // Asynchronously refresh and persist true total storage size (JSON + media + frame caches)
+    setTimeout(function () {
+      getProjectTotalSize(project.id).then(function (res) {
+        if (res && res.formatted) {
+          updateProjectSize(project.id, res.formatted, res.bytes);
+        }
+      }).catch(function () {});
+    }, 60);
+
     return project;
+  }
+
+  /**
+   * Updates only the size attributes of a project silently without re-firing update events
+   * @param {string} projectId
+   * @param {string} formatted
+   * @param {number} bytes
+   * @returns {Promise<boolean>}
+   */
+  async function updateProjectSize(projectId, formatted, bytes) {
+    if (!projectId || !formatted) return false;
+
+    // 1. Update in-memory / localStorage
+    var list = getLocalProjects();
+    var found = list.find(function (p) { return p.id === projectId; });
+    if (found) {
+      found.size = formatted;
+      if (typeof bytes === 'number') found.sizeBytes = bytes;
+      saveLocalProjects(list);
+    }
+
+    // 2. Update in IndexedDB
+    var db = await openDB();
+    if (db && db.objectStoreNames.contains('projects')) {
+      return new Promise(function (resolve) {
+        try {
+          var tx = db.transaction('projects', 'readwrite');
+          var store = tx.objectStore('projects');
+          var req = store.get(projectId);
+          req.onsuccess = function () {
+            var prj = req.result;
+            if (prj) {
+              prj.size = formatted;
+              if (typeof bytes === 'number') prj.sizeBytes = bytes;
+              store.put(prj);
+            }
+            tx.oncomplete = function () { resolve(true); };
+            tx.onerror = function () { resolve(false); };
+          };
+          req.onerror = function () { resolve(false); };
+        } catch (_) {
+          resolve(false);
+        }
+      });
+    }
+    return true;
+  }
+
+  /**
+   * Computes the true total storage footprint of a project
+   * including project JSON metadata, media blobs in FishStudioDB,
+   * and extracted video frame caches in FishFrameCacheDB.
+   * @param {string} projectId
+   * @returns {Promise<{ bytes: number, formatted: string, breakdown: { jsonBytes: number, mediaBytes: number, cacheBytes: number, jsonFormatted: string, mediaFormatted: string, cacheFormatted: string } }>}
+   */
+  async function getProjectTotalSize(projectId) {
+    var emptyResult = {
+      bytes: 0,
+      formatted: '0 B',
+      breakdown: {
+        jsonBytes: 0,
+        mediaBytes: 0,
+        cacheBytes: 0,
+        jsonFormatted: '0 B',
+        mediaFormatted: '0 B',
+        cacheFormatted: '0 B'
+      }
+    };
+    if (!projectId) return emptyResult;
+
+    var project = await getProject(projectId);
+    if (!project) return emptyResult;
+
+    // 1. Base Project JSON footprint
+    var jsonBytes = 0;
+    try {
+      var jsonStr = JSON.stringify(project);
+      jsonBytes = (typeof Blob !== 'undefined')
+        ? new Blob([jsonStr]).size
+        : (typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(jsonStr).length : jsonStr.length);
+    } catch (_) {}
+
+    // 2. Media items footprint in FishStudioDB (avoiding unnecessary blob URL hydration)
+    var mediaList = [];
+    try {
+      mediaList = await getProjectMedia(projectId, false);
+    } catch (_) {}
+
+    var mediaBytes = 0;
+    var sourceKeys = new Set();
+
+    if (Array.isArray(mediaList)) {
+      for (var i = 0; i < mediaList.length; i++) {
+        var m = mediaList[i];
+        if (!m) continue;
+        if (m.id) sourceKeys.add(m.id);
+
+        var itemSize = 0;
+        if (m.blob && typeof m.blob.size === 'number') {
+          itemSize += m.blob.size;
+        } else if (typeof m.size === 'number' && m.size > 0) {
+          itemSize += m.size;
+        } else if (typeof m.dataUrl === 'string' && m.dataUrl.startsWith('data:')) {
+          var commaIdx = m.dataUrl.indexOf(',');
+          var b64Data = commaIdx >= 0 ? m.dataUrl.substring(commaIdx + 1) : m.dataUrl;
+          itemSize += Math.round((b64Data.length * 3) / 4);
+        }
+
+        if (m.thumbBlob && typeof m.thumbBlob.size === 'number') {
+          itemSize += m.thumbBlob.size;
+        }
+
+        // Add media metadata JSON overhead
+        try {
+          var mMeta = Object.assign({}, m);
+          delete mMeta.blob;
+          delete mMeta.thumbBlob;
+          if (mMeta.dataUrl && mMeta.dataUrl.length > 200) mMeta.dataUrl = '';
+          var metaStr = JSON.stringify(mMeta);
+          itemSize += (typeof Blob !== 'undefined') ? new Blob([metaStr]).size : metaStr.length;
+        } catch (_) {}
+
+        mediaBytes += itemSize;
+      }
+    }
+
+    // Collect layer-specific sourceKeys from project layers
+    if (project && Array.isArray(project.layers)) {
+      project.layers.forEach(function (layer) {
+        if (!layer) return;
+        if (layer.mediaId) sourceKeys.add(layer.mediaId);
+        if (layer.id) {
+          sourceKeys.add(layer.id);
+          sourceKeys.add('src_' + layer.id);
+        }
+        if (layer.name) {
+          sourceKeys.add(layer.name);
+        }
+        if (layer.dataUrl && typeof layer.dataUrl === 'string' && !layer.dataUrl.startsWith('blob:') && layer.dataUrl.length < 500) {
+          sourceKeys.add(layer.dataUrl);
+        }
+      });
+    }
+
+    // 3. Extracted frame cache footprint in FishFrameCacheDB
+    var cacheBytes = 0;
+    if (sourceKeys.size > 0 && typeof indexedDB !== 'undefined') {
+      var shouldCheckCache = true;
+      if (typeof indexedDB.databases === 'function') {
+        try {
+          var dbs = await indexedDB.databases();
+          var hasFrameDb = dbs && dbs.some(function (d) { return d && d.name === 'FishFrameCacheDB'; });
+          if (!hasFrameDb) shouldCheckCache = false;
+        } catch (_) {}
+      }
+
+      if (shouldCheckCache) {
+        cacheBytes = await new Promise(function (resolve) {
+          try {
+            var req = indexedDB.open('FishFrameCacheDB');
+            var isFinished = false;
+            function finish(val) {
+              if (isFinished) return;
+              isFinished = true;
+              resolve(val);
+            }
+
+            req.onsuccess = function (e) {
+              var frameDb = e.target.result;
+              if (!frameDb || !frameDb.objectStoreNames.contains('frames')) {
+                if (frameDb) {
+                  try { frameDb.close(); } catch (_) {}
+                }
+                finish(0);
+                return;
+              }
+
+              try {
+                var tx = frameDb.transaction('frames', 'readonly');
+                var store = tx.objectStore('frames');
+                var totalFrameBytes = 0;
+                var visitedPrimaryKeys = new Set();
+
+                if (store.indexNames && store.indexNames.contains('sourceKey')) {
+                  var idx = store.index('sourceKey');
+                  var keysArr = Array.from(sourceKeys);
+                  var pending = keysArr.length;
+
+                  if (pending === 0) {
+                    try { frameDb.close(); } catch (_) {}
+                    finish(0);
+                    return;
+                  }
+
+                  keysArr.forEach(function (sKey) {
+                    try {
+                      var cursorReq = idx.openCursor(IDBKeyRange.only(sKey));
+                      cursorReq.onsuccess = function (ce) {
+                        var cursor = ce.target.result;
+                        if (cursor) {
+                          var rec = cursor.value;
+                          var pKey = cursor.primaryKey || (rec && rec.key);
+                          if (pKey && !visitedPrimaryKeys.has(pKey)) {
+                            visitedPrimaryKeys.add(pKey);
+                            if (rec && rec.blob && typeof rec.blob.size === 'number') {
+                              totalFrameBytes += rec.blob.size;
+                            } else if (rec && typeof rec.size === 'number') {
+                              totalFrameBytes += rec.size;
+                            } else if (rec && rec.dataUrl && typeof rec.dataUrl === 'string') {
+                              totalFrameBytes += rec.dataUrl.length;
+                            }
+                          }
+                          cursor.continue();
+                        } else {
+                          pending--;
+                          if (pending <= 0) {
+                            try { frameDb.close(); } catch (_) {}
+                            finish(totalFrameBytes);
+                          }
+                        }
+                      };
+                      cursorReq.onerror = function () {
+                        pending--;
+                        if (pending <= 0) {
+                          try { frameDb.close(); } catch (_) {}
+                          finish(totalFrameBytes);
+                        }
+                      };
+                    } catch (_) {
+                      pending--;
+                      if (pending <= 0) {
+                        try { frameDb.close(); } catch (_) {}
+                        finish(totalFrameBytes);
+                      }
+                    }
+                  });
+                } else {
+                  // Fallback: iterate all records
+                  var curReq = store.openCursor();
+                  curReq.onsuccess = function (ce) {
+                    var cursor = ce.target.result;
+                    if (cursor) {
+                      var rec = cursor.value;
+                      if (rec && rec.sourceKey && sourceKeys.has(rec.sourceKey)) {
+                        var pKey = cursor.primaryKey || rec.key;
+                        if (pKey && !visitedPrimaryKeys.has(pKey)) {
+                          visitedPrimaryKeys.add(pKey);
+                          if (rec && rec.blob && typeof rec.blob.size === 'number') {
+                            totalFrameBytes += rec.blob.size;
+                          } else if (rec && typeof rec.size === 'number') {
+                            totalFrameBytes += rec.size;
+                          } else if (rec && rec.dataUrl && typeof rec.dataUrl === 'string') {
+                            totalFrameBytes += rec.dataUrl.length;
+                          }
+                        }
+                      }
+                      cursor.continue();
+                    } else {
+                      try { frameDb.close(); } catch (_) {}
+                      finish(totalFrameBytes);
+                    }
+                  };
+                  curReq.onerror = function () {
+                    try { frameDb.close(); } catch (_) {}
+                    finish(totalFrameBytes);
+                  };
+                }
+              } catch (err) {
+                try { frameDb.close(); } catch (_) {}
+                finish(0);
+              }
+            };
+            req.onerror = function () { finish(0); };
+            req.onblocked = function () { finish(0); };
+          } catch (_) {
+            resolve(0);
+          }
+        });
+      }
+    }
+
+    var totalBytes = jsonBytes + mediaBytes + cacheBytes;
+    var formatted = formatBytes(totalBytes);
+
+    return {
+      bytes: totalBytes,
+      formatted: formatted,
+      breakdown: {
+        jsonBytes: jsonBytes,
+        mediaBytes: mediaBytes,
+        cacheBytes: cacheBytes,
+        jsonFormatted: formatBytes(jsonBytes),
+        mediaFormatted: formatBytes(mediaBytes),
+        cacheFormatted: formatBytes(cacheBytes)
+      }
+    };
+  }
+
+  /**
+   * Purges frame cache records belonging to specific source keys from FishFrameCacheDB
+   * @param {Array<string>} keys
+   * @returns {Promise<void>}
+   */
+  async function deleteProjectFrameCaches(keys) {
+    if (!keys || keys.length === 0 || typeof indexedDB === 'undefined') return;
+    return new Promise(function (resolve) {
+      try {
+        var req = indexedDB.open('FishFrameCacheDB');
+        req.onsuccess = function (e) {
+          var db = e.target.result;
+          if (!db || !db.objectStoreNames.contains('frames')) {
+            if (db) try { db.close(); } catch (_) {}
+            resolve();
+            return;
+          }
+          try {
+            var tx = db.transaction('frames', 'readwrite');
+            var store = tx.objectStore('frames');
+            var pending = keys.length;
+            if (store.indexNames && store.indexNames.contains('sourceKey')) {
+              var idx = store.index('sourceKey');
+              keys.forEach(function (sKey) {
+                try {
+                  var curReq = idx.openKeyCursor(IDBKeyRange.only(sKey));
+                  curReq.onsuccess = function (ce) {
+                    var cursor = ce.target.result;
+                    if (cursor) {
+                      store.delete(cursor.primaryKey);
+                      cursor.continue();
+                    } else {
+                      pending--;
+                      if (pending <= 0) {
+                        try { db.close(); } catch (_) {}
+                        resolve();
+                      }
+                    }
+                  };
+                  curReq.onerror = function () {
+                    pending--;
+                    if (pending <= 0) {
+                      try { db.close(); } catch (_) {}
+                      resolve();
+                    }
+                  };
+                } catch (_) {
+                  pending--;
+                  if (pending <= 0) {
+                    try { db.close(); } catch (_) {}
+                    resolve();
+                  }
+                }
+              });
+            } else {
+              try { db.close(); } catch (_) {}
+              resolve();
+            }
+          } catch (_) {
+            try { db.close(); } catch (_) {}
+            resolve();
+          }
+        };
+        req.onerror = function () { resolve(); };
+        req.onblocked = function () { resolve(); };
+      } catch (_) {
+        resolve();
+      }
+    });
   }
 
   /**
@@ -505,10 +909,17 @@ window.FishDatabase = (function () {
       resolution: options.resolution || '1080p',
       fps: options.fps ? String(options.fps) : '60',
       bgColor: options.bgColor || 'transparent',
-      size: '12 KB',
+      size: '1.2 KB',
       createdAt: nowIso,
       layers: Array.isArray(options.layers) ? options.layers : []
     };
+
+    try {
+      var str = JSON.stringify(project);
+      var b = (typeof Blob !== 'undefined') ? new Blob([str]).size : str.length;
+      project.size = formatBytes(b);
+      project.sizeBytes = b;
+    } catch (_) {}
 
     await saveProject(project);
     return project;
@@ -656,9 +1067,11 @@ window.FishDatabase = (function () {
   /**
    * Retrieves all media items for a specific project
    * @param {string} projectId
+   * @param {boolean} [hydrateBlobs=true]
    * @returns {Promise<Array>}
    */
-  async function getProjectMedia(projectId) {
+  async function getProjectMedia(projectId, hydrateBlobs) {
+    if (hydrateBlobs === undefined) hydrateBlobs = true;
     if (!projectId) return [];
     var db = await openDB();
     if (db && db.objectStoreNames.contains('media')) {
@@ -678,18 +1091,20 @@ window.FishDatabase = (function () {
             if (!store.indexNames || !store.indexNames.contains('projectId')) {
               items = items.filter(function (m) { return m && m.projectId === projectId; });
             }
-            items.forEach(function (m) {
-              if (m && m.blob && (!m.dataUrl || m.dataUrl.startsWith('blob:'))) {
-                try {
-                  m.dataUrl = URL.createObjectURL(m.blob);
-                } catch (_) {}
-              }
-              if (m && m.thumbBlob && (!m.thumbUrl || m.thumbUrl.startsWith('blob:'))) {
-                try {
-                  m.thumbUrl = URL.createObjectURL(m.thumbBlob);
-                } catch (_) {}
-              }
-            });
+            if (hydrateBlobs) {
+              items.forEach(function (m) {
+                if (m && m.blob && (!m.dataUrl || m.dataUrl.startsWith('blob:'))) {
+                  try {
+                    m.dataUrl = URL.createObjectURL(m.blob);
+                  } catch (_) {}
+                }
+                if (m && m.thumbBlob && (!m.thumbUrl || m.thumbUrl.startsWith('blob:'))) {
+                  try {
+                    m.thumbUrl = URL.createObjectURL(m.thumbBlob);
+                  } catch (_) {}
+                }
+              });
+            }
             resolve(items);
           };
           req.onerror = function () {
@@ -707,34 +1122,32 @@ window.FishDatabase = (function () {
 
   /**
    * Deletes a single media item by ID
-   * @param {string} mediaId
+   * @param {string} id
    * @returns {Promise<boolean>}
    */
-  async function deleteMedia(mediaId) {
-    if (!mediaId) return false;
+  async function deleteMedia(id) {
+    if (!id) return false;
     if (typeof window !== 'undefined' && window.VideoFrameExtractor) {
-      try { window.VideoFrameExtractor.clearSource(mediaId); } catch (_) {}
+      try { window.VideoFrameExtractor.clearSource(id); } catch (_) {}
     }
+    try { await deleteProjectFrameCaches([id]); } catch (_) {}
 
-    // 1. Purge from localStorage fallback
-    var list = getLocalMedia().filter(function (m) { return m.id !== mediaId; });
+    // 1. Remove from local copy
+    var list = getLocalMedia().filter(function (m) { return m.id !== id; });
     saveLocalMedia(list);
 
-    // 2. Await full completion in IndexedDB
+    // 2. Remove from IndexedDB
     var db = await openDB();
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
         try {
           var tx = db.transaction('media', 'readwrite');
           var store = tx.objectStore('media');
-          var req = store.delete(mediaId);
+          store.delete(id);
           tx.oncomplete = function () {
             resolve(true);
           };
           tx.onerror = function () {
-            resolve(false);
-          };
-          req.onerror = function () {
             resolve(false);
           };
         } catch (e) {
@@ -752,11 +1165,18 @@ window.FishDatabase = (function () {
    */
   async function deleteProjectMedia(projectId) {
     if (!projectId) return false;
+    var medias = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
     if (typeof window !== 'undefined' && window.VideoFrameExtractor) {
-      var medias = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
       medias.forEach(function (m) {
         try { window.VideoFrameExtractor.clearSource(m.id); } catch (_) {}
       });
+    }
+
+    var mediaIds = medias.map(function (m) { return m.id; }).filter(Boolean);
+    if (mediaIds.length > 0) {
+      try {
+        await deleteProjectFrameCaches(mediaIds);
+      } catch (_) {}
     }
 
     // 1. Purge from localStorage fallback
@@ -798,9 +1218,6 @@ window.FishDatabase = (function () {
           tx.onerror = function () {
             resolve(false);
           };
-          req.onerror = function () {
-            resolve(false);
-          };
         } catch (e) {
           resolve(false);
         }
@@ -837,22 +1254,44 @@ window.FishDatabase = (function () {
   }
 
   /**
-   * Deletes a project by ID and cascades deletion to all its media
+   * Deletes a project by ID and cascades deletion to all its media and frame caches
    * @param {string} id
    * @returns {Promise<boolean>}
    */
   async function deleteProject(id) {
     if (!id) return false;
 
+    // Collect layer source keys to clear any cached frames
+    var prj = await getProject(id);
+    var sourceKeys = [];
+    if (prj && Array.isArray(prj.layers)) {
+      prj.layers.forEach(function (l) {
+        if (!l) return;
+        if (l.mediaId) sourceKeys.push(l.mediaId);
+        if (l.id) {
+          sourceKeys.push(l.id);
+          sourceKeys.push('src_' + l.id);
+        }
+        if (l.name) sourceKeys.push(l.name);
+      });
+    }
+
     // 1. Cascade delete all media belonging to this project in storage
     await deleteProjectMedia(id);
 
-    // 2. Remove from localStorage
+    // 2. Cascade delete frame caches belonging to this project's layers
+    if (sourceKeys.length > 0) {
+      try {
+        await deleteProjectFrameCaches(sourceKeys);
+      } catch (_) {}
+    }
+
+    // 3. Remove from localStorage
     var list = getLocalProjects();
     var filtered = list.filter(function (p) { return p.id !== id; });
     saveLocalProjects(filtered);
 
-    // 3. Await removal from IndexedDB
+    // 4. Await removal from IndexedDB
     var db = await openDB();
     if (db && db.objectStoreNames.contains('projects')) {
       await new Promise(function (resolve) {
@@ -877,11 +1316,30 @@ window.FishDatabase = (function () {
   }
 
   /**
-   * Clears all projects and all associated media (database wipe)
+   * Clears all projects, all associated media, and frame caches (database wipe)
    * @returns {Promise<boolean>}
    */
   async function clearProjects() {
     await clearAllMedia();
+    if (typeof indexedDB !== 'undefined') {
+      try {
+        var req = indexedDB.open('FishFrameCacheDB');
+        req.onsuccess = function (e) {
+          var db = e.target.result;
+          if (db && db.objectStoreNames.contains('frames')) {
+            try {
+              var tx = db.transaction('frames', 'readwrite');
+              tx.objectStore('frames').clear();
+              tx.oncomplete = function () { try { db.close(); } catch (_) {} };
+            } catch (_) {
+              try { db.close(); } catch (_) {}
+            }
+          } else if (db) {
+            try { db.close(); } catch (_) {}
+          }
+        };
+      } catch (_) {}
+    }
     saveLocalProjects([]);
     var db = await openDB();
     if (db && db.objectStoreNames.contains('projects')) {
@@ -1413,6 +1871,16 @@ window.FishDatabase = (function () {
       }
     }
 
+    // Compute and persist the true total size of the imported package
+    try {
+      var totalSize = await getProjectTotalSize(savedProject.id);
+      if (totalSize && totalSize.formatted) {
+        savedProject.size = totalSize.formatted;
+        savedProject.sizeBytes = totalSize.bytes;
+        await updateProjectSize(savedProject.id, totalSize.formatted, totalSize.bytes);
+      }
+    } catch (_) {}
+
     return savedProject;
   }
 
@@ -1467,6 +1935,10 @@ window.FishDatabase = (function () {
     clearAllMedia: clearAllMedia,
     exportProjectPackage: exportProjectPackage,
     exportProjectToOFTS: exportProjectToOFTS,
-    importOFTSPackage: importOFTSPackage
+    importOFTSPackage: importOFTSPackage,
+    formatBytes: formatBytes,
+    getProjectTotalSize: getProjectTotalSize,
+    updateProjectSize: updateProjectSize,
+    deleteProjectFrameCaches: deleteProjectFrameCaches
   };
 })();

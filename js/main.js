@@ -246,7 +246,7 @@ function renderProjects(projects, container, countBadge) {
         <article class="project-item" data-id="${escapeHtml(project.id)}" tabindex="0" role="button" aria-label="Project: ${escapeHtml(name)}">
           <div class="project-row-main">
             <span class="project-name">${escapeHtml(name)}</span>
-            <span class="project-size">${escapeHtml(size)}</span>
+            <span class="project-size" data-project-size-id="${escapeHtml(project.id)}">${escapeHtml(size)}</span>
           </div>
           <div class="project-row-sub">
             <span class="project-saved">${escapeHtml(savedTime)}</span>
@@ -258,6 +258,32 @@ function renderProjects(projects, container, countBadge) {
   }).join('');
 
   bindProjectSwipeGestures(container);
+
+  // Asynchronously compute and hydrate true total project size (JSON + Media + Frame Caches)
+  if (window.FishDatabase && typeof window.FishDatabase.getProjectTotalSize === 'function') {
+    (projects || []).forEach(project => {
+      if (!project || !project.id) return;
+      window.FishDatabase.getProjectTotalSize(project.id).then(res => {
+        if (!res || !res.formatted) return;
+        const selector = (window.CSS && typeof window.CSS.escape === 'function')
+          ? `.project-size[data-project-size-id="${window.CSS.escape(project.id)}"]`
+          : `.project-size[data-project-size-id="${project.id}"]`;
+        const sizeBadge = container.querySelector(selector);
+        if (sizeBadge) {
+          sizeBadge.textContent = res.formatted;
+          const tooltip = `${res.formatted} (${res.bytes.toLocaleString()} bytes)\n• Project: ${res.breakdown.jsonFormatted}\n• Media: ${res.breakdown.mediaFormatted}\n• Cache: ${res.breakdown.cacheFormatted}`;
+          sizeBadge.setAttribute('title', tooltip);
+        }
+        if (project.size !== res.formatted) {
+          project.size = res.formatted;
+          project.sizeBytes = res.bytes;
+          if (typeof window.FishDatabase.updateProjectSize === 'function') {
+            window.FishDatabase.updateProjectSize(project.id, res.formatted, res.bytes);
+          }
+        }
+      }).catch(() => {});
+    });
+  }
 }
 
 /**

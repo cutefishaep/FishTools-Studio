@@ -985,7 +985,7 @@
   height: 10px;
   transform: translate(-50%, -50%) rotate(45deg);
   border-radius: 1.5px;
-  pointer-events: auto;
+  pointer-events: none;
   box-sizing: border-box;
   transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.1s ease;
   z-index: 5;
@@ -999,7 +999,8 @@
   background-color: var(--kf-default-bg, #151a0f);
   border: 1.5px solid var(--kf-default-border, #a5b39a);
   opacity: 0.85;
-  cursor: default;
+  cursor: default !important;
+  pointer-events: none !important;
 }
 
 /* Active Property Keyframe (Solid Theme Diamond with Dark Outline on Selected Layer) */
@@ -1007,7 +1008,8 @@
   background-color: var(--kf-active-bg, var(--color-primary));
   border: 1.5px solid var(--kf-active-border, var(--bg-canvas));
   opacity: 1;
-  cursor: grab;
+  cursor: grab !important;
+  pointer-events: auto !important;
   z-index: 6;
 }
 
@@ -1015,11 +1017,15 @@
 .timeline-clip-block:not(.is-selected) .timeline-keyframe-marker.is-active-prop {
   background-color: var(--bg-canvas);
   border: 1.5px solid #ffffff;
+  pointer-events: none !important;
+  cursor: default !important;
 }
 
 .timeline-clip-block:not(.is-selected) .timeline-keyframe-marker.is-other-prop {
   background-color: var(--bg-canvas);
   border: 1.5px solid rgba(255, 255, 255, 0.6);
+  pointer-events: none !important;
+  cursor: default !important;
 }
 
 /* Dragging / Holding Keyframe State */

@@ -5283,6 +5283,9 @@
           const isActive = isPropActive && isSelectedLayer && !!(activeProp && prop === activeProp);
           marker.classList.toggle('is-active-prop', isActive);
           marker.classList.toggle('is-other-prop', !isActive);
+          if (!isActive) {
+            marker.classList.remove('is-selected-kf', 'is-dragging');
+          }
         });
       });
     }
@@ -20464,58 +20467,23 @@
                   marker._layer = layer;
                   marker._prop = prop;
 
-                  if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.001)) {
+                  if (isActiveProp && Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.001)) {
                     marker.classList.add('is-selected-kf');
                     const found = window.selectedKeyframes.find(it => it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.001);
                     if (found) { found.marker = marker; found.kf = kf; found.layer = layer; }
                   }
 
                   marker.addEventListener('pointerdown', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (e.button !== undefined && e.button !== 0) return;
-
                     const currentActiveProp = window.activeKeyframeProperty;
                     const isPropActiveNow = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
                     const canDrag = isPropActiveNow && (layer.id === window.selectedLayerId) && !!(currentActiveProp && prop === currentActiveProp);
 
-                    if (!canDrag) {
-                      if (!e.shiftKey) {
-                        if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
-                      }
-                      marker.classList.add('is-selected-kf');
-                      if (!window.selectedKeyframes) window.selectedKeyframes = [];
-                      if (!window.selectedKeyframes.some(it => it.kf === kf)) {
-                        window.selectedKeyframes.push({ layerId: layer.id, layer, prop, time: kf.time, kf, marker });
-                      }
-                      if (prop.includes(':') && currentDrawerSubview === 'effects') {
-                        window.activeKeyframeProperty = prop;
-                        if (typeof syncEffectsRackUI === 'function') syncEffectsRackUI();
-                        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
-                      }
-                      if ((prop === 'speed' || prop === 'timeRemap') && currentDrawerSubview === 'speed') {
-                        window.activeKeyframeProperty = prop;
-                        if (typeof syncSpeedControllerValues === 'function') syncSpeedControllerValues();
-                        if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
-                        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
-                      }
-                      if (typeof seekTimelineToTime === 'function') {
-                        seekTimelineToTime(kf.time, true);
-                      }
-                      if (typeof updateTransformKeyframeBtnState === 'function') {
-                        updateTransformKeyframeBtnState();
-                      }
-                      if (typeof updateSpeedKeyframeBtnState === 'function') {
-                        updateSpeedKeyframeBtnState();
-                      }
-                      if (typeof syncSpeedControllerValues === 'function') {
-                        syncSpeedControllerValues();
-                      }
-                      if (typeof syncEffectsKeyframeState === 'function') {
-                        syncEffectsKeyframeState(layer);
-                      }
-                      return;
-                    }
+                    // Strictly ignore if not the active keyframe mode/prop - let pointer event bubble cleanly to clip
+                    if (!canDrag) return;
+
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (e.button !== undefined && e.button !== 0) return;
 
                     let isDragging = false;
                     let holdTimer = null;
@@ -20827,7 +20795,7 @@
             let justFinishedSlide = false;
 
             function onClipPointerDown(e) {
-              if (e.target.closest('.timeline-clip-handle') || e.target.closest('.timeline-keyframe-marker') || e.target.closest('.text-anim-marker')) return;
+              if (e.target.closest('.timeline-clip-handle') || e.target.closest('.timeline-keyframe-marker.is-active-prop') || e.target.closest('.text-anim-marker')) return;
               if (e.button !== undefined && e.button !== 0) return;
 
               startPointerX = e.clientX;
@@ -20836,6 +20804,7 @@
               const initialSlideStartSec = layer.startSec !== undefined ? layer.startSec : (initialStartPx / pixelsPerSecond);
               const initialSlideDurSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
               const initialSlideEndSec = initialSlideStartSec + initialSlideDurSec;
+              const initialLayerKeyframes = layer.keyframes ? JSON.parse(JSON.stringify(layer.keyframes)) : null;
               isLongPressActive = false;
               hasSlid = false;
               hasMenuOpened = false;
@@ -20967,7 +20936,8 @@
                     initialStartSec: sInitSec,
                     initialEndSec: sInitSec + sDurSec,
                     durationSec: sDurSec,
-                    clipEl: sClipEl
+                    clipEl: sClipEl,
+                    initialKeyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : null
                   };
                 });
               }
@@ -21122,6 +21092,18 @@
                     if (m.clipEl) {
                       m.clipEl.style.left = `${m.layer.startPx}px`;
                     }
+                    if (m.initialKeyframes && m.layer.keyframes) {
+                      const mDeltaSec = m.layer.startSec - m.initialSlideStartSec;
+                      for (const [p, kfs] of Object.entries(m.initialKeyframes)) {
+                        if (!Array.isArray(kfs) || !Array.isArray(m.layer.keyframes[p])) continue;
+                        kfs.forEach((initKf, idx) => {
+                          const curKf = m.layer.keyframes[p][idx];
+                          if (curKf) {
+                            curKf.time = Number(Math.max(0, initKf.time + mDeltaSec).toFixed(4));
+                          }
+                        });
+                      }
+                    }
                   });
                 } else {
                   // Single layer drag
@@ -21170,6 +21152,19 @@
                     generateRulerTicks(currentFps);
                   }
                   clipEl.style.left = `${layer.startPx}px`;
+
+                  if (initialLayerKeyframes && layer.keyframes) {
+                    const deltaSec = layer.startSec - initialSlideStartSec;
+                    for (const [p, kfs] of Object.entries(initialLayerKeyframes)) {
+                      if (!Array.isArray(kfs) || !Array.isArray(layer.keyframes[p])) continue;
+                      kfs.forEach((initKf, idx) => {
+                        const curKf = layer.keyframes[p][idx];
+                        if (curKf) {
+                          curKf.time = Number(Math.max(0, initKf.time + deltaSec).toFixed(4));
+                        }
+                      });
+                    }
+                  }
                 }
 
                 if (typeof renderTimelineLinkConnectors === 'function') renderTimelineLinkConnectors();
@@ -21242,6 +21237,12 @@
 
                   justFinishedSlide = true;
                   if (hasSlid) {
+                    if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+                      window.selectedKeyframes.forEach(item => {
+                        if (item.kf) item.time = item.kf.time;
+                      });
+                    }
+                    renderTimelineLayers();
                     redrawComposition();
                     saveCurrentProjectLayers();
                     updateTimelineDuration(true);
@@ -22500,6 +22501,7 @@
         if (currentSec <= endSec) return;
 
         const newStartSec = currentSec - durSec;
+        const deltaSec = newStartSec - startSec;
 
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
@@ -22508,6 +22510,16 @@
         layer.isDurationExplicit = true;
         layer._cachedStartSec = newStartSec;
         layer._cachedEndSec = currentSec;
+
+        if (layer.keyframes) {
+          Object.values(layer.keyframes).forEach(list => {
+            if (Array.isArray(list)) {
+              list.forEach(kf => {
+                kf.time = Number(Math.max(0, kf.time + deltaSec).toFixed(4));
+              });
+            }
+          });
+        }
 
         renderTimelineLayers();
         redrawComposition();
@@ -22529,6 +22541,7 @@
         if (currentSec >= startSec) return;
 
         const newStartSec = Math.max(0, currentSec);
+        const deltaSec = newStartSec - startSec;
 
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
@@ -22537,6 +22550,16 @@
         layer.isDurationExplicit = true;
         layer._cachedStartSec = newStartSec;
         layer._cachedEndSec = newStartSec + durSec;
+
+        if (layer.keyframes) {
+          Object.values(layer.keyframes).forEach(list => {
+            if (Array.isArray(list)) {
+              list.forEach(kf => {
+                kf.time = Number(Math.max(0, kf.time + deltaSec).toFixed(4));
+              });
+            }
+          });
+        }
 
         renderTimelineLayers();
         redrawComposition();

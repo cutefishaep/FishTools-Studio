@@ -27,8 +27,8 @@
       this._pendingFrames = new Set();
       // Tracks frames whose createImageBitmap is currently in-flight (prevents double-encode race)
       this._inFlightFrames = new Set();
-      // LRU eviction: max 180 frames in RAM (~3s at 60fps, ~1.5 GB at 1080p) to prevent GPU memory saturation & OOM crashes
-      this.maxFrames = 180;
+      // LRU eviction: generous frame buffer (~20s+ at 60fps) to ensure smooth full-fps playback
+      this.maxFrames = 1200;
     }
 
     get frames() {
@@ -184,8 +184,7 @@
       const totalDur = (typeof window !== 'undefined' && typeof window.getProjectTotalDuration === 'function')
         ? window.getProjectTotalDuration()
         : 0;
-      const totalProjectFrames = Math.ceil((totalDur || 10) * this.fps);
-      const effectiveMax = Math.min(this.maxFrames || 180, Math.max(60, totalProjectFrames));
+      const effectiveMax = Math.max(this.maxFrames || 1200, totalProjectFrames + 120);
       if (pool.size <= effectiveMax) return;
 
       const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) ? window.currentPixelsPerSecond : 80;

@@ -6421,9 +6421,10 @@
       const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
         ? Array.from(window.selectedLayerIds)
         : (window.selectedLayerId ? [window.selectedLayerId] : []);
-      const isMultiSelect = allSelectedIds.length > 1;
+      const isSelectionMode = isSelectorMode || allSelectedIds.length > 1;
 
-      if (!isExport && !isTemplate && !window.isTimelinePlaying && allSelectedIds.length > 0) {
+      // In selection mode (multi-select / select-all), keep wireframe bounds fresh even during playback
+      if (!isExport && !isTemplate && (!window.isTimelinePlaying || isSelectionMode) && allSelectedIds.length > 0) {
         const engine = window.FishToolEngine || window.LayerTransform;
         allSelectedIds.forEach(id => {
           const selL = (currentProjectState.layers || []).find(l => l.id === id);
@@ -6464,9 +6465,10 @@
         });
       }
 
-      // Draw Adaptive Wireframe for Selected Layer(s) via Modular CanvasWireframe (skipped on export & active playback)
-      if (!isExport && !isTemplate && !isIdleCache && !window.isTimelinePlaying && window.CanvasWireframe && allSelectedIds.length > 0) {
-        if (isMultiSelect) {
+      // Draw Adaptive Wireframe for Selected Layer(s) via Modular CanvasWireframe
+      // In selection mode (multi-select / select all), wireframe stays visible during playback and draws ONLY pure bounding box (no anchor, no control handles)
+      if (!isExport && !isTemplate && !isIdleCache && (!window.isTimelinePlaying || isSelectionMode) && window.CanvasWireframe && allSelectedIds.length > 0) {
+        if (isSelectionMode) {
           // Select All / Multi-Select Mode: Pure wireframe bounding box ONLY (no anchor, no scale handles)
           allSelectedIds.forEach(id => {
             const l = (currentProjectState.layers || []).find(layer => layer.id === id);
@@ -6481,18 +6483,20 @@
             }
           });
         } else {
-          // Individual Select Mode: Full interactive wireframe with center anchor point and 8 perimeter scale handles
-          const selId = allSelectedIds[0];
-          const selL = (currentProjectState.layers || []).find(l => l.id === selId);
-          if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'null' && selL.type !== 'audio') {
-            const b = selL._canvasBounds;
-            if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
-              const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
-              window.CanvasWireframe.draw(ctx, b, {
-                showAnchor: true,
-                showHandles: true,
-                isAnchorMode: isAnchor
-              });
+          // Individual Select Mode: Full interactive wireframe with center anchor point and 8 perimeter scale handles (hidden during playback)
+          if (!window.isTimelinePlaying) {
+            const selId = allSelectedIds[0];
+            const selL = (currentProjectState.layers || []).find(l => l.id === selId);
+            if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'null' && selL.type !== 'audio') {
+              const b = selL._canvasBounds;
+              if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
+                const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
+                window.CanvasWireframe.draw(ctx, b, {
+                  showAnchor: true,
+                  showHandles: true,
+                  isAnchorMode: isAnchor
+                });
+              }
             }
           }
         }
@@ -21070,6 +21074,7 @@
             if (selectedLayerIds.size === 0) {
               selectedLayerId = null;
               window.selectedLayerId = null;
+              isSelectorMode = false;
             } else {
               selectedLayerId = Array.from(selectedLayerIds)[selectedLayerIds.size - 1];
               window.selectedLayerId = selectedLayerId;
@@ -21173,11 +21178,14 @@
         const btnGroupExclude = document.getElementById('btn-layer-header-group-exclude');
         if (!projectNav || !layerNav) return;
 
-        const count = selectedLayerIds && selectedLayerIds.size > 0 ? selectedLayerIds.size : (selectedLayerId ? 1 : 0);
+        let count = selectedLayerIds && selectedLayerIds.size > 0 ? selectedLayerIds.size : (selectedLayerId ? 1 : 0);
+        if (count === 0 && isSelectorMode) {
+          isSelectorMode = false;
+        }
         const prevBtn = document.getElementById('editor-btn-prev');
         const nextBtn = document.getElementById('editor-btn-next');
 
-        if (count > 0 || isSelectorMode) {
+        if (count > 0) {
           if (prevBtn) prevBtn.setAttribute('title', 'Previous Keyframe / Beatmark');
           if (nextBtn) nextBtn.setAttribute('title', 'Next Keyframe / Beatmark');
           projectNav.style.display = 'none';

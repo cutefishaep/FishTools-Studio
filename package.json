@@ -1,6 +1,6 @@
 {
   "name": "openfishtools-studio",
-  "version": "0.2.0-alpha",
+  "version": "0.3.0",
   "description": "OpenFishTools Studio - Next Generation Marine Research Tooling",
   "main": "js/main.js",
   "scripts": {

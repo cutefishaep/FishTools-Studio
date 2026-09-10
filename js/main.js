@@ -50,7 +50,7 @@ function initUIProtections() {
  * e.g., "0.1.0-pre-alpha" -> "0.1.0 PA"
  */
 function formatAppVersion(raw) {
-  if (!raw) return '0.2.0 Alpha';
+  if (!raw) return '0.3.0';
   let str = String(raw).trim().replace(/^v\.?/i, '');
   
   let tag = '';
@@ -96,7 +96,7 @@ async function initVersionFetcher() {
   if (!badgeEl) return;
 
   if (window.location.protocol === 'file:') {
-    badgeEl.textContent = '0.2.0 Alpha';
+    badgeEl.textContent = '0.3.0';
     return;
   }
 
@@ -108,7 +108,7 @@ async function initVersionFetcher() {
       badgeEl.textContent = formatAppVersion(pkg.version);
     }
   } catch (err) {
-    badgeEl.textContent = '0.2.0 Alpha';
+    badgeEl.textContent = '0.3.0';
   }
 }
 

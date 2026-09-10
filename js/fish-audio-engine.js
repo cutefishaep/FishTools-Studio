@@ -339,12 +339,18 @@
       const entry = this.sources.get(mediaEl);
       if (entry && entry.gainNode && this.ctx) {
         try {
-          entry.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
-          entry.gainNode.gain.setValueAtTime(targetGain, this.ctx.currentTime);
+          const curVal = entry.gainNode.gain.value;
+          if (Math.abs(curVal - targetGain) > 0.002) {
+            const now = this.ctx.currentTime;
+            entry.gainNode.gain.cancelScheduledValues(now);
+            entry.gainNode.gain.setTargetAtTime(targetGain, now, 0.015);
+          }
         } catch (_) {}
       } else {
         try {
-          mediaEl.volume = Math.max(0, Math.min(1, targetGain));
+          if (Math.abs((mediaEl.volume || 0) - targetGain) > 0.01) {
+            mediaEl.volume = Math.max(0, Math.min(1, targetGain));
+          }
         } catch (_) {}
       }
     }
@@ -415,8 +421,8 @@
         const item = flatItems[i];
         const layer = item.layer;
         if (item.isMuted) continue;
-        // Only pure 1.0x audio layers can serve as audio clock (video layers and speed-ramped tracks must never dictate timeline clock)
-        if (layer.type !== 'audio') continue;
+        // Audio and unmuted video layers with audio tracks serve as master audio clock
+        if (layer.type !== 'audio' && layer.type !== 'video') continue;
         if (layer.speedMode === 'time_remap' || (item.parentLayer && item.parentLayer.speedMode === 'time_remap')) continue;
         if (layer.keyframes && layer.keyframes.speed && layer.keyframes.speed.length > 0) continue;
         if (item.effectiveSpeed !== 1.0) continue;
@@ -431,10 +437,8 @@
         const timeInClip = el.currentTime - (item.sourceOffsetSec || 0);
         const timelineSec = startSec + timeInClip;
 
-        if (timelineSec >= startSec - 0.15 && timelineSec <= endSec + 0.25) {
-          if (Math.abs(timelineSec - currentSec) <= 0.4) {
-            return timelineSec;
-          }
+        if (timelineSec >= startSec - 0.2 && timelineSec <= endSec + 0.3) {
+          return timelineSec;
         }
       }
       return null;
@@ -623,54 +627,20 @@
         }
 
         if (!el.seeking) {
-          const drift = el.currentTime - targetTime; // positive: audio leads; negative: audio lags
+          // Keep steady playback rate matching desired speed — avoid continuous micro rate steering which introduces resampler distortion
+          if (Math.abs((el.playbackRate || 1.0) - currentSpeed) > 0.01) {
+            try {
+              el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
+            } catch (_) {}
+          }
+          const drift = el.currentTime - targetTime;
           const absDrift = Math.abs(drift);
-
-          // 1. Hard seek ONLY on massive divergence (user jumped playhead/scrubbed > 1.5s)
-          // Never hard seek on minor playback drift — hard seek pauses audio and causes severe stutter!
-          if (absDrift > 1.5) {
+          // Hard seek only on massive divergence (e.g. user jumped > 3s across timeline)
+          if (absDrift > 3.0) {
             try {
               el.currentTime = targetTime;
               el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
-              el._lastRateSteerTime = nowMs;
-              el._lastSteeredRate = currentSpeed;
-              el._baseSpeed = currentSpeed;
             } catch (_) {}
-            return;
-          }
-
-          // 2. DEADBAND ZONE (+/- 80ms): Audio is in clean lockstep with timeline.
-          // Audio buffer chunking in browsers is 30-50ms. Never alter playbackRate inside deadband.
-          if (absDrift <= 0.08) {
-            if (el._lastSteeredRate !== undefined && Math.abs(el._lastSteeredRate - currentSpeed) > 0.01) {
-              if (!el._lastRateSteerTime || (nowMs - el._lastRateSteerTime >= 200)) {
-                try {
-                  el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
-                  el._lastSteeredRate = currentSpeed;
-                  el._lastRateSteerTime = nowMs;
-                } catch (_) {}
-              }
-            }
-            return;
-          }
-
-          // 3. THROTTLED & GENTLE RATE STEERING:
-          // Throttle adjustments to at most once every 200ms to allow audio buffers to settle
-          const baseSpeedChanged = Math.abs((el._baseSpeed || currentSpeed) - currentSpeed) > 0.03;
-          if (!el._lastRateSteerTime || (nowMs - el._lastRateSteerTime >= 200) || baseSpeedChanged) {
-            el._lastRateSteerTime = nowMs;
-            el._baseSpeed = currentSpeed;
-
-            // Gentle proportional correction: max +/- 4% speed adjustment
-            const steerAdjustment = Math.max(-0.04, Math.min(0.04, -drift * 0.25));
-            const steeredRate = Math.max(0.0625, Math.min(8.0, currentSpeed + steerAdjustment));
-
-            if (Math.abs((el.playbackRate || 1.0) - steeredRate) > 0.012) {
-              try {
-                el.playbackRate = steeredRate;
-                el._lastSteeredRate = steeredRate;
-              } catch (_) {}
-            }
           }
         }
       });

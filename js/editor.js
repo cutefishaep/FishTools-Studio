@@ -1997,7 +1997,7 @@
           const engine = window.FishToolEngine || window.LayerTransform;
           allIds.forEach(id => {
             const selL = (currentProjectState.layers || []).find(l => l.id === id);
-            if (!selL || selL.hidden || selL.type === 'null' || selL.type === 'audio') return;
+            if (!selL || selL.hidden || selL.type === 'audio') return;
             if (selL.type === 'camera') {
               const padX = Math.max(8, Math.round(w * 0.035));
               const padY = Math.max(8, Math.round(h * 0.035));
@@ -3138,7 +3138,7 @@
         const engine = window.FishToolEngine || window.LayerTransform;
         allSelectedIds.forEach(id => {
           const selL = (currentProjectState.layers || []).find(l => l.id === id);
-          if (!selL || selL.hidden || selL.type === 'null' || selL.type === 'audio') return;
+          if (!selL || selL.hidden || selL.type === 'audio') return;
           if (selL.type === 'camera') {
             const padX = Math.max(8, Math.round(w * 0.035));
             const padY = Math.max(8, Math.round(h * 0.035));
@@ -3182,7 +3182,7 @@
           // Select All / Multi-Select Mode: Pure wireframe bounding box ONLY (no anchor, no scale handles)
           allSelectedIds.forEach(id => {
             const l = (currentProjectState.layers || []).find(layer => layer.id === id);
-            if (!l || l.hidden || l.type === 'camera' || l.type === 'null' || l.type === 'audio') return;
+            if (!l || l.hidden || l.type === 'camera' || l.type === 'audio') return;
             const b = l._canvasBounds;
             if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
               window.CanvasWireframe.draw(ctx, b, {
@@ -3197,7 +3197,7 @@
           if (!window.isTimelinePlaying) {
             const selId = allSelectedIds[0];
             const selL = (currentProjectState.layers || []).find(l => l.id === selId);
-            if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'null' && selL.type !== 'audio') {
+            if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'audio') {
               const b = selL._canvasBounds;
               if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
                 const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
@@ -3494,7 +3494,7 @@
         } else if (isMultiSelect && window.selectedLayerIds) {
           for (const id of window.selectedLayerIds) {
             const l = layers.find(layer => layer.id === id);
-            if (l && l._canvasBounds && l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio' && window.CanvasWireframe && window.CanvasWireframe.hitTest(l._canvasBounds, coords.x, coords.y) &&
+            if (l && l._canvasBounds && l.type !== 'camera' && l.type !== 'audio' && window.CanvasWireframe && window.CanvasWireframe.hitTest(l._canvasBounds, coords.x, coords.y) &&
                 !(l.type === 'image' && isLayerPixelTransparent(l, coords.x, coords.y))) {
               activeCanvasEl.style.cursor = 'move';
               return;
@@ -3502,7 +3502,7 @@
           }
         }
 
-        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio');
+        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'audio');
         for (let i = 0; i < activeLayers.length; i++) {
           const l = activeLayers[i];
           if (l._canvasBounds && window.CanvasWireframe && window.CanvasWireframe.hitTest(l._canvasBounds, coords.x, coords.y) &&
@@ -3685,7 +3685,7 @@
         }
 
         // C. Check other active layers (from topmost to bottom)
-        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'null' && l.type !== 'audio');
+        const activeLayers = getActiveLayersAtPlayhead().filter(l => l.type !== 'camera' && l.type !== 'audio');
         for (let i = 0; i < activeLayers.length; i++) {
           const l = activeLayers[i];
           const b = l._canvasBounds;
@@ -4855,16 +4855,23 @@
         const parent = pool.find(l => l.id === layer.parentId);
         if (parent && !visited.has(parent.id)) {
           const parentEff = getLayerEffectivePropsAtTime(parent, currentSec, visited, pool);
-          const bind = layer.parentBind || {
-            parentPosX: parentEff.posX,
-            parentPosY: parentEff.posY,
-            parentPosZ: parentEff.posZ || 0,
-            parentRotX: parentEff.rotX || 0,
-            parentRotY: parentEff.rotY || 0,
-            parentRotZ: parentEff.rotZ !== undefined ? parentEff.rotZ : (parentEff.rotation || 0),
-            parentScaleW: parentEff.scaleW || 500,
-            parentScaleH: parentEff.scaleH || 500
-          };
+          let bind = layer.parentBind;
+          if (!bind) {
+            const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+            const pInitSec = parent.startSec !== undefined ? parent.startSec : ((parent.startPx || 0) / pps);
+            const parentInit = getLayerEffectivePropsAtTime(parent, pInitSec, visited, pool);
+            bind = {
+              parentPosX: parentInit.posX !== undefined ? parentInit.posX : 540,
+              parentPosY: parentInit.posY !== undefined ? parentInit.posY : 960,
+              parentPosZ: parentInit.posZ || 0,
+              parentRotX: parentInit.rotX || 0,
+              parentRotY: parentInit.rotY || 0,
+              parentRotZ: parentInit.rotZ !== undefined ? parentInit.rotZ : (parentInit.rotation || 0),
+              parentScaleW: parentInit.scaleW || 500,
+              parentScaleH: parentInit.scaleH || 500
+            };
+            layer.parentBind = bind;
+          }
 
           const pCurRotX = parentEff.rotX || 0;
           const pCurRotY = parentEff.rotY || 0;
@@ -17409,23 +17416,17 @@
           window.FishAudioEngine.syncPlayback(layers, currentSec, pixelsPerSecond);
         }
 
-        // 2. Continuous time advance with Phase-Locked Loop (PLL) audio alignment
-        // Advances smoothly frame-by-frame for guaranteed 60fps render cadence without 30fps quantization
-        const framesElapsed = Math.max(1, Math.min(3, Math.round(rawDeltaSec / frameDuration)));
+        // 2. Continuous time advance with Master Audio Clock synchronization
+        // If master audio is playing, visual timeline is locked to the hardware audio clock
+        const framesElapsed = Math.max(1, Math.round(rawDeltaSec / frameDuration));
         const targetSec = (currentFrame + framesElapsed) / fps;
         let nextSec = targetSec;
 
-        if (window.FishAudioEngine && _playTickCount > 15) {
+        if (window.FishAudioEngine && _playTickCount > 3) {
           const masterSec = window.FishAudioEngine.getMasterAudioTime(layers, currentSec, pixelsPerSecond);
-          if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec > 0.05) {
-            const audioDrift = masterSec - targetSec;
-            // Gentle Phase-Locked Loop: softly steer timeline clock toward master audio hardware time
-            // Strictly monotonic: timeline NEVER jumps backward, preventing any timeline or audio jerk
-            if (audioDrift > 0.005 && audioDrift < 0.3) {
-              nextSec = targetSec + Math.min(0.004, audioDrift * 0.15);
-            } else if (audioDrift < -0.005 && audioDrift > -0.3) {
-              nextSec = Math.max(currentSec, targetSec - Math.min(0.004, -audioDrift * 0.15));
-            }
+          if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec >= 0) {
+            // Master Audio Clock: Visual timeline tracks hardware audio clock directly
+            nextSec = Math.max(currentSec, masterSec);
           }
         }
 
@@ -18610,8 +18611,12 @@
       function copySelectedLayers() {
         const ids = [];
         if (selectedLayerId) ids.push(selectedLayerId);
+        if (window.selectedLayerId && !ids.includes(window.selectedLayerId)) ids.push(window.selectedLayerId);
         if (selectedLayerIds && selectedLayerIds.size > 0) {
           selectedLayerIds.forEach(id => { if (!ids.includes(id)) ids.push(id); });
+        }
+        if (window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+          window.selectedLayerIds.forEach(id => { if (!ids.includes(id)) ids.push(id); });
         }
         if (ids.length === 0 || !currentProjectState.layers) return;
 
@@ -18631,9 +18636,9 @@
         if (!window.internalLayerClipboard || window.internalLayerClipboard.length === 0 || !currentProjectState.layers) return;
         if (window.Popover) window.Popover.close();
 
-        let curPlayheadSec = (typeof panX === 'number' && typeof pixelsPerSecond === 'number')
-          ? (Math.max(0, -panX / pixelsPerSecond))
-          : 0;
+        const curPanX = (typeof panX === 'number') ? panX : (window.timelinePanX !== undefined ? window.timelinePanX : 0);
+        const curPps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+        let curPlayheadSec = Math.max(0, -curPanX / curPps);
 
         if (overrideStartSec !== null && typeof overrideStartSec === 'number') {
           curPlayheadSec = overrideStartSec;
@@ -18645,45 +18650,76 @@
         const minStartSec = Math.min(...window.internalLayerClipboard.map(l => (l.startSec !== undefined ? l.startSec : ((l.startPx || 0) / pixelsPerSecond))));
         const deltaSec = curPlayheadSec - minStartSec;
 
-        const newPastedIds = [];
+        // Pass 1: generate unique ID map for all copied layers to preserve internal hierarchy
+        const idMap = new Map();
         window.internalLayerClipboard.forEach((l, idx) => {
+          const newId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + (currentProjectState.layers.length + idx);
+          idMap.set(l.id, newId);
+        });
+
+        const newPastedIds = [];
+        window.internalLayerClipboard.forEach((l) => {
           const origStartSec = l.startSec !== undefined ? l.startSec : ((l.startPx || 0) / pixelsPerSecond);
           const newStartSec = Math.max(0, origStartSec + deltaSec);
           const newStartPx = Math.round(newStartSec * pixelsPerSecond);
-          const newId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + (currentProjectState.layers.length + idx);
-          let clonedEffects = undefined;
+          const newId = idMap.get(l.id);
+
+          // Deep clone keyframes & shift all times by deltaSec so animation aligns with pasted layer
           let clonedKeyframes = l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined;
-          if (Array.isArray(l.effects)) {
-            clonedEffects = JSON.parse(JSON.stringify(l.effects));
-            clonedEffects.forEach(fx => {
-              const oldId = fx.id;
-              const newFxId = 'fx_bc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-              fx.id = newFxId;
-              if (clonedKeyframes) {
-                ['brightness', 'contrast'].forEach(p => {
-                  if (clonedKeyframes[`${oldId}:${p}`]) {
-                    clonedKeyframes[`${newFxId}:${p}`] = clonedKeyframes[`${oldId}:${p}`];
-                    delete clonedKeyframes[`${oldId}:${p}`];
+          if (clonedKeyframes && Math.abs(deltaSec) > 0.0001) {
+            Object.keys(clonedKeyframes).forEach(prop => {
+              if (Array.isArray(clonedKeyframes[prop])) {
+                clonedKeyframes[prop].forEach(kf => {
+                  if (typeof kf.time === 'number') {
+                    kf.time = Number(Math.max(0, kf.time + deltaSec).toFixed(4));
                   }
                 });
               }
             });
           }
+
+          // Deep clone 100% of all effects and remap their keyframes
+          let clonedEffects = undefined;
+          if (Array.isArray(l.effects)) {
+            clonedEffects = JSON.parse(JSON.stringify(l.effects));
+            clonedEffects.forEach(fx => {
+              const oldId = fx.id;
+              const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + Math.floor(Math.random() * 1000);
+              fx.id = newFxId;
+              if (clonedKeyframes) {
+                Object.keys(clonedKeyframes).forEach(k => {
+                  if (k.startsWith(oldId + ':')) {
+                    const paramName = k.slice(oldId.length + 1);
+                    clonedKeyframes[`${newFxId}:${paramName}`] = clonedKeyframes[k];
+                    delete clonedKeyframes[k];
+                  }
+                });
+              }
+            });
+          }
+
           let clonedAudioEffects = Array.isArray(l.audioEffects) ? JSON.parse(JSON.stringify(l.audioEffects)) : undefined;
           if (clonedAudioEffects) {
             clonedAudioEffects.forEach(fx => {
               fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
             });
           }
-          const clonedLayer = Object.assign({}, l, {
+
+          // Remap parentId if parent layer is also part of the copied set
+          const newParentId = (l.parentId && idMap.has(l.parentId)) ? idMap.get(l.parentId) : (l.parentId || null);
+
+          const clonedLayer = Object.assign({}, JSON.parse(JSON.stringify(l)), {
             id: newId,
             name: l.name ? (l.name + ' (Copy)') : 'Layer (Copy)',
             startSec: newStartSec,
             startPx: newStartPx,
+            parentId: newParentId,
+            parentBind: l.parentBind ? JSON.parse(JSON.stringify(l.parentBind)) : undefined,
             effects: clonedEffects,
             audioEffects: clonedAudioEffects,
             keyframes: clonedKeyframes
           });
+
           invalidatePreviewCacheForLayer(clonedLayer);
           currentProjectState.layers.unshift(clonedLayer);
           newPastedIds.push(newId);
@@ -18712,48 +18748,67 @@
       function duplicateSelectedLayers() {
         const ids = [];
         if (selectedLayerId) ids.push(selectedLayerId);
+        if (window.selectedLayerId && !ids.includes(window.selectedLayerId)) ids.push(window.selectedLayerId);
         if (selectedLayerIds && selectedLayerIds.size > 0) {
           selectedLayerIds.forEach(id => { if (!ids.includes(id)) ids.push(id); });
+        }
+        if (window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+          window.selectedLayerIds.forEach(id => { if (!ids.includes(id)) ids.push(id); });
         }
         if (ids.length === 0 || !currentProjectState.layers) return;
         if (window.Popover) window.Popover.close();
 
-        const newDuplicatedIds = [];
+        // Pass 1: generate unique ID map for duplicated set to preserve internal parenting
+        const idMap = new Map();
         ids.forEach((id, idx) => {
+          const newId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + (currentProjectState.layers.length + idx);
+          idMap.set(id, newId);
+        });
+
+        const newDuplicatedIds = [];
+        ids.forEach((id) => {
           const orig = currentProjectState.layers.find(l => l.id === id);
           if (!orig) return;
-          const newId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + (currentProjectState.layers.length + idx);
-          let clonedEffects = undefined;
+          const newId = idMap.get(id);
+
           let clonedKeyframes = orig.keyframes ? JSON.parse(JSON.stringify(orig.keyframes)) : undefined;
+          let clonedEffects = undefined;
           if (Array.isArray(orig.effects)) {
             clonedEffects = JSON.parse(JSON.stringify(orig.effects));
             clonedEffects.forEach(fx => {
               const oldId = fx.id;
-              const newFxId = 'fx_bc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+              const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + Math.floor(Math.random() * 1000);
               fx.id = newFxId;
               if (clonedKeyframes) {
-                ['brightness', 'contrast'].forEach(p => {
-                  if (clonedKeyframes[`${oldId}:${p}`]) {
-                    clonedKeyframes[`${newFxId}:${p}`] = clonedKeyframes[`${oldId}:${p}`];
-                    delete clonedKeyframes[`${oldId}:${p}`];
+                Object.keys(clonedKeyframes).forEach(k => {
+                  if (k.startsWith(oldId + ':')) {
+                    const paramName = k.slice(oldId.length + 1);
+                    clonedKeyframes[`${newFxId}:${paramName}`] = clonedKeyframes[k];
+                    delete clonedKeyframes[k];
                   }
                 });
               }
             });
           }
+
           let clonedAudioEffects = Array.isArray(orig.audioEffects) ? JSON.parse(JSON.stringify(orig.audioEffects)) : undefined;
           if (clonedAudioEffects) {
             clonedAudioEffects.forEach(fx => {
               fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
             });
           }
-          const cloned = Object.assign({}, orig, {
+
+          const newParentId = (orig.parentId && idMap.has(orig.parentId)) ? idMap.get(orig.parentId) : (orig.parentId || null);
+
+          const cloned = Object.assign({}, JSON.parse(JSON.stringify(orig)), {
             id: newId,
             name: orig.name ? (orig.name + ' (Copy)') : 'Layer (Copy)',
             startSec: orig.startSec !== undefined ? orig.startSec : ((orig.startPx || 0) / pixelsPerSecond),
             startPx: orig.startPx || 0,
             durationSec: orig.durationSec !== undefined ? orig.durationSec : ((orig.widthPx || 320) / pixelsPerSecond),
             widthPx: orig.widthPx || 320,
+            parentId: newParentId,
+            parentBind: orig.parentBind ? JSON.parse(JSON.stringify(orig.parentBind)) : undefined,
             effects: clonedEffects,
             audioEffects: clonedAudioEffects,
             keyframes: clonedKeyframes
@@ -20828,13 +20883,40 @@
                 autoScrollRaf = requestAnimationFrame(runAutoScroll);
               }
 
+              // Multi-layer drag support: when multiple layers are selected or in selector mode, dragging one shifts all together
+              const isLayerCurrentlySelected = isLayerSelected(layer.id);
+              const isMultiSelectState = isSelectorMode || (window.selectedLayerIds && window.selectedLayerIds.size > 1);
+              const isMultiDragging = isMultiSelectState && isLayerCurrentlySelected;
+              let multiDragLayers = [];
+              if (isMultiDragging) {
+                const currentLayers = currentProjectState.layers || [];
+                multiDragLayers = currentLayers.filter(l => isLayerSelected(l.id)).map(l => {
+                  const sInitPx = l.startPx || 0;
+                  const sInitSec = l.startSec !== undefined ? l.startSec : (sInitPx / pixelsPerSecond);
+                  const sDurSec = l.durationSec !== undefined ? l.durationSec : ((l.widthPx || 320) / pixelsPerSecond);
+                  const sClipEl = document.querySelector(`.timeline-clip-block[data-layer-id="${l.id}"]`);
+                  return {
+                    layer: l,
+                    initialStartPx: sInitPx,
+                    initialStartSec: sInitSec,
+                    initialEndSec: sInitSec + sDurSec,
+                    durationSec: sDurSec,
+                    clipEl: sClipEl
+                  };
+                });
+              }
+
               // Long-press context menu timer (450ms hold without drag -> open context menu popover like right click)
               lpMenuTimer = setTimeout(() => {
                 if (hasSlid || isMarqueeActive) return;
                 hasMenuOpened = true;
                 isLongPressActive = false;
                 window.isTransformInteracting = false;
-                clipEl.classList.remove('is-sliding');
+                if (isMultiDragging && multiDragLayers.length > 0) {
+                  multiDragLayers.forEach(m => { if (m.clipEl) m.clipEl.classList.remove('is-sliding'); });
+                } else {
+                  clipEl.classList.remove('is-sliding');
+                }
                 try {
                   clipEl.releasePointerCapture(e.pointerId);
                 } catch (_) {}
@@ -20848,7 +20930,13 @@
                 lpSlideTimer = setTimeout(() => {
                   if (!hasMenuOpened && !isMarqueeActive) {
                     isLongPressActive = true;
-                    clipEl.classList.add('is-sliding');
+                    if (isMultiDragging && multiDragLayers.length > 0) {
+                      multiDragLayers.forEach(m => {
+                        if (m.clipEl) m.clipEl.classList.add('is-sliding');
+                      });
+                    } else {
+                      clipEl.classList.add('is-sliding');
+                    }
                     try {
                       clipEl.setPointerCapture(e.pointerId);
                     } catch (_) {}
@@ -20910,51 +20998,114 @@
                 hasSlid = true;
                 window.isTransformInteracting = true;
                 const deltaX = moveEvent.clientX - startPointerX;
-                let newStartPx = Math.max(0, initialStartPx + deltaX);
-                const durPx = layer.widthPx || Math.round((layer.durationSec || 5) * pixelsPerSecond);
-                const newEndPx = newStartPx + durPx;
 
-                // Snap sliding layer (start & end) to beatmarks, adjacent layers depan/belakang, and playhead
-                const snapTargets = (typeof getTimelineSnapTargets === 'function') ? getTimelineSnapTargets(layer.id, true) : [];
-                const startSnap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(newStartPx, snapTargets, 10) : null;
-                const endSnap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(newEndPx, snapTargets, 10) : null;
+                if (isMultiDragging && multiDragLayers.length > 0) {
+                  const minMultiStartPx = Math.min(...multiDragLayers.map(m => m.initialStartPx));
+                  const clampedDeltaX = Math.max(-minMultiStartPx, deltaX);
 
-                let activeSnap = null;
-                if (startSnap && endSnap) {
-                  const diffStart = Math.abs(newStartPx - startSnap.px);
-                  const diffEnd = Math.abs(newEndPx - endSnap.px);
-                  activeSnap = diffStart <= diffEnd ? { ...startSnap, snapEnd: false } : { ...endSnap, snapEnd: true };
-                } else if (startSnap) {
-                  activeSnap = { ...startSnap, snapEnd: false };
-                } else if (endSnap) {
-                  activeSnap = { ...endSnap, snapEnd: true };
-                }
+                  let targetStartPx = Math.max(0, initialStartPx + clampedDeltaX);
+                  const durPx = layer.widthPx || Math.round((layer.durationSec || 5) * pixelsPerSecond);
+                  const targetEndPx = targetStartPx + durPx;
 
-                if (activeSnap) {
-                  if (activeSnap.snapEnd) {
-                    newStartPx = Math.max(0, activeSnap.px - durPx);
+                  // Snap sliding primary layer to timeline targets (excluding layers moving together)
+                  const snapTargets = (typeof getTimelineSnapTargets === 'function') ? getTimelineSnapTargets(layer.id, true) : [];
+                  const multiIds = new Set(multiDragLayers.map(m => m.layer.id));
+                  const filteredSnapTargets = snapTargets.filter(st => !multiIds.has(st.layerId));
+
+                  const startSnap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(targetStartPx, filteredSnapTargets, 10) : null;
+                  const endSnap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(targetEndPx, filteredSnapTargets, 10) : null;
+
+                  let activeSnap = null;
+                  if (startSnap && endSnap) {
+                    const diffStart = Math.abs(targetStartPx - startSnap.px);
+                    const diffEnd = Math.abs(targetEndPx - endSnap.px);
+                    activeSnap = diffStart <= diffEnd ? { ...startSnap, snapEnd: false } : { ...endSnap, snapEnd: true };
+                  } else if (startSnap) {
+                    activeSnap = { ...startSnap, snapEnd: false };
+                  } else if (endSnap) {
+                    activeSnap = { ...endSnap, snapEnd: true };
+                  }
+
+                  if (activeSnap) {
+                    if (activeSnap.snapEnd) {
+                      targetStartPx = Math.max(0, activeSnap.px - durPx);
+                    } else {
+                      targetStartPx = activeSnap.px;
+                    }
+                    if (typeof showTimelineSnapGuide === 'function') showTimelineSnapGuide(activeSnap.px);
+                    if (window._lastSlideSnapPx !== activeSnap.px) {
+                      window._lastSlideSnapPx = activeSnap.px;
+                      if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {}
+                    }
                   } else {
-                    newStartPx = activeSnap.px;
+                    if (typeof hideTimelineSnapGuide === 'function') hideTimelineSnapGuide();
+                    window._lastSlideSnapPx = null;
                   }
-                  if (typeof showTimelineSnapGuide === 'function') showTimelineSnapGuide(activeSnap.px);
-                  if (window._lastSlideSnapPx !== activeSnap.px) {
-                    window._lastSlideSnapPx = activeSnap.px;
-                    if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {}
-                  }
+
+                  const effectiveDeltaPx = Math.max(-minMultiStartPx, targetStartPx - initialStartPx);
+
+                  multiDragLayers.forEach(m => {
+                    m.layer.startPx = Math.max(0, Math.round(m.initialStartPx + effectiveDeltaPx));
+                    if (m.layer.durationSec !== undefined) {
+                      m.layer.startSec = m.layer.startPx / pixelsPerSecond;
+                    }
+                    const curSlideEndSec = (m.layer.startSec || 0) + (m.layer.durationSec || ((m.layer.widthPx || 320) / pixelsPerSecond));
+                    if (curSlideEndSec > lastGeneratedDuration) {
+                      generateRulerTicks(currentFps);
+                    }
+                    if (m.clipEl) {
+                      m.clipEl.style.left = `${m.layer.startPx}px`;
+                    }
+                  });
                 } else {
-                  if (typeof hideTimelineSnapGuide === 'function') hideTimelineSnapGuide();
-                  window._lastSlideSnapPx = null;
+                  // Single layer drag
+                  let newStartPx = Math.max(0, initialStartPx + deltaX);
+                  const durPx = layer.widthPx || Math.round((layer.durationSec || 5) * pixelsPerSecond);
+                  const newEndPx = newStartPx + durPx;
+
+                  // Snap sliding layer (start & end) to beatmarks, adjacent layers depan/belakang, and playhead
+                  const snapTargets = (typeof getTimelineSnapTargets === 'function') ? getTimelineSnapTargets(layer.id, true) : [];
+                  const startSnap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(newStartPx, snapTargets, 10) : null;
+                  const endSnap = (typeof findTimelineSnap === 'function') ? findTimelineSnap(newEndPx, snapTargets, 10) : null;
+
+                  let activeSnap = null;
+                  if (startSnap && endSnap) {
+                    const diffStart = Math.abs(newStartPx - startSnap.px);
+                    const diffEnd = Math.abs(newEndPx - endSnap.px);
+                    activeSnap = diffStart <= diffEnd ? { ...startSnap, snapEnd: false } : { ...endSnap, snapEnd: true };
+                  } else if (startSnap) {
+                    activeSnap = { ...startSnap, snapEnd: false };
+                  } else if (endSnap) {
+                    activeSnap = { ...endSnap, snapEnd: true };
+                  }
+
+                  if (activeSnap) {
+                    if (activeSnap.snapEnd) {
+                      newStartPx = Math.max(0, activeSnap.px - durPx);
+                    } else {
+                      newStartPx = activeSnap.px;
+                    }
+                    if (typeof showTimelineSnapGuide === 'function') showTimelineSnapGuide(activeSnap.px);
+                    if (window._lastSlideSnapPx !== activeSnap.px) {
+                      window._lastSlideSnapPx = activeSnap.px;
+                      if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {}
+                    }
+                  } else {
+                    if (typeof hideTimelineSnapGuide === 'function') hideTimelineSnapGuide();
+                    window._lastSlideSnapPx = null;
+                  }
+
+                  layer.startPx = Math.round(newStartPx);
+                  if (layer.durationSec !== undefined) {
+                    layer.startSec = layer.startPx / pixelsPerSecond;
+                  }
+                  const curSlideEndSec = (layer.startSec || 0) + (layer.durationSec || ((layer.widthPx || 320) / pixelsPerSecond));
+                  if (curSlideEndSec > lastGeneratedDuration) {
+                    generateRulerTicks(currentFps);
+                  }
+                  clipEl.style.left = `${layer.startPx}px`;
                 }
 
-                layer.startPx = Math.round(newStartPx);
-                if (layer.durationSec !== undefined) {
-                  layer.startSec = layer.startPx / pixelsPerSecond;
-                }
-                const curSlideEndSec = (layer.startSec || 0) + (layer.durationSec || ((layer.widthPx || 320) / pixelsPerSecond));
-                if (curSlideEndSec > lastGeneratedDuration) {
-                  generateRulerTicks(currentFps);
-                }
-                clipEl.style.left = `${layer.startPx}px`;
                 if (typeof renderTimelineLinkConnectors === 'function') renderTimelineLinkConnectors();
                 redrawComposition();
               }
@@ -21010,19 +21161,28 @@
                 if (isLongPressActive) {
                   isLongPressActive = false;
                   window.isTransformInteracting = false;
-                  clipEl.classList.remove('is-sliding');
+                  if (isMultiDragging && multiDragLayers.length > 0) {
+                    multiDragLayers.forEach(m => {
+                      if (m.clipEl) m.clipEl.classList.remove('is-sliding');
+                      invalidatePreviewCacheForLayer(m.layer, m.initialStartSec, m.initialEndSec);
+                    });
+                  } else {
+                    clipEl.classList.remove('is-sliding');
+                    invalidatePreviewCacheForLayer(layer, initialSlideStartSec, initialSlideEndSec);
+                  }
                   try {
                     clipEl.releasePointerCapture(upEvent.pointerId);
                   } catch (_) {}
 
                   justFinishedSlide = true;
                   if (hasSlid) {
-                    invalidatePreviewCacheForLayer(layer, initialSlideStartSec, initialSlideEndSec);
                     redrawComposition();
                     saveCurrentProjectLayers();
                     updateTimelineDuration(true);
-                    if (typeof deselectTimelineLayer === 'function') {
-                      deselectTimelineLayer();
+                    if (!isMultiDragging && !isSelectorMode && (window.selectedLayerIds ? window.selectedLayerIds.size <= 1 : true)) {
+                      if (typeof deselectTimelineLayer === 'function') {
+                        deselectTimelineLayer();
+                      }
                     }
                   }
                   setTimeout(() => { justFinishedSlide = false; }, 150);

@@ -1,7 +1,7 @@
 {
   "name": "openfishtools-studio",
-  "version": "0.4.0",
-  "description": "OpenFishTools Studio - Next Generation Marine Research Tooling",
+  "version": "0.4.1",
+  "description": "Desktop-class video and motion design editor in the browser",
   "main": "js/main.js",
   "scripts": {
     "dev": "node server.js",

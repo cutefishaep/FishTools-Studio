@@ -517,7 +517,7 @@ html, body {
 
 .editor-layer-delete-btn:hover {
   background-color: var(--bg-panel-hover);
-  color: var(--color-accent, #e57373);
+  color: var(--color-danger);
 }
 
 .editor-layer-delete-btn:active {
@@ -720,7 +720,7 @@ html, body {
    MODULAR PREVIEW CANVAS (Screen Viewport, Canvas Element & Specs Badge)
    ========================================================================== */
 .preview-canvas-box {
-  background-color: #000000;
+  background-color: var(--bg-canvas);
   max-width: calc(100% - 24px);
   max-height: calc(100% - 24px);
   aspect-ratio: var(--preview-aspect, 16 / 9);
@@ -2453,12 +2453,12 @@ html, body {
 
 /* Color Layer Hidden: Nuansa lebih gelap dari Matcha Track Color */
 .timeline-clip-block.clip-color.is-hidden {
-  background-color: var(--track-color-dark, #6e8454) !important;
+  background-color: var(--track-color-dark) !important;
   color: var(--text-muted) !important;
 }
 .timeline-clip-block.clip-color.is-hidden .timeline-clip-tag {
   background-color: var(--bg-canvas) !important;
-  color: var(--track-color, #d4f8a8) !important;
+  color: var(--track-color) !important;
 }
 
 /* Audio Layer Hidden: Nuansa lebih gelap dari audio, tetap jelas terbaca */

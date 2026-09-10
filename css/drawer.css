@@ -392,9 +392,9 @@
 }
 
 .media-item-delete-btn:hover {
-  color: #ffffff;
-  background-color: #e04444;
-  border-color: #e04444;
+  color: var(--color-danger-text);
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .media-item-delete-btn svg {

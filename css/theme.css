@@ -143,6 +143,8 @@
   --track-audio-dark: #0f766e;
   --track-adj: #008ba3;
   --track-adj-dark: #092836;
+  --track-color: #5df2ff;
+  --track-color-dark: #006b7d;
   --track-text: #67e8f9;
   --track-text-dark: #155e75;
 
@@ -209,6 +211,8 @@
   --track-audio-dark: #926d15;
   --track-adj: #cc8800;
   --track-adj-dark: #2f1e08;
+  --track-color: #ffc44d;
+  --track-color-dark: #805309;
   --track-text: #fde047;
   --track-text-dark: #854d0e;
 

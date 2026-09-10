@@ -4,9 +4,11 @@
   "description": "OpenFishTools Studio - Next Generation Marine Research Tooling",
   "main": "js/main.js",
   "scripts": {
-    "dev": "node dev-server.js",
-    "start": "node dev-server.js",
-    "serve": "npx serve ."
+    "dev": "node server.js",
+    "start": "node server.js",
+    "tunnel": "node server.js --tunnel",
+    "serve": "npx serve .",
+    "test": "node scratch/test_suite.js"
   },
   "keywords": [
     "openfishtools",

@@ -71,6 +71,7 @@ if (!process.env.VERCEL) {
         normalized.includes('.git') ||
         normalized.includes('.gemini') ||
         normalized.includes('.system_generated') ||
+        normalized.includes('scratch') ||
         normalized.startsWith('.')
       ) {
         return;

@@ -5,3 +5,4 @@ cloudflared.exe
 .system_generated/
 *.log
 dist/
+scratch/

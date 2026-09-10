@@ -500,8 +500,8 @@
     const { startSec, durationSec, pps } = timing;
     const [baseW, baseH] = getBaseDims();
 
-    const compW = baseW;
-    const compH = baseH;
+    const compW = (selLayer && selLayer.scaleW && selLayer.scaleW > 0) ? Math.round(selLayer.scaleW) : baseW;
+    const compH = (selLayer && selLayer.scaleH && selLayer.scaleH > 0) ? Math.round(selLayer.scaleH) : baseH;
 
     const controller = create3DNull({
       name: `${baseName}_Controller`,
@@ -724,10 +724,10 @@
 
       // Screen Hinge
       const lidHinge = addHinge('Screen_Hinge', [0, baseY - hbH, hlD - 2], [0, 0, 0]);
-      addFace('Screen_Display', lW - 32, sH - 32, [0, -hsH, -hsD - 1], [0, 0, 0], lidHinge, cBezelLap, 0.05, 12, selLayer);
-      addFace('Screen_Bezel', lW, sH, [0, -hsH, -hsD], [0, 0, 0], lidHinge, cBezelLap, 1.0, 16);
-      addFace('Screen_Back_Lid', lW, sH, [0, -hsH, hsD], [0, 180, 0], lidHinge, cAlum, 1.0, 16);
-      addFace('Logo_Plate', 44, 44, [0, -hsH, hsD + 1], [0, 180, 0], lidHinge, cAlum, 1.4, 22);
+      addFace('Screen_Bezel', lW, sH, [0, -hsH, hsD], [0, 0, 0], lidHinge, cBezelLap, 1.0, 16);
+      addFace('Screen_Display', lW - 32, sH - 32, [0, -hsH, hsD + 1], [0, 0, 0], lidHinge, cBezelLap, 0.05, 12, selLayer);
+      addFace('Screen_Back_Lid', lW, sH, [0, -hsH, -hsD], [0, 180, 0], lidHinge, cAlum, 1.0, 16);
+      addFace('Logo_Plate', 44, 44, [0, -hsH, -hsD - 1], [0, 180, 0], lidHinge, cAlum, 1.4, 22);
     }
     else if (typeUpper === 'ROOM') {
       const cFloor = [0.58, 0.42, 0.28, 1.0];
@@ -756,22 +756,24 @@
       const sW = 540, sH = 360;
       const sY = -htH + 24 + sH / 2;
 
-      addFace('Screen_Glass', sW - 36, sH - 36, [0, sY, -htD - 3], [0, 0, 0], controller, cBezel, 0.05, 40, selLayer);
-      addFace('Screen_Bezel', sW, sH, [0, sY, -htD - 1], [0, 0, 0], controller, cBezel, 1.0, 48);
+      // Front face & screen at +htD
+      addFace('Front_Face', tW, tH, [0, 0, htD], [0, 0, 0], controller, cBody, 1.0);
+      addFace('Screen_Bezel', sW, sH, [0, sY, htD + 1], [0, 0, 0], controller, cBezel, 1.0, 48);
+      addFace('Screen_Glass', sW - 36, sH - 36, [0, sY, htD + 3], [0, 0, 0], controller, cBezel, 0.05, 40, selLayer);
 
       const pW = 540, pH = 120;
       const pY = sY + sH / 2 + 16 + pH / 2;
-      addFace('Control_Panel_Base', pW, pH, [0, pY, -htD - 1], [0, 0, 0], controller, cBezel, 0.7);
+      addFace('Control_Panel_Base', pW, pH, [0, pY, htD + 1], [0, 0, 0], controller, cBezel, 0.7);
       for (let g = 0; g < 4; g++) {
-        addFace(`Speaker_Grille_${g + 1}`, 150, 8, [-165, pY - 30 + g * 20, -htD - 2], [0, 0, 0], controller, cBezel, 0.15);
+        addFace(`Speaker_Grille_${g + 1}`, 150, 8, [-165, pY - 30 + g * 20, htD + 2], [0, 0, 0], controller, cBezel, 0.15);
       }
-      addFace('Brand_Badge', 60, 16, [0, pY - 24, -htD - 3], [0, 0, 0], controller, cKnob, 1.1);
-      addFace('Power_Button', 30, 30, [0, pY + 20, -htD - 4], [0, 0, 0], controller, cAccent, 1.0);
-      addFace('Tuning_Knob_1', 48, 48, [130, pY, -htD - 6], [0, 0, 0], controller, cKnob, 1.05, 24);
-      addFace('Tuning_Knob_2', 48, 48, [205, pY, -htD - 6], [0, 0, 0], controller, cKnob, 1.05, 24);
+      addFace('Brand_Badge', 60, 16, [0, pY - 24, htD + 3], [0, 0, 0], controller, cKnob, 1.1);
+      addFace('Power_Button', 30, 30, [0, pY + 20, htD + 4], [0, 0, 0], controller, cAccent, 1.0);
+      addFace('Tuning_Knob_1', 48, 48, [130, pY, htD + 6], [0, 0, 0], controller, cKnob, 1.05, 24);
+      addFace('Tuning_Knob_2', 48, 48, [205, pY, htD + 6], [0, 0, 0], controller, cKnob, 1.05, 24);
 
-      addFace('Front_Face', tW, tH, [0, 0, -htD], [0, 0, 0], controller, cBody, 1.0);
-      addFace('Back_Cover', tW, tH, [0, 0, htD], [0, 180, 0], controller, cBody, 0.7);
+      // Back cover at -htD
+      addFace('Back_Cover', tW, tH, [0, 0, -htD], [0, 180, 0], controller, cBody, 0.7);
       addFace('Top_Cover', tW, tD, [0, -htH, 0], [-90, 0, 0], controller, cBody, 1.1);
       addFace('Bottom_Floor', tW, tD, [0, htH, 0], [90, 0, 0], controller, cBody, 0.65);
       addFace('Left_Side', tD, tH, [-htW, 0, 0], [0, -90, 0], controller, cBody, 0.85);
@@ -785,17 +787,17 @@
       const fW = 436, hH = 500, fD = 22;
       const hfW = fW / 2, hhH = hH / 2, hfD = fD / 2;
 
-      // Lower Base Unit
-      addFace('Base_Back_Cover', fW, hH, [0, hhH, hfD], [0, 180, 0], controller, cBody, 1.0);
-      addFace('Base_Inner_Display', 400, 489, [0, hhH, -hfD - 1], [0, 0, 0], controller, cBezel, 0.05, 0, selLayer);
-      addFace('Base_Bezel', fW, hH, [0, hhH, -hfD], [0, 0, 0], controller, cBezel, 1.0);
+      // Lower Base Unit (facing camera at +hfD)
+      addFace('Base_Back_Cover', fW, hH, [0, hhH, -hfD], [0, 180, 0], controller, cBody, 1.0);
+      addFace('Base_Bezel', fW, hH, [0, hhH, hfD], [0, 0, 0], controller, cBezel, 1.0);
+      addFace('Base_Inner_Display', 400, 489, [0, hhH, hfD + 1], [0, 0, 0], controller, cBezel, 0.05, 0, selLayer);
 
       // Upper Flip Unit
       const flipHinge = addHinge('Flip_Hinge', [0, 0, -hfD], [0, 0, 0]);
-      addFace('Upper_Inner_Display', 400, 489, [0, -hhH, -1], [0, 0, 0], flipHinge, cBezel, 0.05);
+      addFace('Upper_Inner_Display', 400, 489, [0, -hhH, 1], [0, 0, 0], flipHinge, cBezel, 0.05);
       addFace('Upper_Bezel', fW, hH, [0, -hhH, 0], [0, 0, 0], flipHinge, cBezel, 1.0);
-      addFace('Upper_Back_Cover', fW, hH, [0, -hhH, fD], [0, 180, 0], flipHinge, cBody, 1.0);
-      addFace('Cover_Display', 320, 332, [0, -hhH - 40, fD + 2], [0, 180, 0], flipHinge, cCover, 1.1);
+      addFace('Upper_Back_Cover', fW, hH, [0, -hhH, -fD], [0, 180, 0], flipHinge, cBody, 1.0);
+      addFace('Cover_Display', 320, 332, [0, -hhH - 40, -fD - 2], [0, 180, 0], flipHinge, cCover, 1.1);
     }
     else if (typeUpper === 'ZFOLD') {
       const cBody = [0.16, 0.17, 0.20, 1.0];
@@ -805,17 +807,17 @@
       const fH = 920, fD = 22, hW = 385;
       const hhW = hW / 2, hfD = fD / 2;
 
-      // Right Half Unit
-      addFace('Right_Back_Cover', hW, fH, [hhW, 0, hfD], [0, 180, 0], controller, cBody, 1.0);
-      addFace('Right_Inner_Display', 373, 896, [hhW, 0, -hfD - 1], [0, 0, 0], controller, cBezel, 0.05, 0, selLayer);
-      addFace('Right_Bezel', hW, fH, [hhW, 0, -hfD], [0, 0, 0], controller, cBezel, 1.0);
-      addFace('Cover_Display', 345, 884, [hhW, 0, hfD + 2], [0, 180, 0], controller, cCover, 1.1);
+      // Right Half Unit (facing camera at +hfD)
+      addFace('Right_Back_Cover', hW, fH, [hhW, 0, -hfD], [0, 180, 0], controller, cBody, 1.0);
+      addFace('Right_Bezel', hW, fH, [hhW, 0, hfD], [0, 0, 0], controller, cBezel, 1.0);
+      addFace('Right_Inner_Display', 373, 896, [hhW, 0, hfD + 1], [0, 0, 0], controller, cBezel, 0.05, 0, selLayer);
+      addFace('Cover_Display', 345, 884, [hhW, 0, -hfD - 2], [0, 180, 0], controller, cCover, 1.1);
 
       // Left Half Unit
       const foldHinge = addHinge('Fold_Hinge', [0, 0, -hfD], [0, 0, 0]);
-      addFace('Left_Inner_Display', 373, 896, [-hhW, 0, -1], [0, 0, 0], foldHinge, cBezel, 0.05);
+      addFace('Left_Inner_Display', 373, 896, [-hhW, 0, 1], [0, 0, 0], foldHinge, cBezel, 0.05);
       addFace('Left_Bezel', hW, fH, [-hhW, 0, 0], [0, 0, 0], foldHinge, cBezel, 1.0);
-      addFace('Left_Back_Cover', hW, fH, [-hhW, 0, fD], [0, 180, 0], foldHinge, cBody, 1.0);
+      addFace('Left_Back_Cover', hW, fH, [-hhW, 0, -fD], [0, 180, 0], foldHinge, cBody, 1.0);
     }
     else if (typeUpper === 'BOOK') {
       const cCover = [0.14, 0.22, 0.36, 1.0];
@@ -826,15 +828,15 @@
       const hbW = bW / 2, hbD = bD / 2;
       const pThick = bD - 10;
 
-      addFace('Back_Cover', bW, bH, [0, 0, hbD], [0, 180, 0], controller, cCover, 1.0);
+      addFace('Back_Cover', bW, bH, [0, 0, -hbD], [0, 180, 0], controller, cCover, 1.0);
       addFace('Spine', bD, bH, [-hbW, 0, 0], [0, -90, 0], controller, cSpine, 1.0);
-      addFace('Pages_First_Page', bW - 24, bH - 24, [10, 0, -hbD + 5], [0, 0, 0], controller, cPages, 1.0, 0, selLayer);
+      addFace('Pages_First_Page', bW - 24, bH - 24, [10, 0, hbD - 5], [0, 0, 0], controller, cPages, 1.0, 0, selLayer);
       addFace('Pages_Right_Edge', pThick, bH - 24, [hbW - 2, 0, 0], [0, 90, 0], controller, cPages, 0.88);
-      addFace('Ribbon_Bookmark', 18, bH + 60, [hbW - 40, 25, -hbD + 3], [0, 0, 0], controller, cRibbon, 1.1);
+      addFace('Ribbon_Bookmark', 18, bH + 60, [hbW - 40, 25, hbD - 3], [0, 0, 0], controller, cRibbon, 1.1);
 
-      const bookCoverHinge = addHinge('Cover_Hinge', [-hbW, 0, -hbD], [0, 0, 0]);
-      addFace('Front_Cover_Outside', bW, bH, [hbW, 0, -2], [0, 0, 0], bookCoverHinge, cCover, 1.05);
-      addFace('Front_Cover_Inside', bW, bH, [hbW, 0, 2], [0, 180, 0], bookCoverHinge, cCover, 0.92);
+      const bookCoverHinge = addHinge('Cover_Hinge', [-hbW, 0, hbD], [0, 0, 0]);
+      addFace('Front_Cover_Outside', bW, bH, [hbW, 0, 2], [0, 0, 0], bookCoverHinge, cCover, 1.05);
+      addFace('Front_Cover_Inside', bW, bH, [hbW, 0, -2], [0, 180, 0], bookCoverHinge, cCover, 0.92);
     }
     else if (typeUpper === 'BINDER') {
       const cCover = [0.20, 0.38, 0.34, 1.0];
@@ -843,17 +845,17 @@
       const bW = 620, bH = 880, bD = 80;
       const hbW = bW / 2, hbH = bH / 2, hbD = bD / 2;
 
-      addFace('Back_Cover', bW, bH, [0, 0, hbD], [0, 180, 0], controller, cCover, 1.0);
+      addFace('Back_Cover', bW, bH, [0, 0, -hbD], [0, 180, 0], controller, cCover, 1.0);
       addFace('Spine', bD, bH, [-hbW, 0, 0], [0, -90, 0], controller, cCover, 0.85);
-      addFace('Paper_Sheet_Top', bW - 56, bH - 36, [20, 0, -hbD + 18], [0, 0, 0], controller, cPaper, 1.0, 0, selLayer);
+      addFace('Paper_Sheet_Top', bW - 56, bH - 36, [20, 0, hbD - 18], [0, 0, 0], controller, cPaper, 1.0, 0, selLayer);
 
       for (let r = 0; r < 6; r++) {
         const ringY = -hbH + 110 + r * 130;
         addFace(`Binder_Ring_${r + 1}`, 32, 14, [-hbW + 36, ringY, 0], [0, 0, 0], controller, cRings, 1.25);
       }
 
-      const binderHinge = addHinge('Cover_Hinge', [-hbW, 0, -hbD], [0, 0, 0]);
-      addFace('Front_Cover_Outside', bW, bH, [hbW, 0, -2], [0, 0, 0], binderHinge, cCover, 1.05);
+      const binderHinge = addHinge('Cover_Hinge', [-hbW, 0, hbD], [0, 0, 0]);
+      addFace('Front_Cover_Outside', bW, bH, [hbW, 0, 2], [0, 0, 0], binderHinge, cCover, 1.05);
     }
     else if (typeUpper === 'TABLET') {
       const cBody = [0.28, 0.30, 0.33, 1.0];
@@ -962,14 +964,24 @@
       const cScreen = [0.02, 0.02, 0.02, 1.0];
       const cStand = [0.78, 0.80, 0.84, 1.0];
       const cChassis = [0.18, 0.20, 0.23, 1.0];
-      const mW = 940, mH = 540, mD = 18;
+
+      let mW = 940, mH = 540;
+      if (selLayer && selLayer.scaleW && selLayer.scaleW > 100) {
+        mW = Math.round(selLayer.scaleW);
+        mH = Math.round(selLayer.scaleH && selLayer.scaleH > 50 ? selLayer.scaleH : mW * (540 / 940));
+      } else if (selLayer && selLayer.scaleH && selLayer.scaleH > 100) {
+        mH = Math.round(selLayer.scaleH);
+        mW = Math.round(mH * (940 / 540));
+      }
+      const mD = Math.max(16, Math.round(mW * 0.02));
       const hmW = mW / 2, hmH = mH / 2, hmD = mD / 2;
 
-      addFace('Screen_Display', mW - 24, mH - 24, [0, 0, -hmD - 1], [0, 0, 0], controller, cScreen, 0.05, 12, selLayer);
-      addFace('Front_Bezel', mW, mH, [0, 0, -hmD], [0, 0, 0], controller, cScreen, 1.0, 16);
-      addFace('Back_Cover', mW, mH, [0, 0, hmD], [0, 180, 0], controller, cChassis, 1.0, 16);
-      addFace('Stand_Arm', 70, 380, [0, hmH - 60, hmD + 40], [15, 180, 0], controller, cStand, 1.0);
-      addFace('Desktop_Base_Plate', 340, 240, [0, hmH + 110, hmD + 10], [90, 0, 0], controller, cStand, 1.1, 16);
+      // Front screen facing camera at +hmD
+      addFace('Front_Bezel', mW, mH, [0, 0, hmD], [0, 0, 0], controller, cScreen, 1.0, 16);
+      addFace('Screen_Display', mW - 24, mH - 24, [0, 0, hmD + 1], [0, 0, 0], controller, cScreen, 0.05, 12, selLayer);
+      addFace('Back_Cover', mW, mH, [0, 0, -hmD], [0, 180, 0], controller, cChassis, 1.0, 16);
+      addFace('Stand_Arm', Math.round(mW * 0.075), Math.round(mH * 0.7), [0, hmH - 60, -hmD - 40], [15, 180, 0], controller, cStand, 1.0);
+      addFace('Desktop_Base_Plate', Math.round(mW * 0.36), Math.round(mH * 0.44), [0, hmH + Math.round(mH * 0.2), -hmD - 10], [90, 0, 0], controller, cStand, 1.1, 16);
     }
     else if (typeUpper === 'PC') {
       const cChassis = [0.12, 0.13, 0.15, 1.0];

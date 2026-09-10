@@ -118,9 +118,30 @@
 
         <!-- Right Action Buttons (Precompose, Delete, Link/Parent & Layer Options) -->
         <div class="editor-header-right-actions">
-          <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-precomp" title="Precompose Layer(s)" aria-label="Precompose Layer(s)" style="display: none;">
+          <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-precomp" title="Group Layer(s)" aria-label="Group Layer(s)" style="display: none;">
             <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h6v4H7zm4 6h6v4h-6z"/>
+              <rect x="2.5" y="2.5" width="19" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+              <path d="M6.5 16.5l4.5-8 4.5 8z" fill="currentColor"/>
+              <circle cx="15.5" cy="14.5" r="3.5" fill="currentColor"/>
+            </svg>
+          </button>
+          <button type="button" class="editor-layer-group-mask-btn" id="btn-layer-header-group-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <rect x="2.5" y="2.5" width="19" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+              <polygon points="11,7.5 6,16.5 16,16.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <circle cx="15.5" cy="14.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M12 14.8 A3.5 3.5 0 0 0 15.5 16.5 L12 16.5 Z" fill="currentColor"/>
+            </svg>
+          </button>
+          <button type="button" class="editor-layer-group-exclude-btn" id="btn-layer-header-group-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <rect x="2.5" y="2.5" width="19" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+              <mask id="header-exclude-group-mask">
+                <rect width="24" height="24" fill="white"/>
+                <circle cx="15.5" cy="14.5" r="3.5" fill="black"/>
+              </mask>
+              <polygon points="11,7.5 6,16.5 16,16.5" fill="currentColor" mask="url(#header-exclude-group-mask)"/>
+              <circle cx="15.5" cy="14.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
             </svg>
           </button>
           <button type="button" class="editor-layer-delete-btn" id="btn-layer-header-delete" title="Delete Selected Layer" aria-label="Delete Selected Layer">
@@ -1023,6 +1044,61 @@
                             <button type="button" class="blend-item-btn" data-blend="saturation" data-mode-name="Saturation">Saturation</button>
                             <button type="button" class="blend-item-btn" data-blend="color" data-mode-name="Color">Color</button>
                             <button type="button" class="blend-item-btn" data-blend="luminosity" data-mode-name="Luminosity">Luminosity</button>
+                          </div>
+                        </div>
+
+                        <!-- Mask Group (Alight Motion Style) -->
+                        <div class="blend-group-card" id="blend-card-mask">
+                          <button type="button" class="blend-group-header" data-accordion="mask">
+                            <span class="blend-group-title">
+                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              Mask
+                            </span>
+                            <span class="blend-group-status" style="display: none;"></span>
+                          </button>
+                          <div class="blend-group-items is-mask-grid">
+                            <!-- Tile 1: Mask -->
+                            <button type="button" class="blend-mask-tile" data-blend="destination-in" data-mode-name="Mask" title="Mask (Clip underlying layers to this shape)">
+                              <div class="blend-mask-preview-box">
+                                <svg class="blend-mask-preview-svg" viewBox="0 0 64 64">
+                                  <defs>
+                                    <pattern id="blend-chk-mask" width="8" height="8" patternUnits="userSpaceOnUse">
+                                      <rect width="4" height="4" fill="var(--bg-panel-inner)"/>
+                                      <rect x="4" width="4" height="4" fill="var(--bg-panel-inner-hover)"/>
+                                      <rect y="4" width="4" height="4" fill="var(--bg-panel-inner-hover)"/>
+                                      <rect x="4" y="4" width="4" height="4" fill="var(--bg-panel-inner)"/>
+                                    </pattern>
+                                  </defs>
+                                  <rect width="64" height="64" fill="url(#blend-chk-mask)"/>
+                                  <circle cx="32" cy="32" r="23" fill="var(--color-primary)" opacity="0.88"/>
+                                  <circle cx="32" cy="32" r="23" fill="none" stroke="var(--color-primary)" stroke-width="2"/>
+                                </svg>
+                              </div>
+                              <span class="blend-mask-tile-label">Mask</span>
+                            </button>
+                            <!-- Tile 2: Exclude -->
+                            <button type="button" class="blend-mask-tile" data-blend="destination-out" data-mode-name="Exclude" title="Exclude (Punch hole through underlying layers)">
+                              <div class="blend-mask-preview-box">
+                                <svg class="blend-mask-preview-svg" viewBox="0 0 64 64">
+                                  <defs>
+                                    <pattern id="blend-chk-exclude" width="8" height="8" patternUnits="userSpaceOnUse">
+                                      <rect width="4" height="4" fill="var(--bg-panel-inner)"/>
+                                      <rect x="4" width="4" height="4" fill="var(--bg-panel-inner-hover)"/>
+                                      <rect y="4" width="4" height="4" fill="var(--bg-panel-inner-hover)"/>
+                                      <rect x="4" y="4" width="4" height="4" fill="var(--bg-panel-inner)"/>
+                                    </pattern>
+                                    <mask id="blend-exclude-circle-hole">
+                                      <rect width="64" height="64" fill="white"/>
+                                      <circle cx="32" cy="32" r="19" fill="black"/>
+                                    </mask>
+                                  </defs>
+                                  <rect width="64" height="64" fill="url(#blend-chk-exclude)"/>
+                                  <rect width="64" height="64" fill="var(--color-primary)" opacity="0.88" mask="url(#blend-exclude-circle-hole)"/>
+                                  <circle cx="32" cy="32" r="19" fill="none" stroke="var(--color-primary)" stroke-width="2"/>
+                                </svg>
+                              </div>
+                              <span class="blend-mask-tile-label">Exclude</span>
+                            </button>
                           </div>
                         </div>
 
@@ -2596,9 +2672,19 @@
         <span id="popover-label-duplicate">Duplicate</span>
       </button>
 
-      <!-- 4. Precompose (Text Only, No Icon) -->
-      <button type="button" class="popover-menu-item" id="popover-btn-precompose" title="Precompose Layer(s)">
-        <span id="popover-label-precompose">Precompose</span>
+      <!-- 4. Precompose / Group (Text Only, No Icon) -->
+      <button type="button" class="popover-menu-item" id="popover-btn-precompose" title="Group Layer(s)">
+        <span id="popover-label-precompose">Group</span>
+      </button>
+
+      <!-- 4b. Mask Group -->
+      <button type="button" class="popover-menu-item" id="popover-btn-group-mask" title="Mask Group (Group and Mask)">
+        <span id="popover-label-group-mask">Mask Group</span>
+      </button>
+
+      <!-- 4c. Exclude Group -->
+      <button type="button" class="popover-menu-item" id="popover-btn-group-exclude" title="Exclude Group (Group and Exclude)">
+        <span id="popover-label-group-exclude">Exclude Group</span>
       </button>
 
       <!-- Audio Divider -->
@@ -4809,6 +4895,15 @@
     }
     window.computeCollapsedPrecompBounds = computeCollapsedPrecompBounds;
 
+    // Global Blend Mode & Composite Operation Resolver (Mask & Exclude support)
+    function resolveBlendMode(mode) {
+      if (!mode || mode === 'normal') return 'source-over';
+      if (mode === 'mask') return 'destination-in';
+      if (mode === 'exclude') return 'destination-out';
+      return mode;
+    }
+    window.resolveBlendMode = resolveBlendMode;
+
     // Render Precompose Layer onto offscreen canvas buffer
     function renderPrecompToCanvas(precompLayer, targetCanvas, innerSec, targetW = null, targetH = null, triggerSource = '') {
       if (!targetCanvas || typeof targetCanvas.getContext !== 'function' || !precompLayer) return;
@@ -4881,7 +4976,7 @@
                 pctx.globalAlpha = Math.max(0, Math.min(1, childEff.opacity));
               }
               if (child.blendMode && child.blendMode !== 'normal') {
-                pctx.globalCompositeOperation = child.blendMode;
+                pctx.globalCompositeOperation = resolveBlendMode(child.blendMode);
               }
               window.FishEffects.renderLayer(pctx, snap, animChild, { x: 0, y: 0, w: pw, h: ph }, innerSec);
               pctx.restore();
@@ -4994,7 +5089,7 @@
             targetCtx.globalAlpha = Math.max(0, Math.min(1, eff.opacity));
           }
           if (targetChild.blendMode && targetChild.blendMode !== 'normal') {
-            targetCtx.globalCompositeOperation = targetChild.blendMode;
+            targetCtx.globalCompositeOperation = resolveBlendMode(targetChild.blendMode);
           }
           if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
             const animChild = Object.assign({}, targetChild, eff);
@@ -5432,7 +5527,7 @@
             ctx.globalAlpha = Math.max(0, Math.min(1, effProps.opacity));
           }
           if (layer.blendMode && layer.blendMode !== 'normal') {
-            ctx.globalCompositeOperation = layer.blendMode;
+            ctx.globalCompositeOperation = resolveBlendMode(layer.blendMode);
           }
 
           ctx.beginPath();
@@ -5644,7 +5739,7 @@
               } else {
                 ctx.save();
                 if (worldOpacity < 1.0) ctx.globalAlpha = Math.max(0, Math.min(1, worldOpacity));
-                if (child.blendMode && child.blendMode !== 'normal') ctx.globalCompositeOperation = child.blendMode;
+                if (child.blendMode && child.blendMode !== 'normal') ctx.globalCompositeOperation = resolveBlendMode(child.blendMode);
                 const ax = worldAnchorX * bufferScale;
                 const ay = worldAnchorY * bufferScale;
                 ctx.translate(worldPosX * bufferScale + ax, worldPosY * bufferScale + ay);
@@ -6023,7 +6118,7 @@
                 ctx.globalAlpha = Math.max(0, Math.min(1, effProps.opacity));
               }
               if (layer.blendMode && layer.blendMode !== 'normal') {
-                ctx.globalCompositeOperation = layer.blendMode;
+                ctx.globalCompositeOperation = resolveBlendMode(layer.blendMode);
               }
               if (layerDofBlur > 0.5) {
                 const curFilter = ctx.filter && ctx.filter !== 'none' ? ctx.filter : '';
@@ -11080,17 +11175,20 @@
         normalCard.classList.toggle('is-selected-group', currentMode === 'normal' || !layer.blendMode);
       }
 
-      // Check all accordion items
-      const allItemBtns = document.querySelectorAll('#layer-drawer-blend-view .blend-item-btn');
+      // Check all accordion items and mask tiles
+      const allItemBtns = document.querySelectorAll('#layer-drawer-blend-view .blend-item-btn, #layer-drawer-blend-view .blend-mask-tile');
       allItemBtns.forEach(btn => {
-        const isMatch = btn.dataset.blend === currentMode;
+        const bMode = btn.dataset.blend;
+        const isMatch = bMode === currentMode || (currentMode === 'mask' && bMode === 'destination-in') || (currentMode === 'exclude' && bMode === 'destination-out');
         btn.classList.toggle('is-selected', isMatch);
       });
 
       // Update accordion card headers
       const groupCards = document.querySelectorAll('#layer-drawer-blend-view .blend-group-card:not(#blend-card-normal)');
       groupCards.forEach(card => {
-        const activeBtn = card.querySelector(`.blend-item-btn[data-blend="${currentMode}"]`);
+        const activeBtn = card.querySelector(`.blend-item-btn[data-blend="${currentMode}"], .blend-mask-tile[data-blend="${currentMode}"]`) ||
+                          (currentMode === 'mask' ? card.querySelector(`.blend-mask-tile[data-blend="destination-in"]`) : null) ||
+                          (currentMode === 'exclude' ? card.querySelector(`.blend-mask-tile[data-blend="destination-out"]`) : null);
         const statusSpan = card.querySelector('.blend-group-status');
         if (activeBtn) {
           card.classList.add('is-selected-group');
@@ -11282,8 +11380,8 @@
         });
       });
 
-      // Individual Blend Mode Item Selection
-      const blendItemBtns = document.querySelectorAll('#layer-drawer-blend-view .blend-item-btn');
+      // Individual Blend Mode Item & Mask Tile Selection
+      const blendItemBtns = document.querySelectorAll('#layer-drawer-blend-view .blend-item-btn, #layer-drawer-blend-view .blend-mask-tile');
       blendItemBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -11293,7 +11391,12 @@
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (!layer) return;
 
-          layer.blendMode = mode;
+          // Toggle back to normal if already selected mask tile
+          if (btn.classList.contains('blend-mask-tile') && (layer.blendMode === mode || (mode === 'destination-in' && layer.blendMode === 'mask') || (mode === 'destination-out' && layer.blendMode === 'exclude'))) {
+            layer.blendMode = 'normal';
+          } else {
+            layer.blendMode = mode;
+          }
 
           // Invalidate frame preview cache
           invalidatePreviewCacheForLayer(layer);
@@ -21066,6 +21169,8 @@
         const batchTitle = document.getElementById('editor-layer-batch-title');
         const btnLink = document.getElementById('btn-layer-header-link');
         const btnPrecomp = document.getElementById('btn-layer-header-precomp');
+        const btnGroupMask = document.getElementById('btn-layer-header-group-mask');
+        const btnGroupExclude = document.getElementById('btn-layer-header-group-exclude');
         if (!projectNav || !layerNav) return;
 
         const count = selectedLayerIds && selectedLayerIds.size > 0 ? selectedLayerIds.size : (selectedLayerId ? 1 : 0);
@@ -21079,17 +21184,21 @@
           layerNav.style.display = 'flex';
 
           if (isSelectorMode || count > 1) {
-            // Batch select: show "(count) Selected" and Precompose button
+            // Batch select: show "(count) Selected" and Group buttons
             if (layerNameInput) layerNameInput.style.display = 'none';
             if (btnLink) btnLink.style.display = 'none';
             if (btnPrecomp) btnPrecomp.style.display = 'inline-flex';
+            if (btnGroupMask) btnGroupMask.style.display = 'inline-flex';
+            if (btnGroupExclude) btnGroupExclude.style.display = 'inline-flex';
             if (batchTitle) {
               batchTitle.textContent = `${count} Selected`;
               batchTitle.style.display = 'block';
             }
           } else if (count === 1) {
-            // Single select: show layer rename input & link button, hide precomp button
+            // Single select: show layer rename input & link button, hide group buttons
             if (btnPrecomp) btnPrecomp.style.display = 'none';
+            if (btnGroupMask) btnGroupMask.style.display = 'none';
+            if (btnGroupExclude) btnGroupExclude.style.display = 'none';
             const targetId = selectedLayerId || (selectedLayerIds ? Array.from(selectedLayerIds)[0] : null);
             const layer = (currentProjectState.layers || []).find(l => l.id === targetId);
             if (layer && layerNameInput) {
@@ -21137,6 +21246,8 @@
           projectNav.style.display = 'flex';
           if (btnLink) btnLink.style.display = 'none';
           if (btnPrecomp) btnPrecomp.style.display = 'none';
+          if (btnGroupMask) btnGroupMask.style.display = 'none';
+          if (btnGroupExclude) btnGroupExclude.style.display = 'none';
           const btnLayerCol = document.getElementById('btn-layer-header-collapse');
           if (btnLayerCol) btnLayerCol.style.display = 'none';
 
@@ -21196,20 +21307,42 @@
           });
         }
 
-        // 1b. Precompose Selected Layer(s) Button
+        // 1b. Precompose / Group Selected Layer(s) Button
         const btnLayerPrecomp = document.getElementById('btn-layer-header-precomp');
         if (btnLayerPrecomp) {
           btnLayerPrecomp.addEventListener('click', (e) => {
             e.stopPropagation();
             if (typeof precomposeSelectedLayers === 'function') {
-              precomposeSelectedLayers(false);
+              precomposeSelectedLayers(false, 'normal');
             }
           });
           btnLayerPrecomp.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             if (typeof precomposeSelectedLayers === 'function') {
-              precomposeSelectedLayers(true);
+              precomposeSelectedLayers(true, 'normal');
+            }
+          });
+        }
+
+        // 1c. Mask Group Button (Group and Mask)
+        const btnLayerGroupMask = document.getElementById('btn-layer-header-group-mask');
+        if (btnLayerGroupMask) {
+          btnLayerGroupMask.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'mask');
+            }
+          });
+        }
+
+        // 1d. Exclude Group Button (Group and Exclude)
+        const btnLayerGroupExclude = document.getElementById('btn-layer-header-group-exclude');
+        if (btnLayerGroupExclude) {
+          btnLayerGroupExclude.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'exclude');
             }
           });
         }
@@ -21430,6 +21563,26 @@
             e.stopPropagation();
             if (typeof precomposeSelectedLayers === 'function') {
               precomposeSelectedLayers();
+            }
+          });
+        }
+
+        const btnPopoverGroupMask = document.getElementById('popover-btn-group-mask');
+        if (btnPopoverGroupMask) {
+          btnPopoverGroupMask.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'mask');
+            }
+          });
+        }
+
+        const btnPopoverGroupExclude = document.getElementById('popover-btn-group-exclude');
+        if (btnPopoverGroupExclude) {
+          btnPopoverGroupExclude.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'exclude');
             }
           });
         }
@@ -21702,18 +21855,40 @@
           }
         }
 
-        // 3b. Precompose State (Text only)
+        // 3b. Precompose / Group State (Text only)
         if (precomposeBtn) {
           if (!hasKeyframesSelected && selectedCount > 0 && !isFromEmptyTimeline) {
             precomposeBtn.removeAttribute('disabled');
             precomposeBtn.style.display = 'flex';
             if (precomposeLabel) {
-              precomposeLabel.textContent = selectedCount > 1 ? `Precompose (${selectedCount})` : 'Precompose';
+              precomposeLabel.textContent = selectedCount > 1 ? `Group (${selectedCount})` : 'Group';
             }
           } else {
             precomposeBtn.setAttribute('disabled', 'true');
             precomposeBtn.style.display = 'none';
-            if (precomposeLabel) precomposeLabel.textContent = 'Precompose';
+            if (precomposeLabel) precomposeLabel.textContent = 'Group';
+          }
+        }
+
+        // 3c. Mask Group & Exclude Group State
+        const groupMaskBtn = document.getElementById('popover-btn-group-mask');
+        const groupExcludeBtn = document.getElementById('popover-btn-group-exclude');
+        if (groupMaskBtn) {
+          if (!hasKeyframesSelected && selectedCount > 1 && !isFromEmptyTimeline) {
+            groupMaskBtn.removeAttribute('disabled');
+            groupMaskBtn.style.display = 'flex';
+          } else {
+            groupMaskBtn.setAttribute('disabled', 'true');
+            groupMaskBtn.style.display = 'none';
+          }
+        }
+        if (groupExcludeBtn) {
+          if (!hasKeyframesSelected && selectedCount > 1 && !isFromEmptyTimeline) {
+            groupExcludeBtn.removeAttribute('disabled');
+            groupExcludeBtn.style.display = 'flex';
+          } else {
+            groupExcludeBtn.setAttribute('disabled', 'true');
+            groupExcludeBtn.style.display = 'none';
           }
         }
 
@@ -21938,12 +22113,14 @@
       }
       window.duplicateSelectedLayers = duplicateSelectedLayers;
 
-      function precomposeSelectedLayers(autoCrop = false) {
+      function precomposeSelectedLayers(autoCrop = false, groupMode = 'normal') {
         const layers = currentProjectState.layers || [];
         const ids = [];
-        if (selectedLayerId) ids.push(selectedLayerId);
-        if (selectedLayerIds && selectedLayerIds.size > 0) {
-          selectedLayerIds.forEach(id => { if (!ids.includes(id)) ids.push(id); });
+        const sId = selectedLayerId || window.selectedLayerId;
+        if (sId) ids.push(sId);
+        const sIds = (selectedLayerIds && selectedLayerIds.size > 0) ? selectedLayerIds : (window.selectedLayerIds && window.selectedLayerIds.size > 0 ? window.selectedLayerIds : null);
+        if (sIds && sIds.size > 0) {
+          sIds.forEach(id => { if (!ids.includes(id)) ids.push(id); });
         }
         if (ids.length === 0 || layers.length === 0) return null;
 
@@ -22017,6 +22194,13 @@
             });
           }
         });
+
+        // For Mask Group / Exclude Group, topmost visual layer (child 0) acts as the mask
+        if (groupMode === 'mask' && clonedChildren.length > 0) {
+          clonedChildren[0].blendMode = 'destination-in';
+        } else if (groupMode === 'exclude' && clonedChildren.length > 0) {
+          clonedChildren[0].blendMode = 'destination-out';
+        }
 
         // Auto-Crop bounding box calculation (Right-click PRECOMP_AUTOCROP)
         let compW = baseW;
@@ -22097,8 +22281,17 @@
         }
 
         // 3. Name & ID & Media Pool Registration
-        const precompCount = layers.filter(l => l.type === 'precomp').length + 1;
-        const precompName = `Pre-comp ${precompCount}`;
+        let precompName = '';
+        if (groupMode === 'mask') {
+          const maskCount = layers.filter(l => l.type === 'precomp' && l.groupType === 'mask').length + 1;
+          precompName = `Mask Group ${maskCount}`;
+        } else if (groupMode === 'exclude') {
+          const excludeCount = layers.filter(l => l.type === 'precomp' && l.groupType === 'exclude').length + 1;
+          precompName = `Exclude Group ${excludeCount}`;
+        } else {
+          const precompCount = layers.filter(l => l.type === 'precomp' && (!l.groupType || l.groupType === 'normal')).length + 1;
+          precompName = `Pre-comp ${precompCount}`;
+        }
         const precompId = 'layer_precomp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         const mediaId = 'media_comp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
@@ -22120,6 +22313,7 @@
           mediaId: mediaId,
           name: precompName,
           type: 'precomp',
+          groupType: groupMode,
           startSec: Number(minStartSec.toFixed(4)),
           durationSec: Number(durationSec.toFixed(4)),
           startPx: Math.round(minStartSec * pps),
@@ -22158,6 +22352,7 @@
           projectId: currentProjectState.id,
           name: precompName,
           type: 'precomp',
+          groupType: groupMode,
           precompId: precompId,
           duration: durationSec,
           width: compW,
@@ -23139,7 +23334,7 @@
         const layers = currentProjectState.layers || [];
         layers.forEach(layer => {
           const clipType = layer.type === 'shape' ? 'shape' : (layer.type === 'text' ? 'text' : (layer.type === 'video' ? 'video' : (layer.type === 'audio' ? 'audio' : (layer.type === 'adjustment' ? 'adjustment' : (layer.type === 'camera' ? 'camera' : (layer.type === 'null' ? 'null' : (layer.type === 'precomp' ? 'precomp' : (layer.type === 'color' ? 'color' : 'image'))))))));
-          const typeTag = layer.type === 'shape' ? 'SHP' : (layer.type === 'text' ? 'TXT' : (layer.type === 'video' ? 'VID' : (layer.type === 'audio' ? 'AUD' : (layer.type === 'adjustment' ? 'ADJ' : (layer.type === 'camera' ? 'CAM' : (layer.type === 'null' ? 'NULL' : (layer.type === 'precomp' ? 'COMP' : (layer.type === 'color' ? 'CLR' : 'IMG'))))))));
+          const typeTag = layer.type === 'shape' ? 'SHP' : (layer.type === 'text' ? 'TXT' : (layer.type === 'video' ? 'VID' : (layer.type === 'audio' ? 'AUD' : (layer.type === 'adjustment' ? 'ADJ' : (layer.type === 'camera' ? 'CAM' : (layer.type === 'null' ? 'NULL' : (layer.type === 'precomp' ? (layer.groupType === 'mask' ? 'MASK' : (layer.groupType === 'exclude' ? 'EXCL' : 'COMP')) : (layer.type === 'color' ? 'CLR' : 'IMG'))))))));
           const isSelected = selectedLayerIds.has(layer.id) || layer.id === selectedLayerId;
           const isHidden = !!layer.hidden;
 

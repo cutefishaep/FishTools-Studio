@@ -1010,6 +1010,84 @@
   display: flex;
 }
 
+/* Mask Blend Mode Visual Grid & Tiles (Alight Motion Style) */
+.blend-group-items.is-mask-grid {
+  display: none;
+  flex-direction: row;
+  gap: 12px;
+  padding: 12px;
+  background-color: var(--bg-panel-inner);
+  box-sizing: border-box;
+}
+
+.blend-group-card.is-expanded .blend-group-items.is-mask-grid {
+  display: flex;
+}
+
+.blend-mask-tile {
+  flex: 1;
+  max-width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.blend-mask-preview-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  background-color: var(--bg-dashboard);
+  border: 1px solid var(--border-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.blend-mask-tile:hover .blend-mask-preview-box {
+  border-color: var(--color-primary-hover);
+  background-color: var(--bg-panel-hover);
+}
+
+.blend-mask-tile.is-selected .blend-mask-preview-box {
+  border: 2px solid var(--color-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.blend-mask-tile-label {
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.12s ease;
+  text-align: center;
+}
+
+.blend-mask-tile:hover .blend-mask-tile-label {
+  color: var(--color-primary-hover);
+}
+
+.blend-mask-tile.is-selected .blend-mask-tile-label {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.blend-mask-preview-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .blend-item-btn {
   width: 100%;
   height: 32px;

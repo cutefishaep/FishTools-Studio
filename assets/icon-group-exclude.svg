@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <rect x="2.5" y="2.5" width="19" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.2 2"/>
+  <mask id="exclude-group-mask">
+    <rect width="24" height="24" fill="white"/>
+    <circle cx="15.5" cy="14.5" r="3.5" fill="black"/>
+  </mask>
+  <polygon points="11,7.5 6,16.5 16,16.5" fill="currentColor" mask="url(#exclude-group-mask)"/>
+  <circle cx="15.5" cy="14.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+</svg>

@@ -616,6 +616,9 @@ html, body {
   color: var(--bg-canvas);
 }
 
+.editor-layer-precomp-btn,
+.editor-layer-group-mask-btn,
+.editor-layer-group-exclude-btn,
 .editor-layer-collapse-btn,
 .editor-precomp-collapse-btn {
   background-color: transparent;
@@ -635,6 +638,9 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.editor-layer-precomp-btn svg,
+.editor-layer-group-mask-btn svg,
+.editor-layer-group-exclude-btn svg,
 .editor-layer-collapse-btn svg,
 .editor-precomp-collapse-btn svg {
   width: 20px;
@@ -643,12 +649,18 @@ html, body {
   pointer-events: none;
 }
 
+.editor-layer-precomp-btn:hover,
+.editor-layer-group-mask-btn:hover,
+.editor-layer-group-exclude-btn:hover,
 .editor-layer-collapse-btn:hover,
 .editor-precomp-collapse-btn:hover {
   background-color: var(--bg-panel-hover);
   color: var(--color-primary-hover);
 }
 
+.editor-layer-precomp-btn:active,
+.editor-layer-group-mask-btn:active,
+.editor-layer-group-exclude-btn:active,
 .editor-layer-collapse-btn:active,
 .editor-precomp-collapse-btn:active {
   background-color: var(--color-primary);

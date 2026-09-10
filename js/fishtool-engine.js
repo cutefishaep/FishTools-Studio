@@ -912,7 +912,7 @@
           ctx.globalAlpha = Math.max(0, Math.min(1, layer.opacity));
         }
         if (layer.blendMode && layer.blendMode !== 'normal') {
-          ctx.globalCompositeOperation = layer.blendMode;
+          ctx.globalCompositeOperation = (layer.blendMode === 'mask') ? 'destination-in' : (layer.blendMode === 'exclude') ? 'destination-out' : layer.blendMode;
         }
         if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
           window.FishEffects.applyToContext(ctx, layer);
@@ -1122,7 +1122,7 @@
       try {
         ctx.save();
         if (layer.blendMode && layer.blendMode !== 'normal') {
-          ctx.globalCompositeOperation = layer.blendMode;
+          ctx.globalCompositeOperation = (layer.blendMode === 'mask') ? 'destination-in' : (layer.blendMode === 'exclude') ? 'destination-out' : layer.blendMode;
         }
         if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
           window.FishEffects.applyToContext(ctx, layer);

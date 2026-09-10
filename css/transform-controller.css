@@ -790,13 +790,30 @@
 /* Static handles without scale animation / jitter */
 .graph-handle-node {
   cursor: grab;
-  touch-action: none;
+  touch-action: none !important;
   user-select: none;
+  -webkit-user-select: none;
   outline: none;
+  transition: fill 0.12s ease;
 }
 
 .graph-handle-node:active,
 .graph-handle-node.is-dragging {
+  cursor: grabbing !important;
+  fill: var(--color-primary) !important;
+}
+
+/* Expanded invisible hit target for effortless mobile touch dragging */
+.graph-handle-hitarea {
+  cursor: grab;
+  touch-action: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.graph-handle-hitarea:active,
+.graph-handle-hitarea.is-dragging {
   cursor: grabbing !important;
 }
 

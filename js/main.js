@@ -11,7 +11,20 @@ document.addEventListener('DOMContentLoaded', () => {
   initUIProtections();
   initVersionFetcher();
   initProjectsFetcher();
+  initGDriveDashboard();
   initWelcomeModal();
+
+  // Handle redirect errors from editor (ghost project guard)
+  const _urlErr = new URLSearchParams(window.location.search).get('error');
+  if (_urlErr) {
+    const _errMessages = {
+      login_required: 'Login dulu untuk buka cloud project.',
+      project_not_found: 'Project tidak ditemukan atau sudah dihapus.'
+    };
+    setTimeout(() => showDashboardToast(_errMessages[_urlErr] || 'Project tidak valid.', 4000), 600);
+    // Clean the ?error= from URL bar without reload
+    history.replaceState(null, '', window.location.pathname);
+  }
 });
 
 /**
@@ -251,6 +264,357 @@ async function initProjectsFetcher() {
   }
 }
 
+let activeProjectsTab = 'local'; // 'local' | 'cloud'
+
+/**
+ * Initializes Google Drive Cloud Sync dashboard, dual tabs, auth, and cloud projects list
+ */
+function initGDriveDashboard() {
+  const tabLocal = document.getElementById('tab-local-projects');
+  const tabCloud = document.getElementById('tab-cloud-projects');
+  const panelLocal = document.getElementById('panel-local-projects');
+  const panelCloud = document.getElementById('panel-cloud-projects');
+  const cloudContainer = document.getElementById('cloud-projects-container');
+  const cloudBadge = document.getElementById('cloud-count-badge');
+  const loginBox = document.getElementById('gdrive-login-box');
+  const userBar = document.getElementById('gdrive-user-bar');
+  const btnLogin = document.getElementById('btn-gdrive-login');
+  const btnLogout = document.getElementById('btn-gdrive-logout');
+  const btnRefresh = document.getElementById('btn-gdrive-refresh');
+  const btnSaveConfig = document.getElementById('btn-save-gdrive-config');
+  const inputClientId = document.getElementById('input-gdrive-client-id');
+
+  if (!tabLocal || !tabCloud) return;
+
+  // Manage Client ID config presentation securely
+  function updateClientIdInput() {
+    if (!inputClientId || !window.FishGDriveConfig) return;
+    const hintEl = document.getElementById('gdrive-config-hint');
+    let stored = '';
+    try {
+      stored = localStorage.getItem('fishtools_gdrive_client_id') || '';
+    } catch (_) {}
+
+    if (stored) {
+      inputClientId.value = stored;
+      if (hintEl) hintEl.textContent = 'Custom Client ID saved in browser storage (masked). Clear and save to use .env.';
+    } else if (window.FishGDriveConfig.isEnvConfigured()) {
+      inputClientId.value = '';
+      inputClientId.placeholder = 'Configured via server (.env)';
+      if (hintEl) hintEl.textContent = 'OAuth Client ID active from .env (hidden for privacy). Leave blank to keep using .env.';
+    } else {
+      inputClientId.value = '';
+      inputClientId.placeholder = 'Enter Client ID (.apps.googleusercontent.com)';
+      if (hintEl) hintEl.textContent = 'Enter your Google Cloud OAuth 2.0 Client ID.';
+    }
+  }
+
+  updateClientIdInput();
+  window.addEventListener('gdrive-config-loaded', updateClientIdInput);
+
+  if (btnSaveConfig && inputClientId) {
+    btnSaveConfig.addEventListener('click', () => {
+      const val = inputClientId.value.trim();
+      if (window.FishGDriveConfig) {
+        window.FishGDriveConfig.setClientId(val);
+      }
+      if (window.FishGDriveSync) {
+        window.FishGDriveSync.initTokenClient();
+      }
+      if (window.Modal) {
+        window.Modal.close('modal-gdrive-config');
+      }
+      updateClientIdInput();
+      showDashboardToast(val ? 'Custom Google Client ID saved' : 'Using server .env configuration');
+    });
+  }
+
+  // Switch to Local Tab
+  function switchToLocal() {
+    activeProjectsTab = 'local';
+    tabLocal.classList.add('is-active');
+    tabLocal.setAttribute('aria-selected', 'true');
+    tabCloud.classList.remove('is-active');
+    tabCloud.setAttribute('aria-selected', 'false');
+    if (panelLocal) panelLocal.style.display = '';
+    if (panelCloud) panelCloud.style.display = 'none';
+  }
+
+  // Switch to Cloud Tab
+  function switchToCloud() {
+    activeProjectsTab = 'cloud';
+    tabCloud.classList.add('is-active');
+    tabCloud.setAttribute('aria-selected', 'true');
+    tabLocal.classList.remove('is-active');
+    tabLocal.setAttribute('aria-selected', 'false');
+    if (panelCloud) panelCloud.style.display = '';
+    if (panelLocal) panelLocal.style.display = 'none';
+    if (cloudBadge) cloudBadge.style.display = '';
+
+    syncGDriveUI();
+  }
+
+  tabLocal.addEventListener('click', switchToLocal);
+  tabCloud.addEventListener('click', switchToCloud);
+
+  // Sync Google Drive Auth State & UI
+  async function syncGDriveUI() {
+    const isAuthed = window.FishGDriveSync && window.FishGDriveSync.isAuthenticated();
+    if (!isAuthed) {
+      if (loginBox) loginBox.style.display = '';
+      if (userBar) userBar.style.display = 'none';
+      if (cloudContainer) cloudContainer.style.display = 'none';
+      if (cloudBadge) cloudBadge.style.display = 'none';
+      return;
+    }
+
+    if (loginBox) loginBox.style.display = 'none';
+    if (userBar) userBar.style.display = 'flex';
+    if (cloudContainer) cloudContainer.style.display = 'flex';
+    if (cloudBadge) cloudBadge.style.display = '';
+
+    const user = window.FishGDriveSync.getUser();
+    const nameEl = document.getElementById('gdrive-user-name');
+    const emailEl = document.getElementById('gdrive-user-email');
+    const avatarEl = document.getElementById('gdrive-user-avatar');
+    const fallbackAvatar = document.getElementById('gdrive-user-avatar-fallback');
+
+    function applyUserDetails(u) {
+      if (!u) return;
+      if (nameEl) nameEl.textContent = u.name || (u.email ? u.email.split('@')[0] : 'User');
+      if (emailEl) emailEl.textContent = u.email || '';
+      if (avatarEl && u.picture) {
+        avatarEl.onerror = () => {
+          // Photo blocked by CORS/ORB — fall back to initials avatar silently
+          avatarEl.style.display = 'none';
+          avatarEl.onerror = null;
+          if (fallbackAvatar) fallbackAvatar.style.display = 'flex';
+        };
+        avatarEl.src = u.picture;
+        avatarEl.style.display = '';
+        if (fallbackAvatar) fallbackAvatar.style.display = 'none';
+      } else {
+        if (avatarEl) avatarEl.style.display = 'none';
+        if (fallbackAvatar) fallbackAvatar.style.display = 'flex';
+      }
+    }
+
+    if (user) {
+      applyUserDetails(user);
+    }
+
+    // If user info is not loaded yet or default fallback, fetch live from Drive API
+    if (!user || user.name === 'Google User' || !user.email) {
+      if (window.FishGDriveSync && typeof window.FishGDriveSync.fetchUserProfile === 'function') {
+        window.FishGDriveSync.fetchUserProfile().then(freshUser => {
+          if (freshUser) applyUserDetails(freshUser);
+        }).catch(() => {});
+      }
+    }
+
+    await loadAndRenderCloudProjects();
+  }
+
+  // Load and render cloud projects from Google Drive
+  async function loadAndRenderCloudProjects() {
+    if (!cloudContainer || !window.FishGDriveSync || !window.FishGDriveSync.isAuthenticated()) return;
+
+    cloudContainer.innerHTML = `
+      <div class="projects-empty">
+        <span style="opacity: 0.7;">Loading cloud projects from Google Drive...</span>
+      </div>
+    `;
+
+    const attemptLoad = async (attempt = 1) => {
+      try {
+        const projects = await window.FishGDriveSync.listProjects();
+        renderCloudProjectsList(projects);
+      } catch (err) {
+        // NetworkError on first attempt = transient (page load timing, token init race) — retry once
+        if (attempt === 1 && err instanceof TypeError && err.message && err.message.includes('NetworkError')) {
+          setTimeout(() => attemptLoad(2), 1500);
+          return;
+        }
+        console.warn('Failed to list cloud projects:', err);
+        cloudContainer.innerHTML = `
+          <div class="projects-empty">
+            <span style="color: var(--color-danger, #ef4444);">${escapeHtml(err.message || 'Error loading cloud projects')}</span>
+          </div>
+        `;
+      }
+    };
+    await attemptLoad();
+  }
+
+  // Render cloud projects list markup
+  function renderCloudProjectsList(projects) {
+    if (cloudBadge) {
+      cloudBadge.textContent = String(projects ? projects.length : 0);
+      cloudBadge.setAttribute('title', `${projects ? projects.length : 0} Cloud Projects`);
+    }
+
+    if (!cloudContainer) return;
+
+    if (!projects || projects.length === 0) {
+      cloudContainer.innerHTML = `
+        <div class="projects-empty">
+          <div class="projects-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+            </svg>
+          </div>
+          <span>No cloud projects found on Google Drive</span>
+        </div>
+      `;
+      return;
+    }
+
+    cloudContainer.innerHTML = projects.map(project => {
+      const name = project.name || 'Untitled Project';
+      const size = project.size || '12 KB';
+      const savedTime = formatRelativeTime(project.updatedAt);
+      const specs = `Google Drive • .ofts`;
+
+      return `
+        <div class="project-swipe-container" data-id="${escapeHtml(project.id)}" data-name="${escapeHtml(name)}" data-is-cloud="true">
+          <!-- Slide RIGHT reveals Delete (Left side) -->
+          <div class="project-swipe-action action-delete" aria-hidden="true" title="Slide right to delete">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+            <span>Delete</span>
+          </div>
+
+          <!-- Slide LEFT reveals Export to .ofts (Right side) -->
+          <div class="project-swipe-action action-export" aria-hidden="true" title="Slide left to export">
+            <span>Export .ofts</span>
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+          </div>
+
+          <!-- Top Layer Project Item Card -->
+          <article class="project-item" data-id="${escapeHtml(project.id)}" data-is-cloud="true" tabindex="0" role="button" aria-label="Cloud Project: ${escapeHtml(name)}">
+            <div class="project-row-main">
+              <span class="project-name" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="opacity: 0.8; flex-shrink: 0;">
+                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                </svg>
+                ${escapeHtml(name)}
+              </span>
+              <span class="project-size">${escapeHtml(size)}</span>
+            </div>
+            <div class="project-row-sub">
+              <span class="project-saved">${escapeHtml(savedTime)}</span>
+              <span class="project-specs">${specs}</span>
+            </div>
+          </article>
+        </div>
+      `;
+    }).join('');
+
+    bindProjectSwipeGestures(cloudContainer);
+  }
+
+  // Cloud project click navigation (delegated)
+  cloudContainer.addEventListener('click', (e) => {
+    const swipeBox = e.target.closest('.project-swipe-container');
+    if (swipeBox && swipeBox._hasSwiped) return;
+    const item = e.target.closest('.project-item');
+    if (!item) return;
+    const projectId = item.dataset.id;
+    const projectName = item.querySelector('.project-name')?.textContent?.trim() || 'Project';
+    if (projectId) {
+      window.location.href = `editor.html?id=${encodeURIComponent(projectId)}&source=gdrive&name=${encodeURIComponent(projectName)}`;
+    }
+  });
+
+  // Attach Right-Click Context Menu to Cloud Projects
+  if (window.ContextMenu && typeof window.ContextMenu.bindTrigger === 'function') {
+    window.ContextMenu.bindTrigger(cloudContainer, '.project-item', (target) => {
+      const projectId = target.dataset.id;
+      const projectName = target.querySelector('.project-name')?.textContent?.trim() || 'Project';
+      return [
+        {
+          label: 'Export .ofts',
+          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
+          action: () => exportProjectAction(projectId, projectName, true)
+        },
+        { divider: true },
+        {
+          label: 'Delete from Drive',
+          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+          danger: true,
+          action: () => openDeleteModal(projectId, projectName, true)
+        }
+      ];
+    });
+  }
+
+  // Sign In Click
+  if (btnLogin) {
+    btnLogin.addEventListener('click', async () => {
+      try {
+        btnLogin.disabled = true;
+        btnLogin.style.opacity = '0.7';
+        if (window.FishGDriveSync) {
+          await window.FishGDriveSync.login();
+          await syncGDriveUI();
+        }
+      } catch (err) {
+        console.warn('Google Drive login failed:', err);
+        const clientId = window.FishGDriveConfig ? window.FishGDriveConfig.getClientId() : '';
+        if (!clientId) {
+          if (window.Modal) window.Modal.open('modal-gdrive-config');
+          showDashboardToast('Please configure your Google Client ID first');
+        } else {
+          showDashboardToast('Login failed: ' + (err.message || 'Check connection or origin'));
+        }
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.style.opacity = '';
+      }
+    });
+  }
+
+  // Sign Out Click
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      if (window.FishGDriveSync) {
+        window.FishGDriveSync.logout();
+        syncGDriveUI();
+        showDashboardToast('Signed out of Google Drive');
+      }
+    });
+  }
+
+  // Refresh Click
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', async () => {
+      showDashboardToast('Refreshing cloud projects...');
+      await loadAndRenderCloudProjects();
+    });
+  }
+
+  // Window event listeners
+  window.addEventListener('gdrive-auth-changed', () => {
+    syncGDriveUI();
+  });
+
+  window.addEventListener('gdrive-projects-updated', () => {
+    if (activeProjectsTab === 'cloud') {
+      loadAndRenderCloudProjects();
+    }
+  });
+
+  // Pre-sync UI if already logged in from prior session
+  if (window.FishGDriveSync && window.FishGDriveSync.isAuthenticated()) {
+    window.FishGDriveSync.fetchUserProfile().then(() => {
+      syncGDriveUI();
+    });
+  }
+}
+
 
 /**
  * Renders project cards inside the Your Project list with swipe actions
@@ -474,16 +838,18 @@ function bindProjectSwipeGestures(container) {
         itemEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
         itemEl.style.transform = 'translateX(0px)';
 
+        const isCloud = swipeBox.dataset.isCloud === 'true';
+
         if (finalX >= SWIPE_TRIGGER_THRESHOLD) {
           // Slide RIGHT -> Delete confirmation modal
           const projectId = swipeBox.dataset.id;
           const projectName = swipeBox.dataset.name;
-          openDeleteModal(projectId, projectName);
+          openDeleteModal(projectId, projectName, isCloud);
         } else if (finalX <= -SWIPE_TRIGGER_THRESHOLD) {
           // Slide LEFT -> Export to .ofts
           const projectId = swipeBox.dataset.id;
           const projectName = swipeBox.dataset.name;
-          exportProjectAction(projectId, projectName);
+          exportProjectAction(projectId, projectName, isCloud);
         }
 
         setTimeout(() => {
@@ -514,13 +880,15 @@ function bindProjectSwipeGestures(container) {
     if (deleteAction) {
       deleteAction.addEventListener('click', (e) => {
         e.stopPropagation();
-        openDeleteModal(swipeBox.dataset.id, swipeBox.dataset.name);
+        const isCloud = swipeBox.dataset.isCloud === 'true';
+        openDeleteModal(swipeBox.dataset.id, swipeBox.dataset.name, isCloud);
       });
     }
     if (exportAction) {
       exportAction.addEventListener('click', (e) => {
         e.stopPropagation();
-        exportProjectAction(swipeBox.dataset.id, swipeBox.dataset.name);
+        const isCloud = swipeBox.dataset.isCloud === 'true';
+        exportProjectAction(swipeBox.dataset.id, swipeBox.dataset.name, isCloud);
       });
     }
   });
@@ -665,7 +1033,7 @@ async function saveRenameProjectAction() {
 /**
  * Opens the Delete Project Confirmation Modal
  */
-function openDeleteModal(projectId, currentName) {
+function openDeleteModal(projectId, currentName, isCloud = false) {
   const modal = document.getElementById('modal-delete-project');
   const idInput = document.getElementById('delete-project-id');
   const targetNameEl = document.getElementById('delete-target-name');
@@ -673,11 +1041,12 @@ function openDeleteModal(projectId, currentName) {
   if (!modal || !idInput) return;
 
   idInput.value = projectId || '';
+  idInput.dataset.isCloud = isCloud ? 'true' : 'false';
   const displayName = `"${currentName || 'Untitled'}"`;
   if (targetNameEl) {
     targetNameEl.textContent = displayName;
   } else if (promptEl) {
-    promptEl.textContent = `Delete project ${displayName}?`;
+    promptEl.textContent = `Delete ${isCloud ? 'cloud ' : ''}project ${displayName}?`;
   }
 
   if (window.Modal) {
@@ -691,13 +1060,23 @@ function openDeleteModal(projectId, currentName) {
 async function confirmDeleteProjectAction() {
   const idInput = document.getElementById('delete-project-id');
   const projectId = idInput ? idInput.value : '';
+  const isCloud = idInput && idInput.dataset.isCloud === 'true';
 
-  if (projectId && window.FishDatabase) {
-    try {
-      await window.FishDatabase.deleteProject(projectId);
-      showDashboardToast('Project deleted successfully');
-    } catch (e) {
-      console.warn('Delete project error:', e);
+  if (projectId) {
+    if (isCloud && window.FishGDriveSync) {
+      try {
+        await window.FishGDriveSync.deleteProject(projectId);
+        showDashboardToast('Cloud project deleted from Drive');
+      } catch (e) {
+        showDashboardToast('Failed to delete cloud project: ' + (e.message || 'Error'));
+      }
+    } else if (window.FishDatabase) {
+      try {
+        await window.FishDatabase.deleteProject(projectId);
+        showDashboardToast('Project deleted successfully');
+      } catch (e) {
+        console.warn('Delete project error:', e);
+      }
     }
   }
 
@@ -706,23 +1085,49 @@ async function confirmDeleteProjectAction() {
   }
 
   // Refresh project list
-  const listContainer = document.getElementById('projects-container');
-  const countBadge = document.getElementById('project-count-badge');
-  if (listContainer && window.FishDatabase) {
-    try {
-      const projects = await window.FishDatabase.getProjects();
-      renderProjects(projects, listContainer, countBadge);
-    } catch (_) {}
+  if (isCloud) {
+    window.dispatchEvent(new CustomEvent('gdrive-projects-updated'));
+  } else {
+    const listContainer = document.getElementById('projects-container');
+    const countBadge = document.getElementById('project-count-badge');
+    if (listContainer && window.FishDatabase) {
+      try {
+        const projects = await window.FishDatabase.getProjects();
+        renderProjects(projects, listContainer, countBadge);
+      } catch (_) {}
+    }
   }
 }
 
 /**
  * Exports project as .ofts package
  */
-async function exportProjectAction(projectId, projectName) {
+async function exportProjectAction(projectId, projectName, isCloud = false) {
   if (!projectId) return;
 
   showDashboardToast(`Exporting ${projectName || 'project'}...`);
+
+  if (isCloud && window.FishGDriveSync) {
+    try {
+      const prjData = await window.FishGDriveSync.getProject(projectId);
+      const jsonStr = JSON.stringify(prjData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${projectName || 'Project'}.ofts`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showDashboardToast('.ofts export completed');
+      return;
+    } catch (e) {
+      console.warn('Cloud export error:', e);
+      showDashboardToast('Failed to export cloud project');
+      return;
+    }
+  }
 
   if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
     try {
@@ -772,6 +1177,41 @@ async function createNewProjectAction() {
   const selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
   const selectedFps = document.getElementById('dropdown-fps')?.dataset.value || '60';
   const selectedBg = document.querySelector('#options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
+
+  if (activeProjectsTab === 'cloud') {
+    if (!window.FishGDriveSync || !window.FishGDriveSync.isAuthenticated()) {
+      showDashboardToast('Please sign in to Google Drive first');
+      if (window.Modal) window.Modal.close();
+      return;
+    }
+    showDashboardToast('Creating cloud project on Drive...');
+    try {
+      const created = await window.FishGDriveSync.createProject({
+        name: name,
+        aspectRatio: selectedRatio,
+        resolution: selectedRes,
+        fps: selectedFps,
+        bgColor: selectedBg
+      });
+      if (window.Modal) window.Modal.close();
+      setTimeout(() => {
+        const query = new URLSearchParams({
+          id: created.id,
+          source: 'gdrive',
+          name: created.name,
+          aspect: selectedRatio,
+          resolution: selectedRes,
+          fps: selectedFps,
+          bg: selectedBg
+        });
+        window.location.href = `editor.html?${query.toString()}`;
+      }, 120);
+      return;
+    } catch (err) {
+      showDashboardToast('Failed creating cloud project: ' + (err.message || 'Error'));
+      return;
+    }
+  }
 
   let projectId = '';
   if (window.FishDatabase) {

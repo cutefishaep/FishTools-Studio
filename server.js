@@ -85,13 +85,61 @@ if (!process.env.VERCEL) {
   } catch (err) {}
 }
 
+// Lightweight zero-dependency .env loader
+function loadEnv() {
+  const envPath = path.join(ROOT, '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx !== -1) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+          if (!process.env[key]) process.env[key] = val;
+        }
+      }
+    } catch (_) {}
+  }
+}
+loadEnv();
+
 function handleRequest(req, res) {
   const host = req.headers.host || `localhost:${PORT}`;
   const parsedUrl = new URL(req.url, `http://${host}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
 
-  // Debug endpoint for deployment verification
+  // Security: block direct access to .env and hidden dot-files
+  if (pathname === '/.env' || pathname.startsWith('/.env') || pathname.includes('/.env') || pathname.startsWith('/.')) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('403 Forbidden');
+    return;
+  }
+
+  // App configuration endpoint — same-origin only (Client ID is public but no need for cross-origin)
+  if (pathname === '/__config' || pathname === '/api/config') {
+    const origin = req.headers.origin || '';
+    const allowed = process.env.ALLOWED_ORIGIN || '';
+    const isSameOrigin = !origin || origin === allowed || origin.startsWith('http://localhost');
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      ...(isSameOrigin ? { 'Access-Control-Allow-Origin': origin || '*' } : {})
+    });
+    res.end(JSON.stringify({
+      googleClientId: process.env.GOOGLE_CLIENT_ID || ''
+    }));
+    return;
+  }
+
+  // Debug endpoint — local dev only, NEVER exposed in production
   if (pathname === '/__debug') {
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     let rootFiles = [];
     let cssFiles = [];

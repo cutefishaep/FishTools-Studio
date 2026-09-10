@@ -6,3 +6,5 @@ cloudflared.exe
 *.log
 dist/
 scratch/
+.env
+.env.*

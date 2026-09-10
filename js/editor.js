@@ -423,6 +423,48 @@
     window.getEffectParamIds = getEffectParamIds;
     window.syncLayerWithEffectiveProps = syncLayerWithEffectiveProps;
 
+    let gdriveSyncDebounceTimer = null;
+    function triggerGDriveSync(projectPayload, immediate = false) {
+      if (currentProjectState.source !== 'gdrive' || !window.FishGDriveSync || !currentProjectState.id) return;
+      const cloudStatusEl = document.getElementById('editor-cloud-status');
+
+      if (cloudStatusEl) {
+        cloudStatusEl.classList.remove('is-synced', 'is-error');
+        cloudStatusEl.classList.add('is-syncing');
+        cloudStatusEl.title = 'Syncing to Google Drive...';
+      }
+
+      if (gdriveSyncDebounceTimer) {
+        clearTimeout(gdriveSyncDebounceTimer);
+        gdriveSyncDebounceTimer = null;
+      }
+
+      const runSync = async () => {
+        try {
+          await window.FishGDriveSync.saveProject(currentProjectState.id, projectPayload);
+          currentProjectState.cloudLastModifiedTime = new Date().toISOString();
+          if (cloudStatusEl) {
+            cloudStatusEl.classList.remove('is-syncing', 'is-error');
+            cloudStatusEl.classList.add('is-synced');
+            cloudStatusEl.title = 'Synced to Google Drive';
+          }
+        } catch (err) {
+          console.warn('[GDriveSync] Auto-save to Google Drive failed:', err);
+          if (cloudStatusEl) {
+            cloudStatusEl.classList.remove('is-syncing', 'is-synced');
+            cloudStatusEl.classList.add('is-error');
+            cloudStatusEl.title = 'Sync Error: ' + (err.message || 'Failed');
+          }
+        }
+      };
+
+      if (immediate) {
+        runSync();
+      } else {
+        gdriveSyncDebounceTimer = setTimeout(runSync, 1200);
+      }
+    }
+
     let saveLayersDebounceTimer = null;
     function saveCurrentProjectLayers(immediate = false) {
       if (saveLayersDebounceTimer) {
@@ -444,6 +486,82 @@
             invalidatePreviewCacheForLayer(l);
           }
         });
+        // ── GDRIVE PROJECT: sync directly to Drive, skip local IndexedDB ──
+        if (currentProjectState.source === 'gdrive') {
+          if (!window.FishGDriveSync || !currentProjectState.id) return;
+
+          // Skip during scrubbing / playing / transform drag — no structural change
+          const isScrubbing = !!(window.isTimelineScrubbing || window.isTimelinePanning || window.isTimelinePlaying);
+          const isTransformDragging = !!(window.isTransformInteracting);
+          if ((isScrubbing || isTransformDragging) && !immediate) return;
+
+          // Minimum 5s cooldown between uploads — prevent spam from rapid repeated calls
+          const _now = Date.now();
+          if (!immediate) {
+            if (window._gdriveLastSyncTime && (_now - window._gdriveLastSyncTime) < 5000) return;
+          }
+
+          const cloudStatusEl = document.getElementById('editor-cloud-status');
+          const driveFileId = currentProjectState.id;
+          const layersToSync = (compositionStack && compositionStack.length > 0)
+            ? compositionStack[0].layers
+            : (currentProjectState.layers || []);
+
+          // Quick change-detect: compare layer count + last updated timestamp
+          // to avoid uploading identical data repeatedly
+          const _changeKey = (layersToSync.length) + '|' + (currentProjectState.name) + '|' + JSON.stringify(layersToSync.map(l => l.id + (l.startSec||0) + (l.durationSec||0)));
+          if (!immediate && window._gdriveLastSyncedKey === _changeKey) return; // no actual change
+          window._gdriveLastSyncedKey = _changeKey;
+
+          const gdrivePayload = {
+            name: currentProjectState.name,
+            aspectRatio: currentProjectState.aspectRatio,
+            resolution: currentProjectState.resolution,
+            fps: String(currentProjectState.fps || 60),
+            bgColor: currentProjectState.bgColor || 'transparent',
+            defaultDuration: currentProjectState.defaultDuration || 5,
+            layers: layersToSync,
+            beatmarks: Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [],
+            motionBlur: currentProjectState.motionBlur ? JSON.parse(JSON.stringify(currentProjectState.motionBlur)) : undefined,
+            customEasingPresets: currentProjectState.customEasingPresets ? JSON.parse(JSON.stringify(currentProjectState.customEasingPresets)) : undefined,
+            updatedAt: new Date().toISOString()
+          };
+          if (cloudStatusEl) {
+            cloudStatusEl.classList.remove('is-synced', 'is-error');
+            cloudStatusEl.classList.add('is-syncing');
+            cloudStatusEl.title = 'Syncing to Google Drive...';
+          }
+          if (gdriveSyncDebounceTimer) { clearTimeout(gdriveSyncDebounceTimer); gdriveSyncDebounceTimer = null; }
+          const runDriveSync = async (retry = false) => {
+            try {
+              const saved = await window.FishGDriveSync.saveProject(driveFileId, gdrivePayload);
+              // Use Drive server's modifiedTime to avoid false "another session" positives
+              currentProjectState.cloudLastModifiedTime = (saved && saved.modifiedTime) || new Date().toISOString();
+              window._gdriveLastSyncTime = Date.now();
+              if (cloudStatusEl) {
+                cloudStatusEl.classList.remove('is-syncing', 'is-error');
+                cloudStatusEl.classList.add('is-synced');
+                cloudStatusEl.title = 'Synced to Google Drive';
+              }
+            } catch (err) {
+              // NetworkError = transient, retry once after 2s
+              if (!retry && err instanceof TypeError && err.message && err.message.includes('NetworkError')) {
+                setTimeout(() => runDriveSync(true), 2000);
+                return;
+              }
+              console.warn('[GDriveSync] Auto-save to Google Drive failed:', err);
+              if (cloudStatusEl) {
+                cloudStatusEl.classList.remove('is-syncing', 'is-synced');
+                cloudStatusEl.classList.add('is-error');
+                cloudStatusEl.title = 'Sync Error: ' + (err.message || 'Failed');
+              }
+            }
+          };
+          if (immediate) { runDriveSync(); } else { gdriveSyncDebounceTimer = setTimeout(runDriveSync, 1200); }
+          return; // do NOT touch FishDatabase for cloud projects
+        }
+        // ── END GDRIVE BYPASS ──
+
         if (!window.FishDatabase) return;
         try {
           let prj = null;
@@ -587,6 +705,9 @@
               prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
             }
             await window.FishDatabase.saveProject(prj);
+            if (currentProjectState.source === 'gdrive' && typeof triggerGDriveSync === 'function') {
+              triggerGDriveSync(prj, immediate);
+            }
             _projectDirty = false;
             _lastSaveTime = Date.now();
             try { localStorage.removeItem('fishtool_emergency_layers'); } catch (_) {}
@@ -6043,6 +6164,8 @@
       const timeLine = document.getElementById('graph-time-line');
       const handle1 = document.getElementById('graph-handle-1');
       const handle2 = document.getElementById('graph-handle-2');
+      const handle1Hit = document.getElementById('graph-handle-1-hit');
+      const handle2Hit = document.getElementById('graph-handle-2-hit');
 
       const btnGraphReverse = document.getElementById('btn-graph-reverse');
       const btnGraphSnap = document.getElementById('btn-graph-snap');
@@ -6291,7 +6414,10 @@
 
         // Constant screen size ratio: counteracts SVG scale-down so handles, stems, anchors never shrink or bloat
         const zoomRatio = viewH / BASE_SVG_H;
-        const handleRadius = (9.5 * zoomRatio).toFixed(1);
+        const isMobile = (typeof window !== 'undefined' && window.innerWidth <= 600);
+        const baseHandleRadius = isMobile ? 11.5 : 9.5;
+        const handleRadius = (baseHandleRadius * zoomRatio).toFixed(1);
+        const hitRadius = (28 * zoomRatio).toFixed(1);
         const tangentWidth = (2.4 * zoomRatio).toFixed(1);
         const anchorRadius = (4.2 * zoomRatio).toFixed(1);
         const curveWidth = (3.0 * zoomRatio).toFixed(1);
@@ -6340,10 +6466,20 @@
           handle1.setAttribute('cy', p1.sy.toFixed(1));
           handle1.setAttribute('r', handleRadius);
         }
+        if (handle1Hit) {
+          handle1Hit.setAttribute('cx', p1.sx.toFixed(1));
+          handle1Hit.setAttribute('cy', p1.sy.toFixed(1));
+          handle1Hit.setAttribute('r', hitRadius);
+        }
         if (handle2) {
           handle2.setAttribute('cx', p2.sx.toFixed(1));
           handle2.setAttribute('cy', p2.sy.toFixed(1));
           handle2.setAttribute('r', handleRadius);
+        }
+        if (handle2Hit) {
+          handle2Hit.setAttribute('cx', p2.sx.toFixed(1));
+          handle2Hit.setAttribute('cy', p2.sy.toFixed(1));
+          handle2Hit.setAttribute('r', hitRadius);
         }
 
         if (curvePath) {
@@ -6802,132 +6938,124 @@
         });
       }
 
-      function setupHandleDrag(handleEl, handleIndex) {
-        if (!handleEl) return;
+      let activeDragHandleIndex = null;
 
-        handleEl.addEventListener('pointerdown', (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
-            window.UndoRedoManager.recordSnapshot();
+      function startHandleDrag(handleIndex, e) {
+        if (activeDragHandleIndex !== null) return;
+        activeDragHandleIndex = handleIndex;
+
+        if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+          window.UndoRedoManager.recordSnapshot();
+        }
+        const handleEl = (handleIndex === 1) ? handle1 : handle2;
+        const hitEl = (handleIndex === 1) ? handle1Hit : handle2Hit;
+        const captureTarget = graphFrame || svgLayer || handleEl;
+        try { captureTarget.setPointerCapture(e.pointerId); } catch (_) {}
+        if (handleEl) handleEl.classList.add('is-dragging');
+        if (hitEl) hitEl.classList.add('is-dragging');
+        window.isTransformInteracting = true;
+        const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        if (curLayer && typeof invalidatePreviewCacheForLayer === 'function') {
+          invalidatePreviewCacheForLayer(curLayer);
+        }
+
+        let isDragging = true;
+        let currentEasing = [...getActiveEasing()];
+        const bxIdx = (handleIndex === 1) ? 0 : 2;
+        const byIdx = (handleIndex === 1) ? 1 : 3;
+
+        let rawBx = currentEasing[bxIdx];
+        let rawBy = currentEasing[byIdx];
+        let prevClientX = e.clientX;
+        let prevClientY = e.clientY;
+
+        let autoScrollRaf = null;
+        let autoScrollDir = 0;
+        let autoScrollSpeed = 0;
+
+        function stepAutoScroll() {
+          if (!isDragging || autoScrollDir === 0 || !isGraphOvershootEnabled) {
+            if (autoScrollRaf) {
+              cancelAnimationFrame(autoScrollRaf);
+              autoScrollRaf = null;
+            }
+            return;
           }
-          try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
-          handleEl.classList.add('is-dragging');
-          window.isTransformInteracting = true;
-          const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
-          if (curLayer && typeof invalidatePreviewCacheForLayer === 'function') {
-            invalidatePreviewCacheForLayer(curLayer);
+
+          rawBy += autoScrollDir * autoScrollSpeed;
+          rawBy = Math.max(-2.0, Math.min(2.0, rawBy));
+
+          let finalBy = rawBy;
+          if (isGraphSnapEnabled) {
+            const SNAP_STEP = 0.05;
+            finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
           }
 
-          let isDragging = true;
-          let currentEasing = [...getActiveEasing()];
-          const bxIdx = (handleIndex === 1) ? 0 : 2;
-          const byIdx = (handleIndex === 1) ? 1 : 3;
+          currentEasing[byIdx] = Number(finalBy.toFixed(3));
+          setActiveEasing(currentEasing);
+          updateGraphUI();
 
-          let rawBx = currentEasing[bxIdx];
-          let rawBy = currentEasing[byIdx];
-          let prevClientX = e.clientX;
-          let prevClientY = e.clientY;
+          autoScrollRaf = requestAnimationFrame(stepAutoScroll);
+        }
 
-          let autoScrollRaf = null;
-          let autoScrollDir = 0;
-          let autoScrollSpeed = 0;
+        function onPointerMove(ev) {
+          if (!isDragging) return;
 
-          function stepAutoScroll() {
-            if (!isDragging || autoScrollDir === 0 || !isGraphOvershootEnabled) {
+          const rect = (graphFrame || svgLayer).getBoundingClientRect();
+          const frameW = (rect.width > 0) ? rect.width : 260;
+          const frameH = (rect.height > 0) ? rect.height : 170;
+
+          const currentView = getCurrentViewBox(currentEasing);
+          const { minX, maxX, rangeY } = getBounds();
+          const spanX = Math.max(1, maxX - minX);
+
+          const pxPerUnitX = (spanX / svgW) * frameW;
+          const pxPerUnitY = (rangeY / currentView.viewH) * frameH;
+
+          const deltaX = ev.clientX - prevClientX;
+          const deltaY = ev.clientY - prevClientY;
+          prevClientX = ev.clientX;
+          prevClientY = ev.clientY;
+
+          // Horizontal tracking (always direct, clamped 0..1)
+          rawBx += deltaX / pxPerUnitX;
+          rawBx = Math.max(0, Math.min(1, rawBx));
+
+          let finalBx = rawBx;
+          if (isGraphSnapEnabled) {
+            const SNAP_STEP = 0.05;
+            finalBx = Math.round(finalBx / SNAP_STEP) * SNAP_STEP;
+          }
+          currentEasing[bxIdx] = Number(finalBx.toFixed(3));
+
+          // Vertical: edge auto-scroll when overshoot is enabled, direct tracking inside
+          if (isGraphOvershootEnabled) {
+            const EDGE_ZONE = 14;
+            if (ev.clientY >= rect.bottom - EDGE_ZONE) {
+              // Bottom edge: auto-scroll downwards into negative overshoot values
+              autoScrollDir = -1;
+              const overflow = Math.max(1, ev.clientY - (rect.bottom - EDGE_ZONE));
+              autoScrollSpeed = 0.003 + Math.min(0.022, (overflow / 140) * 0.022);
+              if (!autoScrollRaf) {
+                autoScrollRaf = requestAnimationFrame(stepAutoScroll);
+              }
+            } else if (ev.clientY <= rect.top + EDGE_ZONE) {
+              // Top edge: auto-scroll upwards into positive overshoot values
+              autoScrollDir = 1;
+              const overflow = Math.max(1, (rect.top + EDGE_ZONE) - ev.clientY);
+              autoScrollSpeed = 0.003 + Math.min(0.022, (overflow / 140) * 0.022);
+              if (!autoScrollRaf) {
+                autoScrollRaf = requestAnimationFrame(stepAutoScroll);
+              }
+            } else {
+              // Inside frame: stop auto-scroll, direct vertical tracking
+              autoScrollDir = 0;
               if (autoScrollRaf) {
                 cancelAnimationFrame(autoScrollRaf);
                 autoScrollRaf = null;
               }
-              return;
-            }
-
-            rawBy += autoScrollDir * autoScrollSpeed;
-            rawBy = Math.max(-2.0, Math.min(2.0, rawBy));
-
-            let finalBy = rawBy;
-            if (isGraphSnapEnabled) {
-              const SNAP_STEP = 0.05;
-              finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
-            }
-
-            currentEasing[byIdx] = Number(finalBy.toFixed(3));
-            setActiveEasing(currentEasing);
-            updateGraphUI();
-
-            autoScrollRaf = requestAnimationFrame(stepAutoScroll);
-          }
-
-          function onPointerMove(ev) {
-            if (!isDragging) return;
-
-            const rect = (graphFrame || svgLayer).getBoundingClientRect();
-            const frameW = (rect.width > 0) ? rect.width : 260;
-            const frameH = (rect.height > 0) ? rect.height : 170;
-
-            const currentView = getCurrentViewBox(currentEasing);
-            const { minX, maxX, rangeY } = getBounds();
-            const spanX = Math.max(1, maxX - minX);
-
-            const pxPerUnitX = (spanX / svgW) * frameW;
-            const pxPerUnitY = (rangeY / currentView.viewH) * frameH;
-
-            const deltaX = ev.clientX - prevClientX;
-            const deltaY = ev.clientY - prevClientY;
-            prevClientX = ev.clientX;
-            prevClientY = ev.clientY;
-
-            // Horizontal tracking (always direct, clamped 0..1)
-            rawBx += deltaX / pxPerUnitX;
-            rawBx = Math.max(0, Math.min(1, rawBx));
-
-            let finalBx = rawBx;
-            if (isGraphSnapEnabled) {
-              const SNAP_STEP = 0.05;
-              finalBx = Math.round(finalBx / SNAP_STEP) * SNAP_STEP;
-            }
-            currentEasing[bxIdx] = Number(finalBx.toFixed(3));
-
-            // Vertical: edge auto-scroll when overshoot is enabled, direct tracking inside
-            if (isGraphOvershootEnabled) {
-              const EDGE_ZONE = 14;
-              if (ev.clientY >= rect.bottom - EDGE_ZONE) {
-                // Bottom edge: auto-scroll downwards into negative overshoot values
-                autoScrollDir = -1;
-                const overflow = Math.max(1, ev.clientY - (rect.bottom - EDGE_ZONE));
-                autoScrollSpeed = 0.003 + Math.min(0.022, (overflow / 140) * 0.022);
-                if (!autoScrollRaf) {
-                  autoScrollRaf = requestAnimationFrame(stepAutoScroll);
-                }
-              } else if (ev.clientY <= rect.top + EDGE_ZONE) {
-                // Top edge: auto-scroll upwards into positive overshoot values
-                autoScrollDir = 1;
-                const overflow = Math.max(1, (rect.top + EDGE_ZONE) - ev.clientY);
-                autoScrollSpeed = 0.003 + Math.min(0.022, (overflow / 140) * 0.022);
-                if (!autoScrollRaf) {
-                  autoScrollRaf = requestAnimationFrame(stepAutoScroll);
-                }
-              } else {
-                // Inside frame: stop auto-scroll, direct vertical tracking
-                autoScrollDir = 0;
-                if (autoScrollRaf) {
-                  cancelAnimationFrame(autoScrollRaf);
-                  autoScrollRaf = null;
-                }
-                rawBy -= deltaY / pxPerUnitY;
-                rawBy = Math.max(-2.0, Math.min(2.0, rawBy));
-                let finalBy = rawBy;
-                if (isGraphSnapEnabled) {
-                  const SNAP_STEP = 0.05;
-                  finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
-                }
-                currentEasing[byIdx] = Number(finalBy.toFixed(3));
-              }
-            } else {
-              // Normal non-overshoot mode: direct vertical tracking clamped 0..1
-              autoScrollDir = 0;
               rawBy -= deltaY / pxPerUnitY;
-              rawBy = Math.max(0, Math.min(1, rawBy));
+              rawBy = Math.max(-2.0, Math.min(2.0, rawBy));
               let finalBy = rawBy;
               if (isGraphSnapEnabled) {
                 const SNAP_STEP = 0.05;
@@ -6935,45 +7063,95 @@
               }
               currentEasing[byIdx] = Number(finalBy.toFixed(3));
             }
-
-            setActiveEasing(currentEasing);
-            updateGraphUI();
-          }
-
-          function onPointerUp(ev) {
-            if (!isDragging) return;
-            isDragging = false;
+          } else {
+            // Normal non-overshoot mode: direct vertical tracking clamped 0..1
             autoScrollDir = 0;
-            if (autoScrollRaf) {
-              cancelAnimationFrame(autoScrollRaf);
-              autoScrollRaf = null;
+            rawBy -= deltaY / pxPerUnitY;
+            rawBy = Math.max(0, Math.min(1, rawBy));
+            let finalBy = rawBy;
+            if (isGraphSnapEnabled) {
+              const SNAP_STEP = 0.05;
+              finalBy = Math.round(finalBy / SNAP_STEP) * SNAP_STEP;
             }
-            window.isTransformInteracting = false;
-            try { handleEl.releasePointerCapture(ev.pointerId); } catch (_) {}
-            handleEl.classList.remove('is-dragging');
-            window.removeEventListener('pointermove', onPointerMove);
-            window.removeEventListener('pointerup', onPointerUp);
-            window.removeEventListener('pointercancel', onPointerUp);
-            const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
-            if (curLayer && typeof invalidatePreviewCacheForLayer === 'function') {
-              invalidatePreviewCacheForLayer(curLayer);
-            }
-            if (typeof saveCurrentProjectLayers === 'function') {
-              saveCurrentProjectLayers(true);
-            }
-            if (typeof redrawComposition === 'function') {
-              redrawComposition('graph-handle-pointerup');
-            }
+            currentEasing[byIdx] = Number(finalBy.toFixed(3));
           }
 
-          window.addEventListener('pointermove', onPointerMove);
-          window.addEventListener('pointerup', onPointerUp);
-          window.addEventListener('pointercancel', onPointerUp);
+          setActiveEasing(currentEasing);
+          updateGraphUI();
+        }
+
+        function onPointerUp(ev) {
+          if (!isDragging) return;
+          isDragging = false;
+          activeDragHandleIndex = null;
+          autoScrollDir = 0;
+          if (autoScrollRaf) {
+            cancelAnimationFrame(autoScrollRaf);
+            autoScrollRaf = null;
+          }
+          window.isTransformInteracting = false;
+          try { captureTarget.releasePointerCapture(ev.pointerId); } catch (_) {}
+          if (handleEl) handleEl.classList.remove('is-dragging');
+          if (hitEl) hitEl.classList.remove('is-dragging');
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          window.removeEventListener('pointercancel', onPointerUp);
+          const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (curLayer && typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(curLayer);
+          }
+          if (typeof saveCurrentProjectLayers === 'function') {
+            saveCurrentProjectLayers(true);
+          }
+          if (typeof redrawComposition === 'function') {
+            redrawComposition('graph-handle-pointerup');
+          }
+        }
+
+        window.addEventListener('pointermove', onPointerMove, { passive: false });
+        window.addEventListener('pointerup', onPointerUp, { passive: false });
+        window.addEventListener('pointercancel', onPointerUp, { passive: false });
+      }
+
+      function attachHandlePointerDown(el, idx) {
+        if (!el) return;
+        el.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          startHandleDrag(idx, e);
         });
       }
 
-      setupHandleDrag(handle1, 1);
-      setupHandleDrag(handle2, 2);
+      attachHandlePointerDown(handle1, 1);
+      attachHandlePointerDown(handle1Hit, 1);
+      attachHandlePointerDown(handle2, 2);
+      attachHandlePointerDown(handle2Hit, 2);
+
+      if (svgLayer) {
+        svgLayer.addEventListener('pointerdown', (e) => {
+          if (activeDragHandleIndex !== null) return;
+          if (!handle1 || !handle2) return;
+
+          const r1 = handle1.getBoundingClientRect();
+          const r2 = handle2.getBoundingClientRect();
+          const c1x = r1.left + r1.width / 2;
+          const c1y = r1.top + r1.height / 2;
+          const c2x = r2.left + r2.width / 2;
+          const c2y = r2.top + r2.height / 2;
+
+          const d1 = Math.hypot(e.clientX - c1x, e.clientY - c1y);
+          const d2 = Math.hypot(e.clientX - c2x, e.clientY - c2y);
+
+          // Generous touch/finger proximity radius (up to 52px)
+          const PROXIMITY_LIMIT = 52;
+          if (Math.min(d1, d2) <= PROXIMITY_LIMIT) {
+            e.stopPropagation();
+            e.preventDefault();
+            const chosen = (d1 <= d2) ? 1 : 2;
+            startHandleDrag(chosen, e);
+          }
+        });
+      }
       renderCustomPresetsUI();
 
       if (window.FishDatabase && typeof window.FishDatabase.getCustomEasingPresets === 'function') {
@@ -15510,6 +15688,8 @@
     (async function initEditorParams() {
       const params = new URLSearchParams(window.location.search);
       const idParam = params.get('id');
+      const sourceParam = params.get('source');
+      const isGDrive = sourceParam === 'gdrive';
       const nameParam = params.get('name');
       const aspectParam = params.get('aspect');
       const resParam = params.get('resolution');
@@ -15519,13 +15699,41 @@
       const nameInput = document.getElementById('editor-project-name');
 
       let currentProject = null;
-      if (idParam && window.FishDatabase) {
+      if (idParam && isGDrive) {
+        // Guard: must be authenticated before loading a cloud project
+        const isAuthed = window.FishGDriveSync && window.FishGDriveSync.isAuthenticated();
+        if (!isAuthed) {
+          // Not logged in → kick back to dashboard
+          console.warn('[Editor] GDrive project requested but not authenticated — redirecting to dashboard.');
+          window.location.replace('index.html?error=login_required');
+          return;
+        }
+        try {
+          currentProject = await window.FishGDriveSync.getProject(idParam);
+        } catch (err) {
+          console.warn('[GDrive] Failed fetching project from Drive:', err);
+        }
+        // Project couldn't be loaded (null, deleted, invalid ID) → redirect, don't ghost
+        if (!currentProject) {
+          console.warn('[Editor] GDrive project not found or inaccessible — redirecting to dashboard.');
+          window.location.replace('index.html?error=project_not_found');
+          return;
+        }
+      } else if (idParam && window.FishDatabase) {
         try {
           currentProject = await window.FishDatabase.getProject(idParam);
         } catch (_) {}
+        // Local project ID in URL but not found in DB → redirect
+        if (!currentProject && idParam) {
+          console.warn('[Editor] Local project not found in DB — redirecting to dashboard.');
+          window.location.replace('index.html?error=project_not_found');
+          return;
+        }
       }
 
       currentProjectState.id = idParam || (currentProject && currentProject.id) || '';
+      currentProjectState.source = isGDrive ? 'gdrive' : ((currentProject && currentProject.source) || 'local');
+      currentProjectState.cloudLastModifiedTime = (currentProject && currentProject._cloudModifiedTime) || new Date().toISOString();
       currentProjectState.name = (currentProject && currentProject.name) || nameParam || 'New_Project';
       currentProjectState.aspectRatio = (currentProject && currentProject.aspectRatio) || aspectParam || '16:9';
       currentProjectState.resolution = (currentProject && currentProject.resolution) || resParam || '1080p';
@@ -15680,10 +15888,57 @@
           const updatedName = nameInput.value.trim() || 'Untitled_Project';
           nameInput.value = updatedName;
           currentProjectState.name = updatedName;
+          if (currentProjectState.source === 'gdrive' && window.FishGDriveSync && currentProjectState.id) {
+            try {
+              await window.FishGDriveSync.renameProject(currentProjectState.id, updatedName);
+            } catch (err) {
+              console.warn('[GDrive] Failed to rename project:', err);
+            }
+          }
           if (currentProjectState.id && window.FishDatabase) {
             await window.FishDatabase.renameProject(currentProjectState.id, updatedName);
           }
         });
+      }
+
+      // Google Drive Cloud Sync UI & Multi-Device Remote Awareness
+      const cloudStatusEl = document.getElementById('editor-cloud-status');
+      const cloudBanner = document.getElementById('cloud-remote-banner');
+      const btnCloudReload = document.getElementById('btn-cloud-reload');
+      const btnCloudDismiss = document.getElementById('btn-cloud-dismiss');
+
+      if (currentProjectState.source === 'gdrive') {
+        if (cloudStatusEl) {
+          cloudStatusEl.style.display = 'inline-flex';
+          cloudStatusEl.classList.add('is-synced');
+          cloudStatusEl.title = 'Synced to Google Drive';
+        }
+
+        if (btnCloudDismiss && cloudBanner) {
+          btnCloudDismiss.addEventListener('click', () => {
+            cloudBanner.style.display = 'none';
+          });
+        }
+
+        if (btnCloudReload) {
+          btnCloudReload.addEventListener('click', () => {
+            window.location.reload();
+          });
+        }
+
+        // Live multi-device remote update check
+        async function checkRemoteUpdate() {
+          if (document.hidden || !window.FishGDriveSync || currentProjectState.source !== 'gdrive' || !currentProjectState.id) return;
+          try {
+            const check = await window.FishGDriveSync.checkFileModified(currentProjectState.id, currentProjectState.cloudLastModifiedTime);
+            if (check && check.hasChanged && cloudBanner) {
+              cloudBanner.style.display = 'flex';
+            }
+          } catch (_) {}
+        }
+
+        window.addEventListener('focus', checkRemoteUpdate);
+        setInterval(checkRemoteUpdate, 15000);
       }
 
       // Restore More Settings toggle states (default: both disabled)

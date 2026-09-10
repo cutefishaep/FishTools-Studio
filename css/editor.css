@@ -334,6 +334,115 @@ html, body {
   opacity: 0.6;
 }
 
+/* Cloud Sync Status Icon (Google Drive) - sits in right actions bar */
+.editor-cloud-status {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+  cursor: default;
+}
+
+/* Override editor-settings-btn green color for cloud states */
+.editor-cloud-status.is-syncing,
+div.editor-cloud-status.is-syncing {
+  color: var(--color-accent) !important;
+}
+
+@keyframes cloud-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.editor-cloud-status.is-syncing .cloud-status-icon {
+  animation: cloud-pulse 1s ease-in-out infinite;
+}
+
+.editor-cloud-status.is-synced,
+div.editor-cloud-status.is-synced {
+  color: var(--color-primary) !important;
+}
+
+.editor-cloud-status.is-error,
+div.editor-cloud-status.is-error {
+  color: var(--color-danger, #ef4444) !important;
+}
+
+.editor-cloud-status .cloud-status-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+/* Remote Cloud Project Update Notification Banner */
+.cloud-remote-banner {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background-color: var(--bg-panel-inner);
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cloud-remote-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-primary);
+}
+
+.cloud-remote-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cloud-banner-btn-reload {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border: none;
+  outline: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cloud-banner-btn-reload:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.cloud-banner-btn-dismiss {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.cloud-banner-btn-dismiss:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
 /* Precompose Breadcrumb Navigation [ < Project Name < Precompose Name ] */
 .editor-precomp-breadcrumb {
   display: flex;

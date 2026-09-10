@@ -98,6 +98,7 @@
             c[k] = l[k];
           }
           if (l.keyframes) c.keyframes = JSON.parse(JSON.stringify(l.keyframes));
+          if (l.expressions) c.expressions = JSON.parse(JSON.stringify(l.expressions));
           if (l.defaultEasing) c.defaultEasing = JSON.parse(JSON.stringify(l.defaultEasing));
           if (l._defaultEasing) c._defaultEasing = JSON.parse(JSON.stringify(l._defaultEasing));
           if (l.effects) c.effects = JSON.parse(JSON.stringify(l.effects));
@@ -119,6 +120,7 @@
               }
             }
           }
+          const exprSig = (l.expressions && typeof l.expressions === 'object') ? JSON.stringify(l.expressions) : '';
           let defEasSig = '';
           const defEas = l.defaultEasing || l._defaultEasing;
           if (defEas) {
@@ -130,7 +132,7 @@
           if (Array.isArray(l.layers)) {
             childSig = this._computeFingerprint(l.layers, []);
           }
-          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${kfCount}:${(l.effects || []).length}:${kfSig}:${defEasSig}:${childSig}`;
+          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${kfCount}:${(l.effects || []).length}:${kfSig}:${exprSig}:${defEasSig}:${childSig}`;
         }).join(';');
         const bSig = (beatmarks || []).join(',');
         return `${lSig}|${bSig}`;
@@ -526,6 +528,7 @@
                 hidden: !!l.hidden,
                 motionBlur: !!l.motionBlur,
                 keyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined,
+                expressions: (l.expressions && typeof l.expressions === 'object' && Object.keys(l.expressions).length > 0) ? JSON.parse(JSON.stringify(l.expressions)) : undefined,
                 defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
                 _defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
                 // Recursively serialize precompose child layers to prevent DataCloneError and strip temporary canvas buffers

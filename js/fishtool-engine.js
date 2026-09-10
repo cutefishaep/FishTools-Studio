@@ -962,8 +962,11 @@
           if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {
             window.FishEffects.applyPostEffects(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH });
           }
-        } catch (_) {
-          try { ctx.drawImage(el, drawX, drawY, absW, absH); } catch (e) {}
+        } catch (fxErr) {
+          console.warn('[Engine] Effect render failed, falling back to base image:', fxErr);
+          try { ctx.drawImage(el, drawX, drawY, absW, absH); } catch (drawErr) {
+            console.warn('[Engine] Base image fallback draw failed:', drawErr);
+          }
         }
         ctx.restore();
         return;

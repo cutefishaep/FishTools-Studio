@@ -1216,7 +1216,9 @@ window.FishToolsAdapter = (function () {
                 localStorage.setItem('fishtools_save', jsonStr);
                 localStorage.setItem('fishToolsFileStore', jsonStr);
               }
-            } catch (e) {}
+            } catch (e) {
+              console.warn('[Adapter] Failed to save cache:', e);
+            }
           }
 
           load();
@@ -1453,7 +1455,9 @@ window.FishToolsAdapter = (function () {
               var db = (window.parent && window.parent.FishDatabase) || window.FishDatabase;
               var raw = db ? db.getSyncSettings() : (localStorage.getItem('fishtools_save') || localStorage.getItem('fishToolsFileStore'));
               var dataObj = {};
-              try { dataObj = raw ? JSON.parse(raw) : {}; } catch (e) {}
+              try { dataObj = raw ? JSON.parse(raw) : {}; } catch (e) {
+                console.warn('[Adapter] Failed to parse raw settings in readFile:', e);
+              }
               if (!dataObj.config) {
                 dataObj.config = {
                   version: 'Latest',
@@ -1476,7 +1480,9 @@ window.FishToolsAdapter = (function () {
                 try {
                   localStorage.setItem('fishtools_save', data);
                   localStorage.setItem('fishToolsFileStore', data);
-                } catch (e) {}
+                } catch (e) {
+                  console.warn('[Adapter] Failed to write localStorage fallback in writeFile:', e);
+                }
               }
               return { err: 0 };
             },
@@ -1529,7 +1535,9 @@ window.FishToolsAdapter = (function () {
             try {
               var syncData = JSON.parse(db.getSyncSettings());
               if (syncData) window.FileStore.replace(syncData);
-            } catch (e) {}
+            } catch (e) {
+              console.warn('[Adapter] Failed to parse db sync settings:', e);
+            }
           }
 
           if (window.settings) {
@@ -1542,7 +1550,9 @@ window.FishToolsAdapter = (function () {
                   }
                 }
               }
-            } catch (e) {}
+            } catch (e) {
+              console.warn('[Adapter] Failed to restore saved config:', e);
+            }
             if (typeof window.settings.applySettings === 'function') window.settings.applySettings(true);
             if (typeof window.settings.syncUI === 'function') window.settings.syncUI();
           }

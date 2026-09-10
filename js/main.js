@@ -847,7 +847,9 @@ function closeWelcomeModal() {
   if (checkbox && checkbox.checked) {
     try {
       localStorage.setItem('oft_seen_welcome_v1', '1');
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[Storage] Failed to save welcome dismissal:', e);
+    }
   }
   if (window.Modal) {
     window.Modal.close();
@@ -862,7 +864,9 @@ function openDonateFromWelcome() {
   if (checkbox && checkbox.checked) {
     try {
       localStorage.setItem('oft_seen_welcome_v1', '1');
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[Storage] Failed to save welcome dismissal:', e);
+    }
   }
   if (window.Modal) {
     window.Modal.open('modal-donate');

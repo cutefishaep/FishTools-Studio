@@ -269,7 +269,9 @@ window.FishDatabase = (function () {
             }
           });
         };
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[DB] Failed to prune dummy projects:', e);
+      }
     }
   }
 
@@ -313,8 +315,12 @@ window.FishDatabase = (function () {
     localStorage.setItem(SETTINGS_KEY_ALT, rawString);
     try {
       var dataObj = JSON.parse(rawString);
-      saveSettings(dataObj).catch(function () {});
-    } catch (e) {}
+      saveSettings(dataObj).catch(function (err) {
+        console.warn('[DB] saveSettings promise rejected:', err);
+      });
+    } catch (e) {
+      console.warn('[DB] Failed to parse settings JSON:', e);
+    }
   }
 
   async function getSettings() {
@@ -353,7 +359,9 @@ window.FishDatabase = (function () {
         var tx = db.transaction('settings', 'readwrite');
         var store = tx.objectStore('settings');
         store.put({ key: 'current', data: settingsObj, updatedAt: new Date().toISOString() });
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[DB] Failed to persist settings to IndexedDB:', e);
+      }
     }
 
     window.dispatchEvent(new CustomEvent('fish-db-settings-updated', { detail: settingsObj }));

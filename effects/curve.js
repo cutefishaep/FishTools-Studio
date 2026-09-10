@@ -3,31 +3,353 @@
   const reg = (window && window.FishEffectsRegistry) || (typeof global !== 'undefined' && global.FishEffectsRegistry);
   if (!reg) return;
 
+  // Fritsch-Carlson Monotone Cubic Hermite Spline
+  function buildSpline(rawPoints) {
+    if (!Array.isArray(rawPoints) || rawPoints.length === 0) {
+      return function(x) { return x; };
+    }
+    const pts = rawPoints.map(pt => Array.isArray(pt) ? [Number(pt[0]), Number(pt[1])] : [Number(pt.x || 0), Number(pt.y || 0)])
+      .sort((a, b) => a[0] - b[0]);
+    const n = pts.length;
+    if (n === 1) return function() { return pts[0][1]; };
+
+    const dxs = [];
+    const dys = [];
+    const ms = [];
+
+    for (let i = 0; i < n - 1; i++) {
+      const dx = Math.max(0.00001, pts[i + 1][0] - pts[i][0]);
+      const dy = pts[i + 1][1] - pts[i][1];
+      dxs.push(dx);
+      dys.push(dy);
+      ms.push(dy / dx);
+    }
+
+    const c1s = [ms[0]];
+    for (let i = 0; i < ms.length - 1; i++) {
+      const m = ms[i];
+      const mNext = ms[i + 1];
+      if (m * mNext <= 0) {
+        c1s.push(0);
+      } else {
+        const dx_ = dxs[i];
+        const dxNext = dxs[i + 1];
+        const common = dx_ + dxNext;
+        c1s.push((3 * common) / ((common + dxNext) / m + (common + dx_) / mNext));
+      }
+    }
+    c1s.push(ms[ms.length - 1]);
+
+    return function evaluate(x) {
+      if (x <= pts[0][0]) return pts[0][1];
+      if (x >= pts[n - 1][0]) return pts[n - 1][1];
+
+      let i = 0;
+      for (let k = 0; k < n - 1; k++) {
+        if (x <= pts[k + 1][0]) {
+          i = k;
+          break;
+        }
+      }
+
+      const h = dxs[i];
+      const t = (x - pts[i][0]) / h;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const h00 = 2 * t3 - 3 * t2 + 1;
+      const h10 = t3 - 2 * t2 + t;
+      const h01 = -2 * t3 + 3 * t2;
+      const h11 = t3 - t2;
+
+      const y = h00 * pts[i][1] + h10 * h * c1s[i] + h01 * pts[i + 1][1] + h11 * h * c1s[i + 1];
+      return Math.max(0, Math.min(1, y));
+    };
+  }
+
+  // Pre-calculate 256-entry 1D LUT (R, G, B)
+  const _lutData = new Uint8Array(256 * 4);
+
+  function generateLUT(curveRGB, curveR, curveG, curveB) {
+    const sRGB = buildSpline(curveRGB || [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]]);
+    const sR = curveR ? buildSpline(curveR) : null;
+    const sG = curveG ? buildSpline(curveG) : null;
+    const sB = curveB ? buildSpline(curveB) : null;
+
+    for (let i = 0; i < 256; i++) {
+      const norm = i / 255.0;
+      const base = sRGB(norm);
+
+      const rVal = sR ? sR(base) : base;
+      const gVal = sG ? sG(base) : base;
+      const bVal = sB ? sB(base) : base;
+
+      const idx = i * 4;
+      _lutData[idx] = Math.round(Math.max(0, Math.min(1, rVal)) * 255);
+      _lutData[idx + 1] = Math.round(Math.max(0, Math.min(1, gVal)) * 255);
+      _lutData[idx + 2] = Math.round(Math.max(0, Math.min(1, bVal)) * 255);
+      _lutData[idx + 3] = 255;
+    }
+    return _lutData;
+  }
+
+  // Hardware WebGL 1D LUT Pipeline
+  let _glCanvas = null;
+  let _gl = null;
+  let _glProg = null;
+  let _glUniforms = null;
+  let _posBuf = null;
+  let _uvBuf = null;
+  let _imgTex = null;
+  let _lutTex = null;
+  let _glFailed = false;
+
+  function initCurveGL() {
+    if (_gl && _glProg) return true;
+    if (_glFailed) return false;
+    if (typeof document === 'undefined') return false;
+
+    try {
+      if (!_glCanvas) {
+        _glCanvas = document.createElement('canvas');
+      }
+
+      const opts = {
+        alpha: true,
+        depth: false,
+        stencil: false,
+        antialias: false,
+        premultipliedAlpha: true,
+        preserveDrawingBuffer: false
+      };
+
+      const gl = _glCanvas.getContext('webgl2', opts) ||
+                 _glCanvas.getContext('webgl', opts) ||
+                 _glCanvas.getContext('experimental-webgl', opts);
+
+      if (!gl) {
+        _glFailed = true;
+        return false;
+      }
+      _gl = gl;
+
+      const vsSource = [
+        'attribute vec2 a_pos;',
+        'attribute vec2 a_uv;',
+        'varying vec2 v_uv;',
+        'void main(void) {',
+        '  v_uv = a_uv;',
+        '  gl_Position = vec4(a_pos, 0.0, 1.0);',
+        '}'
+      ].join('\n');
+
+      const fsSource = [
+        'precision highp float;',
+        'varying vec2 v_uv;',
+        'uniform sampler2D u_image;',
+        'uniform sampler2D u_lut;',
+        '',
+        'void main(void) {',
+        '  vec4 col = texture2D(u_image, v_uv);',
+        '  if (col.a <= 0.001) {',
+        '    gl_FragColor = vec4(0.0);',
+        '    return;',
+        '  }',
+        '  vec3 rgb = col.rgb / col.a;',
+        '  float r = texture2D(u_lut, vec2((clamp(rgb.r, 0.0, 1.0) * 255.0 + 0.5) / 256.0, 0.5)).r;',
+        '  float g = texture2D(u_lut, vec2((clamp(rgb.g, 0.0, 1.0) * 255.0 + 0.5) / 256.0, 0.5)).g;',
+        '  float b = texture2D(u_lut, vec2((clamp(rgb.b, 0.0, 1.0) * 255.0 + 0.5) / 256.0, 0.5)).b;',
+        '  gl_FragColor = vec4(r * col.a, g * col.a, b * col.a, col.a);',
+        '}'
+      ].join('\n');
+
+      function compileShader(type, src) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          console.error('[Curve GL] Shader compile error:', gl.getShaderInfoLog(s));
+          return null;
+        }
+        return s;
+      }
+
+      const vs = compileShader(gl.VERTEX_SHADER, vsSource);
+      const fs = compileShader(gl.FRAGMENT_SHADER, fsSource);
+      if (!vs || !fs) {
+        _glFailed = true;
+        return false;
+      }
+
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error('[Curve GL] Program link error:', gl.getProgramInfoLog(prog));
+        _glFailed = true;
+        return false;
+      }
+
+      _glProg = prog;
+      _glUniforms = {
+        image: gl.getUniformLocation(prog, 'u_image'),
+        lut: gl.getUniformLocation(prog, 'u_lut')
+      };
+
+      const positions = new Float32Array([
+        -1.0,  1.0,
+        -1.0, -1.0,
+         1.0,  1.0,
+         1.0, -1.0
+      ]);
+      const texCoords = new Float32Array([
+        0.0, 0.0,
+        0.0, 1.0,
+        1.0, 0.0,
+        1.0, 1.0
+      ]);
+
+      _posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, _posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+      _uvBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+
+      _imgTex = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, _imgTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+      _lutTex = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, _lutTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+
+      return true;
+    } catch (e) {
+      console.warn('[Curve GL] WebGL init failed:', e);
+      _glFailed = true;
+      return false;
+    }
+  }
+
+  const DEFAULT_POINTS = [
+    [0, 0],
+    [0.25, 0.25],
+    [0.5, 0.5],
+    [0.75, 0.75],
+    [1, 1]
+  ];
+
+  const PRESETS = {
+    linear: [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]],
+    s_curve: [[0, 0], [0.25, 0.18], [0.5, 0.5], [0.75, 0.82], [1, 1]],
+    hard_contrast: [[0, 0], [0.25, 0.12], [0.5, 0.5], [0.75, 0.88], [1, 1]],
+    lift_blacks: [[0, 0.12], [0.25, 0.28], [0.5, 0.5], [0.75, 0.75], [1, 1]],
+    invert: [[0, 1], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [1, 0]]
+  };
+
   reg.register({
     id: 'curve',
     name: 'Curve',
     category: 'lightning',
     icon: 'assets/FXPH.svg',
-    description: 'Tonal response curve adjusting blacks, shadows, midtones, highlights, and whites',
+    description: 'Authentic interactive tonal curve with monotone cubic spline interpolation and 256-entry hardware LUT',
     params: [
-      { id: 'blacks', label: 'Blacks', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
-      { id: 'shadows', label: 'Shadows', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
-      { id: 'midtones', label: 'Midtones', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
-      { id: 'highlights', label: 'Highlights', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
-      { id: 'whites', label: 'Whites', type: 'number', min: -100, max: 100, default: 0, unit: '%' }
+      {
+        id: 'curve',
+        label: 'Curve',
+        type: 'curve',
+        default: DEFAULT_POINTS
+      }
     ],
-    filter(fx) {
-      const blacks = fx.blacks || 0;
-      const shadows = fx.shadows || 0;
-      const midtones = fx.midtones || 0;
-      const highlights = fx.highlights || 0;
-      const whites = fx.whites || 0;
+    presets: PRESETS,
+    buildSpline: buildSpline,
+    generateLUT: generateLUT,
 
-      if (blacks === 0 && shadows === 0 && midtones === 0 && highlights === 0 && whites === 0) return '';
+    render(ctx, el, layer, bounds, fx) {
+      if (!ctx || !el) return;
+      const elW = el.videoWidth || el.naturalWidth || el.width || 0;
+      const elH = el.videoHeight || el.naturalHeight || el.height || 0;
+      if (elW <= 0 || elH <= 0) return;
 
-      const b = 1 + (midtones * 0.5 + highlights * 0.25 + shadows * 0.15) / 100;
-      const c = 1 + (whites * 0.4 - blacks * 0.4 + highlights * 0.2 - shadows * 0.2) / 100;
-      return `brightness(${Math.max(0, b).toFixed(3)}) contrast(${Math.max(0, c).toFixed(3)})`;
+      const x = bounds && bounds.x !== undefined ? bounds.x : 0;
+      const y = bounds && bounds.y !== undefined ? bounds.y : 0;
+      const w = Math.max(1, Math.round(bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100)));
+      const h = Math.max(1, Math.round(bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100)));
+
+      // Support points from fx.curve or fx.points or per-channel
+      const pts = (fx && (fx.curve || fx.points)) || DEFAULT_POINTS;
+      const ptsR = fx && fx.curveR;
+      const ptsG = fx && fx.curveG;
+      const ptsB = fx && fx.curveB;
+
+      // Generate 256-entry LUT
+      const lut = generateLUT(pts, ptsR, ptsG, ptsB);
+
+      // WebGL Hardware LUT Execution
+      if (!_glFailed && initCurveGL()) {
+        try {
+          const gl = _gl;
+          const prog = _glProg;
+          const u = _glUniforms;
+
+          if (_glCanvas.width !== w || _glCanvas.height !== h) {
+            _glCanvas.width = w;
+            _glCanvas.height = h;
+          }
+
+          gl.viewport(0, 0, w, h);
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+
+          gl.useProgram(prog);
+
+          // Texture 0: Source image/layer
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, _imgTex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+          gl.uniform1i(u.image, 0);
+
+          // Texture 1: 256x1 Look-Up Table
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, _lutTex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lut);
+          gl.uniform1i(u.lut, 1);
+
+          const posLoc = gl.getAttribLocation(prog, 'a_pos');
+          gl.bindBuffer(gl.ARRAY_BUFFER, _posBuf);
+          gl.enableVertexAttribArray(posLoc);
+          gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+          const uvLoc = gl.getAttribLocation(prog, 'a_uv');
+          gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
+          gl.enableVertexAttribArray(uvLoc);
+          gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
+
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+          ctx.drawImage(_glCanvas, x, y, w, h);
+          return;
+        } catch (err) {
+          console.warn('[Curve] WebGL render error, using fallback:', err);
+        }
+      }
+
+      // Fallback direct draw
+      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
     }
   });
 })(typeof window !== 'undefined' ? window : this);

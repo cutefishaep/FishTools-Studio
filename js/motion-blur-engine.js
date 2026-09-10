@@ -119,11 +119,16 @@
       const hasKeyframes = checkLayer.keyframes && Object.keys(checkLayer.keyframes).length > 0;
       const parentHasKeyframes = parentLayer && parentLayer.keyframes && Object.keys(parentLayer.keyframes).length > 0;
 
-      if (!hasKeyframes && !parentHasKeyframes) return false;
+      // Also check if layer is driven by a null parent chain (expressions, no keyframes on null)
+      // getLayerEffectivePropsAtTime already resolves full parentId chain + expressions.
+      // If no keyframes anywhere in the chain, compare effective world pos at tStart vs tEnd.
+      const hasNullParent = !layer._isCollapsedPrecompChild && !!(checkLayer.parentId);
+
+      if (!hasKeyframes && !parentHasKeyframes && !hasNullParent) return false;
 
       const eps = 0.001;
 
-      // For collapsed children: compare world positions at tStart vs tEnd
+      // For collapsed precomp children: compare world positions at tStart vs tEnd
       // We need to re-compute world transforms using the parent+child combo
       if (layer._isCollapsedPrecompChild && parentLayer && childOrig) {
         const worldAt = (t) => this._computeCollapsedChildWorldPos(parentLayer, childOrig, t, layerList);
@@ -140,8 +145,9 @@
         );
       }
 
-      const p0 = window.getLayerEffectivePropsAtTime(checkLayer, tStart, null, layerList);
-      const p1 = window.getLayerEffectivePropsAtTime(checkLayer, tEnd, null, layerList);
+      const pool = layerList || (typeof window !== 'undefined' && window.currentProjectState && window.currentProjectState.layers) || null;
+      const p0 = window.getLayerEffectivePropsAtTime(checkLayer, tStart, null, pool);
+      const p1 = window.getLayerEffectivePropsAtTime(checkLayer, tEnd, null, pool);
       if (!p0 || !p1) return false;
 
       // Helper: shortest angular path diff, normalized to [0, 180]

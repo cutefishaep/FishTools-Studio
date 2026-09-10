@@ -587,6 +587,9 @@
               prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
             }
             await window.FishDatabase.saveProject(prj);
+            _projectDirty = false;
+            _lastSaveTime = Date.now();
+            try { localStorage.removeItem('fishtool_emergency_layers'); } catch (_) {}
 
             // Guarantee URL always has project ID so F5 refresh never loses project
             if (prj.id) {
@@ -615,16 +618,155 @@
         });
       }
     }
+    // ──────────────── ROBUST AUTO-SAVE SYSTEM ────────────────
+    // Tracks dirty state and ensures no data loss on refresh/close
+    let _projectDirty = false;
+    let _lastSaveTime = 0;
+    const _AUTO_SAVE_INTERVAL = 3000; // auto-save every 3s if dirty
+
+    // Mark project dirty whenever saveCurrentProjectLayers is called
+    const _origSave = saveCurrentProjectLayers;
+    saveCurrentProjectLayers = function(immediate) {
+      _projectDirty = true;
+      return _origSave(immediate);
+    };
     window.saveCurrentProjectLayers = saveCurrentProjectLayers;
     window.saveCurrentLayersToDb = saveCurrentProjectLayers;
 
+    // After doSave completes successfully, mark clean
+    const _origDoSaveRef = saveCurrentProjectLayers;
+
+    // Emergency localStorage snapshot key
+    const _EMERGENCY_KEY = 'fishtool_emergency_layers';
+
+    function writeEmergencySnapshot() {
+      if (!currentProjectState.id) return;
+      try {
+        const layers = currentProjectState.layers || [];
+        if (layers.length === 0) return;
+        const snapshot = {
+          projectId: currentProjectState.id,
+          timestamp: Date.now(),
+          layers: JSON.parse(JSON.stringify(layers))
+        };
+        localStorage.setItem(_EMERGENCY_KEY, JSON.stringify(snapshot));
+      } catch (e) {
+        // localStorage full or quota exceeded — silent fail
+      }
+    }
+
+    function clearEmergencySnapshot() {
+      try { localStorage.removeItem(_EMERGENCY_KEY); } catch (_) {}
+    }
+
+    // Patch doSave to clear dirty flag and emergency snapshot on successful DB write
+    const _patchedDoSaveOrig = saveCurrentProjectLayers;
+
+    // 1) VISIBILITY CHANGE: save when user switches tabs or minimizes
+    // This is MORE reliable than beforeunload for async saves
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        if (saveLayersDebounceTimer) {
+          clearTimeout(saveLayersDebounceTimer);
+          saveLayersDebounceTimer = null;
+        }
+        // Fire immediate save + emergency snapshot
+        writeEmergencySnapshot();
+        _origSave(true).then(() => {
+          _projectDirty = false;
+          _lastSaveTime = Date.now();
+          clearEmergencySnapshot();
+        }).catch(() => {});
+      }
+    });
+
+    // 2) BEFOREUNLOAD: write synchronous localStorage snapshot as last resort
+    // IndexedDB async can NOT complete during unload — localStorage CAN
     window.addEventListener('beforeunload', () => {
       if (saveLayersDebounceTimer) {
         clearTimeout(saveLayersDebounceTimer);
         saveLayersDebounceTimer = null;
-        saveCurrentProjectLayers(true);
       }
+      // Synchronous emergency snapshot — guaranteed to persist
+      writeEmergencySnapshot();
+      // Also attempt the async save (may or may not complete)
+      _origSave(true);
     });
+
+    // 3) PERIODIC AUTO-SAVE: catch any missed saves every 3s
+    setInterval(() => {
+      if (_projectDirty && !saveLayersDebounceTimer) {
+        const now = Date.now();
+        if (now - _lastSaveTime > _AUTO_SAVE_INTERVAL) {
+          _origSave(true).then(() => {
+            _projectDirty = false;
+            _lastSaveTime = now;
+            clearEmergencySnapshot();
+          }).catch(() => {});
+        }
+      }
+    }, _AUTO_SAVE_INTERVAL);
+
+    // 4) ON LOAD: Restore emergency snapshot if DB save was lost
+    (async function restoreEmergencySnapshot() {
+      try {
+        const raw = localStorage.getItem(_EMERGENCY_KEY);
+        if (!raw) return;
+        const snapshot = JSON.parse(raw);
+        if (!snapshot || !snapshot.projectId || !snapshot.timestamp) {
+          clearEmergencySnapshot();
+          return;
+        }
+        // Only restore if snapshot is recent (< 30 seconds old) and matches current project
+        const age = Date.now() - snapshot.timestamp;
+        if (age > 30000) {
+          clearEmergencySnapshot();
+          return;
+        }
+        // Wait for project to initialize
+        await new Promise(r => setTimeout(r, 500));
+
+        if (currentProjectState.id && currentProjectState.id === snapshot.projectId) {
+          // Compare: if DB layers have fewer effects or missing params, use snapshot
+          const dbLayers = currentProjectState.layers || [];
+          const snapLayers = snapshot.layers || [];
+          let shouldRestore = false;
+
+          for (let i = 0; i < Math.min(dbLayers.length, snapLayers.length); i++) {
+            const dbFx = Array.isArray(dbLayers[i].effects) ? dbLayers[i].effects : [];
+            const snapFx = Array.isArray(snapLayers[i].effects) ? snapLayers[i].effects : [];
+            // If snapshot has more effect params or different values, restore
+            for (let j = 0; j < Math.min(dbFx.length, snapFx.length); j++) {
+              const dbKeys = Object.keys(dbFx[j]).length;
+              const snapKeys = Object.keys(snapFx[j]).length;
+              if (snapKeys > dbKeys) {
+                shouldRestore = true;
+                break;
+              }
+            }
+            if (shouldRestore) break;
+          }
+
+          if (shouldRestore) {
+            currentProjectState.layers = snapLayers;
+            console.info('[AutoSave] Restored emergency snapshot — unsaved changes recovered');
+            if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+            if (typeof syncEffectsRackUI === 'function') syncEffectsRackUI();
+            if (typeof redrawComposition === 'function') redrawComposition('emergency-restore');
+            // Immediately persist the recovered state to DB
+            _origSave(true).then(() => {
+              clearEmergencySnapshot();
+            });
+          } else {
+            clearEmergencySnapshot();
+          }
+        } else {
+          clearEmergencySnapshot();
+        }
+      } catch (_) {
+        clearEmergencySnapshot();
+      }
+    })();
 
     // Save project as .ofts zip file
     async function exportCurrentProjectOFTSAction() {
@@ -4610,7 +4752,9 @@
       // Layer beat markers (or comp beat markers inside layer duration)
       let layerMarkers = Array.isArray(layer.markers) ? layer.markers.slice() : [];
       if (layerMarkers.length === 0 && compBeatmarks.length > 0) {
-        layerMarkers = compBeatmarks.filter(b => b >= (inPoint - 0.001) && b <= (outPoint + 0.001));
+        // Use ALL comp beatmarks (no inPoint/outPoint clamp) — AE evaluates null expressions
+        // across full comp time regardless of the null's render range.
+        layerMarkers = compBeatmarks.slice();
       }
       const layerMarkerObj = createMarkerObject(layerMarkers);
 
@@ -4651,9 +4795,14 @@
           const otherDur = otherLayer.durationSec !== undefined ? otherLayer.durationSec : ((otherLayer.widthPx || 320) / pps);
           const otherOutPoint = Number((otherInPoint + otherDur).toFixed(4));
 
-          let otherMarkers = Array.isArray(otherLayer.markers) ? otherLayer.markers.slice() : [];
-          if (otherMarkers.length === 0 && compBeatmarks.length > 0) {
-            otherMarkers = compBeatmarks.filter(b => b >= (otherInPoint - 0.001) && b <= (otherOutPoint + 0.001));
+          // In AE, layer.marker only contains markers explicitly set on THAT layer.
+          // Null layers never have custom markers. If a layer has no explicit markers,
+          // otherMarkers is empty (numKeys === 0), allowing expressions like
+          // (layer(index+1).marker.numKeys > 0 ? layer(index+1).marker : thisComp.marker)
+          // to correctly fall back to thisComp.marker across the entire timeline.
+          let otherMarkers = [];
+          if (otherLayer.type !== 'null' && Array.isArray(otherLayer.markers) && otherLayer.markers.length > 0) {
+            otherMarkers = otherLayer.markers.slice();
           }
           const otherMarkerObj = createMarkerObject(otherMarkers);
 
@@ -12899,6 +13048,30 @@
           fx.id = `fx_${i + 1}_` + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
         }
         seenIds.add(fx.id);
+
+        // AUTO-HYDRATE: Fill missing params with registry defaults
+        // This ensures saved effects always have all current params populated,
+        // even if new params were added to the definition after the project was saved
+        if (fx.type && window.FishEffectsRegistry && typeof window.FishEffectsRegistry.get === 'function') {
+          const def = window.FishEffectsRegistry.get(fx.type);
+          if (def && Array.isArray(def.params)) {
+            def.params.forEach(p => {
+              if (fx[p.id] === undefined) {
+                if (p.type === 'switch' || p.type === 'boolean') {
+                  fx[p.id] = (p.default !== undefined) ? p.default : 1;
+                } else if (p.type === 'color') {
+                  fx[p.id] = p.default || '#ffffff';
+                } else if (p.type === 'select') {
+                  fx[p.id] = p.default || (p.options && p.options[0] ? p.options[0] : 'normal');
+                } else if (p.type === 'curve') {
+                  fx[p.id] = p.default || null;
+                } else {
+                  fx[p.id] = p.default !== undefined ? p.default : 0;
+                }
+              }
+            });
+          }
+        }
       });
       if (layer.keyframes && layer.effects.length > 0) {
         const firstFx = layer.effects[0];
@@ -13100,6 +13273,10 @@
               if (preview) preview.style.backgroundColor = val;
               const hexInput = card.querySelector(`.fx-hex-${pId}`);
               if (hexInput && document.activeElement !== hexInput) hexInput.value = String(val).toUpperCase();
+              return;
+            }
+
+            if (pType === 'curve') {
               return;
             }
 
@@ -13822,6 +13999,11 @@
             if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
           });
         });
+
+        // 7. Curve Widget Interactive Binding
+        if (window.FishEffects && typeof window.FishEffects.bindCurveWidget === 'function') {
+          window.FishEffects.bindCurveWidget(card, fx, layer);
+        }
       });
     }
 
@@ -14029,21 +14211,22 @@
 
       // 5b. More Options (Copy All Effects / Paste Effects)
       const btnEffectsMore = document.getElementById('btn-effects-more');
-      const effectsMoreMenu = document.getElementById('effects-rack-more-menu');
       const btnCopyAll = document.getElementById('btn-effects-copy-all');
       const btnPasteAll = document.getElementById('btn-effects-paste-all');
 
-      if (btnEffectsMore && effectsMoreMenu) {
+      if (btnEffectsMore) {
         btnEffectsMore.addEventListener('click', (e) => {
           e.stopPropagation();
-          effectsMoreMenu.classList.toggle('is-open');
+          if (window.Popover) {
+            window.Popover.open(btnEffectsMore, 'popover-effects-more');
+          }
         });
       }
 
       if (btnCopyAll) {
         btnCopyAll.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (effectsMoreMenu) effectsMoreMenu.classList.remove('is-open');
+          if (window.Popover) window.Popover.close(false);
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (!layer) return;
           const effects = ensureLayerEffects(layer);
@@ -14079,7 +14262,7 @@
       if (btnPasteAll) {
         btnPasteAll.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (effectsMoreMenu) effectsMoreMenu.classList.remove('is-open');
+          if (window.Popover) window.Popover.close(false);
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (!layer) return;
 
@@ -14316,16 +14499,13 @@
         });
       }
 
-      // 10. Click Outside to Close Kebab Menus & More Options Menu
+      // 10. Click Outside to Close Kebab Menus
       document.addEventListener('pointerdown', (e) => {
         if (!e.target.closest('.effects-card-kebab-btn') && !e.target.closest('.effects-kebab-menu')) {
           document.querySelectorAll('.effects-kebab-menu.is-open').forEach(m => {
             m.classList.remove('is-open');
             m.closest('.effects-card')?.classList.remove('has-kebab-open');
           });
-        }
-        if (!e.target.closest('.btn-effects-more') && !e.target.closest('.effects-rack-more-menu')) {
-          document.querySelectorAll('.effects-rack-more-menu.is-open').forEach(m => m.classList.remove('is-open'));
         }
       });
     })();
@@ -14404,6 +14584,7 @@
         { id: 'tile', name: 'Tile', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'wave-warp', name: 'Wave Warp', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'warp', name: 'Warp', category: 'warp', icon: 'assets/FXPH.svg' },
+        { id: 'optic-compensation', name: 'Optic Compensation', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'transform', name: 'Transform', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'oscillate', name: 'Oscillate', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'swing', name: 'Swing', category: 'movement', icon: 'assets/FXPH.svg' },
@@ -14411,7 +14592,16 @@
         { id: 'tint', name: 'Tint', category: 'lightning', icon: 'assets/FXPH.svg' },
         { id: 'lumia', name: 'Lumia', category: 'lightning', icon: 'assets/FXPH.svg' },
         { id: 'curve', name: 'Curve', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'sharpen', name: 'Sharpen', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'unsharp-mask', name: 'Unsharp Mask', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'grad-exposure', name: 'Grad Exposure', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'diffusion', name: 'Diffusion', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'anamorphic-flare', name: 'Anamorphic Flare', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'haze-flare', name: 'Haze / Flare', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'vignette', name: 'Vignette', category: 'lightning', icon: 'assets/FXPH.svg' },
+        { id: 'chromatic-aberration', name: 'Chromatic Aberration', category: 'lightning', icon: 'assets/FXPH.svg' },
         { id: 'drop-shadow', name: 'Drop Shadow', category: 'layer', icon: 'assets/FXPH.svg' },
+        { id: 'shatter', name: 'Shatter', category: 'layer', icon: 'assets/FXPH.svg' },
         { id: 'fill', name: 'Fill', category: 'layer', icon: 'assets/FXPH.svg' },
         { id: 'fast-box-blur', name: 'Fast Box Blur', category: 'layer', icon: 'assets/FXPH.svg' },
         { id: 'camera-lens-blur', name: 'Camera Lens Blur', category: 'layer', icon: 'assets/FXPH.svg' },
@@ -16386,11 +16576,20 @@
           target.addEventListener(name, (e) => {
             e.preventDefault();
             e.stopPropagation();
+            target.classList.add('is-dragover');
+          });
+        });
+        ['dragleave', 'dragend'].forEach(name => {
+          target.addEventListener(name, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            target.classList.remove('is-dragover');
           });
         });
         target.addEventListener('drop', async (e) => {
           e.preventDefault();
           e.stopPropagation();
+          target.classList.remove('is-dragover');
           if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             await handleFiles(e.dataTransfer.files, true);
           }
@@ -20852,6 +21051,28 @@
         }
 
         const layers = currentProjectState.layers || [];
+        const viewport = document.getElementById('timeline-layers-viewport');
+        const existingEmpty = viewport ? viewport.querySelector('.timeline-empty-state') : null;
+
+        if (layers.length === 0) {
+          if (!existingEmpty && viewport) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'timeline-empty-state';
+            emptyState.id = 'timeline-empty-state';
+            emptyState.innerHTML = `
+              <div class="timeline-empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                </svg>
+              </div>
+              <span class="timeline-empty-text">Drop media here to import</span>
+            `;
+            viewport.appendChild(emptyState);
+          }
+        } else if (existingEmpty) {
+          existingEmpty.remove();
+        }
+
         layers.forEach(layer => {
           const clipType = layer.type === 'shape' ? 'shape' : (layer.type === 'text' ? 'text' : (layer.type === 'video' ? 'video' : (layer.type === 'audio' ? 'audio' : (layer.type === 'adjustment' ? 'adjustment' : (layer.type === 'camera' ? 'camera' : (layer.type === 'null' ? 'null' : (layer.type === 'precomp' ? 'precomp' : (layer.type === 'color' ? 'color' : 'image'))))))));
           const typeTag = layer.type === 'shape' ? 'SHP' : (layer.type === 'text' ? 'TXT' : (layer.type === 'video' ? 'VID' : (layer.type === 'audio' ? 'AUD' : (layer.type === 'adjustment' ? 'ADJ' : (layer.type === 'camera' ? 'CAM' : (layer.type === 'null' ? 'NULL' : (layer.type === 'precomp' ? (layer.groupType === 'mask' ? 'MASK' : (layer.groupType === 'exclude' ? 'EXCL' : 'COMP')) : (layer.type === 'color' ? 'CLR' : 'IMG'))))))));
@@ -22417,12 +22638,24 @@
       }
 
       function renderTimelineLinkConnectors() {
+        // Connectors render strictly in the timeline track (to the left of layer clips).
+        // Matches professional After Effects timeline hierarchy connectors (Photo 2).
+        const layersTrack = document.getElementById('timeline-layers-track');
         if (!layersTrack) return;
+
+        // Clean up any stale SVG left in the lane-heads-overlay
+        const staleOverlay = document.getElementById('timeline-lane-heads-overlay');
+        if (staleOverlay) {
+          const staleSvg = staleOverlay.querySelector('.timeline-link-connectors-svg');
+          if (staleSvg) staleSvg.remove();
+        }
+
         let svg = layersTrack.querySelector('.timeline-link-connectors-svg');
         if (!svg) {
           svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
           svg.setAttribute('class', 'timeline-link-connectors-svg');
           svg.setAttribute('aria-hidden', 'true');
+          svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:12;';
           layersTrack.insertBefore(svg, layersTrack.firstChild);
         }
         svg.innerHTML = '';
@@ -22433,92 +22666,79 @@
         const linkedLayers = layers.filter(l => l.parentId);
         if (linkedLayers.length === 0) return;
 
-        // 1. Group child layers by parentId to form unified bus trees
-        const parentGroupsMap = new Map();
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond === 'number' ? pixelsPerSecond : 80);
+        function getLayerStartX(layer) {
+          if (layer.startPx !== undefined) return layer.startPx;
+          return (layer.startSec !== undefined ? layer.startSec : 0) * pps;
+        }
 
+        const lanes = layersTrack.querySelectorAll('.timeline-track-lane');
+        function getRowY(r) {
+          if (lanes && lanes[r]) {
+            return lanes[r].offsetTop + lanes[r].offsetHeight / 2;
+          }
+          return r * 54 + 22;
+        }
+
+        // 1. Group child layers by parentId
+        const parentGroupsMap = new Map();
         linkedLayers.forEach(child => {
           const parent = layers.find(l => l.id === child.parentId);
           if (!parent) return;
           const pIdx = layers.indexOf(parent);
           const cIdx = layers.indexOf(child);
           if (pIdx === -1 || cIdx === -1 || pIdx === cIdx) return;
-
           if (!parentGroupsMap.has(parent.id)) {
-            parentGroupsMap.set(parent.id, {
-              parent,
-              pIdx,
-              children: [],
-              rows: [pIdx],
-              isSelected: false
-            });
+            parentGroupsMap.set(parent.id, { parent, pIdx, children: [], rows: [pIdx], isSelected: false });
           }
-          const group = parentGroupsMap.get(parent.id);
-          group.children.push({ child, cIdx });
-          group.rows.push(cIdx);
+          const g = parentGroupsMap.get(parent.id);
+          g.children.push({ child, cIdx });
+          g.rows.push(cIdx);
         });
 
         const groups = Array.from(parentGroupsMap.values());
         if (groups.length === 0) return;
 
-        // 2. Determine bounds, selection, and minStart across intermediate layers
-        groups.forEach(group => {
-          group.minRow = Math.min(...group.rows);
-          group.maxRow = Math.max(...group.rows);
+        // 2. Compute vertical row spans, selection state, and the leftmost clip start among all rows in span
+        groups.forEach(g => {
+          g.minRow = Math.min(...g.rows);
+          g.maxRow = Math.max(...g.rows);
+          const hasPSel = (selectedLayerIds && selectedLayerIds.has(g.parent.id)) || g.parent.id === selectedLayerId;
+          const hasCSel = g.children.some(({ child }) => (selectedLayerIds && selectedLayerIds.has(child.id)) || child.id === selectedLayerId);
+          g.isSelected = hasPSel || hasCSel;
 
-          const hasParentSel = (selectedLayerIds && selectedLayerIds.has(group.parent.id)) || group.parent.id === selectedLayerId;
-          const hasChildSel = group.children.some(({ child }) =>
-            (selectedLayerIds && selectedLayerIds.has(child.id)) || child.id === selectedLayerId
-          );
-          group.isSelected = hasParentSel || hasChildSel;
-
-          // Find minimum startPx across all layers between minRow and maxRow so stem never intersects clips
-          let minStart = Infinity;
-          for (let r = group.minRow; r <= group.maxRow; r++) {
+          // Find the leftmost clip start among ALL layers within this row range
+          let minClipX = Infinity;
+          for (let r = g.minRow; r <= g.maxRow; r++) {
             const l = layers[r];
             if (l) {
-              const s = l.startPx !== undefined ? l.startPx : (l.startSec !== undefined ? l.startSec * (pixelsPerSecond || 60) : 0);
-              if (s < minStart) minStart = s;
+              const sx = getLayerStartX(l);
+              if (sx < minClipX) minClipX = sx;
             }
           }
-          if (!isFinite(minStart)) minStart = 0;
-          group.minStart = minStart;
+          g.minClipX = isFinite(minClipX) ? minClipX : 0;
         });
 
-        // 3. Cluster overlapping vertical row spans to avoid channel collisions
+        // 3. Cluster overlapping vertical spans to prevent stem collisions (nested channels like Photo 2)
         groups.sort((a, b) => a.minRow - b.minRow || (b.maxRow - b.minRow) - (a.maxRow - a.minRow));
-
         const clusters = [];
-        groups.forEach(group => {
-          let placedInCluster = null;
-          for (const cluster of clusters) {
-            if (group.minRow <= cluster.maxRow && group.maxRow >= cluster.minRow) {
-              placedInCluster = cluster;
-              break;
-            }
-          }
-          if (placedInCluster) {
-            placedInCluster.groups.push(group);
-            placedInCluster.minRow = Math.min(placedInCluster.minRow, group.minRow);
-            placedInCluster.maxRow = Math.max(placedInCluster.maxRow, group.maxRow);
-            placedInCluster.minStart = Math.min(placedInCluster.minStart, group.minStart);
+        groups.forEach(g => {
+          let placed = clusters.find(c => g.minRow <= c.maxRow && g.maxRow >= c.minRow);
+          if (placed) {
+            placed.groups.push(g);
+            placed.minRow = Math.min(placed.minRow, g.minRow);
+            placed.maxRow = Math.max(placed.maxRow, g.maxRow);
+            placed.minClipX = Math.min(placed.minClipX, g.minClipX);
           } else {
-            clusters.push({
-              groups: [group],
-              minRow: group.minRow,
-              maxRow: group.maxRow,
-              minStart: group.minStart
-            });
+            clusters.push({ groups: [g], minRow: g.minRow, maxRow: g.maxRow, minClipX: g.minClipX });
           }
         });
 
-        // 4. Assign non-overlapping channel columns within each cluster
-        // Base clearance 22px (compact horizontal span), channel spacing 10px, 6px gap from clip edge
-        const baseClearance = 22;
-        const channelSpacing = 10;
-        const clipGap = 6;
+        const baseClearance = 16;  // px left of leftmost clip in row span
+        const channelSpacing = 12; // px per channel column
 
         clusters.forEach(cluster => {
-          // Larger row spans get outer channels for clean nesting
+          // Larger row spans get outer (further left) channels for clean nesting
           cluster.groups.sort((a, b) => (b.maxRow - b.minRow) - (a.maxRow - a.minRow));
           const channelMaxRows = [];
           cluster.groups.forEach(g => {
@@ -22535,92 +22755,95 @@
               channelMaxRows.push(g.maxRow);
             }
             g.channel = assigned;
-            g.stemX = cluster.minStart - (baseClearance + g.channel * channelSpacing);
+            // Stem X is placed strictly to the left of all clips in this span
+            g.stemX = cluster.minClipX - (baseClearance + assigned * channelSpacing);
           });
         });
 
-        // 5. Render unselected groups first, selected groups last so selected lines stay on top
+        // 4. Render: unselected first, selected last (paints on top)
         groups.sort((a, b) => (a.isSelected === b.isSelected ? 0 : a.isSelected ? 1 : -1));
 
-        groups.forEach(group => {
-          const pIdx = group.pIdx;
-          const parent = group.parent;
-          const pStart = parent.startPx !== undefined ? parent.startPx : 0;
-          const yParent = pIdx * 54 + 22;
+        const clipGap = 3; // px gap before clip edge
 
-          const stemX = group.stemX;
-          const sortedRows = group.rows.slice().sort((a, b) => a - b);
+        groups.forEach(g => {
+          const { pIdx, parent, stemX } = g;
+          const sortedRows = g.rows.slice().sort((a, b) => a - b);
           const minRow = sortedRows[0];
           const maxRow = sortedRows[sortedRows.length - 1];
-          const yMin = minRow * 54 + 22;
-          const yMax = maxRow * 54 + 22;
+          const yMin = getRowY(minRow);
+          const yMax = getRowY(maxRow);
+          const R = Math.min(6, Math.max(3, (yMax - yMin) / 6));
 
-          const R = Math.min(5, Math.max(2, (yMax - yMin) / 4));
-
-          function getLayerTerminalX(r) {
-            if (r === pIdx) return pStart - clipGap;
-            const item = group.children.find(c => c.cIdx === r);
-            const s = item && item.child.startPx !== undefined ? item.child.startPx : 0;
-            return s - clipGap;
+          function getTermX(r) {
+            if (r === pIdx) {
+              return getLayerStartX(parent) - clipGap;
+            }
+            const ch = g.children.find(c => c.cIdx === r);
+            return ch ? (getLayerStartX(ch.child) - clipGap) : stemX;
           }
 
-          const startTop = getLayerTerminalX(minRow);
-          const startBottom = getLayerTerminalX(maxRow);
+          const xTop = Math.max(stemX + R, getTermX(minRow));
+          const xBot = Math.max(stemX + R, getTermX(maxRow));
 
-          // Continuous vertical trunk with rounded corners at top and bottom terminals
-          let d = `M ${startTop} ${yMin} H ${stemX + R} Q ${stemX} ${yMin} ${stemX} ${yMin + R} V ${yMax - R} Q ${stemX} ${yMax} ${stemX + R} ${yMax} H ${startBottom}`;
+          // Continuous C-bracket path with rounded corners (matches Photo 2)
+          let d = `M ${xTop} ${yMin} H ${stemX + R} Q ${stemX} ${yMin} ${stemX} ${yMin + R} V ${yMax - R} Q ${stemX} ${yMax} ${stemX + R} ${yMax} H ${xBot}`;
 
-          // Intermediate horizontal branches
+          // Intermediate horizontal branches for rows strictly between minRow and maxRow
           for (let i = 1; i < sortedRows.length - 1; i++) {
             const r = sortedRows[i];
-            const y = r * 54 + 22;
-            const s = getLayerTerminalX(r);
-            d += ` M ${stemX} ${y} H ${s}`;
+            const y = getRowY(r);
+            const tx = Math.max(stemX, getTermX(r));
+            d += ` M ${stemX} ${y} H ${tx}`;
           }
 
-          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          g.setAttribute('class', `timeline-link-group ${group.isSelected ? 'is-selected' : ''}`);
+          const isSel = g.isSelected;
+          const gEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          gEl.setAttribute('class', `timeline-link-group ${isSel ? 'is-selected' : ''}`);
 
-          // Origin anchor dot on parent (cleanly outside clip boundary)
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          circle.setAttribute('cx', pStart - clipGap);
-          circle.setAttribute('cy', yParent);
-          circle.setAttribute('r', '2.5');
-          circle.setAttribute('class', 'timeline-link-dot');
-          g.appendChild(circle);
-
-          // Intermediate branch junction nodes on vertical trunk
-          for (let i = 1; i < sortedRows.length - 1; i++) {
-            const r = sortedRows[i];
-            const junction = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            junction.setAttribute('cx', stemX);
-            junction.setAttribute('cy', r * 54 + 22);
-            junction.setAttribute('r', '2');
-            junction.setAttribute('class', 'timeline-link-junction');
-            g.appendChild(junction);
-          }
-
-          // Main vector connector line path
+          // Main path line
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', d);
-          path.setAttribute('class', `timeline-link-line ${group.isSelected ? 'is-selected' : ''}`);
-          g.appendChild(path);
+          path.setAttribute('class', `timeline-link-line ${isSel ? 'is-selected' : ''}`);
+          gEl.appendChild(path);
 
-          // Arrowhead entering each child clip with 6px breathing room
-          group.children.forEach(({ child, cIdx }) => {
-            const cStart = child.startPx !== undefined ? child.startPx : 0;
-            const yChild = cIdx * 54 + 22;
-            const tipX = cStart - clipGap;
+          // Origin dot on parent row
+          const pY = getRowY(pIdx);
+          const pTermX = Math.max(stemX, getLayerStartX(parent) - clipGap);
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('cx', pTermX);
+          dot.setAttribute('cy', pY);
+          dot.setAttribute('r', '2.5');
+          dot.setAttribute('class', 'timeline-link-dot');
+          gEl.appendChild(dot);
+
+          // Junction dots on vertical stem for intermediate rows
+          for (let i = 1; i < sortedRows.length - 1; i++) {
+            const r = sortedRows[i];
+            const jct = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            jct.setAttribute('cx', stemX);
+            jct.setAttribute('cy', getRowY(r));
+            jct.setAttribute('r', '2');
+            jct.setAttribute('class', 'timeline-link-junction');
+            gEl.appendChild(jct);
+          }
+
+          // Arrowheads at each child clip edge (pointing into child)
+          g.children.forEach(({ child, cIdx }) => {
+            const yC = getRowY(cIdx);
+            const tipX = Math.max(stemX + 2, getLayerStartX(child) - clipGap);
             const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            arrow.setAttribute('points', `${tipX - 6},${yChild - 3.5} ${tipX},${yChild} ${tipX - 6},${yChild + 3.5}`);
+            arrow.setAttribute('points', `${tipX - 6},${yC - 3.5} ${tipX},${yC} ${tipX - 6},${yC + 3.5}`);
             arrow.setAttribute('class', 'timeline-link-arrow');
-            g.appendChild(arrow);
+            gEl.appendChild(arrow);
           });
 
-          svg.appendChild(g);
+          svg.appendChild(gEl);
         });
       }
       window.renderTimelineLinkConnectors = renderTimelineLinkConnectors;
+
+
+
 
       function moveTimelineLayer(fromIdx, toIdx) {
         const layers = currentProjectState.layers || [];
@@ -22807,10 +23030,11 @@
       }
 
       function isTextInputElement(el) {
-        if (!el) return false;
+        if (!el || typeof el !== 'object') return false;
         const tag = el.tagName ? el.tagName.toLowerCase() : '';
         if (tag === 'textarea') return true;
-        if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') return true;
+        if (el.isContentEditable) return true;
+        if (typeof el.getAttribute === 'function' && el.getAttribute('contenteditable') === 'true') return true;
         if (tag === 'input') {
           const type = (el.type || '').toLowerCase();
           return ['text', 'search', 'password', 'url', 'email', 'tel', 'number'].includes(type);

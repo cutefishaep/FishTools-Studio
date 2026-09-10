@@ -261,7 +261,7 @@ const Popover = (function () {
     activePopover = popoverEl;
 
     // Push popstate history for native back button / Android gesture support (exclude in-drawer popovers)
-    if (popoverEl.id !== 'popover-graph-more' && popoverEl.id !== 'popover-graph-delete-confirm' && popoverEl.id !== 'popover-media-item-menu' && (!window.history.state || !window.history.state.popoverOpen)) {
+    if (popoverEl.id !== 'popover-graph-more' && popoverEl.id !== 'popover-effects-more' && popoverEl.id !== 'popover-graph-delete-confirm' && popoverEl.id !== 'popover-media-item-menu' && (!window.history.state || !window.history.state.popoverOpen)) {
       window.history.pushState({ popoverOpen: true, popoverId: popoverEl.id }, '');
     }
 
@@ -309,7 +309,7 @@ const Popover = (function () {
     window.removeEventListener('resize', scheduleUpdate);
     window.removeEventListener('scroll', scheduleUpdate);
 
-    if (triggerPopstate && elToClose.id !== 'popover-graph-more' && elToClose.id !== 'popover-media-item-menu' && window.history.state && window.history.state.popoverOpen) {
+    if (triggerPopstate && elToClose.id !== 'popover-graph-more' && elToClose.id !== 'popover-effects-more' && elToClose.id !== 'popover-media-item-menu' && window.history.state && window.history.state.popoverOpen) {
       popstateAwaited++;
       window._popoverClosingHistoryBack = true;
       window.history.back();

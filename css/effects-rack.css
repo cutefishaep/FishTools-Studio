@@ -96,89 +96,6 @@
   position: relative;
 }
 
-/* More Options Wrap & Button */
-.effects-rack-more-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.btn-effects-more {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border-panel);
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 0;
-  outline: none;
-  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
-}
-
-.btn-effects-more:hover {
-  color: var(--text-primary);
-  background-color: var(--bg-panel-hover);
-  border-color: var(--border-panel);
-}
-
-.btn-effects-more svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
-/* More Options Menu Popover */
-.effects-rack-more-menu {
-  display: none;
-  position: absolute;
-  top: 34px;
-  right: 0;
-  width: 150px;
-  background-color: var(--bg-panel);
-  border: 1px solid var(--border-panel);
-  border-radius: 8px;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 150;
-  user-select: none;
-}
-
-.effects-rack-more-menu.is-open {
-  display: flex;
-}
-
-.effects-rack-more-item {
-  display: flex;
-  align-items: center;
-  height: 36px;
-  padding: 0 14px;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--border-panel);
-  color: var(--text-primary);
-  font-family: var(--font-brand);
-  font-size: 12.5px;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-  outline: none;
-  transition: background-color 0.1s ease, color 0.1s ease;
-  white-space: nowrap;
-}
-
-.effects-rack-more-item:last-child {
-  border-bottom: none;
-}
-
-.effects-rack-more-item:hover {
-  background-color: var(--bg-panel-hover);
-  color: var(--color-primary);
-}
-
 /* 3. Small "Add Effects" Button (Compact Pill / Action Button) */
 .btn-add-effect {
   display: inline-flex;
@@ -1373,3 +1290,158 @@
 .effects-gallery-item-card:active .effects-gallery-item-name {
   color: var(--color-primary);
 }
+
+/* ==========================================================================
+   7. Real Interactive Curve Editor Widget
+   Pure Flat, 100% Theme Token Binding, Zero Blur, Zero Box-Shadow
+   ========================================================================== */
+.effects-control-row-curve {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 6px 0 !important;
+  height: auto !important;
+  min-height: 270px;
+  overflow: visible !important;
+}
+
+.effects-curve-editor {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  border-radius: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.effects-curve-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.effects-curve-channels {
+  display: flex;
+  gap: 4px;
+}
+
+.effects-curve-chan-btn {
+  background: transparent;
+  border: 1px solid var(--border-panel);
+  color: var(--text-muted);
+  border-radius: 4px;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+
+.effects-curve-chan-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.effects-curve-chan-btn.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+.effects-curve-chan-btn[data-channel="r"].is-active {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+
+.effects-curve-presets-select {
+  background-color: var(--bg-panel-inner);
+  color: var(--text-primary);
+  border: 1px solid var(--border-panel);
+  border-radius: 4px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.effects-curve-canvas-wrap {
+  width: 200px;
+  height: 200px;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  margin: 8px auto;
+  position: relative;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  touch-action: none;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.effects-curve-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.effects-curve-point {
+  fill: var(--color-primary);
+  stroke: var(--bg-canvas);
+  stroke-width: 2px;
+  cursor: grab;
+  transition: transform 0.08s ease, r 0.08s ease;
+}
+
+.effects-curve-point:hover {
+  r: 7.5;
+  cursor: grab;
+}
+
+.effects-curve-point:active {
+  cursor: grabbing;
+}
+
+.effects-curve-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background-color: var(--bg-panel);
+  border-top: 1px solid var(--border-panel);
+}
+
+.effects-curve-coord {
+  font-size: 10.5px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+.effects-curve-reset-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.effects-curve-reset-btn:hover {
+  color: var(--color-primary);
+  background-color: var(--bg-panel-hover);
+}
+

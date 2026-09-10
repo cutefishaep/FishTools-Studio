@@ -452,6 +452,90 @@
           `;
         }
 
+        if (type === 'curve') {
+          const currentChan = fx.channel || 'rgb';
+          let rawPts = null;
+          if (currentChan === 'r') rawPts = fx.curveR;
+          else if (currentChan === 'g') rawPts = fx.curveG;
+          else if (currentChan === 'b') rawPts = fx.curveB;
+          else rawPts = fx[p.id] || fx.points;
+
+          if (!rawPts) rawPts = [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]];
+          const pts = (Array.isArray(rawPts) ? rawPts : [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]])
+            .map(pt => Array.isArray(pt) ? [Number(pt[0]), Number(pt[1])] : [Number(pt.x || 0), Number(pt.y || 0)])
+            .sort((a, b) => a[0] - b[0]);
+
+          const curveDef = FishEffectsRegistry.get('curve');
+          const spline = (curveDef && typeof curveDef.buildSpline === 'function')
+            ? curveDef.buildSpline(pts)
+            : function(x) { return x; };
+
+          let pathD = '';
+          const steps = 30;
+          for (let s = 0; s <= steps; s++) {
+            const u = s / steps;
+            const vy = Math.max(0, Math.min(1, spline(u)));
+            const sx = (u * 200).toFixed(1);
+            const sy = ((1.0 - vy) * 200).toFixed(1);
+            pathD += (s === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`);
+          }
+
+          let strokeColor = 'var(--color-primary)';
+          if (currentChan === 'r') strokeColor = 'var(--color-danger)';
+          else if (currentChan === 'g') strokeColor = 'var(--color-primary)';
+          else if (currentChan === 'b') strokeColor = '#60a5fa';
+
+          const pointsMarkup = pts.map((pt, idx) => {
+            const cx = (pt[0] * 200).toFixed(1);
+            const cy = ((1.0 - pt[1]) * 200).toFixed(1);
+            return `<circle class="effects-curve-point" data-index="${idx}" cx="${cx}" cy="${cy}" r="6" fill="${strokeColor}"></circle>`;
+          }).join('');
+
+          return `
+            <div class="effects-control-row effects-control-row-curve" data-param="${p.id}">
+              <div class="effects-curve-editor" data-effect-id="${fx.id}" data-param="${p.id}">
+                <div class="effects-curve-header">
+                  <div class="effects-curve-channels" data-effect-id="${fx.id}">
+                    <button type="button" class="effects-curve-chan-btn ${currentChan === 'rgb' ? 'is-active' : ''}" data-channel="rgb" title="Master RGB">RGB</button>
+                    <button type="button" class="effects-curve-chan-btn ${currentChan === 'r' ? 'is-active' : ''}" data-channel="r" title="Red Channel">R</button>
+                    <button type="button" class="effects-curve-chan-btn ${currentChan === 'g' ? 'is-active' : ''}" data-channel="g" title="Green Channel">G</button>
+                    <button type="button" class="effects-curve-chan-btn ${currentChan === 'b' ? 'is-active' : ''}" data-channel="b" title="Blue Channel">B</button>
+                  </div>
+                  <div class="effects-curve-presets-wrap">
+                    <select class="effects-curve-presets-select" data-effect-id="${fx.id}" title="Curve Presets">
+                      <option value="" disabled selected>Presets</option>
+                      <option value="linear">Linear</option>
+                      <option value="s_curve">S-Curve</option>
+                      <option value="hard_contrast">Hard Contrast</option>
+                      <option value="lift_blacks">Lift Blacks</option>
+                      <option value="invert">Invert</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="effects-curve-canvas-wrap">
+                  <svg class="effects-curve-svg" viewBox="0 0 200 200" data-effect-id="${fx.id}" data-param="${p.id}">
+                    <line x1="50" y1="0" x2="50" y2="200" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+                    <line x1="100" y1="0" x2="100" y2="200" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+                    <line x1="150" y1="0" x2="150" y2="200" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+                    <line x1="0" y1="50" x2="200" y2="50" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+                    <line x1="0" y1="100" x2="200" y2="100" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+                    <line x1="0" y1="150" x2="200" y2="150" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+                    <line x1="0" y1="200" x2="200" y2="0" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0.3"/>
+                    <path class="effects-curve-path" d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round"/>
+                    ${pointsMarkup}
+                  </svg>
+                </div>
+
+                <div class="effects-curve-footer">
+                  <span class="effects-curve-coord" data-effect-id="${fx.id}">In: 128 | Out: 128</span>
+                  <button type="button" class="effects-curve-reset-btn" data-effect-id="${fx.id}" title="Reset Curve to Linear">Reset</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
         if (type === 'angle') {
           const propKey = `${fx.id}:${p.id}`;
           const hasKf = layer && layer.keyframes && (
@@ -578,6 +662,256 @@
           </div>
         </div>
       `;
+    },
+
+    bindCurveWidget(card, fx, layer) {
+      const widget = card.querySelector('.effects-curve-editor');
+      if (!widget) return;
+      const svg = widget.querySelector('.effects-curve-svg');
+      if (!svg) return;
+
+      const curveDef = FishEffectsRegistry.get('curve');
+      const presets = (curveDef && curveDef.presets) || {
+        linear: [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]],
+        s_curve: [[0, 0], [0.25, 0.18], [0.5, 0.5], [0.75, 0.82], [1, 1]],
+        hard_contrast: [[0, 0], [0.25, 0.12], [0.5, 0.5], [0.75, 0.88], [1, 1]],
+        lift_blacks: [[0, 0.12], [0.25, 0.28], [0.5, 0.5], [0.75, 0.75], [1, 1]],
+        invert: [[0, 1], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [1, 0]]
+      };
+
+      function getCurrentPoints() {
+        const chan = fx.channel || 'rgb';
+        let pts = null;
+        if (chan === 'r') pts = fx.curveR;
+        else if (chan === 'g') pts = fx.curveG;
+        else if (chan === 'b') pts = fx.curveB;
+        else pts = fx.curve || fx.points;
+
+        if (!Array.isArray(pts) || pts.length < 2) {
+          pts = JSON.parse(JSON.stringify(presets.linear));
+        }
+        return pts;
+      }
+
+      function setCurrentPoints(pts) {
+        const chan = fx.channel || 'rgb';
+        if (chan === 'r') fx.curveR = pts;
+        else if (chan === 'g') fx.curveG = pts;
+        else if (chan === 'b') fx.curveB = pts;
+        else {
+          fx.curve = pts;
+          fx.points = pts;
+        }
+      }
+
+      function updateSVG() {
+        const pts = getCurrentPoints();
+        const spline = (curveDef && typeof curveDef.buildSpline === 'function')
+          ? curveDef.buildSpline(pts)
+          : function(x) { return x; };
+
+        let pathD = '';
+        const steps = 30;
+        for (let s = 0; s <= steps; s++) {
+          const u = s / steps;
+          const vy = Math.max(0, Math.min(1, spline(u)));
+          const sx = (u * 200).toFixed(1);
+          const sy = ((1.0 - vy) * 200).toFixed(1);
+          pathD += (s === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`);
+        }
+
+        const chan = fx.channel || 'rgb';
+        let strokeColor = 'var(--color-primary)';
+        if (chan === 'r') strokeColor = 'var(--color-danger)';
+        else if (chan === 'g') strokeColor = 'var(--color-primary)';
+        else if (chan === 'b') strokeColor = '#60a5fa';
+
+        const pathEl = svg.querySelector('.effects-curve-path');
+        if (pathEl) {
+          pathEl.setAttribute('d', pathD);
+          pathEl.setAttribute('stroke', strokeColor);
+        }
+
+        const oldPoints = svg.querySelectorAll('.effects-curve-point');
+        oldPoints.forEach(p => p.remove());
+
+        pts.forEach((pt, idx) => {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('class', 'effects-curve-point');
+          circle.setAttribute('data-index', idx);
+          circle.setAttribute('cx', (pt[0] * 200).toFixed(1));
+          circle.setAttribute('cy', ((1.0 - pt[1]) * 200).toFixed(1));
+          circle.setAttribute('r', '6');
+          circle.setAttribute('fill', strokeColor);
+          svg.appendChild(circle);
+        });
+      }
+
+      // Channel Buttons
+      widget.querySelectorAll('.effects-curve-chan-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const chan = btn.dataset.channel || 'rgb';
+          fx.channel = chan;
+          widget.querySelectorAll('.effects-curve-chan-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+          updateSVG();
+          if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+          if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-channel');
+        });
+      });
+
+      // Presets Dropdown
+      const presetsSel = widget.querySelector('.effects-curve-presets-select');
+      if (presetsSel) {
+        presetsSel.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const pName = presetsSel.value;
+          if (presets[pName]) {
+            setCurrentPoints(JSON.parse(JSON.stringify(presets[pName])));
+            updateSVG();
+            if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+            if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-preset');
+            if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
+          }
+          presetsSel.value = '';
+        });
+      }
+
+      // Reset Button
+      const resetBtn = widget.querySelector('.effects-curve-reset-btn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setCurrentPoints(JSON.parse(JSON.stringify(presets.linear)));
+          updateSVG();
+          if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+          if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-reset');
+          if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
+        });
+      }
+
+      // Double-click to delete intermediate control points
+      svg.addEventListener('dblclick', (e) => {
+        const targetPt = e.target.closest('.effects-curve-point');
+        if (!targetPt) return;
+        const idx = parseInt(targetPt.dataset.index, 10);
+        const pts = getCurrentPoints();
+        if (pts.length > 2 && idx > 0 && idx < pts.length - 1) {
+          e.stopPropagation();
+          e.preventDefault();
+          pts.splice(idx, 1);
+          setCurrentPoints(pts);
+          updateSVG();
+          if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+          if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-point-delete');
+          if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
+        }
+      });
+
+      // Pointer Dragging on Points & Click to Add Point
+      let activePointIdx = null;
+      const coordEl = widget.querySelector('.effects-curve-coord');
+
+      svg.addEventListener('pointerdown', (e) => {
+        const targetPt = e.target.closest('.effects-curve-point');
+        const pts = getCurrentPoints();
+        const rect = svg.getBoundingClientRect();
+        const rw = rect.width || 200;
+        const rh = rect.height || 200;
+        const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rw));
+        const ny = Math.max(0, Math.min(1, 1.0 - (e.clientY - rect.top) / rh));
+
+        if (targetPt) {
+          activePointIdx = parseInt(targetPt.dataset.index, 10);
+        } else {
+          let closestIdx = 0;
+          let minDist = Infinity;
+          pts.forEach((pt, i) => {
+            const d = Math.hypot(pt[0] - nx, pt[1] - ny);
+            if (d < minDist) {
+              minDist = d;
+              closestIdx = i;
+            }
+          });
+          if (minDist < 0.10) {
+            activePointIdx = closestIdx;
+          } else if (pts.length < 12 && nx > 0.02 && nx < 0.98) {
+            // Click empty area to add a new point
+            pts.push([Number(nx.toFixed(3)), Number(ny.toFixed(3))]);
+            pts.sort((a, b) => a[0] - b[0]);
+            setCurrentPoints(pts);
+            activePointIdx = pts.findIndex(p => Math.abs(p[0] - nx) < 0.005 && Math.abs(p[1] - ny) < 0.005);
+            updateSVG();
+            if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+            if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-add-point');
+          }
+        }
+
+        if (activePointIdx !== null) {
+          e.stopPropagation();
+          e.preventDefault();
+          try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+
+          function onPointerMove(ev) {
+            const r = svg.getBoundingClientRect();
+            const rw_ = r.width || 200;
+            const rh_ = r.height || 200;
+            let x = Math.max(0, Math.min(1, (ev.clientX - r.left) / rw_));
+            let y = Math.max(0, Math.min(1, 1.0 - (ev.clientY - r.top) / rh_));
+
+            const curPts = getCurrentPoints();
+            if (activePointIdx === 0) {
+              x = 0;
+            } else if (activePointIdx === curPts.length - 1) {
+              x = 1;
+            } else {
+              const prevX = (curPts[activePointIdx - 1] ? curPts[activePointIdx - 1][0] : 0) + 0.015;
+              const nextX = (curPts[activePointIdx + 1] ? curPts[activePointIdx + 1][0] : 1) - 0.015;
+              x = Math.max(prevX, Math.min(nextX, x));
+            }
+
+            curPts[activePointIdx] = [Number(x.toFixed(3)), Number(y.toFixed(3))];
+            setCurrentPoints(curPts);
+            updateSVG();
+
+            if (coordEl) {
+              coordEl.textContent = `In: ${Math.round(x * 255)} | Out: ${Math.round(y * 255)}`;
+            }
+
+            if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+            if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-drag');
+          }
+
+          function onPointerUp(ev) {
+            try { svg.releasePointerCapture(ev.pointerId); } catch (_) {}
+            svg.removeEventListener('pointermove', onPointerMove);
+            svg.removeEventListener('pointerup', onPointerUp);
+            svg.removeEventListener('pointercancel', onPointerUp);
+            activePointIdx = null;
+            if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
+          }
+
+          svg.addEventListener('pointermove', onPointerMove);
+          svg.addEventListener('pointerup', onPointerUp);
+          svg.addEventListener('pointercancel', onPointerUp);
+        }
+      });
+
+      // Hover coordinates
+      svg.addEventListener('pointermove', (e) => {
+        if (activePointIdx !== null) return;
+        const rect = svg.getBoundingClientRect();
+        const rw = rect.width || 200;
+        const rh = rect.height || 200;
+        const hx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rw));
+        const hy = Math.max(0, Math.min(1, 1.0 - (e.clientY - rect.top) / rh));
+        if (coordEl) {
+          coordEl.textContent = `In: ${Math.round(hx * 255)} | Out: ${Math.round(hy * 255)}`;
+        }
+      });
+
+      // Initial SVG render
+      updateSVG();
     }
   };
 

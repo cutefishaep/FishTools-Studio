@@ -1118,6 +1118,11 @@
                             <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
                           </svg>
                         </button>
+                        <button type="button" class="transform-nav-btn" id="btn-effects-more" title="More Options" aria-label="More Options">
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                          </svg>
+                        </button>
                       </div>
                     </aside>
 
@@ -1126,17 +1131,6 @@
                       <header class="effects-rack-header">
                         <span class="effects-rack-title">Effects</span>
                         <div class="effects-rack-header-right">
-                          <div class="effects-rack-more-wrap">
-                            <button type="button" class="btn-effects-more" id="btn-effects-more" title="More Options" aria-label="More Options">
-                              <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                              </svg>
-                            </button>
-                            <div class="effects-rack-more-menu" id="effects-rack-more-menu">
-                              <button type="button" class="effects-rack-more-item" id="btn-effects-copy-all">Copy Effects</button>
-                              <button type="button" class="effects-rack-more-item" id="btn-effects-paste-all">Paste Effect</button>
-                            </div>
-                          </div>
                           <button type="button" class="btn-add-effect" id="btn-add-effect" title="Add Effects" aria-label="Add Effects">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                               <path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/>
@@ -1307,6 +1301,48 @@
                               <img src="assets/FXPH.svg" alt="Curve" class="effects-gallery-item-img" loading="lazy">
                             </div>
                             <span class="effects-gallery-item-name">Curve</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="sharpen" data-category="lightning" title="Sharpen">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Sharpen" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Sharpen</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="unsharp-mask" data-category="lightning" title="Unsharp Mask">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Unsharp Mask" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Unsharp Mask</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="grad-exposure" data-category="lightning" title="Grad Exposure">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Grad Exposure" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Grad Exposure</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="diffusion" data-category="lightning" title="Diffusion">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Diffusion" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Diffusion</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="anamorphic-flare" data-category="lightning" title="Anamorphic Flare">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Anamorphic Flare" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Anamorphic Flare</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="haze-flare" data-category="lightning" title="Haze / Flare">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Haze / Flare" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Haze / Flare</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="vignette" data-category="lightning" title="Vignette">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Vignette" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Vignette</span>
                           </div>
                           <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="scanline" data-category="lightning" title="Scanline">
                             <div class="effects-gallery-item-thumb">
@@ -2798,6 +2834,28 @@
   </div>
 
   <!-- ==========================================================================
+       MODULAR LAYER EFFECTS MORE OPTIONS POPOVER (.is-menu-popover)
+       Triggered via More Options Button in Effects Nav Column
+       ========================================================================== -->
+  <div class="popover-card is-menu-popover" id="popover-effects-more" role="dialog" aria-hidden="true" style="min-width: 160px;">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="popover-menu-list">
+      <button type="button" class="popover-menu-item" id="btn-effects-copy-all" title="Copy Effects">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+        </svg>
+        <span>Copy Effects</span>
+      </button>
+      <button type="button" class="popover-menu-item" id="btn-effects-paste-all" title="Paste Effect">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/>
+        </svg>
+        <span>Paste Effect</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
        MODULAR GRAPH EDITOR MORE OPTIONS POPOVER (.is-menu-popover)
        ========================================================================== -->
   <div class="popover-card is-menu-popover" id="popover-graph-more" role="dialog" aria-hidden="true" style="min-width: 170px;">
@@ -3052,7 +3110,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.4.5</span>
+          <span class="welcome-badge">v0.4.6</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3088,11 +3146,47 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.4.6 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.6</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 10, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Null Expression Beat Marker Scoping</span>
+                  <span class="changelog-item-desc">Resolved stacked null layers losing beat markers outside adjacent null duration windows.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Timeline Parent-Child Link Connectors</span>
+                  <span class="changelog-item-desc">Restructured hierarchy connector lines to match After Effects 1:1 with non-overlapping channels and smooth curves.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Motion Blur on Null-Driven Layers</span>
+                  <span class="changelog-item-desc">Enabled velocity detection and sub-frame multi-sampling for layers animated via parent expressions.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Timeline Empty State</span>
+                  <span class="changelog-item-desc">Added centered 'Drop media here to import' placeholder with interactive dragover highlight.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.4.5 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.4.5</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 10, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -3531,6 +3625,7 @@
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
+  <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>
   <script src="effects/swing.js"></script>
@@ -3558,6 +3653,15 @@
   <script src="effects/shatter.js"></script>
   <script src="effects/deep_glow.js"></script>
   <script src="effects/fsmb.js"></script>
+  <script src="effects/sharpen.js"></script>
+  <script src="effects/unsharp_mask.js"></script>
+  <script src="effects/grad_exposure.js"></script>
+  <script src="effects/diffusion.js"></script>
+  <script src="effects/anamorphic_flare.js"></script>
+  <script src="effects/chromatic_aberration.js"></script>
+  <script src="effects/haze_flare.js"></script>
+  <script src="effects/vignette.js"></script>
+  <script src="effects/optic_compensation.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/fishtools-adapter.js?v=4"></script>

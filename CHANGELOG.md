@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.6] - 2026-09-10
+
+### Fixed
+- **Null Expression Beat Marker Scoping**: Resolved an issue where stacked null layers (e.g. `X BEAT`, `Y BEAT`, `OSCILLATE`) had composition beat markers improperly restricted to adjacent null layer durations, enabling null beat expressions to evaluate freely across their full duration regardless of other null trims.
+- **Motion Blur on Chained / Null-Driven Layers**: Added null hierarchy transform evaluation to `FishMotionBlurEngine` (`motion-blur-engine.js`), allowing layers moved by parent expressions without raw keyframes to correctly activate velocity-based sub-frame multi-sampling.
+- **Space Lock Input Guard**: Added `typeof el.getAttribute === 'function'` check in `isTextInputElement` (`editor.js`) to prevent `TypeError` when Space key is pressed while `document` or `window` has focus.
+
+### Added
+- **Timeline Empty State**: Introduced a clean, centered placeholder in the timeline viewport displaying the upload icon and *"Drop media here to import"* text when no layers are present, with interactive color adaptation on dragover.
+
+### Improved
+- **After Effects Timeline Link Connectors**: Redesigned parent-child hierarchy connector lines in `#timeline-layers-track` to match After Effects 1:1, featuring smooth Bézier/quadratic corner curves (`R = 6`), channel nesting without overlap, origin dot on parent left edge, arrowhead pointing into child left edge, and intermediate junction nodes.
+
+---
+
 ## [0.4.5] - 2026-09-10
 
 ### Added

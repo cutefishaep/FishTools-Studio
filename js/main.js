@@ -50,7 +50,7 @@ function initUIProtections() {
  * e.g., "0.1.0-pre-alpha" -> "0.1.0 PA"
  */
 function formatAppVersion(raw) {
-  if (!raw) return '0.4.5';
+  if (!raw) return '0.4.6';
   let str = String(raw).trim().replace(/^v\.?/i, '');
   
   let tag = '';
@@ -101,7 +101,7 @@ function syncWelcomeVersionTags(pkgVersion) {
     }
   }
   if (!detected) {
-    detected = '0.4.5';
+    detected = '0.4.6';
   }
 
   const cleanNum = String(detected).trim().replace(/^v\.?/i, '');

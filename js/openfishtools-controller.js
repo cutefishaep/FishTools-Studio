@@ -2165,14 +2165,13 @@
     if (Array.isArray(window.beatmarks) && window.beatmarks.length > 0) {
       rawMarkers = rawMarkers.concat(window.beatmarks);
     }
-    const markers = Array.from(new Set(rawMarkers.map(m => Number(m.toFixed(4)))))
-      .filter(b => b >= (startSec - 0.001) && b <= (endSec + 0.001))
-      .sort((a, b) => a - b);
+    const allMarkers = Array.from(new Set(rawMarkers.map(m => Number(m.toFixed(4))))).sort((a, b) => a - b);
+    const markers = allMarkers.filter(b => b >= (startSec - 0.001) && b <= (endSec + 0.001));
 
     // Some tools require beat markers
     const isPanning = toolName.indexOf('PANNING') === 0;
-    if (!isPanning && markers.length === 0) {
-      const msg = `Please place beat markers on the layer first to apply ${toolName}.`;
+    if (!isPanning && allMarkers.length === 0) {
+      const msg = `Please place beat markers on the timeline first to apply ${toolName}.`;
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: toolName, type: 'warn', message: msg });
     }
@@ -2231,17 +2230,9 @@
       defaultEasing: {}
     };
 
-    // 2. Insert directly above targetLayer
-    const targetIdx = layers.findIndex(l => l.id === targetLayer.id);
-    if (targetIdx >= 0) {
-      layers.splice(targetIdx, 0, nullLayer);
-    } else {
-      layers.push(nullLayer);
-    }
-
-    // 3. Parent targetLayer to nullLayer
-    targetLayer.parentId = nullLayer.id;
-    targetLayer.parentBind = {
+    // 2. Resolve parent chain — if targetLayer already has a parent, walk to the top of
+    //    the existing null hierarchy so the new null leapfrogs above it (AE-style stacking).
+    const neutralBind = {
       parentPosX: targetX,
       parentPosY: targetY,
       parentPosZ: 0,
@@ -2251,6 +2242,39 @@
       parentScaleW: 100,
       parentScaleH: 100
     };
+
+    let topOfChain = targetLayer;
+    while (topOfChain.parentId) {
+      const p = layers.find(l => l.id === topOfChain.parentId);
+      if (!p) break;
+      topOfChain = p;
+    }
+
+    if (topOfChain.id !== targetLayer.id) {
+      // targetLayer already has a parent chain — insert nullLayer above the top of that chain.
+      // nullLayer inherits whatever parent topOfChain had (grandparent, if any).
+      nullLayer.parentId = topOfChain.parentId || null;
+      nullLayer.parentBind = topOfChain.parentBind ? Object.assign({}, topOfChain.parentBind) : null;
+      topOfChain.parentId = nullLayer.id;
+      topOfChain.parentBind = Object.assign({}, neutralBind);
+
+      const topIdx = layers.findIndex(l => l.id === topOfChain.id);
+      if (topIdx >= 0) {
+        layers.splice(topIdx, 0, nullLayer);
+      } else {
+        layers.push(nullLayer);
+      }
+    } else {
+      // No existing parent — null becomes direct parent of targetLayer.
+      const targetIdx = layers.findIndex(l => l.id === targetLayer.id);
+      if (targetIdx >= 0) {
+        layers.splice(targetIdx, 0, nullLayer);
+      } else {
+        layers.push(nullLayer);
+      }
+      targetLayer.parentId = nullLayer.id;
+      targetLayer.parentBind = Object.assign({}, neutralBind);
+    }
 
     let activeProp = 'move';
 

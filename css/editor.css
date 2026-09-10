@@ -1390,6 +1390,60 @@ html, body {
   cursor: grabbing;
 }
 
+/* Timeline Empty State Placeholder */
+.timeline-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 10;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.15s ease;
+}
+
+.timeline-empty-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.timeline-empty-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.timeline-empty-text {
+  font-family: var(--font-brand);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: -0.2px;
+  transition: color 0.15s ease;
+}
+
+.timeline-layers-viewport.is-dragover .timeline-empty-icon {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.timeline-layers-viewport.is-dragover .timeline-empty-text {
+  color: var(--color-primary);
+}
+
 .timeline-layers-track {
   display: flex;
   flex-direction: column;

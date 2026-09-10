@@ -107,7 +107,7 @@
         </div>
 
         <!-- Hidden file input for media replacement -->
-        <input type="file" id="template-media-file-input" accept="image/*,video/*,audio/*,.mp4,.png,.jpg,.jpeg,.webp,.mov,.mp3,.wav,.ogg,.m4a,.aac,.flac" style="display: none;" aria-hidden="true">
+        <input type="file" id="template-media-file-input" accept="image/*,video/*,.mp4,.png,.jpg,.jpeg,.webp,.mov" style="display: none;" aria-hidden="true">
 
       `;
 
@@ -429,27 +429,26 @@
       const traverse = (layers) => {
         if (!Array.isArray(layers)) return;
         layers.forEach((layer) => {
-          const isMedia = layer.type === 'image' || layer.type === 'video' || layer.type === 'audio' || layer.fillType === 'media';
+          // Audio and fixed template videos are strictly excluded from Replace Media
+          if (layer.type === 'audio') return;
+          if (layer.dataUrl && (layer.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(layer.dataUrl))) return;
+          if (layer.type === 'video' && !layer.isReplaceableSlot) return;
+
+          const isMedia = layer.type === 'image' || layer.fillType === 'media' || layer.isReplaceableSlot;
           if (isMedia) {
             const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
             const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
             let slotType = 'image';
-            if (layer.type === 'video') {
-              slotType = 'video';
-            } else if (layer.type === 'audio') {
-              slotType = 'audio';
-            } else if (layer.dataUrl && (layer.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(layer.dataUrl))) {
-              slotType = 'audio';
-            } else if (layer.dataUrl && (layer.dataUrl.startsWith('data:video') || /\.(mp4|webm|mov)(\?.*)?$/i.test(layer.dataUrl))) {
+            if (layer.type === 'video' || (layer.dataUrl && (layer.dataUrl.startsWith('data:video') || /\.(mp4|webm|mov)(\?.*)?$/i.test(layer.dataUrl)))) {
               slotType = 'video';
             }
-            const defaultName = slotType === 'video' ? 'Video' : (slotType === 'audio' ? 'Music' : 'Image');
+            const defaultName = slotType === 'video' ? 'Video' : 'Image';
             this.slots.push({
               layerId: layer.id,
               mediaId: layer.mediaId || layer.fillMediaId || null,
               name: layer.name || defaultName,
               type: slotType,
-              thumbUrl: layer.thumbUrl || (slotType !== 'audio' ? (layer.dataUrl || layer.fillMediaUrl || '') : ''),
+              thumbUrl: layer.thumbUrl || (layer.dataUrl || layer.fillMediaUrl || ''),
               dataUrl: layer.dataUrl || layer.fillMediaUrl || '',
               startSec: startSec,
               durationSec: durSec,
@@ -486,30 +485,15 @@
         card.setAttribute('aria-label', 'Replace ' + slot.name);
 
         const isVideo = slot.type === 'video';
-        const isAudio = slot.type === 'audio';
-
-        const typeIcon = isAudio
-          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
-          : (isVideo
-            ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
-            : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>');
+        const typeIcon = isVideo
+          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
 
         const replaceSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4"/><polyline points="16 3 20 7 16 11"/><path d="M4 17h16"/><polyline points="8 13 4 17 8 21"/></svg>';
 
-        let thumbHtml = '';
-        if (isAudio) {
-          const musicTitle = (slot.name && slot.name !== 'Music') ? slot.name : 'AUDIO';
-          thumbHtml = `<div class="template-card-fallback template-card-audio-fallback" title="${slot.name}">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="margin-bottom: 2px;">
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-            </svg>
-            <span style="max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem;">${musicTitle}</span>
-          </div>`;
-        } else if (slot.thumbUrl) {
-          thumbHtml = '<img class="template-card-thumb" src="' + slot.thumbUrl + '" alt="' + slot.name + '" />';
-        } else {
-          thumbHtml = '<div class="template-card-fallback">' + slot.type.toUpperCase() + '</div>';
-        }
+        const thumbHtml = slot.thumbUrl
+          ? ('<img class="template-card-thumb" src="' + slot.thumbUrl + '" alt="' + slot.name + '" />')
+          : ('<div class="template-card-fallback">' + slot.type.toUpperCase() + '</div>');
 
         card.innerHTML = thumbHtml +
           '<div class="template-card-badge-type">' + typeIcon + '</div>' +
@@ -561,12 +545,7 @@
         }
       }
       if (this._elements.fileInput) {
-        const slot = this.slots[this.activeSlotIndex];
-        if (slot && slot.type === 'audio') {
-          this._elements.fileInput.accept = 'audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac';
-        } else {
-          this._elements.fileInput.accept = 'image/*,video/*,audio/*,.mp4,.png,.jpg,.jpeg,.webp,.mov,.mp3,.wav,.ogg,.m4a,.aac,.flac';
-        }
+        this._elements.fileInput.accept = 'image/*,video/*,.mp4,.png,.jpg,.jpeg,.webp,.mov';
         this._elements.fileInput.value = '';
         this._elements.fileInput.click();
       }

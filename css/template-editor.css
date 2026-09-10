@@ -118,35 +118,39 @@
   background-color: var(--bg-panel-hover);
 }
 
-/* --- Content Layout --- */
+/* --- Content Layout (Mobile Default: Spacious Preview, Docked Bottom Media) --- */
 .template-body {
   width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  justify-content: space-between;
+  overflow: hidden;
   box-sizing: border-box;
-  padding: 12px 16px 24px 16px;
-  gap: 16px;
+  padding: 8px 12px 12px 12px;
+  gap: 8px;
   min-height: 0;
+  height: calc(100% - 56px);
 }
 
 .template-player-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
 }
 
-/* --- Video / Canvas Player Box (Fluid & Responsive) --- */
+/* --- Video / Canvas Player Box (Fluid & Expansive on Mobile) --- */
 .template-preview-box {
   width: 100%;
-  height: clamp(220px, 42vh, 460px);
-  max-height: 48vh;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
   background-color: var(--bg-dashboard);
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
   position: relative;
   cursor: pointer;
@@ -155,8 +159,7 @@
   justify-content: center;
   border: 1px solid var(--border-panel);
   box-sizing: border-box;
-  margin: 0 auto;
-  flex-shrink: 1;
+  margin: 0;
 }
 
 .template-preview-canvas {
@@ -319,56 +322,65 @@
   color: var(--text-muted);
 }
 
-/* --- Replace Media Section --- */
+/* --- Replace Media Section (Docked Bottom on Mobile) --- */
 .template-replace-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   width: 100%;
   box-sizing: border-box;
   flex-shrink: 0;
-  min-height: 140px;
+  margin-top: auto;
+  min-height: 0;
 }
 
 .template-replace-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 2px;
 }
 
 .template-replace-title {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
 }
 
 .template-replace-count {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
+/* Single Horizontal Scrollable Row for Media Slots ("cuma 1 grid aja, scroll ke kanan") */
 .template-media-grid {
   display: flex;
-  gap: 14px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 4px 2px 10px 2px;
+  padding: 2px 2px 4px 2px;
   box-sizing: border-box;
-  min-height: 108px;
+  width: 100%;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .template-media-card {
-  width: 100px;
-  height: 100px;
+  width: 76px;
+  height: 76px;
   flex-shrink: 0;
   position: relative;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
   background-color: var(--bg-panel);
-  border: 3.5px solid transparent;
+  border: 3px solid transparent;
   cursor: pointer;
   transition: border-color 0.12s ease;
   display: flex;
@@ -408,19 +420,12 @@
   text-align: center;
 }
 
-.template-card-fallback.template-card-audio-fallback {
-  color: var(--color-primary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-
 .template-card-badge-type {
   position: absolute;
   top: 6px;
   left: 6px;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   background-color: var(--bg-panel-inner);
   border: 1px solid var(--border-panel);
   border-radius: 4px;
@@ -432,8 +437,8 @@
 }
 
 .template-card-badge-type svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .template-card-replace-icon {
@@ -441,8 +446,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background-color: var(--bg-dashboard);
   color: var(--color-primary);
@@ -471,8 +476,8 @@
 }
 
 .template-card-replace-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
 }
 
 .template-card-duration {
@@ -578,6 +583,16 @@
     border-left: 1px solid var(--border-panel);
     padding-left: clamp(14px, 2vw, 20px);
     min-height: 0;
+    margin-top: 0;
+    gap: 12px;
+  }
+
+  .template-replace-title {
+    font-size: 1.25rem;
+  }
+
+  .template-replace-count {
+    font-size: 0.85rem;
   }
 
   .template-media-grid {
@@ -595,5 +610,17 @@
     width: 100%;
     aspect-ratio: 1 / 1;
     height: auto;
+    border-radius: 14px;
+    border-width: 3.5px;
+  }
+
+  .template-card-replace-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .template-card-replace-icon svg {
+    width: 22px;
+    height: 22px;
   }
 }

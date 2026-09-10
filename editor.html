@@ -3217,6 +3217,20 @@
       </div>
       <button type="button" class="export-cancel-btn" id="btn-export-cancel">Cancel Export</button>
     </div>
+  <!-- ==========================================================================
+       MODULAR POP-UP: OFTS EXPORT PROGRESS MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-ofts-progress" role="dialog" aria-modal="true" aria-label="Export OFTS Progress">
+    <div class="modal-card modal-progress-card" onclick="event.stopPropagation()">
+      <h3 class="modal-title modal-progress-title" id="ofts-progress-title">Exporting .ofts</h3>
+      <div class="modal-progress-track">
+        <div class="modal-progress-fill" id="ofts-progress-fill" style="width: 0%;"></div>
+      </div>
+      <div class="modal-progress-details">
+        <span class="modal-progress-percent" id="ofts-progress-percent">0%</span>
+        <span class="modal-progress-status" id="ofts-progress-status">Packing project...</span>
+      </div>
+    </div>
   </div>
 
   <!-- Scripts: Database, Modular Modal, Popover, Drawer & Switch Systems -->

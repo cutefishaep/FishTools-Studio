@@ -1113,7 +1113,7 @@ window.FishDatabase = (function () {
       };
     });
 
-    var jsonStr = JSON.stringify(projectData, null, 2);
+    var jsonStr = JSON.stringify(projectData);
     return {
       folderName: (project.name || 'Project').replace(/[^a-zA-Z0-9._-]/g, '_'),
       projectJson: jsonStr,
@@ -1121,37 +1121,143 @@ window.FishDatabase = (function () {
     };
   }
 
-  /**
-   * Saves project as a compressed .ofts file (project.json + media/)
-   * @param {string} projectId
-   * @returns {Promise<boolean>}
-   */
-  async function exportProjectToOFTS(projectId) {
-    if (!window.JSZip) throw new Error("JSZip not loaded");
-    var pkg = await exportProjectPackage(projectId);
-    if (!pkg) return false;
-
-    var zip = new JSZip();
-    zip.file("project.json", pkg.projectJson);
-    if (pkg.mediaItems && pkg.mediaItems.length > 0) {
-      var mediaFolder = zip.folder("media");
-      pkg.mediaItems.forEach(item => {
-        var blobData = null;
-        if (item.blob instanceof Blob) {
-          blobData = item.blob;
-        } else if (item.dataUrl) {
-          blobData = dataUrlToBlob(item.dataUrl);
-        }
-        if (blobData) {
-          var targetName = item.archiveFilename || ('media_' + item.id + '_' + (item.name || 'asset').replace(/[^a-zA-Z0-9._-]/g, '_'));
-          mediaFolder.file(targetName, blobData);
-        }
-      });
+  /* --- OFTS Export Progress Modal Helpers --- */
+  function showOFTSProgressModal(title, percent, stage) {
+    if (typeof document === 'undefined') return;
+    var modal = document.getElementById('modal-ofts-progress');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      modal.id = 'modal-ofts-progress';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.setAttribute('aria-label', 'Export OFTS Progress');
+      modal.innerHTML = '<div class="modal-card modal-progress-card" onclick="event.stopPropagation()">' +
+        '<h3 class="modal-title modal-progress-title" id="ofts-progress-title">Exporting .ofts</h3>' +
+        '<div class="modal-progress-track">' +
+          '<div class="modal-progress-fill" id="ofts-progress-fill" style="width: 0%;"></div>' +
+        '</div>' +
+        '<div class="modal-progress-details">' +
+          '<span class="modal-progress-percent" id="ofts-progress-percent">0%</span>' +
+          '<span class="modal-progress-status" id="ofts-progress-status">Preparing...</span>' +
+        '</div>' +
+      '</div>';
+      document.body.appendChild(modal);
     }
 
-    var zipBlob = await zip.generateAsync({ type: "blob" });
-    downloadFile((pkg.folderName || 'Project') + '.ofts', zipBlob, 'application/octet-stream');
-    return true;
+    var titleEl = document.getElementById('ofts-progress-title');
+    var fillEl = document.getElementById('ofts-progress-fill');
+    var percentEl = document.getElementById('ofts-progress-percent');
+    var statusEl = document.getElementById('ofts-progress-status');
+
+    if (titleEl) titleEl.textContent = title || 'Exporting .ofts';
+    var clamped = Math.min(100, Math.max(0, percent || 0));
+    if (fillEl) fillEl.style.width = clamped + '%';
+    if (percentEl) percentEl.textContent = Math.round(clamped) + '%';
+    if (statusEl) statusEl.textContent = stage || 'Preparing...';
+
+    if (window.Modal && typeof window.Modal.open === 'function') {
+      window.Modal.open(modal);
+    } else {
+      modal.classList.add('is-active');
+    }
+  }
+
+  function updateOFTSProgress(percent, stage) {
+    if (typeof document === 'undefined') return;
+    var fillEl = document.getElementById('ofts-progress-fill');
+    var percentEl = document.getElementById('ofts-progress-percent');
+    var statusEl = document.getElementById('ofts-progress-status');
+
+    var clamped = Math.min(100, Math.max(0, percent));
+    if (fillEl) fillEl.style.width = clamped + '%';
+    if (percentEl) percentEl.textContent = Math.round(clamped) + '%';
+    if (stage && statusEl) statusEl.textContent = stage;
+  }
+
+  function hideOFTSProgressModal() {
+    if (typeof document === 'undefined') return;
+    var modal = document.getElementById('modal-ofts-progress');
+    if (!modal) return;
+    if (window.Modal && window.Modal.activeModal === modal && typeof window.Modal.close === 'function') {
+      window.Modal.close();
+    } else {
+      modal.classList.remove('is-active');
+    }
+  }
+
+  /**
+   * Saves project as a compressed .ofts file (project.json + media/)
+   * Includes DEFLATE level 9 compression and live progress modal.
+   * @param {string} projectId
+   * @param {Object|Function} [options]
+   * @returns {Promise<boolean>}
+   */
+  async function exportProjectToOFTS(projectId, options) {
+    if (!window.JSZip) throw new Error("JSZip not loaded");
+
+    var onProgress = typeof options === 'function' ? options : (options && options.onProgress);
+    var reportProgress = function (pct, stage) {
+      updateOFTSProgress(pct, stage);
+      if (typeof onProgress === 'function') {
+        try { onProgress(pct, stage); } catch (_) {}
+      }
+    };
+
+    showOFTSProgressModal('Exporting .ofts', 0, 'Packing project...');
+    reportProgress(5, 'Sanitizing project layers & manifest...');
+
+    try {
+      var pkg = await exportProjectPackage(projectId);
+      if (!pkg) {
+        hideOFTSProgressModal();
+        return false;
+      }
+
+      reportProgress(15, 'Preparing media archive...');
+
+      var zip = new JSZip();
+      zip.file("project.json", pkg.projectJson);
+      if (pkg.mediaItems && pkg.mediaItems.length > 0) {
+        var mediaFolder = zip.folder("media");
+        pkg.mediaItems.forEach(function (item) {
+          var blobData = null;
+          if (item.blob instanceof Blob) {
+            blobData = item.blob;
+          } else if (item.dataUrl) {
+            blobData = dataUrlToBlob(item.dataUrl);
+          }
+          if (blobData) {
+            var targetName = item.archiveFilename || ('media_' + item.id + '_' + (item.name || 'asset').replace(/[^a-zA-Z0-9._-]/g, '_'));
+            mediaFolder.file(targetName, blobData);
+          }
+        });
+      }
+
+      reportProgress(20, 'Compressing archive (DEFLATE 9)...');
+
+      // Maximum compression level (DEFLATE level 9) with live progress tracking
+      var zipBlob = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: {
+          level: 9
+        }
+      }, function (metadata) {
+        var pct = Math.min(96, 20 + Math.round((metadata.percent || 0) * 0.76));
+        reportProgress(pct, 'Compressing (' + Math.round(metadata.percent || 0) + '%)...');
+      });
+
+      reportProgress(100, 'Complete!');
+      downloadFile((pkg.folderName || 'Project') + '.ofts', zipBlob, 'application/octet-stream');
+
+      await new Promise(function (r) { setTimeout(r, 400); });
+      hideOFTSProgressModal();
+      return true;
+    } catch (err) {
+      hideOFTSProgressModal();
+      throw err;
+    }
   }
 
   /**

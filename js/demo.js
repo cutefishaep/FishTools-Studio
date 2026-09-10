@@ -1436,3 +1436,33 @@
         if (arrow) arrow.classList.remove('is-open');
       }
     };
+
+    window.testOFTSProgressDemo = function() {
+      if (!window.Modal) return;
+      const fill = document.getElementById('ofts-progress-fill');
+      const pctEl = document.getElementById('ofts-progress-percent');
+      const statEl = document.getElementById('ofts-progress-status');
+      if (fill) fill.style.width = '0%';
+      if (pctEl) pctEl.textContent = '0%';
+      if (statEl) statEl.textContent = 'Packing project...';
+      window.Modal.open('modal-ofts-progress');
+      let p = 0;
+      const iv = setInterval(() => {
+        p += 10;
+        if (fill) fill.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+        if (statEl) {
+          if (p < 30) statEl.textContent = 'Preparing media archive...';
+          else if (p < 90) statEl.textContent = 'Compressing (DEFLATE 9)...';
+          else statEl.textContent = 'Complete!';
+        }
+        if (p >= 100) {
+          clearInterval(iv);
+          setTimeout(() => {
+            if (window.Modal && window.Modal.activeModal && window.Modal.activeModal.id === 'modal-ofts-progress') {
+              window.Modal.close();
+            }
+          }, 450);
+        }
+      }, 160);
+    };

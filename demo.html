@@ -964,6 +964,9 @@
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-export-video')" style="padding: 12px 24px; font-size: 14px;">
                   Buka "Export Video" Modal
                 </button>
+                <button type="button" class="theme-btn" onclick="testOFTSProgressDemo()" style="padding: 12px 24px; font-size: 14px;">
+                  Buka "OFTS Progress" Modal
+                </button>
               </div>
               <span style="color: var(--text-secondary); font-size: 12.5px;">
                 Animasi slide atas ke bawah di mobile (≤600px), center scale di PC (≥601px). Tutup via klik backdrop atau tombol back browser.
@@ -5148,6 +5151,20 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  <!-- ==========================================================================
+       MODULAR POP-UP: OFTS EXPORT PROGRESS MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-ofts-progress" role="dialog" aria-modal="true" aria-label="Export OFTS Progress">
+    <div class="modal-card modal-progress-card" onclick="event.stopPropagation()">
+      <h3 class="modal-title modal-progress-title" id="ofts-progress-title">Exporting .ofts</h3>
+      <div class="modal-progress-track">
+        <div class="modal-progress-fill" id="ofts-progress-fill" style="width: 0%;"></div>
+      </div>
+      <div class="modal-progress-details">
+        <span class="modal-progress-percent" id="ofts-progress-percent">0%</span>
+        <span class="modal-progress-status" id="ofts-progress-status">Packing project...</span>
       </div>
     </div>
   </div>

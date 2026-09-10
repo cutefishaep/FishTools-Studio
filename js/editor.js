@@ -628,10 +628,10 @@
     async function exportCurrentProjectOFTSAction() {
       if (currentProjectState.id && window.FishDatabase) {
         await saveCurrentProjectLayers(true);
-        const success = await window.FishDatabase.exportProjectToOFTS(currentProjectState.id);
-        if (success && window.Modal) {
+        if (window.Modal) {
           window.Modal.close();
         }
+        await window.FishDatabase.exportProjectToOFTS(currentProjectState.id);
       }
     }
     window.exportCurrentProjectOFTSAction = exportCurrentProjectOFTSAction;

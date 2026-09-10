@@ -1,6 +1,6 @@
 {
   "name": "openfishtools-studio",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Desktop-class video and motion design editor in the browser",
   "main": "js/main.js",
   "scripts": {

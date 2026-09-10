@@ -107,7 +107,7 @@
         </div>
 
         <!-- Hidden file input for media replacement -->
-        <input type="file" id="template-media-file-input" accept="image/*,video/*" style="display: none;" aria-hidden="true">
+        <input type="file" id="template-media-file-input" accept="image/*,video/*,audio/*,.mp4,.png,.jpg,.jpeg,.webp,.mov,.mp3,.wav,.ogg,.m4a,.aac,.flac" style="display: none;" aria-hidden="true">
 
       `;
 
@@ -429,16 +429,27 @@
       const traverse = (layers) => {
         if (!Array.isArray(layers)) return;
         layers.forEach((layer) => {
-          const isMedia = layer.type === 'image' || layer.type === 'video' || layer.fillType === 'media';
+          const isMedia = layer.type === 'image' || layer.type === 'video' || layer.type === 'audio' || layer.fillType === 'media';
           if (isMedia) {
             const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
             const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+            let slotType = 'image';
+            if (layer.type === 'video') {
+              slotType = 'video';
+            } else if (layer.type === 'audio') {
+              slotType = 'audio';
+            } else if (layer.dataUrl && (layer.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(layer.dataUrl))) {
+              slotType = 'audio';
+            } else if (layer.dataUrl && (layer.dataUrl.startsWith('data:video') || /\.(mp4|webm|mov)(\?.*)?$/i.test(layer.dataUrl))) {
+              slotType = 'video';
+            }
+            const defaultName = slotType === 'video' ? 'Video' : (slotType === 'audio' ? 'Music' : 'Image');
             this.slots.push({
               layerId: layer.id,
               mediaId: layer.mediaId || layer.fillMediaId || null,
-              name: layer.name || (layer.type === 'video' ? 'Video' : 'Image'),
-              type: layer.type === 'video' ? 'video' : 'image',
-              thumbUrl: layer.thumbUrl || layer.dataUrl || layer.fillMediaUrl || '',
+              name: layer.name || defaultName,
+              type: slotType,
+              thumbUrl: layer.thumbUrl || (slotType !== 'audio' ? (layer.dataUrl || layer.fillMediaUrl || '') : ''),
               dataUrl: layer.dataUrl || layer.fillMediaUrl || '',
               startSec: startSec,
               durationSec: durSec,
@@ -475,15 +486,30 @@
         card.setAttribute('aria-label', 'Replace ' + slot.name);
 
         const isVideo = slot.type === 'video';
-        const typeIcon = isVideo
-          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
-          : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+        const isAudio = slot.type === 'audio';
+
+        const typeIcon = isAudio
+          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
+          : (isVideo
+            ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>');
 
         const replaceSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4"/><polyline points="16 3 20 7 16 11"/><path d="M4 17h16"/><polyline points="8 13 4 17 8 21"/></svg>';
 
-        const thumbHtml = slot.thumbUrl
-          ? ('<img class="template-card-thumb" src="' + slot.thumbUrl + '" alt="' + slot.name + '" />')
-          : ('<div class="template-card-fallback">' + slot.type.toUpperCase() + '</div>');
+        let thumbHtml = '';
+        if (isAudio) {
+          const musicTitle = (slot.name && slot.name !== 'Music') ? slot.name : 'AUDIO';
+          thumbHtml = `<div class="template-card-fallback template-card-audio-fallback" title="${slot.name}">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="margin-bottom: 2px;">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </svg>
+            <span style="max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem;">${musicTitle}</span>
+          </div>`;
+        } else if (slot.thumbUrl) {
+          thumbHtml = '<img class="template-card-thumb" src="' + slot.thumbUrl + '" alt="' + slot.name + '" />';
+        } else {
+          thumbHtml = '<div class="template-card-fallback">' + slot.type.toUpperCase() + '</div>';
+        }
 
         card.innerHTML = thumbHtml +
           '<div class="template-card-badge-type">' + typeIcon + '</div>' +
@@ -535,6 +561,12 @@
         }
       }
       if (this._elements.fileInput) {
+        const slot = this.slots[this.activeSlotIndex];
+        if (slot && slot.type === 'audio') {
+          this._elements.fileInput.accept = 'audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac';
+        } else {
+          this._elements.fileInput.accept = 'image/*,video/*,audio/*,.mp4,.png,.jpg,.jpeg,.webp,.mov,.mp3,.wav,.ogg,.m4a,.aac,.flac';
+        }
         this._elements.fileInput.value = '';
         this._elements.fileInput.click();
       }
@@ -592,8 +624,9 @@
       const layer = findLayerRecursive(state.layers, slot.layerId);
       if (!layer) return;
 
-      const isVideoFile = file.type.startsWith('video/');
-      const isImageFile = file.type.startsWith('image/');
+      const isVideoFile = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
+      const isAudioFile = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
+      const isImageFile = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(file.name);
 
       const dataUrl = await new Promise((resolve) => {
         const reader = new FileReader();
@@ -607,6 +640,17 @@
       // Update layer properties
       layer.name = file.name || layer.name;
       layer.dataUrl = dataUrl;
+
+      // Detach old audio/media element if attached
+      if (window.FishAudioEngine) {
+        try {
+          const oldEntry = window.layerMediaCache && (window.layerMediaCache.get(layer.id) || (layer.mediaId && window.layerMediaCache.get(layer.mediaId)));
+          if (oldEntry && oldEntry.el) {
+            window.FishAudioEngine.detachMediaElement(oldEntry.el);
+            if (!oldEntry.el.paused) oldEntry.el.pause();
+          }
+        } catch (_) {}
+      }
 
       // Clear video / image media cache
       if (window.layerMediaCache) {
@@ -641,6 +685,36 @@
           vid.onerror = () => resolve();
           vid.src = dataUrl;
         });
+      } else if (isAudioFile) {
+        layer.type = 'audio';
+        layer.thumbUrl = '';
+        delete layer.layers;
+        delete layer._precompBufferCanvas;
+        // Measure audio duration
+        await new Promise((resolve) => {
+          const aud = new Audio();
+          aud.preload = 'metadata';
+          aud.onloadedmetadata = () => {
+            if (isFinite(aud.duration) && aud.duration > 0) {
+              layer.mediaDuration = aud.duration;
+              if (!layer.isDurationExplicit) {
+                layer.durationSec = aud.duration;
+                const pps = window.currentPixelsPerSecond || 80;
+                layer.widthPx = Math.round(aud.duration * pps);
+              }
+            }
+            resolve();
+          };
+          aud.onerror = () => resolve();
+          aud.src = dataUrl;
+        });
+        if (typeof window.getOrLoadLayerMedia === 'function') {
+          const mediaEntry = window.getOrLoadLayerMedia(layer);
+          if (mediaEntry && mediaEntry.el) {
+            mediaEntry.el.src = dataUrl;
+            mediaEntry.el.load();
+          }
+        }
       } else {
         layer.type = 'image';
         layer.thumbUrl = dataUrl;
@@ -664,21 +738,55 @@
       }
 
       // Sync slot thumbnail in UI
-      slot.thumbUrl = layer.thumbUrl || dataUrl;
+      slot.type = layer.type;
+      slot.thumbUrl = layer.thumbUrl || (layer.type === 'audio' ? '' : dataUrl);
       slot.dataUrl = dataUrl;
       slot.name = file.name;
+      if (layer.mediaDuration) {
+        slot.durationSec = layer.mediaDuration;
+      }
 
       const activeCard = this._elements.mediaGrid.children[this.activeSlotIndex];
       if (activeCard) {
-        let imgEl = activeCard.querySelector('.template-card-thumb');
-        if (!imgEl) {
-          const fb = activeCard.querySelector('.template-card-fallback');
-          if (fb) fb.remove();
-          imgEl = document.createElement('img');
-          imgEl.className = 'template-card-thumb';
-          activeCard.insertBefore(imgEl, activeCard.firstChild);
+        const isAudio = slot.type === 'audio';
+        const isVideo = slot.type === 'video';
+        const typeBadge = activeCard.querySelector('.template-card-badge-type');
+        if (typeBadge) {
+          typeBadge.innerHTML = isAudio
+            ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
+            : (isVideo
+              ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
+              : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>');
         }
-        imgEl.src = slot.thumbUrl;
+        const durEl = activeCard.querySelector('.template-card-duration');
+        if (durEl) {
+          durEl.textContent = formatTimeCS(slot.durationSec);
+        }
+        let imgEl = activeCard.querySelector('.template-card-thumb');
+        let fb = activeCard.querySelector('.template-card-fallback');
+        if (isAudio) {
+          if (imgEl) imgEl.remove();
+          if (!fb) {
+            fb = document.createElement('div');
+            activeCard.insertBefore(fb, activeCard.firstChild);
+          }
+          fb.className = 'template-card-fallback template-card-audio-fallback';
+          fb.title = slot.name;
+          fb.innerHTML = `
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="margin-bottom: 2px;">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </svg>
+            <span style="max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem;">${slot.name || 'AUDIO'}</span>
+          `;
+        } else {
+          if (fb) fb.remove();
+          if (!imgEl) {
+            imgEl = document.createElement('img');
+            imgEl.className = 'template-card-thumb';
+            activeCard.insertBefore(imgEl, activeCard.firstChild);
+          }
+          imgEl.src = slot.thumbUrl;
+        }
       }
 
       // Persist to IndexedDB

@@ -11913,7 +11913,14 @@
       }
 
       const isShape = (targetL.type === 'shape');
-      const newType = item.type || (item.layers ? 'precomp' : (item.dataUrl && (item.dataUrl.startsWith('data:video') || item.dataUrl.includes('.mp4')) ? 'video' : 'image'));
+      const isAudio = item.type === 'audio' ||
+        (item.dataUrl && (item.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(item.dataUrl))) ||
+        (item.name && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(item.name));
+      const isVideo = item.type === 'video' ||
+        (item.dataUrl && (item.dataUrl.startsWith('data:video') || /\.(mp4|webm|mov|mkv)(\?.*)?$/i.test(item.dataUrl))) ||
+        (item.name && /\.(mp4|webm|mov|mkv)$/i.test(item.name));
+
+      const newType = item.type || (item.layers ? 'precomp' : (isAudio ? 'audio' : (isVideo ? 'video' : 'image')));
 
       if (!isShape) {
         targetL.fillType = 'media';
@@ -11945,6 +11952,26 @@
           if (item.width && item.height) {
             targetL.mediaWidth = item.width;
             targetL.mediaHeight = item.height;
+          }
+          if (typeof getOrLoadLayerMedia === 'function') {
+            const mediaEntry = getOrLoadLayerMedia(targetL);
+            if (mediaEntry && mediaEntry.el) {
+              mediaEntry.el.src = targetL.dataUrl;
+              mediaEntry.el.load();
+            }
+          }
+        } else if (newType === 'audio') {
+          targetL.dataUrl = item.dataUrl || '';
+          targetL.thumbUrl = item.thumbUrl || '';
+          delete targetL.layers;
+          delete targetL._precompBufferCanvas;
+          if (isFinite(item.duration) && item.duration > 0) {
+            targetL.mediaDuration = item.duration;
+            if (!targetL.isDurationExplicit) {
+              targetL.durationSec = item.duration;
+              const pps = window.currentPixelsPerSecond || 80;
+              targetL.widthPx = Math.max(80, Math.round(item.duration * pps));
+            }
           }
           if (typeof getOrLoadLayerMedia === 'function') {
             const mediaEntry = getOrLoadLayerMedia(targetL);
@@ -12069,14 +12096,24 @@
           tile.classList.add('is-active');
         }
 
+        const isAudioItem = item.type === 'audio' ||
+          (item.dataUrl && item.dataUrl.startsWith('data:audio')) ||
+          (item.name && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(item.name));
         const thumbUrl = item.thumbUrl || item.dataUrl || '';
         let innerHtml = '';
-        if (thumbUrl) {
+        if (isAudioItem) {
+          innerHtml = `<div class="fill-media-fallback fill-media-audio-fallback" title="${item.name || 'Audio'}">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </svg>
+            <span style="font-size: 8px; margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name ? item.name.slice(0, 6) : 'AUD'}</span>
+          </div>`;
+        } else if (thumbUrl) {
           innerHtml = `<img src="${thumbUrl}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
         } else {
           innerHtml = `<div class="fill-media-fallback">${item.name ? item.name.slice(0, 4) : 'MED'}</div>`;
         }
-        const badge = item.type === 'video' ? 'VID' : (item.type === 'precomp' ? 'COMP' : 'IMG');
+        const badge = item.type === 'video' ? 'VID' : (item.type === 'precomp' ? 'COMP' : (isAudioItem ? 'AUD' : 'IMG'));
         innerHtml += `<span class="fill-media-badge">${badge}</span>`;
         tile.innerHTML = innerHtml;
 
@@ -12618,23 +12655,40 @@
               r.readAsDataURL(file);
             });
 
-            const isVideo = file.type.startsWith('video');
+            const isVideo = file.type.startsWith('video') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
+            const isAudio = file.type.startsWith('audio') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
             let thumbUrl = dataUrl;
             let vidDims = null;
+            let audioDur = null;
             if (isVideo && typeof captureVideoThumbnail === 'function') {
               try {
                 thumbUrl = (await captureVideoThumbnail(file, dataUrl)) || dataUrl;
                 if (window.lastCapturedVideoDims) vidDims = window.lastCapturedVideoDims;
               } catch (_) {}
+            } else if (isAudio) {
+              thumbUrl = '';
+              await new Promise((resolve) => {
+                const aud = new Audio();
+                aud.preload = 'metadata';
+                aud.onloadedmetadata = () => {
+                  if (isFinite(aud.duration) && aud.duration > 0) {
+                    audioDur = aud.duration;
+                  }
+                  resolve();
+                };
+                aud.onerror = () => resolve();
+                aud.src = dataUrl;
+              });
             }
 
             const mediaItem = {
               id: 'med_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
               projectId: projectId,
               name: file.name,
-              type: isVideo ? 'video' : 'image',
+              type: isAudio ? 'audio' : (isVideo ? 'video' : 'image'),
               dataUrl: dataUrl,
               thumbUrl: thumbUrl,
+              duration: audioDur || null,
               width: vidDims ? vidDims.width : null,
               height: vidDims ? vidDims.height : null,
               createdAt: Date.now()
@@ -15671,11 +15725,11 @@
           const mime = (file.type || '').toLowerCase();
 
           let mediaType = '';
-          if (ext === 'mp4' || mime === 'video/mp4' || mime.startsWith('video/')) {
+          if (['mp4', 'mov', 'webm', 'mkv'].includes(ext) || mime.startsWith('video/')) {
             mediaType = 'video';
-          } else if (ext === 'mp3' || mime.includes('mpeg') || mime.includes('mp3') || mime.startsWith('audio/')) {
+          } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext) || mime.startsWith('audio/') || mime.includes('mpeg') || mime.includes('mp3')) {
             mediaType = 'audio';
-          } else if (['png', 'jpg', 'jpeg'].includes(ext) || mime.startsWith('image/')) {
+          } else if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext) || mime.startsWith('image/')) {
             mediaType = 'image';
           }
 

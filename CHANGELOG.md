@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.7] - 2026-09-11
+
+### Fixed
+- **WebCodecs Active Probe Verification**: Resolved `DOMException: The given encoding is not supported` on Mozilla Firefox and Hackintosh AMD environments by establishing active `probeEncoderConfig` verification before video export begins, preventing false-positive `VideoEncoder.isConfigSupported` errors from causing runtime export crashes.
+- **FFmpeg WebM to MP4 Remux & Transcode**: Resolved `Could not find tag for codec vp8 in stream #0` error when converting MediaRecorder output into MP4. Replaces naive direct copy (`-c copy`) with standards-compliant H.264 (`libx264 ultrafast`) and AAC audio transcode, while preserving fast stream copy when recorded stream is already H.264.
+- **Virtual Filesystem Cleanliness**: Virtual FS now aggressively unlinks temporary files (`rec_in.webm`, `rec_out.mp4`, `v_temp.mp4`) before and after operations to eliminate file collision and memory leaks.
+
+### Added
+- **Export Format Switch (MP4 / WebM)**: Introduced a format selector in the Export Video modal (`#export-format-switch`), allowing instantaneous 0-second export to native `.webm` without CPU-heavy FFmpeg transcoding.
+- **Browser Environment Auto-Detection**: Auto-detects browser capabilities; defaults to `WebM (Fast)` on Mozilla Firefox or platforms without native hardware MP4 encoding, and defaults to `MP4 (H.264)` on Chrome/Edge/Safari for hardware GPU acceleration.
+
+---
+
 ## [0.4.6] - 2026-09-10
 
 ### Fixed

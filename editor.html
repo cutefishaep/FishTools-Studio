@@ -3078,7 +3078,16 @@
           <input type="text" class="modal-input" id="export-video-filename" placeholder="New_Project" spellcheck="false" autocomplete="off">
         </div>
 
-        <!-- 2. Bitrate Quality Field -->
+        <!-- 2. Export Format Field -->
+        <div class="modal-form-group">
+          <label class="modal-label">FORMAT</label>
+          <div class="segmented-switch is-pill export-format-switch" id="export-format-switch" role="tablist">
+            <button type="button" class="segmented-switch-item is-active is-selected" data-value="mp4" role="tab" aria-selected="true">MP4 (H.264)</button>
+            <button type="button" class="segmented-switch-item" data-value="webm" role="tab" aria-selected="false">WebM (Fast)</button>
+          </div>
+        </div>
+
+        <!-- 3. Bitrate Quality Field -->
         <div class="modal-form-group">
           <label class="modal-label">BITRATE QUALITY</label>
           <div class="segmented-switch is-pill export-bitrate-switch" id="export-bitrate-switch" role="tablist">
@@ -3133,7 +3142,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.4.6</span>
+          <span class="welcome-badge">v0.4.7</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3169,11 +3178,40 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.4.7 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.7</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 11, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Export Format Switch (MP4 / WebM)</span>
+                  <span class="changelog-item-desc">Added format switch to export modal with browser auto-detection for instant 0-second WebM export on Firefox.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">WebCodecs Active Probe Verification</span>
+                  <span class="changelog-item-desc">Resolved 'encoding not supported' DOMException on Firefox and Hackintosh AMD by actively testing encoder initialization before rendering.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">FFmpeg WebM to MP4 Transcoding</span>
+                  <span class="changelog-item-desc">Fixed 'codec vp8 not supported in container' error by transcoding VP8/VP9 to standards-compliant H.264 libx264 + AAC.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.4.6 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.4.6</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 10, 2026</span>
               </div>
               <div class="welcome-changelog-item">

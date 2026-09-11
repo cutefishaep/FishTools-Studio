@@ -25126,7 +25126,7 @@
       }
 
       // 8. EXPORT ACTION: Hardware-Accelerated Video Exporter (Native GPU MediaRecorder Fallback)
-      async function exportVideoHardware(preset = 'normal', customName = '') {
+      async function exportVideoHardware(preset = 'normal', customName = '', format = 'mp4') {
         if (window.Popover) window.Popover.close();
         if (window.isExporting) return;
 
@@ -25134,12 +25134,14 @@
         const cacheOk = await ensureAllVideosCached();
         if (!cacheOk) return;
 
-        // Try Frame-by-Frame True 60 FPS WebCodecs GPU Exporter first
-        try {
-          const webcodecsHandled = await exportVideoWebCodecs(preset, customName);
-          if (webcodecsHandled) return;
-        } catch (wcErr) {
-          console.warn('[Export:WebCodecs] Fallback to MediaRecorder:', wcErr);
+        // Try Frame-by-Frame True 60 FPS WebCodecs GPU Exporter first (only when targeting MP4)
+        if (format === 'mp4') {
+          try {
+            const webcodecsHandled = await exportVideoWebCodecs(preset, customName);
+            if (webcodecsHandled) return;
+          } catch (wcErr) {
+            console.warn('[Export:WebCodecs] Fallback to MediaRecorder:', wcErr);
+          }
         }
 
         // 1. Strict Resolution & Dimensions Enforcement (100% Native 1080p/4K - Never Downscaled)
@@ -25426,7 +25428,10 @@
           const outBlob = new Blob(recordedChunks, { type: selectedMime });
           let finalBlob = outBlob;
 
-          if (!isMp4) {
+          // If user requested WebM, skip FFmpeg transcode completely (instant 0s export)
+          if (format === 'webm') {
+            finalBlob = outBlob;
+          } else if (!isMp4) {
             try {
               updateExportProgress(95, 'Preparing MP4 package...');
               const ffmpeg = await getFFmpeg();
@@ -25490,8 +25495,8 @@
           }
 
           const rawBaseName = customName || currentProjectState.name || 'New_Project';
-          const sanitizedName = rawBaseName.trim().replace(/\.mp4$/i, '').replace(/[/\\?%*:|"<>]/g, '_') || 'New_Project';
-          const isRealMp4 = finalBlob.type === 'video/mp4' || (!finalBlob.type.includes('webm') && isMp4);
+          const sanitizedName = rawBaseName.trim().replace(/\.(mp4|webm)$/i, '').replace(/[/\\?%*:|"<>]/g, '_') || 'New_Project';
+          const isRealMp4 = format === 'mp4' && (finalBlob.type === 'video/mp4' || (!finalBlob.type.includes('webm') && isMp4));
           const ext = isRealMp4 ? 'mp4' : 'webm';
           const filename = `${sanitizedName}.${ext}`;
           const dlUrl = URL.createObjectURL(finalBlob);
@@ -25777,6 +25782,21 @@
         });
       }
 
+      const formatSwitch = document.getElementById('export-format-switch');
+      if (formatSwitch) {
+        formatSwitch.querySelectorAll('.segmented-switch-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            formatSwitch.querySelectorAll('.segmented-switch-item').forEach(btn => {
+              btn.classList.remove('is-active', 'is-selected');
+              btn.setAttribute('aria-selected', 'false');
+            });
+            item.classList.add('is-active', 'is-selected');
+            item.setAttribute('aria-selected', 'true');
+          });
+        });
+      }
+
       // Popover Action: Open Export Video Modal
       const btnExportVideoModal = document.getElementById('btn-export-video-modal');
       if (btnExportVideoModal) {
@@ -25787,6 +25807,20 @@
           if (fnInput) {
             fnInput.value = currentProjectState.name || 'New_Project';
           }
+
+          // Auto-detect browser capability: Firefox lacks native MP4 encoder, prefer instant WebM
+          const isFirefox = /firefox/i.test(navigator.userAgent);
+          const hasNativeMp4 = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/mp4');
+          if (formatSwitch) {
+            const preferWebm = isFirefox || !hasNativeMp4;
+            formatSwitch.querySelectorAll('.segmented-switch-item').forEach(btn => {
+              const isTarget = preferWebm ? btn.dataset.value === 'webm' : btn.dataset.value === 'mp4';
+              btn.classList.toggle('is-active', isTarget);
+              btn.classList.toggle('is-selected', isTarget);
+              btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+            });
+          }
+
           if (window.Modal) {
             window.Modal.open('modal-export-video');
           }
@@ -25809,10 +25843,16 @@
             preset = window.Switch.getValue('export-bitrate-switch') || 'normal';
           }
 
+          let format = 'mp4';
+          const activeFormat = document.querySelector('#export-format-switch .segmented-switch-item.is-active, #export-format-switch .segmented-switch-item.is-selected');
+          if (activeFormat && activeFormat.dataset.value) {
+            format = activeFormat.dataset.value;
+          }
+
           if (window.Modal) {
             window.Modal.close();
           }
-          exportVideoMP4(preset, customName);
+          exportVideoMP4(preset, customName, format);
         });
       }
 

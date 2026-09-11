@@ -13,6 +13,7 @@ window.FishDatabase = (function () {
   var MEDIA_KEY = 'fishtools_media';
 
   var dbPromise = null;
+  var _deletedIds = new Set();
 
   function getDefaultSettings() {
     return {
@@ -408,8 +409,10 @@ window.FishDatabase = (function () {
           var req = store.getAll();
           req.onsuccess = function () {
             var items = req.result || [];
-            // Filter out any stale prj-00 mock items
-            items = items.filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
+            // Filter out any stale prj-00 mock items and deleted projects
+            items = items.filter(function (p) {
+              return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
+            });
             // Sort latest updated first
             items.sort(function (a, b) {
               var tA = new Date(a.updatedAt || a.createdAt || 0).getTime();
@@ -422,16 +425,22 @@ window.FishDatabase = (function () {
             resolve(items.map(_projectToListMeta));
           };
           req.onerror = function () {
-            var local = getLocalProjects().filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
+            var local = getLocalProjects().filter(function (p) {
+              return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
+            });
             resolve(local.map(_projectToListMeta));
           };
         } catch (e) {
-          var local = getLocalProjects().filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
+          var local = getLocalProjects().filter(function (p) {
+            return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
+          });
           resolve(local.map(_projectToListMeta));
         }
       });
     }
-    var local = getLocalProjects().filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
+    var local = getLocalProjects().filter(function (p) {
+      return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
+    });
     return local.map(_projectToListMeta);
   }
 
@@ -489,6 +498,8 @@ window.FishDatabase = (function () {
    */
   async function saveProject(project) {
     if (!project || !project.id) return;
+    _deletedIds.delete(project.id);
+    _deletedIds.delete(String(project.id).trim());
     project.updatedAt = new Date().toISOString();
     delete project.cache;
     delete project.previewCache;
@@ -559,16 +570,16 @@ window.FishDatabase = (function () {
    * @returns {Promise<boolean>}
    */
   async function updateProjectSize(projectId, formatted, bytes) {
-    if (!projectId || !formatted) return false;
+    if (!projectId || !formatted || _deletedIds.has(projectId) || _deletedIds.has(String(projectId).trim())) return false;
 
     // 1. Update in-memory / localStorage
     var list = getLocalProjects();
     var found = list.find(function (p) { return p.id === projectId; });
-    if (found) {
-      found.size = formatted;
-      if (typeof bytes === 'number') found.sizeBytes = bytes;
-      saveLocalProjects(list);
-    }
+    if (!found) return false; // Project was deleted, never re-insert!
+
+    found.size = formatted;
+    if (typeof bytes === 'number') found.sizeBytes = bytes;
+    saveLocalProjects(list);
 
     // 2. Update in IndexedDB
     var db = await openDB();
@@ -579,6 +590,10 @@ window.FishDatabase = (function () {
           var store = tx.objectStore('projects');
           var req = store.get(projectId);
           req.onsuccess = function () {
+            if (_deletedIds.has(projectId) || _deletedIds.has(String(projectId).trim())) {
+              resolve(false);
+              return;
+            }
             var prj = req.result;
             if (prj) {
               prj.size = formatted;
@@ -1317,10 +1332,15 @@ window.FishDatabase = (function () {
    */
   async function deleteProject(id) {
     if (!id) return false;
+    var targetId = String(id).trim();
+    _deletedIds.add(id);
+    _deletedIds.add(targetId);
 
     // 1. Immediately remove from localStorage for instant UI response
     var list = getLocalProjects();
-    var filtered = list.filter(function (p) { return p.id !== id; });
+    var filtered = list.filter(function (p) {
+      return p && p.id !== id && String(p.id).trim() !== targetId;
+    });
     saveLocalProjects(filtered);
 
     // Collect layer source keys to clear any cached frames (protected against hanging)
@@ -1345,33 +1365,53 @@ window.FishDatabase = (function () {
       });
     }
 
-    // 2. Remove from IndexedDB with safety timeout
+    // 2. Remove from IndexedDB (direct delete + cursor fallback)
     try {
-      var db = await Promise.race([
-        openDB(),
-        new Promise(function (res) { setTimeout(function () { res(null); }, 400); })
-      ]);
+      var db = await openDB();
       if (db && db.objectStoreNames.contains('projects')) {
         await new Promise(function (resolve) {
-          var timer = setTimeout(function () { resolve(false); }, 600);
+          var safetyTimer = setTimeout(function () { resolve(false); }, 3000);
           try {
             var tx = db.transaction('projects', 'readwrite');
             var store = tx.objectStore('projects');
+
+            // Direct delete by id and targetId
             store.delete(id);
+            if (targetId !== id) store.delete(targetId);
+
+            // Also delete if numeric key
+            var numId = Number(targetId);
+            if (!isNaN(numId)) {
+              try { store.delete(numId); } catch (_) {}
+            }
+
+            // Cursor scan fallback to ensure any matching record is deleted
+            var curReq = store.openCursor();
+            curReq.onsuccess = function (e) {
+              var cursor = e.target.result;
+              if (cursor) {
+                var val = cursor.value;
+                if (val && (val.id === id || String(val.id).trim() === targetId || String(cursor.key).trim() === targetId)) {
+                  cursor.delete();
+                }
+                cursor.continue();
+              }
+            };
+
             tx.oncomplete = function () {
-              clearTimeout(timer);
+              clearTimeout(safetyTimer);
               resolve(true);
             };
             tx.onerror = function () {
-              clearTimeout(timer);
+              clearTimeout(safetyTimer);
               resolve(false);
             };
             tx.onabort = function () {
-              clearTimeout(timer);
+              clearTimeout(safetyTimer);
               resolve(false);
             };
           } catch (e) {
-            clearTimeout(timer);
+            clearTimeout(safetyTimer);
             resolve(false);
           }
         });

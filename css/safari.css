@@ -90,9 +90,9 @@
         and 'contain: paint' would clip/break.
      ========================================================================= */
 
-  /* Safe: self-contained cards with no overflow/absolute children.
-     NOTE: project-item and project-swipe-container are excluded because they use transform: translateX()
-     and absolute action overlays, which contain: paint would clip and break gesture tracking in Safari. */
+  /* Safe: self-contained cards with no overflow/absolute children */
+  .project-item,
+  .project-swipe-container,
   .media-grid-item,
   .effects-rack-item,
   .drawer-param-row {

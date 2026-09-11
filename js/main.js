@@ -380,7 +380,7 @@ function bindProjectSwipeGestures(container) {
     let isVerticalScroll = false;
     let activePointerId = null;
 
-    const SWIPE_TRIGGER_THRESHOLD = 55; // px to trigger action (comfortable on touch & trackpad)
+    const SWIPE_TRIGGER_THRESHOLD = 75; // px to trigger action
     const MAX_DRAG_DISTANCE = 140; // max visual drag boundary
 
     const onPointerDown = (e) => {
@@ -396,11 +396,6 @@ function bindProjectSwipeGestures(container) {
       activePointerId = e.pointerId;
 
       itemEl.style.transition = 'none';
-
-      // Capture pointer immediately to prevent Safari horizontal navigation hijack
-      try {
-        itemEl.setPointerCapture(e.pointerId);
-      } catch (err) {}
     };
 
     const onPointerMove = (e) => {
@@ -414,15 +409,12 @@ function bindProjectSwipeGestures(container) {
           isLockedDirection = true;
           if (Math.abs(dy) > Math.abs(dx)) {
             isVerticalScroll = true;
-            // Vertical scroll detected: release pointer capture so page scrolls normally
-            try {
-              if (itemEl.hasPointerCapture(e.pointerId)) {
-                itemEl.releasePointerCapture(e.pointerId);
-              }
-            } catch (_) {}
             return;
           } else {
             isDragging = true;
+            try {
+              itemEl.setPointerCapture(e.pointerId);
+            } catch (err) {}
           }
         } else {
           return;
@@ -448,41 +440,27 @@ function bindProjectSwipeGestures(container) {
         // Swiping RIGHT -> Delete
         if (deleteAction) {
           deleteAction.style.opacity = '1';
-          deleteAction.style.zIndex = '3';
           if (currentX >= SWIPE_TRIGGER_THRESHOLD) {
             deleteAction.classList.add('is-ready');
           } else {
             deleteAction.classList.remove('is-ready');
           }
         }
-        if (exportAction) {
-          exportAction.style.opacity = '0';
-          exportAction.style.zIndex = '1';
-        }
+        if (exportAction) exportAction.style.opacity = '0';
       } else if (currentX < 0) {
         // Swiping LEFT -> Export
         if (exportAction) {
           exportAction.style.opacity = '1';
-          exportAction.style.zIndex = '3';
           if (Math.abs(currentX) >= SWIPE_TRIGGER_THRESHOLD) {
             exportAction.classList.add('is-ready');
           } else {
             exportAction.classList.remove('is-ready');
           }
         }
-        if (deleteAction) {
-          deleteAction.style.opacity = '0';
-          deleteAction.style.zIndex = '1';
-        }
+        if (deleteAction) deleteAction.style.opacity = '0';
       } else {
-        if (deleteAction) {
-          deleteAction.style.opacity = '0';
-          deleteAction.style.zIndex = '1';
-        }
-        if (exportAction) {
-          exportAction.style.opacity = '0';
-          exportAction.style.zIndex = '1';
-        }
+        if (deleteAction) deleteAction.style.opacity = '0';
+        if (exportAction) exportAction.style.opacity = '0';
       }
     };
 
@@ -523,12 +501,10 @@ function bindProjectSwipeGestures(container) {
         setTimeout(() => {
           if (deleteAction) {
             deleteAction.style.opacity = '';
-            deleteAction.style.zIndex = '';
             deleteAction.classList.remove('is-ready');
           }
           if (exportAction) {
             exportAction.style.opacity = '';
-            exportAction.style.zIndex = '';
             exportAction.classList.remove('is-ready');
           }
           itemEl.style.transition = '';
@@ -726,10 +702,40 @@ function openDeleteModal(projectId, currentName) {
  */
 async function confirmDeleteProjectAction() {
   const idInput = document.getElementById('delete-project-id');
-  const projectId = idInput ? idInput.value : '';
+  let projectId = idInput ? idInput.value : '';
 
   if (window.Modal) {
     window.Modal.close('modal-delete-project');
+  }
+
+  // Fallback: If projectId was empty, match by target name
+  if (!projectId) {
+    const targetNameEl = document.getElementById('delete-target-name');
+    const rawName = targetNameEl ? targetNameEl.textContent.replace(/^"|"$/g, '').trim() : '';
+    if (rawName && window.FishDatabase) {
+      try {
+        const all = await window.FishDatabase.getProjects();
+        const found = all.find(p => p && (p.name === rawName || p.id === rawName));
+        if (found) projectId = found.id;
+      } catch (_) {}
+    }
+  }
+
+  // Immediately remove card from DOM for instant feedback
+  const listContainer = document.getElementById('projects-container');
+  const countBadge = document.getElementById('project-count-badge');
+  if (listContainer && projectId) {
+    const cards = listContainer.querySelectorAll('.project-swipe-container');
+    cards.forEach(card => {
+      if (card.dataset.id === projectId || card.dataset.name === projectId) {
+        card.remove();
+      }
+    });
+    if (countBadge) {
+      const remaining = listContainer.querySelectorAll('.project-swipe-container').length;
+      countBadge.textContent = String(remaining);
+      countBadge.setAttribute('title', `${remaining} Total Projects`);
+    }
   }
 
   if (projectId && window.FishDatabase) {
@@ -742,12 +748,13 @@ async function confirmDeleteProjectAction() {
     }
   }
 
-  // Refresh project list
-  const listContainer = document.getElementById('projects-container');
-  const countBadge = document.getElementById('project-count-badge');
+  // Refresh project list from database
   if (listContainer && window.FishDatabase) {
     try {
-      const projects = await window.FishDatabase.getProjects();
+      let projects = await window.FishDatabase.getProjects();
+      if (projectId) {
+        projects = projects.filter(p => p && p.id !== projectId && String(p.id).trim() !== String(projectId).trim());
+      }
       renderProjects(projects, listContainer, countBadge);
     } catch (_) {}
   }

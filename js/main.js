@@ -471,9 +471,9 @@ function initGDriveDashboard() {
 
     cloudContainer.innerHTML = projects.map(project => {
       const name = project.name || 'Untitled Project';
-      const size = project.size || '12 KB';
+      const size = project.size || (project.isNewFormat ? '' : '');
       const savedTime = formatRelativeTime(project.updatedAt);
-      const specs = `Google Drive • .ofts`;
+      const specs = project.isLegacy ? `Google Drive • .ofts (legacy)` : `Google Drive • Cloud`;
 
       return `
         <div class="project-swipe-container" data-id="${escapeHtml(project.id)}" data-name="${escapeHtml(name)}" data-is-cloud="true">

@@ -22,6 +22,62 @@
     };
     window.currentProjectState = currentProjectState;
 
+    // ── GDrive Media Hooks ──────────────────────────────────────────────────
+    // Auto-upload/delete media on Drive when project source is 'gdrive'.
+    // Installed after FishDatabase is confirmed ready (see installGDriveMediaHooks).
+    function installGDriveMediaHooks() {
+      if (!window.FishDatabase || window.FishDatabase._gdriveHooksInstalled) return;
+      window.FishDatabase._gdriveHooksInstalled = true;
+
+      const _origSaveMedia   = window.FishDatabase.saveMedia.bind(window.FishDatabase);
+      const _origDeleteMedia = window.FishDatabase.deleteMedia.bind(window.FishDatabase);
+
+      window.FishDatabase.saveMedia = async function(mediaItem) {
+        const result = await _origSaveMedia(mediaItem);
+        // Upload to Drive only if current project is a gdrive project
+        if (
+          currentProjectState.source === 'gdrive' &&
+          currentProjectState.id &&
+          window.FishGDriveSync &&
+          window.FishGDriveSync.isAuthenticated() &&
+          mediaItem && mediaItem.blob
+        ) {
+          try {
+            await window.FishGDriveSync.uploadMedia(currentProjectState.id, mediaItem);
+          } catch (err) {
+            console.warn('[GDriveSync] Media upload failed:', err);
+          }
+        }
+        return result;
+      };
+
+      window.FishDatabase.deleteMedia = async function(mediaId) {
+        const result = await _origDeleteMedia(mediaId);
+        if (
+          currentProjectState.source === 'gdrive' &&
+          currentProjectState.id &&
+          window.FishGDriveSync &&
+          window.FishGDriveSync.isAuthenticated()
+        ) {
+          try {
+            await window.FishGDriveSync.deleteMedia(currentProjectState.id, mediaId);
+          } catch (err) {
+            console.warn('[GDriveSync] Media delete from Drive failed:', err);
+          }
+        }
+        return result;
+      };
+    }
+
+    // Install hooks as soon as FishDatabase is available
+    if (window.FishDatabase) {
+      installGDriveMediaHooks();
+    } else {
+      // Fallback: FishDatabase loaded after editor.js (unlikely but safe)
+      window.addEventListener('load', () => { if (window.FishDatabase) installGDriveMediaHooks(); });
+    }
+    // ── End GDrive Media Hooks ──────────────────────────────────────────────
+
     // Composition Hierarchy Stack for Precompose Context Switching
     const compositionStack = [];
     let currentActivePrecomp = null;
@@ -486,7 +542,7 @@
             invalidatePreviewCacheForLayer(l);
           }
         });
-        // ── GDRIVE PROJECT: sync directly to Drive, skip local IndexedDB ──
+        // ── GDRIVE PROJECT: sync project.json to Drive (layer data only, no media blobs) ──
         if (currentProjectState.source === 'gdrive') {
           if (!window.FishGDriveSync || !currentProjectState.id) return;
 
@@ -495,47 +551,60 @@
           const isTransformDragging = !!(window.isTransformInteracting);
           if ((isScrubbing || isTransformDragging) && !immediate) return;
 
-          // Minimum 5s cooldown between uploads — prevent spam from rapid repeated calls
+          // Minimum 5s cooldown between uploads
           const _now = Date.now();
-          if (!immediate) {
-            if (window._gdriveLastSyncTime && (_now - window._gdriveLastSyncTime) < 5000) return;
-          }
+          if (!immediate && window._gdriveLastSyncTime && (_now - window._gdriveLastSyncTime) < 5000) return;
 
-          const cloudStatusEl = document.getElementById('editor-cloud-status');
-          const driveFileId = currentProjectState.id;
-          const layersToSync = (compositionStack && compositionStack.length > 0)
+          const cloudStatusEl    = document.getElementById('editor-cloud-status');
+          // currentProjectState.id = Drive project folder ID (set when project opened/created)
+          const driveFolderId    = currentProjectState.id;
+          const layersToSync     = (compositionStack && compositionStack.length > 0)
             ? compositionStack[0].layers
             : (currentProjectState.layers || []);
 
-          // Quick change-detect: compare layer count + last updated timestamp
-          // to avoid uploading identical data repeatedly
-          const _changeKey = (layersToSync.length) + '|' + (currentProjectState.name) + '|' + JSON.stringify(layersToSync.map(l => l.id + (l.startSec||0) + (l.durationSec||0)));
-          if (!immediate && window._gdriveLastSyncedKey === _changeKey) return; // no actual change
+          // Quick change-detect — skip if nothing structural changed
+          const _changeKey = layersToSync.length + '|' + currentProjectState.name + '|' +
+            JSON.stringify(layersToSync.map(l => l.id + (l.startSec || 0) + (l.durationSec || 0)));
+          if (!immediate && window._gdriveLastSyncedKey === _changeKey) return;
           window._gdriveLastSyncedKey = _changeKey;
 
-          const gdrivePayload = {
-            name: currentProjectState.name,
-            aspectRatio: currentProjectState.aspectRatio,
-            resolution: currentProjectState.resolution,
-            fps: String(currentProjectState.fps || 60),
-            bgColor: currentProjectState.bgColor || 'transparent',
-            defaultDuration: currentProjectState.defaultDuration || 5,
-            layers: layersToSync,
-            beatmarks: Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [],
-            motionBlur: currentProjectState.motionBlur ? JSON.parse(JSON.stringify(currentProjectState.motionBlur)) : undefined,
-            customEasingPresets: currentProjectState.customEasingPresets ? JSON.parse(JSON.stringify(currentProjectState.customEasingPresets)) : undefined,
-            updatedAt: new Date().toISOString()
+          // Build project.json payload — strip binary/blob data, keep only layer metadata
+          const _stripLayerBlobs = (layer) => {
+            const l = Object.assign({}, layer);
+            // Strip runtime blobs and large data that live in Drive media/ folder
+            delete l.blob; delete l.thumbBlob;
+            if (l.dataUrl && (l.dataUrl.startsWith('blob:') || l.dataUrl.startsWith('data:'))) l.dataUrl = '';
+            if (l.fillMediaUrl && (l.fillMediaUrl.startsWith('blob:') || l.fillMediaUrl.startsWith('data:'))) l.fillMediaUrl = '';
+            if (l.thumbUrl) l.thumbUrl = '';
+            if (Array.isArray(l.layers)) l.layers = l.layers.map(_stripLayerBlobs);
+            return l;
           };
+
+          const gdrivePayload = {
+            id:          currentProjectState.id,
+            name:        currentProjectState.name,
+            aspectRatio: currentProjectState.aspectRatio,
+            resolution:  currentProjectState.resolution,
+            fps:         String(currentProjectState.fps || 60),
+            bgColor:     currentProjectState.bgColor || 'transparent',
+            defaultDuration: currentProjectState.defaultDuration || 5,
+            layers:      layersToSync.map(_stripLayerBlobs),
+            beatmarks:   Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [],
+            motionBlur:  currentProjectState.motionBlur ? JSON.parse(JSON.stringify(currentProjectState.motionBlur)) : undefined,
+            customEasingPresets: currentProjectState.customEasingPresets ? JSON.parse(JSON.stringify(currentProjectState.customEasingPresets)) : undefined,
+            updatedAt:   new Date().toISOString()
+          };
+
           if (cloudStatusEl) {
             cloudStatusEl.classList.remove('is-synced', 'is-error');
             cloudStatusEl.classList.add('is-syncing');
             cloudStatusEl.title = 'Syncing to Google Drive...';
           }
           if (gdriveSyncDebounceTimer) { clearTimeout(gdriveSyncDebounceTimer); gdriveSyncDebounceTimer = null; }
+
           const runDriveSync = async (retry = false) => {
             try {
-              const saved = await window.FishGDriveSync.saveProject(driveFileId, gdrivePayload);
-              // Use Drive server's modifiedTime to avoid false "another session" positives
+              const saved = await window.FishGDriveSync.saveProject(driveFolderId, gdrivePayload);
               currentProjectState.cloudLastModifiedTime = (saved && saved.modifiedTime) || new Date().toISOString();
               window._gdriveLastSyncTime = Date.now();
               if (cloudStatusEl) {
@@ -544,7 +613,6 @@
                 cloudStatusEl.title = 'Synced to Google Drive';
               }
             } catch (err) {
-              // NetworkError = transient, retry once after 2s
               if (!retry && err instanceof TypeError && err.message && err.message.includes('NetworkError')) {
                 setTimeout(() => runDriveSync(true), 2000);
                 return;

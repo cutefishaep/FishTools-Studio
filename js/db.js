@@ -573,19 +573,30 @@ window.FishDatabase = (function () {
     var db = await openDB();
     if (db) {
       await new Promise(function (resolve) {
+        var safetyTimer = setTimeout(function () {
+          resolve(project);
+        }, 800);
         try {
           var tx = db.transaction('projects', 'readwrite');
           var store = tx.objectStore('projects');
           store.put(project);
           tx.oncomplete = function () {
+            clearTimeout(safetyTimer);
             window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'save', project: project } }));
             resolve(project);
           };
-          tx.onerror = function () {
+          tx.onerror = function (e) {
+            clearTimeout(safetyTimer);
+            try { e.preventDefault(); } catch (_) {}
             window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'save', project: project } }));
+            resolve(project);
+          };
+          tx.onabort = function () {
+            clearTimeout(safetyTimer);
             resolve(project);
           };
         } catch (e) {
+          clearTimeout(safetyTimer);
           window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'save', project: project } }));
           resolve(project);
         }

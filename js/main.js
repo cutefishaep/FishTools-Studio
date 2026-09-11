@@ -825,34 +825,43 @@ async function createNewProjectAction() {
   const selectedFps = document.getElementById('dropdown-fps')?.dataset.value || '60';
   const selectedBg = document.querySelector('#options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
 
-  let projectId = '';
-  if (window.FishDatabase) {
-    const project = await window.FishDatabase.createProject({
-      name: name,
-      aspectRatio: selectedRatio,
-      resolution: selectedRes,
-      fps: selectedFps,
-      bgColor: selectedBg
-    });
-    projectId = project.id;
+  let projectId = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
+  try {
+    if (window.FishDatabase && typeof window.FishDatabase.createProject === 'function') {
+      const project = await Promise.race([
+        window.FishDatabase.createProject({
+          name: name,
+          aspectRatio: selectedRatio,
+          resolution: selectedRes,
+          fps: selectedFps,
+          bgColor: selectedBg
+        }),
+        new Promise(resolve => setTimeout(() => resolve(null), 800))
+      ]);
+      if (project && project.id) {
+        projectId = project.id;
+      }
+    }
+  } catch (err) {
+    console.warn('FishDatabase createProject error, using fallback:', err);
   }
 
+  // Close modal without triggering history.back (prevents navigation abort in Safari)
   if (window.Modal) {
-    window.Modal.close();
+    window.Modal.close(false);
   }
 
-  // Navigate to editor screen with state
-  setTimeout(() => {
-    const query = new URLSearchParams({
-      id: projectId,
-      name: name,
-      aspect: selectedRatio,
-      resolution: selectedRes,
-      fps: selectedFps,
-      bg: selectedBg
-    });
-    window.location.href = `editor.html?${query.toString()}`;
-  }, 120);
+  const query = new URLSearchParams({
+    id: projectId,
+    name: name,
+    aspect: selectedRatio,
+    resolution: selectedRes,
+    fps: selectedFps,
+    bg: selectedBg
+  });
+
+  window.location.href = `editor.html?${query.toString()}`;
 }
 
 /**

@@ -1,0 +1,187 @@
+/* ==========================================================================
+   SAFARI.CSS - Safari-Specific Premium Performance Overrides
+   Scoped via @supports (-webkit-hyphens: auto) — property only Safari supports.
+   Applied on top of all other CSS. Zero impact on Chrome/Firefox.
+   ========================================================================== */
+
+@supports (-webkit-hyphens: auto) {
+
+  /* =========================================================================
+     1. MOMENTUM SCROLLING — All scroll containers get native iOS/macOS
+        rubber-band inertia. This is the single biggest "premium feel" upgrade.
+     ========================================================================= */
+  *[style*="overflow"],
+  .modal-backdrop,
+  .modal-body,
+  .modal-card,
+  .welcome-changelog-feed,
+  .drawer-body,
+  .drawer-scroll,
+  .drawer-content-body,
+  .drawer-inner-scroll,
+  .popover-body,
+  .popover-scroll,
+  .effects-rack-list,
+  .effects-rack-body,
+  .timeline-layers-viewport,
+  .projects-list,
+  .media-grid,
+  .color-picker-panel,
+  .graph-presets-col,
+  .transform-easing-list,
+  .template-list-scroll,
+  .font-list-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* =========================================================================
+     2. ANIMATION — Force GPU compositing on all animated surfaces.
+        Prevents sub-pixel jitter + anti-aliasing artifacts on Retina.
+     ========================================================================= */
+
+  /* Modal card: center scale-in */
+  .modal-card {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Drawer: slide up from bottom */
+  .drawer-panel,
+  .drawer-container,
+  [class*="drawer-"] {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Popover: scale-in floating panels */
+  .popover-panel,
+  .popover-container,
+  [class*="popover-"]:not([class*="popover-value"]):not([class*="popover-label"]) {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Context menu */
+  .context-menu {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Timeline track content — GPU layer for smooth horizontal pan */
+  .timeline-tracks-content,
+  .timeline-ruler-content,
+  .timeline-lane-heads-overlay {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* =========================================================================
+     3. CONTAIN — Limit repaint scope on static panel surfaces.
+        Safari repaints entire document by default when anything changes.
+     ========================================================================= */
+  .timeline-track-lane,
+  .timeline-clip-block,
+  .timeline-lane-pill-slot,
+  .project-item,
+  .project-swipe-container,
+  .media-grid-item,
+  .effects-rack-item,
+  .drawer-param-row {
+    contain: layout style paint;
+  }
+
+  /* =========================================================================
+     4. TEXT RENDERING — Sharper subpixel text on macOS Retina.
+        Safari's default is slightly fuzzy for Cal Sans at small sizes.
+     ========================================================================= */
+  *, *::before, *::after {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* =========================================================================
+     5. TAP HIGHLIGHT — Remove blue flash on ALL interactive elements.
+        Safari still shows it on some elements not covered globally.
+     ========================================================================= */
+  a, button, [role="button"], [tabindex],
+  .action-btn, .studio-top-btn, .aspect-ratio-frame,
+  .modal-color-swatch, .custom-dropdown-trigger,
+  .timeline-clip-block, .timeline-lane-pill-slot,
+  .project-item, .media-grid-item,
+  .popover-btn, .popover-row, .popover-item,
+  .drawer-btn, .effects-rack-item,
+  .switch-label, .segmented-btn {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* =========================================================================
+     6. SCROLL SNAP — Timeline horizontal scroll with momentum + no bounce
+     ========================================================================= */
+  .timeline-layers-viewport,
+  #timeline-ruler-viewport {
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: contain;
+    scroll-behavior: auto; /* Disable smooth-scroll — Safari + rAF handles this */
+  }
+
+  /* =========================================================================
+     7. IMAGE RENDERING — Canvas preview element crisp at native resolution.
+        Prevents double-scaling blur when canvas CSS size != pixel size.
+     ========================================================================= */
+  #editor-active-canvas,
+  .editor-canvas,
+  canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  /* =========================================================================
+     8. SCROLLBAR — Hide Safari's native overlay scrollbar in panels where
+        it visually conflicts with the flat UI design.
+     ========================================================================= */
+  .timeline-layers-viewport::-webkit-scrollbar,
+  .effects-rack-list::-webkit-scrollbar,
+  .drawer-body::-webkit-scrollbar,
+  .popover-body::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  .timeline-layers-viewport::-webkit-scrollbar-thumb,
+  .effects-rack-list::-webkit-scrollbar-thumb,
+  .drawer-body::-webkit-scrollbar-thumb,
+  .popover-body::-webkit-scrollbar-thumb {
+    background-color: var(--border-panel);
+    border-radius: 99px;
+  }
+
+  /* =========================================================================
+     9. SAFE AREA — Extra bottom padding for MacBook notch / iPhone Dynamic
+        Island to prevent UI clipping in full-screen mode.
+     ========================================================================= */
+  .editor-viewport,
+  .app-viewport {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+  }
+
+  /* =========================================================================
+     10. SELECTION COLOR — Match brand accent for text selection in inputs.
+     ========================================================================= */
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--bg-canvas);
+  }
+
+  ::-webkit-selection {
+    background-color: var(--color-primary);
+    color: var(--bg-canvas);
+  }
+
+}

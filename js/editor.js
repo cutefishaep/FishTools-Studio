@@ -2062,6 +2062,11 @@
       const needsAlpha = isExport && triggerSource !== 'export-video' && (!bg || bg === 'transparent');
       const ctx = canvas.getContext('2d', { alpha: needsAlpha }) || canvas.getContext('2d');
       if (!ctx) return;
+      // Safari defaults imageSmoothingQuality to 'low' — force 'high' for premium rendering
+      if (ctx.imageSmoothingEnabled !== false) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+      }
 
       const t0 = performance.now();
 
@@ -18155,8 +18160,14 @@
       function onPanMove(e) {
         if (!isPanning) return;
 
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
+        // Safari coalesces pointermove events between frames, adding ~16ms latency.
+        // getCoalescedEvents() recovers intermediate positions for silky-smooth scrubbing.
+        // We use the LAST coalesced event as the most up-to-date position.
+        const coalescedEvents = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : null;
+        const lastEvent = (coalescedEvents && coalescedEvents.length > 0) ? coalescedEvents[coalescedEvents.length - 1] : e;
+
+        const deltaX = lastEvent.clientX - startX;
+        const deltaY = lastEvent.clientY - startY;
 
         // Cancel empty timeline long-press if user moves pointer beyond slight jitter threshold
         if (timelineEmptyLpTimer && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
@@ -18369,6 +18380,15 @@
 
       function stepPlay(timestamp) {
         if (!isPlaying) return;
+
+        // Safari (and all browsers) throttle rAF on hidden tabs — pause gracefully
+        // and reset the time anchor so playback resumes without a jump.
+        if (document.hidden) {
+          lastTime = 0;
+          playAnimationId = requestAnimationFrame(stepPlay);
+          return;
+        }
+
         if (!lastTime) lastTime = timestamp;
         const rawDeltaSec = (timestamp - lastTime) / 1000;
 

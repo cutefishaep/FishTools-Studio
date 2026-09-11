@@ -373,6 +373,31 @@ window.FishDatabase = (function () {
    * Retrieves all projects from DB sorted by last updated descending
    * @returns {Promise<Array>}
    */
+  /**
+   * Strips all heavy layer/media data from a project object.
+   * Returns only lightweight metadata fields needed for dashboard listing.
+   * This prevents Safari (and all browsers) from spiking memory when
+   * getAll() dumps full project blobs into the main thread at once.
+   */
+  function _projectToListMeta(p) {
+    if (!p) return p;
+    return {
+      id: p.id,
+      name: p.name,
+      aspectRatio: p.aspectRatio,
+      resolution: p.resolution,
+      fps: p.fps,
+      width: p.width,
+      height: p.height,
+      duration: p.duration,
+      size: p.size,
+      sizeBytes: p.sizeBytes,
+      updatedAt: p.updatedAt,
+      createdAt: p.createdAt,
+      layerCount: Array.isArray(p.layers) ? p.layers.length : (p.layerCount || 0)
+    };
+  }
+
   async function getProjects() {
     var db = await openDB();
     if (db) {
@@ -391,22 +416,23 @@ window.FishDatabase = (function () {
               var tB = new Date(b.updatedAt || b.createdAt || 0).getTime();
               return tB - tA;
             });
-            // Update localStorage sync copy
+            // Update localStorage sync copy with full data (strip heavy for storage limits)
             saveLocalProjects(items);
-            resolve(items);
+            // Return only lightweight metadata — avoids memory spike on Safari
+            resolve(items.map(_projectToListMeta));
           };
           req.onerror = function () {
             var local = getLocalProjects().filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
-            resolve(local);
+            resolve(local.map(_projectToListMeta));
           };
         } catch (e) {
           var local = getLocalProjects().filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
-          resolve(local);
+          resolve(local.map(_projectToListMeta));
         }
       });
     }
     var local = getLocalProjects().filter(function (p) { return p && p.id && !p.id.startsWith('prj-00'); });
-    return local;
+    return local.map(_projectToListMeta);
   }
 
   /**

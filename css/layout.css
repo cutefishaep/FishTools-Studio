@@ -580,6 +580,7 @@ html, body {
   background-color: var(--bg-panel-inner);
   border-radius: 14px;
   margin: auto 0;
+  overflow: visible;
 }
 
 .gdrive-login-icon {
@@ -592,6 +593,7 @@ html, body {
   background-color: var(--bg-panel);
   color: var(--color-primary);
   margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .gdrive-login-icon svg {
@@ -650,11 +652,14 @@ html, body {
 .gdrive-consent-notice {
   font-family: var(--font-brand);
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.5;
   color: var(--text-muted);
-  max-width: 240px;
+  width: 100%;
+  max-width: 100%;
   margin: 12px auto 0 auto;
   text-align: center;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .gdrive-consent-notice a {
@@ -667,6 +672,17 @@ html, body {
 .gdrive-consent-notice a:hover {
   color: var(--color-primary);
 }
+
+@media (max-width: 600px) {
+  .gdrive-login-box {
+    padding: 24px 16px;
+    border-radius: 10px;
+  }
+  .gdrive-login-desc {
+    max-width: 100%;
+  }
+}
+
 
 .gdrive-icon-btn,
 .gdrive-settings-btn {

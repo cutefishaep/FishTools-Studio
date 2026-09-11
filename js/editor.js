@@ -25097,22 +25097,14 @@
           // 3. Initialize VideoEncoder (latencyMode: realtime forbids B-frame reordering)
           const frameDurationMicros = Math.round(1_000_000 / fps);
           let encoderError = null;
-          let lastChunkTimestamp = -1;
           const videoEncoder = new VideoEncoder({
             output: (chunk, meta) => {
               try {
-                const dur = (chunk.duration && Number.isFinite(chunk.duration) && chunk.duration > 0)
-                  ? chunk.duration
-                  : frameDurationMicros;
                 const data = new Uint8Array(chunk.byteLength);
                 chunk.copyTo(data);
-                let ts = (chunk.timestamp !== undefined && Number.isFinite(chunk.timestamp) && chunk.timestamp >= 0)
-                  ? chunk.timestamp
-                  : 0;
-                if (ts <= lastChunkTimestamp) {
-                  ts = lastChunkTimestamp + 1;
-                }
-                lastChunkTimestamp = ts;
+                // Trust chunk.timestamp — derived from VideoFrame.timestamp = (i/fps)*1e6, deterministic & monotonic
+                const ts  = (Number.isFinite(chunk.timestamp) && chunk.timestamp >= 0) ? chunk.timestamp : 0;
+                const dur = (Number.isFinite(chunk.duration)  && chunk.duration  >  0) ? chunk.duration  : frameDurationMicros;
                 muxer.addVideoChunkRaw(data, chunk.type, ts, dur, meta);
               } catch (muxErr) {
                 console.error('[Export:Muxer] addVideoChunkRaw error:', muxErr);
@@ -25829,11 +25821,11 @@
           }
 
           if (preset === 'light') {
-            ffmpegArgs.push('-c:v', 'libx264', '-crf', '22', '-b:v', '16M', '-maxrate', '20M', '-bufsize', '20M', '-preset', 'ultrafast', '-tune', 'fastdecode', '-pix_fmt', 'yuv420p');
+            ffmpegArgs.push('-c:v', 'libx264', '-r', String(fps), '-vsync', 'cfr', '-crf', '22', '-b:v', '16M', '-maxrate', '20M', '-bufsize', '20M', '-preset', 'ultrafast', '-tune', 'fastdecode', '-pix_fmt', 'yuv420p');
           } else if (preset === 'detail') {
-            ffmpegArgs.push('-c:v', 'libx264', '-b:v', '50M', '-maxrate', '50M', '-bufsize', '50M', '-preset', 'ultrafast', '-tune', 'fastdecode', '-pix_fmt', 'yuv420p');
+            ffmpegArgs.push('-c:v', 'libx264', '-r', String(fps), '-vsync', 'cfr', '-b:v', '50M', '-maxrate', '50M', '-bufsize', '50M', '-preset', 'ultrafast', '-tune', 'fastdecode', '-pix_fmt', 'yuv420p');
           } else {
-            ffmpegArgs.push('-c:v', 'libx264', '-crf', '18', '-b:v', '25M', '-maxrate', '30M', '-bufsize', '30M', '-preset', 'ultrafast', '-tune', 'fastdecode', '-pix_fmt', 'yuv420p');
+            ffmpegArgs.push('-c:v', 'libx264', '-r', String(fps), '-vsync', 'cfr', '-crf', '18', '-b:v', '25M', '-maxrate', '30M', '-bufsize', '30M', '-preset', 'ultrafast', '-tune', 'fastdecode', '-pix_fmt', 'yuv420p');
           }
 
           if (hasAudio) {

@@ -23,7 +23,7 @@
         <h1 class="brand-title">OpenFishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.4.7</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.4.8</span>
         </div>
       </div>
       <div class="studio-header-actions">
@@ -480,7 +480,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.4.7</span>
+          <span class="welcome-badge">v0.4.8</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -516,11 +516,33 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.4.8 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.4.8</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 11, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-added">Added</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Offline Frame-by-Frame Export Engine</span>
+                  <span class="changelog-item-desc">New <code>FishExport-Enggine.js</code> — deterministic render loop (<code>t = i/fps</code>). Zero dropped frames regardless of effect complexity or GPU load.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Choppy / Patchy Export Output</span>
+                  <span class="changelog-item-desc">Eliminated wall-clock timestamp dependency. Render speed no longer affects output FPS or smoothness.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.4.7 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.4.7</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 11, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -533,15 +555,8 @@
               <div class="welcome-changelog-item">
                 <span class="changelog-badge badge-fixed">Fixed</span>
                 <div class="changelog-item-content">
-                  <span class="changelog-item-title">WebCodecs Active Probe Verification</span>
-                  <span class="changelog-item-desc">Resolved 'encoding not supported' DOMException on Firefox and Hackintosh AMD by actively testing encoder initialization before rendering.</span>
-                </div>
-              </div>
-              <div class="welcome-changelog-item">
-                <span class="changelog-badge badge-fixed">Fixed</span>
-                <div class="changelog-item-content">
-                  <span class="changelog-item-title">FFmpeg WebM to MP4 Transcoding</span>
-                  <span class="changelog-item-desc">Fixed 'codec vp8 not supported in container' error by transcoding VP8/VP9 to standards-compliant H.264 libx264 + AAC.</span>
+                  <span class="changelog-item-title">WebCodecs Active Probe & FFmpeg Transcoding</span>
+                  <span class="changelog-item-desc">Fixed DOMException on Firefox/Hackintosh AMD and VP8→MP4 codec compatibility errors.</span>
                 </div>
               </div>
             </div>

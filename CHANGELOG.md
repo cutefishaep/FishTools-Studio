@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.8] - 2026-09-11
+
+### Added
+- **Offline Frame-by-Frame Export Engine (`FishExport-Enggine.js`)**: Introduced a dedicated standalone export engine that replaces the real-time playback-based MediaRecorder capture with a true deterministic offline render loop. Each frame is rendered at `t = i / fps` (exact timestamp, never wall-clock elapsed time), guaranteeing zero dropped frames regardless of render complexity or GPU load.
+- **WebCodecs + Mp4Muxer Primary Path**: On Chrome/Edge/Safari, frames are GPU-encoded via `VideoEncoder` (H.264/VP9) and muxed directly into `.mp4` using `Mp4Muxer` — no real-time capture latency.
+- **FFmpeg.wasm CPU Fallback Path**: When WebCodecs is unavailable, the engine renders each frame to JPEG and encodes via `libx264` through FFmpeg.wasm, producing a standards-compliant `.mp4` at full project resolution and FPS.
+- **Audio Offline Mixdown**: Audio is mixed via `OfflineAudioContext` (true offline, non-real-time) and merged with the video stream via FFmpeg AAC encode — never tied to playback timing.
+- **Engine Delegation**: `exportVideoMP4` in `editor.js` now delegates MP4 exports to `FishExportEngine.export()`. WebM format retains the fast MediaRecorder path.
+
+### Fixed
+- **Choppy / Patchy Export Output**: Root cause was MediaRecorder recording wall-clock timestamps. If rendering 1 frame took 80ms (due to heavy effects), the output video naturally had only ~12 FPS instead of 60 FPS. The new offline engine eliminates this entirely — render speed has zero effect on output FPS or smoothness.
+
+---
+
 ## [0.4.7] - 2026-09-11
 
 ### Fixed

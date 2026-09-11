@@ -25909,12 +25909,19 @@
         }
       }
 
-      // Backward compatible alias
-      const exportVideoMP4 = exportVideoHardware;
+      // Export entry: delegates to FishExportEngine (offline deterministic render) for MP4.
+      // Falls back to legacy exportVideoHardware if engine not loaded.
+      async function exportVideoMP4(preset, customName, format) {
+        format = format || 'mp4';
+        if (format === 'mp4' && window.FishExportEngine && typeof window.FishExportEngine.export === 'function') {
+          await window.FishExportEngine.export({ preset: preset, customName: customName, format: 'mp4' });
+        } else {
+          await exportVideoHardware(preset, customName, format);
+        }
+      }
       window.exportVideoMP4 = exportVideoMP4;
       window.exportVideoHardware = exportVideoHardware;
       window.exportVideoFFmpeg = exportVideoFFmpeg;
-
       // 8. Bind Events
       const btnExportHeader = document.getElementById('btn-editor-export');
       if (btnExportHeader) {

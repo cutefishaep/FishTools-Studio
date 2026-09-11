@@ -247,13 +247,6 @@
 }
 
 /* Simultaneous foreground adaptation on hover & active */
-.media-import-box:hover {
-  background-color: var(--color-primary);
-  color: var(--bg-canvas);
-  border-color: var(--color-primary);
-  border-style: solid;
-}
-
 .media-import-box:active {
   transform: scale(0.94);
   background-color: var(--color-primary-active);
@@ -274,10 +267,6 @@
   transition: transform 0.15s ease;
 }
 
-.media-import-box:hover .media-import-plus-icon {
-  transform: scale(1.15);
-}
-
 /* Imported Media Thumbnail Tile */
 .media-item-tile {
   width: 100%;
@@ -296,11 +285,6 @@
   transition: border-color 0.15s ease, transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-}
-
-.media-item-tile:hover {
-  border-color: var(--color-primary);
-  transform: translateY(-2px);
 }
 
 .media-item-tile:active {
@@ -366,6 +350,7 @@
   line-height: 1.2;
 }
 
+/* Media Item Delete Button (Desktop Hover Only) */
 .media-item-delete-btn {
   position: absolute;
   top: 4px;
@@ -377,30 +362,67 @@
   color: var(--text-muted);
   border: 1px solid var(--border-subtle);
   outline: none;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
   opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
   transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   z-index: 5;
-}
-
-.media-item-tile:hover .media-item-delete-btn {
-  opacity: 1;
-}
-
-.media-item-delete-btn:hover {
-  color: var(--color-danger-text);
-  background-color: var(--color-danger);
-  border-color: var(--color-danger);
 }
 
 .media-item-delete-btn svg {
   width: 12px;
   height: 12px;
   fill: currentColor;
+  pointer-events: none;
+}
+
+/* Hover-capable devices (Desktop mouse/trackpad) */
+@media (hover: hover) and (pointer: fine) {
+  .media-import-box:hover {
+    background-color: var(--color-primary);
+    color: var(--bg-canvas);
+    border-color: var(--color-primary);
+    border-style: solid;
+  }
+
+  .media-import-box:hover .media-import-plus-icon {
+    transform: scale(1.15);
+  }
+
+  .media-item-tile:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+  }
+
+  .media-item-delete-btn {
+    display: flex;
+  }
+
+  .media-item-tile:hover .media-item-delete-btn {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .media-item-delete-btn:hover {
+    color: var(--color-danger-text);
+    background-color: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+}
+
+/* Strictly hide and neutralize delete button on mobile screens and touch devices */
+@media (max-width: 600px), (hover: none), (pointer: coarse) {
+  .media-item-delete-btn {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
 }
 
 /* ==========================================================================

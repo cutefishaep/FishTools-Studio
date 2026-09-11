@@ -16181,44 +16181,232 @@
         }
       }
 
-      // Convert Video Media Item to Audio in Media Pool
+      // Helper to dynamically guarantee vendor/lamejs/lame.min.js is ready
+      async function ensureLameLoaded() {
+        if (window.lamejs && window.lamejs.Mp3Encoder) return window.lamejs;
+        if (typeof lamejs !== 'undefined' && lamejs.Mp3Encoder) return lamejs;
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'vendor/lamejs/lame.min.js';
+          script.onload = () => {
+            const lib = window.lamejs || (typeof lamejs !== 'undefined' ? lamejs : null);
+            resolve(lib);
+          };
+          script.onerror = () => reject(new Error('Failed to load vendor/lamejs/lame.min.js'));
+          document.head.appendChild(script);
+        });
+      }
+      window.ensureLameLoaded = ensureLameLoaded;
+
+      // Pure client-side MP3 Encoder (Offline, Fast, 192kbps true MP3)
+      async function audioBufferToMp3(buffer, kbps = 192) {
+        let activeBuffer = buffer;
+        const supportedRates = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000];
+        if (!supportedRates.includes(activeBuffer.sampleRate)) {
+          try {
+            const targetRate = 44100;
+            const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            if (OfflineCtx) {
+              const targetLen = Math.ceil(activeBuffer.duration * targetRate);
+              const offCtx = new OfflineCtx(Math.min(2, activeBuffer.numberOfChannels), targetLen, targetRate);
+              const src = offCtx.createBufferSource();
+              src.buffer = activeBuffer;
+              src.connect(offCtx.destination);
+              src.start(0);
+              activeBuffer = await offCtx.startRendering();
+            }
+          } catch (resampleErr) {
+            console.warn('[audioBufferToMp3] Resample fallback failed:', resampleErr);
+          }
+        }
+
+        const Lame = await ensureLameLoaded();
+        if (!Lame || !Lame.Mp3Encoder) {
+          throw new Error('Lame MP3 Encoder not available');
+        }
+
+        const numChannels = activeBuffer.numberOfChannels;
+        const sampleRate = activeBuffer.sampleRate;
+        const numSamples = activeBuffer.length;
+        const isStereo = numChannels >= 2;
+        const encoderChannels = isStereo ? 2 : 1;
+
+        const mp3encoder = new Lame.Mp3Encoder(encoderChannels, sampleRate, kbps);
+
+        function floatTo16BitPCM(input) {
+          const output = new Int16Array(input.length);
+          for (let i = 0; i < input.length; i++) {
+            const s = Math.max(-1, Math.min(1, input[i]));
+            output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+          return output;
+        }
+
+        const leftPCM = floatTo16BitPCM(activeBuffer.getChannelData(0));
+        const rightPCM = isStereo ? floatTo16BitPCM(activeBuffer.getChannelData(1)) : null;
+
+        const mp3Data = [];
+        const sampleBlockSize = 1152;
+
+        for (let i = 0; i < numSamples; i += sampleBlockSize) {
+          const leftChunk = leftPCM.subarray(i, i + sampleBlockSize);
+          let mp3buf;
+          if (isStereo) {
+            const rightChunk = rightPCM.subarray(i, i + sampleBlockSize);
+            mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+          } else {
+            mp3buf = mp3encoder.encodeBuffer(leftChunk);
+          }
+          if (mp3buf && mp3buf.length > 0) {
+            mp3Data.push(mp3buf);
+          }
+        }
+
+        const endBuf = mp3encoder.flush();
+        if (endBuf && endBuf.length > 0) {
+          mp3Data.push(endBuf);
+        }
+
+        return new Blob(mp3Data, { type: 'audio/mp3' });
+      }
+      window.audioBufferToMp3 = audioBufferToMp3;
+
+      // Universal Cross-Browser Video Audio Extractor (Direct Decode -> Safari Recast -> MediaRecorder Fast Capture)
+      async function decodeAudioFromBlob(blob) {
+        if (!blob) return null;
+        const arrayBuffer = await blob.arrayBuffer();
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) throw new Error('Web Audio API not supported');
+
+        // Attempt 1: Direct decodeAudioData (Chrome, Firefox)
+        try {
+          const ctx1 = new AudioCtx();
+          try {
+            const buf = await ctx1.decodeAudioData(arrayBuffer.slice(0));
+            if (buf && buf.numberOfChannels > 0) return buf;
+          } finally {
+            try { ctx1.close(); } catch (_) {}
+          }
+        } catch (_) {}
+
+        // Attempt 2: Safari audio/mp4 container recast
+        try {
+          const audioMimeBlob = new Blob([arrayBuffer], { type: 'audio/mp4' });
+          const ctx2 = new AudioCtx();
+          try {
+            const buf = await ctx2.decodeAudioData(await audioMimeBlob.arrayBuffer());
+            if (buf && buf.numberOfChannels > 0) return buf;
+          } finally {
+            try { ctx2.close(); } catch (_) {}
+          }
+        } catch (_) {}
+
+        // Attempt 3: Fast playback capture via MediaRecorder (16x speed)
+        try {
+          const blobUrl = URL.createObjectURL(blob);
+          try {
+            const videoEl = document.createElement('video');
+            videoEl.src = blobUrl;
+            videoEl.muted = false;
+            videoEl.crossOrigin = 'anonymous';
+            videoEl.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px';
+            document.body.appendChild(videoEl);
+
+            await new Promise((res, rej) => {
+              videoEl.onloadedmetadata = res;
+              videoEl.onerror = () => rej(new Error('Video load failed'));
+              setTimeout(() => rej(new Error('Metadata timeout')), 8000);
+            });
+
+            const captureCtx = new AudioCtx({ sampleRate: 44100 });
+            const sourceNode = captureCtx.createMediaElementSource(videoEl);
+            const destNode = captureCtx.createMediaStreamDestination();
+            sourceNode.connect(destNode);
+            sourceNode.connect(captureCtx.destination);
+
+            const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/mp4'))
+              ? 'audio/mp4'
+              : (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+                ? 'audio/webm;codecs=opus'
+                : '';
+
+            if (typeof MediaRecorder !== 'undefined') {
+              const recorder = new MediaRecorder(destNode.stream, mimeType ? { mimeType } : {});
+              const chunks = [];
+              recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+              const recordingDone = new Promise((res, rej) => { recorder.onstop = res; recorder.onerror = rej; });
+
+              recorder.start(100);
+              videoEl.playbackRate = 16;
+              videoEl.currentTime = 0;
+              await videoEl.play().catch(() => {});
+
+              await new Promise(res => {
+                videoEl.onended = res;
+                const dur = isFinite(videoEl.duration) ? videoEl.duration : 60;
+                setTimeout(res, Math.ceil(dur / 16) * 1000 + 3000);
+              });
+
+              recorder.stop();
+              videoEl.pause();
+              await recordingDone;
+              videoEl.remove();
+              try { captureCtx.close(); } catch (_) {}
+
+              if (chunks.length > 0) {
+                const capturedBlob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+                const decodeCtx = new AudioCtx();
+                try {
+                  return await decodeCtx.decodeAudioData(await capturedBlob.arrayBuffer());
+                } finally {
+                  try { decodeCtx.close(); } catch (_) {}
+                }
+              }
+            } else {
+              videoEl.remove();
+              try { captureCtx.close(); } catch (_) {}
+            }
+          } finally {
+            URL.revokeObjectURL(blobUrl);
+          }
+        } catch (captureErr) {
+          console.warn('[decodeAudioFromBlob] MediaRecorder capture failed:', captureErr);
+        }
+
+        return null;
+      }
+      window.decodeAudioFromBlob = decodeAudioFromBlob;
+
+      // Convert Video Media Item to Audio in Media Pool (True MP3)
       async function convertVideoMediaToAudio(mediaItem) {
         if (!mediaItem || mediaItem.type !== 'video' || !mediaItem.dataUrl) return;
         const projectId = currentProjectState.id || (new URLSearchParams(window.location.search).get('id')) || 'default_project';
 
+        if (typeof showEffectsRackToast === 'function') {
+          showEffectsRackToast('Mengonversi audio ke MP3...');
+        }
+
         try {
           const res = await fetch(mediaItem.dataUrl);
           const blob = await res.blob();
-          const arrayBuffer = await blob.arrayBuffer();
 
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (!AudioCtx) throw new Error('Web Audio API not supported');
-          const audioCtx = new AudioCtx();
-          let decodedBuffer = null;
-          try {
-            decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-          } finally {
-            try { audioCtx.close(); } catch (_) {}
-          }
+          const decodedBuffer = await decodeAudioFromBlob(blob);
 
           if (!decodedBuffer || decodedBuffer.numberOfChannels === 0) {
             alert('Video tidak memiliki track audio.');
             return;
           }
 
-          const wavFunc = (typeof window.audioBufferToWav === 'function') ? window.audioBufferToWav : (typeof audioBufferToWav === 'function' ? audioBufferToWav : null);
-          if (!wavFunc) throw new Error('audioBufferToWav function unavailable');
-          const wavBlob = wavFunc(decodedBuffer);
-
-          const wavDataUrl = await new Promise((resolve, reject) => {
+          const mp3Blob = await audioBufferToMp3(decodedBuffer, 192);
+          const mp3DataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
             reader.onerror = reject;
-            reader.readAsDataURL(wavBlob);
+            reader.readAsDataURL(mp3Blob);
           });
 
           const cleanBaseName = (mediaItem.name || 'Video').replace(/\.[^/.]+$/, '');
-          const audioItemName = cleanBaseName + ' (Audio)';
+          const audioItemName = cleanBaseName + ' (Audio).mp3';
           const audioDur = decodedBuffer.duration || 5;
 
           const audioMediaItem = {
@@ -16226,9 +16414,9 @@
             projectId: projectId,
             name: audioItemName,
             type: 'audio',
-            mimeType: 'audio/wav',
-            size: wavBlob.size || wavDataUrl.length,
-            dataUrl: wavDataUrl,
+            mimeType: 'audio/mp3',
+            size: mp3Blob.size || mp3DataUrl.length,
+            dataUrl: mp3DataUrl,
             thumbUrl: '',
             duration: audioDur,
             createdAt: new Date().toISOString()
@@ -16240,6 +16428,10 @@
             if (typeof renderFillMediaPool === 'function') {
               renderFillMediaPool();
             }
+          }
+
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Audio berhasil dikonversi ke MP3');
           }
         } catch (err) {
           console.error('[MediaPool] Failed to convert video to audio:', err);
@@ -16440,12 +16632,19 @@
             }
           });
 
-          // Delete media item on clicking delete button - purges media and ALL its layers from timeline
+          // Delete media item on clicking delete button - purges media and ALL its layers from timeline (Desktop mouse only)
           const delBtn = tile.querySelector('.media-item-delete-btn');
           if (delBtn) {
+            delBtn.addEventListener('pointerdown', (e) => {
+              e.stopPropagation();
+            });
             delBtn.addEventListener('click', async (e) => {
               e.stopPropagation();
               e.preventDefault();
+              // Prevent accidental touch trigger or non-hover click
+              if (e.pointerType === 'touch' || (window.matchMedia && window.matchMedia('(hover: none)').matches)) {
+                return;
+              }
               await deleteMediaItem(item);
             });
           }
@@ -21031,7 +21230,7 @@
       }
       window.audioBufferToWav = audioBufferToWav;
 
-      // Extract Audio from Selected Video Layer (Places into Media Pool & Timeline)
+      // Extract Audio from Selected Video Layer (Places into Media Pool & Timeline as true MP3)
       async function extractAudioFromSelectedVideo() {
         const targetId = selectedLayerId || (selectedLayerIds ? Array.from(selectedLayerIds)[0] : null);
         if (!targetId || !currentProjectState.layers) return;
@@ -21041,6 +21240,10 @@
         const projectId = currentProjectState.id || (new URLSearchParams(window.location.search).get('id')) || 'default_project';
 
         if (window.Popover) window.Popover.close();
+
+        if (typeof showEffectsRackToast === 'function') {
+          showEffectsRackToast('Mengekstrak audio ke MP3...');
+        }
 
         try {
           let blob = null;
@@ -21069,137 +21272,23 @@
             return;
           }
 
-          const arrayBuffer = await blob.arrayBuffer();
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (!AudioCtx) throw new Error('Web Audio API not supported');
-
-          /**
-           * Attempt 1: Standard decodeAudioData — works on Chrome & Firefox.
-           * Safari cannot demux audio from MP4/MOV video blobs via this API
-           * and throws EncodingError / DOMException 0.
-           */
-          let decodedBuffer = null;
-          let decodeError = null;
-          try {
-            const audioCtxDirect = new AudioCtx();
-            try {
-              // decodeAudioData mutates the ArrayBuffer — clone it so blob stays usable for fallback
-              decodedBuffer = await audioCtxDirect.decodeAudioData(arrayBuffer.slice(0));
-            } finally {
-              try { audioCtxDirect.close(); } catch (_) {}
-            }
-          } catch (err) {
-            decodeError = err;
-          }
-
-          /**
-           * Attempt 2: Safari-specific fast fallback.
-           * Safari's decodeAudioData rejects video/mp4 blobs but CAN decode
-           * audio/mp4 blobs with the same bytes — the container is identical,
-           * only the MIME type declaration differs. Recast and retry.
-           */
-          if (!decodedBuffer) {
-            try {
-              const audioMimeBlob = new Blob([arrayBuffer], { type: 'audio/mp4' });
-              const audioCtxMime = new AudioCtx();
-              try {
-                decodedBuffer = await audioCtxMime.decodeAudioData(await audioMimeBlob.arrayBuffer());
-              } finally {
-                try { audioCtxMime.close(); } catch (_) {}
-              }
-            } catch (_) { /* try next fallback */ }
-          }
-
-          /**
-           * Attempt 3: Last-resort fast-capture fallback via MediaRecorder.
-           * Plays video at 16x speed to minimize wait time.
-           * Only runs if both decodeAudioData attempts failed (e.g. codec truly unsupported).
-           */
-          if (!decodedBuffer) {
-            decodedBuffer = await (async () => {
-              const blobUrl = URL.createObjectURL(blob);
-              try {
-                const videoEl = document.createElement('video');
-                videoEl.src = blobUrl;
-                videoEl.muted = false;
-                videoEl.crossOrigin = 'anonymous';
-                videoEl.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px';
-                document.body.appendChild(videoEl);
-
-                await new Promise((res, rej) => {
-                  videoEl.onloadedmetadata = res;
-                  videoEl.onerror = () => rej(new Error('Video load failed'));
-                  setTimeout(() => rej(new Error('Metadata timeout')), 8000);
-                });
-
-                const captureCtx = new AudioCtx({ sampleRate: 44100 });
-                const sourceNode = captureCtx.createMediaElementSource(videoEl);
-                const destNode = captureCtx.createMediaStreamDestination();
-                sourceNode.connect(destNode);
-                sourceNode.connect(captureCtx.destination);
-
-                const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
-                  ? 'audio/mp4'
-                  : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                    ? 'audio/webm;codecs=opus'
-                    : '';
-
-                const recorder = new MediaRecorder(destNode.stream, mimeType ? { mimeType } : {});
-                const chunks = [];
-                recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-                const recordingDone = new Promise((res, rej) => { recorder.onstop = res; recorder.onerror = rej; });
-
-                recorder.start(100);
-                videoEl.playbackRate = 16; // 16x = 1min video done in ~4s
-                videoEl.currentTime = 0;
-                await videoEl.play().catch(() => {});
-
-                await new Promise(res => {
-                  videoEl.onended = res;
-                  // Timeout safety: cap at (duration/16 + 3s)
-                  const dur = isFinite(videoEl.duration) ? videoEl.duration : 60;
-                  setTimeout(res, Math.ceil(dur / 16) * 1000 + 3000);
-                });
-
-                recorder.stop();
-                videoEl.pause();
-                await recordingDone;
-                videoEl.remove();
-                try { captureCtx.close(); } catch (_) {}
-
-                if (chunks.length === 0) throw new Error('No audio captured');
-
-                const capturedBlob = new Blob(chunks, { type: mimeType || 'audio/webm' });
-                const decodeCtx = new AudioCtx();
-                try {
-                  return await decodeCtx.decodeAudioData(await capturedBlob.arrayBuffer());
-                } finally {
-                  try { decodeCtx.close(); } catch (_) {}
-                }
-              } finally {
-                URL.revokeObjectURL(blobUrl);
-              }
-            })().catch(fallbackErr => {
-              console.warn('[ExtractAudio] All fallbacks failed:', fallbackErr);
-              return null;
-            });
-          }
+          const decodedBuffer = await decodeAudioFromBlob(blob);
 
           if (!decodedBuffer || decodedBuffer.numberOfChannels === 0) {
             alert('No audio stream detected in this video file.');
             return;
           }
 
-          const wavBlob = audioBufferToWav(decodedBuffer);
-          const wavDataUrl = await new Promise((resolve, reject) => {
+          const mp3Blob = await audioBufferToMp3(decodedBuffer, 192);
+          const mp3DataUrl = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
             reader.onerror = reject;
-            reader.readAsDataURL(wavBlob);
+            reader.readAsDataURL(mp3Blob);
           });
 
           const cleanBaseName = (layer.name || 'Video').replace(/\.[^/.]+$/, '');
-          const audioItemName = cleanBaseName + ' (Audio)';
+          const audioItemName = cleanBaseName + ' (Audio).mp3';
           const audioDur = decodedBuffer.duration || layer.durationSec || 5;
 
           // 1. Save to Media Pool
@@ -21208,9 +21297,9 @@
             projectId: projectId,
             name: audioItemName,
             type: 'audio',
-            mimeType: 'audio/wav',
-            size: wavBlob.size || wavDataUrl.length,
-            dataUrl: wavDataUrl,
+            mimeType: 'audio/mp3',
+            size: mp3Blob.size || mp3DataUrl.length,
+            dataUrl: mp3DataUrl,
             thumbUrl: '',
             duration: audioDur,
             createdAt: new Date().toISOString()
@@ -21253,7 +21342,7 @@
             durationSec: layer.durationSec !== undefined ? layer.durationSec : audioDur,
             widthPx: layer.widthPx || widthPx,
             sourceOffsetSec: layer.sourceOffsetSec || 0,
-            dataUrl: wavDataUrl,
+            dataUrl: mp3DataUrl,
             thumbUrl: '',
             mediaDuration: audioDur,
             isDurationExplicit: true
@@ -21271,6 +21360,10 @@
           renderTimelineLayers();
           redrawComposition('extractAudio');
           selectTimelineLayer(newAudioLayer.id, false);
+
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Audio berhasil diekstrak ke MP3');
+          }
 
         } catch (err) {
           console.error('Audio extraction error:', err);

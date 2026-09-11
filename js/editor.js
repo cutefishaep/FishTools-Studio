@@ -25957,21 +25957,6 @@
         });
       }
 
-      const formatSwitch = document.getElementById('export-format-switch');
-      if (formatSwitch) {
-        formatSwitch.querySelectorAll('.segmented-switch-item').forEach(item => {
-          item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            formatSwitch.querySelectorAll('.segmented-switch-item').forEach(btn => {
-              btn.classList.remove('is-active', 'is-selected');
-              btn.setAttribute('aria-selected', 'false');
-            });
-            item.classList.add('is-active', 'is-selected');
-            item.setAttribute('aria-selected', 'true');
-          });
-        });
-      }
-
       // Popover Action: Open Export Video Modal
       const btnExportVideoModal = document.getElementById('btn-export-video-modal');
       if (btnExportVideoModal) {
@@ -25981,19 +25966,6 @@
           const fnInput = document.getElementById('export-video-filename');
           if (fnInput) {
             fnInput.value = currentProjectState.name || 'New_Project';
-          }
-
-          // Auto-detect browser capability: Firefox lacks native MP4 encoder, prefer instant WebM
-          const isFirefox = /firefox/i.test(navigator.userAgent);
-          const hasNativeMp4 = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/mp4');
-          if (formatSwitch) {
-            const preferWebm = isFirefox || !hasNativeMp4;
-            formatSwitch.querySelectorAll('.segmented-switch-item').forEach(btn => {
-              const isTarget = preferWebm ? btn.dataset.value === 'webm' : btn.dataset.value === 'mp4';
-              btn.classList.toggle('is-active', isTarget);
-              btn.classList.toggle('is-selected', isTarget);
-              btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
-            });
           }
 
           if (window.Modal) {
@@ -26018,16 +25990,10 @@
             preset = window.Switch.getValue('export-bitrate-switch') || 'normal';
           }
 
-          let format = 'mp4';
-          const activeFormat = document.querySelector('#export-format-switch .segmented-switch-item.is-active, #export-format-switch .segmented-switch-item.is-selected');
-          if (activeFormat && activeFormat.dataset.value) {
-            format = activeFormat.dataset.value;
-          }
-
           if (window.Modal) {
             window.Modal.close();
           }
-          exportVideoMP4(preset, customName, format);
+          exportVideoMP4(preset, customName, 'mp4');
         });
       }
 

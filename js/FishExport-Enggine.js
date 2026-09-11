@@ -6,13 +6,12 @@
  * No dropped frames regardless of render speed. Each frame gets exact timestamp.
  *
  * Priority chain:
- *   1. WebCodecs + Mp4Muxer  → .mp4 (H.264 on Chrome/Edge/Safari, VP9 on Firefox)
+ *   1. WebCodecs + Mp4Muxer   → .mp4 (H.264 on Chrome/Edge/Safari, VP9 on Firefox)
  *   2. FFmpeg.wasm frame seq  → .mp4 (universal CPU fallback)
- *   3. WebM blob download     → .webm (user explicitly chose WebM)
  *
  * Public API:
  *   window.FishExportEngine.export(options) → Promise<void>
- *   options: { preset, customName, format, onProgress }
+ *   options: { preset, customName, onProgress }
  */
 
 (function () {
@@ -682,19 +681,6 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // PATH 3: WebM (instant — user explicitly chose WebM)
-  // ─────────────────────────────────────────────────────────────────────────────
-  async function exportViaWebM(options) {
-    var customName = options.customName || '';
-    // Delegate to editor.js MediaRecorder path (real-time, fast, WebM)
-    if (typeof window.exportVideoHardware === 'function') {
-      await window.exportVideoHardware('normal', customName, 'webm');
-    } else {
-      alert('[FishExport] WebM export requires exportVideoHardware (editor.js).');
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
   // PUBLIC API
   // ─────────────────────────────────────────────────────────────────────────────
   async function doExport(options) {
@@ -704,14 +690,8 @@
       return;
     }
     isCancelled = false;
-    var format = options.format || 'mp4';
 
-    if (format === 'webm') {
-      await exportViaWebM(options);
-      return;
-    }
-
-    // Primary: WebCodecs deterministic frame-by-frame
+    // Primary: WebCodecs deterministic frame-by-frame (.mp4)
     var handled = false;
     try {
       handled = await exportViaWebCodecs(options);
@@ -720,7 +700,7 @@
     }
 
     if (!handled) {
-      // Fallback: FFmpeg CPU frame sequence
+      // Fallback: FFmpeg CPU frame sequence (.mp4)
       await exportViaFFmpeg(options);
     }
   }

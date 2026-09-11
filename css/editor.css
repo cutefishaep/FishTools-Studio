@@ -2839,13 +2839,11 @@ body.has-active-drawer .timeline-fab-add {
   letter-spacing: 0.5px;
 }
 
-.export-bitrate-switch,
-.export-format-switch {
+.export-bitrate-switch {
   margin: 0;
 }
 
-.export-bitrate-switch .segmented-switch-item,
-.export-format-switch .segmented-switch-item {
+.export-bitrate-switch .segmented-switch-item {
   height: 32px;
   font-size: 12px;
   font-weight: 600;

@@ -855,13 +855,23 @@ window.FishDatabase = (function () {
   async function deleteProjectFrameCaches(keys) {
     if (!keys || keys.length === 0 || typeof indexedDB === 'undefined') return;
     return new Promise(function (resolve) {
+      var settled = false;
+      var done = function () {
+        if (!settled) {
+          settled = true;
+          clearTimeout(safetyTimer);
+          resolve();
+        }
+      };
+      var safetyTimer = setTimeout(done, 800);
+
       try {
         var req = indexedDB.open('FishFrameCacheDB');
         req.onsuccess = function (e) {
           var db = e.target.result;
           if (!db || !db.objectStoreNames.contains('frames')) {
             if (db) try { db.close(); } catch (_) {}
-            resolve();
+            done();
             return;
           }
           try {
@@ -882,7 +892,7 @@ window.FishDatabase = (function () {
                       pending--;
                       if (pending <= 0) {
                         try { db.close(); } catch (_) {}
-                        resolve();
+                        done();
                       }
                     }
                   };
@@ -890,30 +900,30 @@ window.FishDatabase = (function () {
                     pending--;
                     if (pending <= 0) {
                       try { db.close(); } catch (_) {}
-                      resolve();
+                      done();
                     }
                   };
                 } catch (_) {
                   pending--;
                   if (pending <= 0) {
                     try { db.close(); } catch (_) {}
-                    resolve();
+                    done();
                   }
                 }
               });
             } else {
               try { db.close(); } catch (_) {}
-              resolve();
+              done();
             }
           } catch (_) {
             try { db.close(); } catch (_) {}
-            resolve();
+            done();
           }
         };
-        req.onerror = function () { resolve(); };
-        req.onblocked = function () { resolve(); };
+        req.onerror = function () { done(); };
+        req.onblocked = function () { done(); };
       } catch (_) {
-        resolve();
+        done();
       }
     });
   }
@@ -1308,8 +1318,20 @@ window.FishDatabase = (function () {
   async function deleteProject(id) {
     if (!id) return false;
 
-    // Collect layer source keys to clear any cached frames
-    var prj = await getProject(id);
+    // 1. Immediately remove from localStorage for instant UI response
+    var list = getLocalProjects();
+    var filtered = list.filter(function (p) { return p.id !== id; });
+    saveLocalProjects(filtered);
+
+    // Collect layer source keys to clear any cached frames (protected against hanging)
+    var prj = null;
+    try {
+      prj = await Promise.race([
+        getProject(id),
+        new Promise(function (res) { setTimeout(function () { res(null); }, 350); })
+      ]);
+    } catch (_) {}
+
     var sourceKeys = [];
     if (prj && Array.isArray(prj.layers)) {
       prj.layers.forEach(function (l) {
@@ -1323,42 +1345,50 @@ window.FishDatabase = (function () {
       });
     }
 
-    // 1. Cascade delete all media belonging to this project in storage
-    await deleteProjectMedia(id);
-
-    // 2. Cascade delete frame caches belonging to this project's layers
-    if (sourceKeys.length > 0) {
-      try {
-        await deleteProjectFrameCaches(sourceKeys);
-      } catch (_) {}
-    }
-
-    // 3. Remove from localStorage
-    var list = getLocalProjects();
-    var filtered = list.filter(function (p) { return p.id !== id; });
-    saveLocalProjects(filtered);
-
-    // 4. Await removal from IndexedDB
-    var db = await openDB();
-    if (db && db.objectStoreNames.contains('projects')) {
-      await new Promise(function (resolve) {
-        try {
-          var tx = db.transaction('projects', 'readwrite');
-          var store = tx.objectStore('projects');
-          store.delete(id);
-          tx.oncomplete = function () {
-            resolve(true);
-          };
-          tx.onerror = function () {
+    // 2. Remove from IndexedDB with safety timeout
+    try {
+      var db = await Promise.race([
+        openDB(),
+        new Promise(function (res) { setTimeout(function () { res(null); }, 400); })
+      ]);
+      if (db && db.objectStoreNames.contains('projects')) {
+        await new Promise(function (resolve) {
+          var timer = setTimeout(function () { resolve(false); }, 600);
+          try {
+            var tx = db.transaction('projects', 'readwrite');
+            var store = tx.objectStore('projects');
+            store.delete(id);
+            tx.oncomplete = function () {
+              clearTimeout(timer);
+              resolve(true);
+            };
+            tx.onerror = function () {
+              clearTimeout(timer);
+              resolve(false);
+            };
+            tx.onabort = function () {
+              clearTimeout(timer);
+              resolve(false);
+            };
+          } catch (e) {
+            clearTimeout(timer);
             resolve(false);
-          };
-        } catch (e) {
-          resolve(false);
-        }
-      });
-    }
+          }
+        });
+      }
+    } catch (_) {}
 
-    window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'delete', id: id } }));
+    // Dispatch update event immediately so UI re-renders without delay
+    try {
+      window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'delete', id: id } }));
+    } catch (_) {}
+
+    // 3. Cascade delete all media and frame caches in background
+    Promise.allSettled([
+      deleteProjectMedia(id),
+      sourceKeys.length > 0 ? deleteProjectFrameCaches(sourceKeys) : Promise.resolve()
+    ]).catch(function (_) {});
+
     return true;
   }
 

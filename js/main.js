@@ -380,7 +380,7 @@ function bindProjectSwipeGestures(container) {
     let isVerticalScroll = false;
     let activePointerId = null;
 
-    const SWIPE_TRIGGER_THRESHOLD = 75; // px to trigger action
+    const SWIPE_TRIGGER_THRESHOLD = 55; // px to trigger action (comfortable on touch & trackpad)
     const MAX_DRAG_DISTANCE = 140; // max visual drag boundary
 
     const onPointerDown = (e) => {
@@ -396,6 +396,11 @@ function bindProjectSwipeGestures(container) {
       activePointerId = e.pointerId;
 
       itemEl.style.transition = 'none';
+
+      // Capture pointer immediately to prevent Safari horizontal navigation hijack
+      try {
+        itemEl.setPointerCapture(e.pointerId);
+      } catch (err) {}
     };
 
     const onPointerMove = (e) => {
@@ -409,12 +414,15 @@ function bindProjectSwipeGestures(container) {
           isLockedDirection = true;
           if (Math.abs(dy) > Math.abs(dx)) {
             isVerticalScroll = true;
+            // Vertical scroll detected: release pointer capture so page scrolls normally
+            try {
+              if (itemEl.hasPointerCapture(e.pointerId)) {
+                itemEl.releasePointerCapture(e.pointerId);
+              }
+            } catch (_) {}
             return;
           } else {
             isDragging = true;
-            try {
-              itemEl.setPointerCapture(e.pointerId);
-            } catch (err) {}
           }
         } else {
           return;
@@ -440,27 +448,41 @@ function bindProjectSwipeGestures(container) {
         // Swiping RIGHT -> Delete
         if (deleteAction) {
           deleteAction.style.opacity = '1';
+          deleteAction.style.zIndex = '3';
           if (currentX >= SWIPE_TRIGGER_THRESHOLD) {
             deleteAction.classList.add('is-ready');
           } else {
             deleteAction.classList.remove('is-ready');
           }
         }
-        if (exportAction) exportAction.style.opacity = '0';
+        if (exportAction) {
+          exportAction.style.opacity = '0';
+          exportAction.style.zIndex = '1';
+        }
       } else if (currentX < 0) {
         // Swiping LEFT -> Export
         if (exportAction) {
           exportAction.style.opacity = '1';
+          exportAction.style.zIndex = '3';
           if (Math.abs(currentX) >= SWIPE_TRIGGER_THRESHOLD) {
             exportAction.classList.add('is-ready');
           } else {
             exportAction.classList.remove('is-ready');
           }
         }
-        if (deleteAction) deleteAction.style.opacity = '0';
+        if (deleteAction) {
+          deleteAction.style.opacity = '0';
+          deleteAction.style.zIndex = '1';
+        }
       } else {
-        if (deleteAction) deleteAction.style.opacity = '0';
-        if (exportAction) exportAction.style.opacity = '0';
+        if (deleteAction) {
+          deleteAction.style.opacity = '0';
+          deleteAction.style.zIndex = '1';
+        }
+        if (exportAction) {
+          exportAction.style.opacity = '0';
+          exportAction.style.zIndex = '1';
+        }
       }
     };
 
@@ -486,7 +508,6 @@ function bindProjectSwipeGestures(container) {
         itemEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
         itemEl.style.transform = 'translateX(0px)';
 
-
         if (finalX >= SWIPE_TRIGGER_THRESHOLD) {
           // Slide RIGHT -> Delete confirmation modal
           const projectId = swipeBox.dataset.id;
@@ -502,10 +523,12 @@ function bindProjectSwipeGestures(container) {
         setTimeout(() => {
           if (deleteAction) {
             deleteAction.style.opacity = '';
+            deleteAction.style.zIndex = '';
             deleteAction.classList.remove('is-ready');
           }
           if (exportAction) {
             exportAction.style.opacity = '';
+            exportAction.style.zIndex = '';
             exportAction.classList.remove('is-ready');
           }
           itemEl.style.transition = '';
@@ -705,17 +728,18 @@ async function confirmDeleteProjectAction() {
   const idInput = document.getElementById('delete-project-id');
   const projectId = idInput ? idInput.value : '';
 
+  if (window.Modal) {
+    window.Modal.close('modal-delete-project');
+  }
+
   if (projectId && window.FishDatabase) {
     try {
       await window.FishDatabase.deleteProject(projectId);
       showDashboardToast('Project deleted successfully');
     } catch (e) {
       console.warn('Delete project error:', e);
+      showDashboardToast('Failed to delete project');
     }
-  }
-
-  if (window.Modal) {
-    window.Modal.close('modal-delete-project');
   }
 
   // Refresh project list

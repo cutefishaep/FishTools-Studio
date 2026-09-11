@@ -1071,12 +1071,19 @@ html, body {
   }
 
   .dashboard-container {
-    height: 50vh;
-    max-height: 50vh;
+    flex: 1;
     min-height: 50vh;
+    max-height: none;
+    height: auto;
     width: 100%;
     padding: 14px 16px 16px 16px;
     border-top-left-radius: 64px;
+    overflow-y: auto;
+  }
+
+  .projects-panel {
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .action-buttons-row {

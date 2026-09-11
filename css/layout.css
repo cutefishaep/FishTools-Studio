@@ -1071,10 +1071,9 @@ html, body {
   }
 
   .dashboard-container {
-    flex: 1;
+    height: 50vh;
+    max-height: 50vh;
     min-height: 50vh;
-    max-height: none;
-    height: auto;
     width: 100%;
     padding: 14px 16px 16px 16px;
     border-top-left-radius: 64px;

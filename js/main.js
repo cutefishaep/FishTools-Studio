@@ -160,7 +160,7 @@ function syncWelcomeVersionTags(pkgVersion) {
 }
 
 /**
- * Fetches package.json and updates the badges dynamically
+ * Fetches version metadata and updates the badges dynamically
  */
 async function initVersionFetcher() {
   if (window.location.protocol === 'file:') {
@@ -169,17 +169,17 @@ async function initVersionFetcher() {
   }
 
   try {
-    const response = await fetch('./package.json');
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const pkg = await response.json();
-    if (pkg && pkg.version) {
-      syncWelcomeVersionTags(pkg.version);
-      return;
+    const response = await fetch('./version.json');
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.version) {
+        syncWelcomeVersionTags(data.version);
+        return;
+      }
     }
-  } catch (err) {
-    // fallback
-  }
-  syncWelcomeVersionTags();
+  } catch (_) {}
+
+  syncWelcomeVersionTags('0.5.0');
 }
 
 /**

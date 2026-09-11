@@ -457,6 +457,10 @@
             prj = await window.FishDatabase.getProject(currentProjectState.id);
           }
           if (!prj) {
+            if (currentProjectState.id) {
+              console.warn('[Editor] Project ' + currentProjectState.id + ' not found or was deleted. Aborting auto-save.');
+              return;
+            }
             prj = await window.FishDatabase.createProject({
               name: currentProjectState.name || 'New_Project',
               aspectRatio: currentProjectState.aspectRatio || '16:9',

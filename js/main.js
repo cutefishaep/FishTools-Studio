@@ -708,7 +708,11 @@ async function confirmDeleteProjectAction() {
     window.Modal.close('modal-delete-project');
   }
 
-  // Fallback: If projectId was empty, match by target name
+  // Immediately remove card from DOM for instant feedback
+  const listContainer = document.getElementById('projects-container');
+  const countBadge = document.getElementById('project-count-badge');
+
+  // Fallback: If projectId was empty, match by target name or single remaining card
   if (!projectId) {
     const targetNameEl = document.getElementById('delete-target-name');
     const rawName = targetNameEl ? targetNameEl.textContent.replace(/^"|"$/g, '').trim() : '';
@@ -719,11 +723,14 @@ async function confirmDeleteProjectAction() {
         if (found) projectId = found.id;
       } catch (_) {}
     }
+    if (!projectId && listContainer) {
+      const cards = listContainer.querySelectorAll('.project-swipe-container');
+      if (cards.length === 1 && cards[0].dataset.id) {
+        projectId = cards[0].dataset.id;
+      }
+    }
   }
 
-  // Immediately remove card from DOM for instant feedback
-  const listContainer = document.getElementById('projects-container');
-  const countBadge = document.getElementById('project-count-badge');
   if (listContainer && projectId) {
     const cards = listContainer.querySelectorAll('.project-swipe-container');
     cards.forEach(card => {
@@ -731,10 +738,13 @@ async function confirmDeleteProjectAction() {
         card.remove();
       }
     });
+    const remaining = listContainer.querySelectorAll('.project-swipe-container').length;
     if (countBadge) {
-      const remaining = listContainer.querySelectorAll('.project-swipe-container').length;
       countBadge.textContent = String(remaining);
       countBadge.setAttribute('title', `${remaining} Total Projects`);
+    }
+    if (remaining === 0) {
+      renderProjects([], listContainer, countBadge);
     }
   }
 

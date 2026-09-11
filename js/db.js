@@ -11,9 +11,30 @@ window.FishDatabase = (function () {
   var SETTINGS_KEY_ALT = 'fishToolsFileStore';
   var PROJECTS_KEY = 'fishtools_projects';
   var MEDIA_KEY = 'fishtools_media';
+  var DELETED_IDS_KEY = 'fishtools_deleted_ids';
 
   var dbPromise = null;
   var _deletedIds = new Set();
+  try {
+    var _storedDeleted = localStorage.getItem(DELETED_IDS_KEY);
+    if (_storedDeleted) {
+      var _parsedDeleted = JSON.parse(_storedDeleted);
+      if (Array.isArray(_parsedDeleted)) {
+        _parsedDeleted.forEach(function (delId) {
+          if (delId) {
+            _deletedIds.add(delId);
+            _deletedIds.add(String(delId).trim());
+          }
+        });
+      }
+    }
+  } catch (_) {}
+
+  function _saveDeletedIds() {
+    try {
+      localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(Array.from(_deletedIds)));
+    } catch (_) {}
+  }
 
   function getDefaultSettings() {
     return {
@@ -251,7 +272,7 @@ window.FishDatabase = (function () {
       }
       var localList = getLocalProjects();
       var filtered = localList.filter(function (p) {
-        return p && p.id && !p.id.startsWith('prj-00');
+        return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
       });
       saveLocalProjects(filtered);
     } catch (_) {}
@@ -265,13 +286,13 @@ window.FishDatabase = (function () {
         req.onsuccess = function () {
           var all = req.result || [];
           all.forEach(function (p) {
-            if (p && p.id && p.id.startsWith('prj-00')) {
-              store.delete(p.id);
+            if (p && p.id && (p.id.startsWith('prj-00') || _deletedIds.has(p.id) || _deletedIds.has(String(p.id).trim()))) {
+              try { store.delete(p.id); } catch (_) {}
             }
           });
         };
       } catch (e) {
-        console.warn('[DB] Failed to prune dummy projects:', e);
+        console.warn('[DB] Failed to prune dummy/deleted projects:', e);
       }
     }
   }
@@ -403,11 +424,19 @@ window.FishDatabase = (function () {
     var db = await openDB();
     if (db) {
       return new Promise(function (resolve) {
+        var safetyTimer = setTimeout(function () {
+          var local = getLocalProjects().filter(function (p) {
+            return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
+          });
+          resolve(local.map(_projectToListMeta));
+        }, 1500);
+
         try {
           var tx = db.transaction('projects', 'readonly');
           var store = tx.objectStore('projects');
           var req = store.getAll();
           req.onsuccess = function () {
+            clearTimeout(safetyTimer);
             var items = req.result || [];
             // Filter out any stale prj-00 mock items and deleted projects
             items = items.filter(function (p) {
@@ -425,12 +454,14 @@ window.FishDatabase = (function () {
             resolve(items.map(_projectToListMeta));
           };
           req.onerror = function () {
+            clearTimeout(safetyTimer);
             var local = getLocalProjects().filter(function (p) {
               return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
             });
             resolve(local.map(_projectToListMeta));
           };
         } catch (e) {
+          clearTimeout(safetyTimer);
           var local = getLocalProjects().filter(function (p) {
             return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
           });
@@ -450,22 +481,34 @@ window.FishDatabase = (function () {
    * @returns {Promise<Object|null>}
    */
   async function getProject(id) {
-    if (!id) return null;
+    if (!id || _deletedIds.has(id) || _deletedIds.has(String(id).trim())) return null;
     var db = await openDB();
     if (db) {
       return new Promise(function (resolve) {
+        var safetyTimer = setTimeout(function () {
+          var found = getLocalProjects().find(function (p) { return p.id === id; });
+          resolve(found || null);
+        }, 1500);
+
         try {
           var tx = db.transaction('projects', 'readonly');
           var store = tx.objectStore('projects');
           var req = store.get(id);
           req.onsuccess = function () {
+            clearTimeout(safetyTimer);
+            if (_deletedIds.has(id) || _deletedIds.has(String(id).trim())) {
+              resolve(null);
+              return;
+            }
             resolve(req.result || null);
           };
           req.onerror = function () {
+            clearTimeout(safetyTimer);
             var found = getLocalProjects().find(function (p) { return p.id === id; });
             resolve(found || null);
           };
         } catch (e) {
+          clearTimeout(safetyTimer);
           var found = getLocalProjects().find(function (p) { return p.id === id; });
           resolve(found || null);
         }
@@ -500,6 +543,7 @@ window.FishDatabase = (function () {
     if (!project || !project.id) return;
     _deletedIds.delete(project.id);
     _deletedIds.delete(String(project.id).trim());
+    _saveDeletedIds();
     project.updatedAt = new Date().toISOString();
     delete project.cache;
     delete project.previewCache;
@@ -1335,6 +1379,7 @@ window.FishDatabase = (function () {
     var targetId = String(id).trim();
     _deletedIds.add(id);
     _deletedIds.add(targetId);
+    _saveDeletedIds();
 
     // 1. Immediately remove from localStorage for instant UI response
     var list = getLocalProjects();
@@ -1342,6 +1387,17 @@ window.FishDatabase = (function () {
       return p && p.id !== id && String(p.id).trim() !== targetId;
     });
     saveLocalProjects(filtered);
+
+    // Also purge emergency layers snapshot if it belonged to this project
+    try {
+      var emergencyRaw = localStorage.getItem('fishtool_emergency_layers');
+      if (emergencyRaw) {
+        var emergencyParsed = JSON.parse(emergencyRaw);
+        if (emergencyParsed && (emergencyParsed.projectId === id || emergencyParsed.projectId === targetId)) {
+          localStorage.removeItem('fishtool_emergency_layers');
+        }
+      }
+    } catch (_) {}
 
     // Collect layer source keys to clear any cached frames (protected against hanging)
     var prj = null;
@@ -1365,19 +1421,21 @@ window.FishDatabase = (function () {
       });
     }
 
-    // 2. Remove from IndexedDB (direct delete + cursor fallback)
+    // 2. Remove from IndexedDB directly and cleanly without cursor conflict
     try {
       var db = await openDB();
       if (db && db.objectStoreNames.contains('projects')) {
         await new Promise(function (resolve) {
-          var safetyTimer = setTimeout(function () { resolve(false); }, 3000);
+          var safetyTimer = setTimeout(function () { resolve(false); }, 1500);
           try {
             var tx = db.transaction('projects', 'readwrite');
             var store = tx.objectStore('projects');
 
             // Direct delete by id and targetId
-            store.delete(id);
-            if (targetId !== id) store.delete(targetId);
+            try { store.delete(id); } catch (_) {}
+            if (targetId !== id) {
+              try { store.delete(targetId); } catch (_) {}
+            }
 
             // Also delete if numeric key
             var numId = Number(targetId);
@@ -1385,25 +1443,13 @@ window.FishDatabase = (function () {
               try { store.delete(numId); } catch (_) {}
             }
 
-            // Cursor scan fallback to ensure any matching record is deleted
-            var curReq = store.openCursor();
-            curReq.onsuccess = function (e) {
-              var cursor = e.target.result;
-              if (cursor) {
-                var val = cursor.value;
-                if (val && (val.id === id || String(val.id).trim() === targetId || String(cursor.key).trim() === targetId)) {
-                  cursor.delete();
-                }
-                cursor.continue();
-              }
-            };
-
             tx.oncomplete = function () {
               clearTimeout(safetyTimer);
               resolve(true);
             };
-            tx.onerror = function () {
+            tx.onerror = function (e) {
               clearTimeout(safetyTimer);
+              try { e.preventDefault(); } catch (_) {}
               resolve(false);
             };
             tx.onabort = function () {

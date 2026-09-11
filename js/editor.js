@@ -24790,7 +24790,9 @@
           { codec: 'avc1.420033', muxerCodec: 'avc' }, // Baseline Profile Level 5.1 (up to 300 Mbps, No B-frames)
           { codec: 'avc1.42e02a', muxerCodec: 'avc' }, // Constrained Baseline Level 4.2
           { codec: 'avc1.4d402a', muxerCodec: 'avc' }, // Main Profile Level 4.2
-          { codec: 'avc1.64002a', muxerCodec: 'avc' }  // High Profile Level 4.2
+          { codec: 'avc1.64002a', muxerCodec: 'avc' }, // High Profile Level 4.2
+          { codec: 'vp09.00.10.08', muxerCodec: 'vp9' }, // VP9 Profile 0 8-bit (Native WebCodecs in Firefox 130+ & Chrome)
+          { codec: 'vp09.02.10.10', muxerCodec: 'vp9' }  // VP9 Profile 2 10-bit
         ];
 
         // Active probe helper to verify VideoEncoder actually configures and encodes without throwing DOMException
@@ -24843,33 +24845,38 @@
         let chosenConfig = null;
         const hwModes = ['no-preference', 'prefer-software', 'prefer-hardware'];
         const brModes = chosenBitrateMode === 'variable' ? ['variable'] : [chosenBitrateMode, 'variable'];
+        const latencyModes = ['realtime', 'quality'];
 
         codecLoop:
         for (const candidate of candidateCodecs) {
           for (const hwMode of hwModes) {
             for (const brMode of brModes) {
-              const testCfg = {
-                codec: candidate.codec,
-                width: baseW,
-                height: baseH,
-                bitrate: videoBps,
-                bitrateMode: brMode,
-                framerate: fps,
-                latencyMode: 'realtime',
-                hardwareAcceleration: hwMode,
-                avc: { format: 'avc' }
-              };
-              try {
-                const check = await VideoEncoder.isConfigSupported(testCfg);
-                if (check && check.supported) {
-                  const verified = await probeEncoderConfig(testCfg);
-                  if (verified) {
-                    chosenCodec = candidate;
-                    chosenConfig = testCfg;
-                    break codecLoop;
-                  }
+              for (const latMode of latencyModes) {
+                const testCfg = {
+                  codec: candidate.codec,
+                  width: baseW,
+                  height: baseH,
+                  bitrate: videoBps,
+                  bitrateMode: brMode,
+                  framerate: fps,
+                  latencyMode: latMode,
+                  hardwareAcceleration: hwMode
+                };
+                if (candidate.codec.startsWith('avc1')) {
+                  testCfg.avc = { format: 'avc' };
                 }
-              } catch (_) {}
+                try {
+                  const check = await VideoEncoder.isConfigSupported(testCfg);
+                  if (check && check.supported) {
+                    const verified = await probeEncoderConfig(testCfg);
+                    if (verified) {
+                      chosenCodec = candidate;
+                      chosenConfig = testCfg;
+                      break codecLoop;
+                    }
+                  }
+                } catch (_) {}
+              }
             }
           }
         }
@@ -25084,7 +25091,7 @@
               try { ffmpeg.FS('unlink', 'out_merged.mp4'); } catch (_) {}
               ffmpeg.FS('writeFile', 'v_temp.mp4', new Uint8Array(videoBuffer));
               ffmpeg.FS('writeFile', 'a_temp.wav', new Uint8Array(await wavBlob.arrayBuffer()));
-              await ffmpeg.run('-i', 'v_temp.mp4', '-i', 'a_temp.wav', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', 'out_merged.mp4');
+              await ffmpeg.run('-i', 'v_temp.mp4', '-i', 'a_temp.wav', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-strict', '-2', '-shortest', 'out_merged.mp4');
               const mergedData = ffmpeg.FS('readFile', 'out_merged.mp4');
               finalBlob = new Blob([mergedData.buffer], { type: 'video/mp4' });
               try { ffmpeg.FS('unlink', 'v_temp.mp4'); } catch (_) {}

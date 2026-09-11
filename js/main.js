@@ -429,6 +429,8 @@ function initGDriveDashboard() {
       try {
         const projects = await window.FishGDriveSync.listProjects();
         renderCloudProjectsList(projects);
+        // After listing, recover any orphaned cloud media into local projects
+        recoverOrphanedCloudMedia(projects).catch(() => {});
       } catch (err) {
         // NetworkError on first attempt = transient (page load timing, token init race) — retry once
         if (attempt === 1 && err instanceof TypeError && err.message && err.message.includes('NetworkError')) {
@@ -444,6 +446,76 @@ function initGDriveDashboard() {
       }
     };
     await attemptLoad();
+  }
+
+  // Detect IDB media whose projectId references a deleted Drive folder.
+  // For each orphaned cloud project ID, create a local recovery project so data isn't lost.
+  async function recoverOrphanedCloudMedia(driveProjects) {
+    if (!window.FishDatabase) return;
+    const driveIds = new Set((driveProjects || []).map(p => p.id).filter(Boolean));
+
+    // Get all local DB projects to avoid creating duplicate recovery entries
+    let localProjects = [];
+    try { localProjects = await window.FishDatabase.getProjects(); } catch (_) {}
+    const recoveredIds = new Set(
+      localProjects.filter(p => p._recoveredFromDrive).map(p => p._recoveredFromDrive)
+    );
+
+    // Get all media in IDB — check which projectIds look like Drive folder IDs (not local prj_*)
+    let allMedia = [];
+    try {
+      allMedia = await window.FishDatabase.getAllMedia();
+    } catch (_) {}
+
+    if (!allMedia.length) return;
+
+    // Group by projectId — only those that look like Drive folder IDs (not local prj_* format)
+    const orphanGroups = {};
+    for (const m of allMedia) {
+      const pid = m.projectId;
+      if (!pid) continue;
+      if (pid.startsWith('prj_')) continue;   // local project ID format → skip
+      if (driveIds.has(pid)) continue;         // still exists on Drive → skip
+      if (recoveredIds.has(pid)) continue;     // already recovered → skip
+      if (!orphanGroups[pid]) orphanGroups[pid] = [];
+      orphanGroups[pid].push(m);
+    }
+
+    const orphanedDriveIds = Object.keys(orphanGroups);
+    if (!orphanedDriveIds.length) return;
+
+    console.info(`[GDriveSync] Found ${orphanedDriveIds.length} orphaned cloud project(s) — recovering as local.`);
+
+    for (const driveId of orphanedDriveIds) {
+      const mediaItems = orphanGroups[driveId];
+      // Infer project name from media projectId or first media name
+      const inferredName = 'Recovered_' + driveId.slice(0, 8);
+      try {
+        // Create a new local project
+        const recovered = await window.FishDatabase.createProject({
+          name: inferredName,
+          aspectRatio: '16:9',
+          resolution: '1080p',
+          fps: 60
+        });
+        // Tag it so we don't recover twice
+        recovered._recoveredFromDrive = driveId;
+        recovered.updatedAt = new Date().toISOString();
+        await window.FishDatabase.saveProject(recovered);
+
+        // Re-assign orphan media to the new local project
+        for (const m of mediaItems) {
+          m.projectId = recovered.id;
+          try { await window.FishDatabase.saveMedia(m); } catch (_) {}
+        }
+
+        console.info(`[GDriveSync] Recovered cloud project "${driveId}" → local "${recovered.id}" with ${mediaItems.length} media item(s).`);
+        showDashboardToast(`Recovered deleted cloud project as local: "${inferredName}"`);
+        window.dispatchEvent(new CustomEvent('fish-db-projects-updated'));
+      } catch (err) {
+        console.warn('[GDriveSync] Recovery failed for', driveId, err);
+      }
+    }
   }
 
   // Render cloud projects list markup

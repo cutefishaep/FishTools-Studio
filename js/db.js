@@ -1121,6 +1121,27 @@ window.FishDatabase = (function () {
   }
 
   /**
+   * Returns ALL media items from IDB (no projectId filter).
+   * Used for orphan detection / cloud project recovery.
+   * @returns {Promise<Object[]>}
+   */
+  async function getAllMedia() {
+    var db = await openDB();
+    if (db && db.objectStoreNames.contains('media')) {
+      return new Promise(function (resolve) {
+        try {
+          var tx = db.transaction('media', 'readonly');
+          var store = tx.objectStore('media');
+          var req = store.getAll();
+          req.onsuccess = function () { resolve(req.result || []); };
+          req.onerror  = function () { resolve(getLocalMedia()); };
+        } catch (_) { resolve(getLocalMedia()); }
+      });
+    }
+    return getLocalMedia();
+  }
+
+  /**
    * Deletes a single media item by ID
    * @param {string} id
    * @returns {Promise<boolean>}
@@ -1930,6 +1951,7 @@ window.FishDatabase = (function () {
     cleanupLegacyData: cleanupLegacyData,
     saveMedia: saveMedia,
     getProjectMedia: getProjectMedia,
+    getAllMedia: getAllMedia,
     deleteMedia: deleteMedia,
     deleteProjectMedia: deleteProjectMedia,
     clearAllMedia: clearAllMedia,

@@ -21052,12 +21052,117 @@
           const arrayBuffer = await blob.arrayBuffer();
           const AudioCtx = window.AudioContext || window.webkitAudioContext;
           if (!AudioCtx) throw new Error('Web Audio API not supported');
-          const audioCtx = new AudioCtx();
+
+          /**
+           * Attempt 1: Standard decodeAudioData — works on Chrome & Firefox.
+           * Safari cannot demux audio from MP4/MOV video blobs via this API
+           * and throws EncodingError / DOMException 0.
+           */
           let decodedBuffer = null;
+          let decodeError = null;
           try {
-            decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-          } finally {
-            try { audioCtx.close(); } catch (_) {}
+            const audioCtxDirect = new AudioCtx();
+            try {
+              // decodeAudioData mutates the ArrayBuffer — clone it so blob stays usable for fallback
+              decodedBuffer = await audioCtxDirect.decodeAudioData(arrayBuffer.slice(0));
+            } finally {
+              try { audioCtxDirect.close(); } catch (_) {}
+            }
+          } catch (err) {
+            decodeError = err;
+          }
+
+          /**
+           * Attempt 2: Safari-specific fast fallback.
+           * Safari's decodeAudioData rejects video/mp4 blobs but CAN decode
+           * audio/mp4 blobs with the same bytes — the container is identical,
+           * only the MIME type declaration differs. Recast and retry.
+           */
+          if (!decodedBuffer) {
+            try {
+              const audioMimeBlob = new Blob([arrayBuffer], { type: 'audio/mp4' });
+              const audioCtxMime = new AudioCtx();
+              try {
+                decodedBuffer = await audioCtxMime.decodeAudioData(await audioMimeBlob.arrayBuffer());
+              } finally {
+                try { audioCtxMime.close(); } catch (_) {}
+              }
+            } catch (_) { /* try next fallback */ }
+          }
+
+          /**
+           * Attempt 3: Last-resort fast-capture fallback via MediaRecorder.
+           * Plays video at 16x speed to minimize wait time.
+           * Only runs if both decodeAudioData attempts failed (e.g. codec truly unsupported).
+           */
+          if (!decodedBuffer) {
+            decodedBuffer = await (async () => {
+              const blobUrl = URL.createObjectURL(blob);
+              try {
+                const videoEl = document.createElement('video');
+                videoEl.src = blobUrl;
+                videoEl.muted = false;
+                videoEl.crossOrigin = 'anonymous';
+                videoEl.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px';
+                document.body.appendChild(videoEl);
+
+                await new Promise((res, rej) => {
+                  videoEl.onloadedmetadata = res;
+                  videoEl.onerror = () => rej(new Error('Video load failed'));
+                  setTimeout(() => rej(new Error('Metadata timeout')), 8000);
+                });
+
+                const captureCtx = new AudioCtx({ sampleRate: 44100 });
+                const sourceNode = captureCtx.createMediaElementSource(videoEl);
+                const destNode = captureCtx.createMediaStreamDestination();
+                sourceNode.connect(destNode);
+                sourceNode.connect(captureCtx.destination);
+
+                const mimeType = MediaRecorder.isTypeSupported('audio/mp4')
+                  ? 'audio/mp4'
+                  : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? 'audio/webm;codecs=opus'
+                    : '';
+
+                const recorder = new MediaRecorder(destNode.stream, mimeType ? { mimeType } : {});
+                const chunks = [];
+                recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+                const recordingDone = new Promise((res, rej) => { recorder.onstop = res; recorder.onerror = rej; });
+
+                recorder.start(100);
+                videoEl.playbackRate = 16; // 16x = 1min video done in ~4s
+                videoEl.currentTime = 0;
+                await videoEl.play().catch(() => {});
+
+                await new Promise(res => {
+                  videoEl.onended = res;
+                  // Timeout safety: cap at (duration/16 + 3s)
+                  const dur = isFinite(videoEl.duration) ? videoEl.duration : 60;
+                  setTimeout(res, Math.ceil(dur / 16) * 1000 + 3000);
+                });
+
+                recorder.stop();
+                videoEl.pause();
+                await recordingDone;
+                videoEl.remove();
+                try { captureCtx.close(); } catch (_) {}
+
+                if (chunks.length === 0) throw new Error('No audio captured');
+
+                const capturedBlob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+                const decodeCtx = new AudioCtx();
+                try {
+                  return await decodeCtx.decodeAudioData(await capturedBlob.arrayBuffer());
+                } finally {
+                  try { decodeCtx.close(); } catch (_) {}
+                }
+              } finally {
+                URL.revokeObjectURL(blobUrl);
+              }
+            })().catch(fallbackErr => {
+              console.warn('[ExtractAudio] All fallbacks failed:', fallbackErr);
+              return null;
+            });
           }
 
           if (!decodedBuffer || decodedBuffer.numberOfChannels === 0) {

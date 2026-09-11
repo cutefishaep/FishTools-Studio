@@ -16076,6 +16076,13 @@
       if (typeof window.renderTimelineBeatmarks === 'function') {
         window.renderTimelineBeatmarks();
       }
+      // Force-sync timeline CSS transform immediately after project load.
+      // Without this, rulerTrack/layersTrack transform is never applied on first
+      // render (renderTimeline RAF guard skips if panX === lastRenderedPanX),
+      // causing clip blocks to appear visually offset until the user zooms.
+      if (typeof window.updateTimelinePosition === 'function') {
+        window.updateTimelinePosition(window.timelinePanX || 0, true);
+      }
 
       // Automatically start background frame extraction for existing project video layers
       if (window.VideoFrameExtractor && Array.isArray(currentProjectState.layers)) {

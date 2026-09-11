@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.9] - 2026-09-11
+
+### Fixed
+- **Timeline Visual Offset on Project Open**: Clip blocks appeared horizontally offset from the ruler immediately after opening a project, but snapped to the correct position when zooming. Root cause: `renderTimeline()` has a RAF guard (`if (panX === lastRenderedPanX) return`) that prevents redundant repaints — on first project load (async), the guard blocked the CSS `translate3d` transform from ever being applied to `rulerTrack`/`layersTrack`, so clip blocks rendered at their absolute `left: startPx` without the container offset. Fix: call `updateTimelinePosition(panX, immediate=true)` immediately after `renderTimelineLayers()` on project load to force a synchronous transform flush.
+
+---
+
 ## [0.4.8] - 2026-09-11
 
 ### Added

@@ -24790,54 +24790,92 @@
           { codec: 'avc1.420033', muxerCodec: 'avc' }, // Baseline Profile Level 5.1 (up to 300 Mbps, No B-frames)
           { codec: 'avc1.42e02a', muxerCodec: 'avc' }, // Constrained Baseline Level 4.2
           { codec: 'avc1.4d402a', muxerCodec: 'avc' }, // Main Profile Level 4.2
-          { codec: 'avc1.64002a', muxerCodec: 'avc' }, // High Profile Level 4.2
-          { codec: 'vp09.00.10.08', muxerCodec: 'vp9' },
-          { codec: 'vp8', muxerCodec: 'vp8' }
+          { codec: 'avc1.64002a', muxerCodec: 'avc' }  // High Profile Level 4.2
         ];
 
-        let chosenCodec = null;
-        let actualBitrateMode = chosenBitrateMode;
-        for (const candidate of candidateCodecs) {
-          try {
-            // First check with target bitrateMode (constant for detail, variable for light/normal)
-            let check = await VideoEncoder.isConfigSupported({
-              codec: candidate.codec,
-              width: baseW,
-              height: baseH,
-              bitrate: videoBps,
-              bitrateMode: chosenBitrateMode,
-              framerate: fps,
-              latencyMode: 'realtime',
-              avc: { format: 'avc' }
-            });
-            if (check && check.supported) {
-              chosenCodec = candidate;
-              actualBitrateMode = chosenBitrateMode;
-              break;
+        // Active probe helper to verify VideoEncoder actually configures and encodes without throwing DOMException
+        // (Fixes Firefox and Hackintosh VideoToolbox false-positive isConfigSupported bugs)
+        async function probeEncoderConfig(config) {
+          if (typeof VideoEncoder === 'undefined') return false;
+          return new Promise(resolve => {
+            let settled = false;
+            let testEnc = null;
+            let testFrame = null;
+            const cleanup = () => {
+              if (testFrame) {
+                try { testFrame.close(); } catch (_) {}
+                testFrame = null;
+              }
+              if (testEnc) {
+                try { testEnc.close(); } catch (_) {}
+                testEnc = null;
+              }
+            };
+            const finish = (ok) => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              resolve(ok);
+            };
+
+            try {
+              testEnc = new VideoEncoder({
+                output: () => finish(true),
+                error: () => finish(false)
+              });
+              testEnc.configure(config);
+
+              const probeCanvas = document.createElement('canvas');
+              probeCanvas.width = config.width;
+              probeCanvas.height = config.height;
+              testFrame = new VideoFrame(probeCanvas, { timestamp: 0, duration: 16666 });
+              testEnc.encode(testFrame, { keyFrame: true });
+              testEnc.flush().then(() => finish(true)).catch(() => finish(false));
+            } catch (_) {
+              finish(false);
             }
-            // Fallback to variable if browser does not support constant
-            if (chosenBitrateMode !== 'variable') {
-              check = await VideoEncoder.isConfigSupported({
+
+            setTimeout(() => finish(false), 120);
+          });
+        }
+
+        let chosenCodec = null;
+        let chosenConfig = null;
+        const hwModes = ['no-preference', 'prefer-software', 'prefer-hardware'];
+        const brModes = chosenBitrateMode === 'variable' ? ['variable'] : [chosenBitrateMode, 'variable'];
+
+        codecLoop:
+        for (const candidate of candidateCodecs) {
+          for (const hwMode of hwModes) {
+            for (const brMode of brModes) {
+              const testCfg = {
                 codec: candidate.codec,
                 width: baseW,
                 height: baseH,
                 bitrate: videoBps,
-                bitrateMode: 'variable',
+                bitrateMode: brMode,
                 framerate: fps,
                 latencyMode: 'realtime',
+                hardwareAcceleration: hwMode,
                 avc: { format: 'avc' }
-              });
-              if (check && check.supported) {
-                chosenCodec = candidate;
-                actualBitrateMode = 'variable';
-                break;
-              }
+              };
+              try {
+                const check = await VideoEncoder.isConfigSupported(testCfg);
+                if (check && check.supported) {
+                  const verified = await probeEncoderConfig(testCfg);
+                  if (verified) {
+                    chosenCodec = candidate;
+                    chosenConfig = testCfg;
+                    break codecLoop;
+                  }
+                }
+              } catch (_) {}
             }
-          } catch (_) {}
+          }
         }
 
-        if (!chosenCodec) {
-          console.warn('[Export:WebCodecs] No supported GPU video codec found in VideoEncoder.');
+        if (!chosenCodec || !chosenConfig) {
+          console.info('[Export:WebCodecs] No working VideoEncoder supported on this system/browser. Graceful fallback to MediaRecorder.');
           return false;
         }
 
@@ -24911,16 +24949,7 @@
             }
           });
 
-          videoEncoder.configure({
-            codec: chosenCodec.codec,
-            width: baseW,
-            height: baseH,
-            bitrate: videoBps,
-            bitrateMode: actualBitrateMode,
-            framerate: fps,
-            latencyMode: 'realtime',
-            avc: { format: 'avc' }
-          });
+          videoEncoder.configure(chosenConfig);
 
           const videoLayers = (currentProjectState.layers || []).filter(l => l.type === 'video' && !l.hidden);
 
@@ -25050,6 +25079,9 @@
           if (wavBlob && wavBlob.size > 100) {
             try {
               const ffmpeg = await getFFmpeg();
+              try { ffmpeg.FS('unlink', 'v_temp.mp4'); } catch (_) {}
+              try { ffmpeg.FS('unlink', 'a_temp.wav'); } catch (_) {}
+              try { ffmpeg.FS('unlink', 'out_merged.mp4'); } catch (_) {}
               ffmpeg.FS('writeFile', 'v_temp.mp4', new Uint8Array(videoBuffer));
               ffmpeg.FS('writeFile', 'a_temp.wav', new Uint8Array(await wavBlob.arrayBuffer()));
               await ffmpeg.run('-i', 'v_temp.mp4', '-i', 'a_temp.wav', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', 'out_merged.mp4');
@@ -25396,22 +25428,72 @@
 
           if (!isMp4) {
             try {
-              updateExportProgress(98, 'Packaging MP4...');
+              updateExportProgress(95, 'Preparing MP4 package...');
               const ffmpeg = await getFFmpeg();
+
+              try { ffmpeg.FS('unlink', 'rec_in.webm'); } catch (_) {}
+              try { ffmpeg.FS('unlink', 'rec_out.mp4'); } catch (_) {}
+
               ffmpeg.FS('writeFile', 'rec_in.webm', new Uint8Array(await outBlob.arrayBuffer()));
-              await ffmpeg.run('-i', 'rec_in.webm', '-c', 'copy', 'rec_out.mp4');
-              const mp4Bytes = ffmpeg.FS('readFile', 'rec_out.mp4');
-              finalBlob = new Blob([mp4Bytes.buffer], { type: 'video/mp4' });
+
+              const isH264 = selectedMime.toLowerCase().includes('h264') || selectedMime.toLowerCase().includes('avc');
+              let remuxOk = false;
+
+              // Fast stream copy ONLY when recorded stream is already H.264
+              if (isH264) {
+                try {
+                  updateExportProgress(97, 'Packaging MP4 container...');
+                  await ffmpeg.run('-i', 'rec_in.webm', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', 'rec_out.mp4');
+                  const testBytes = ffmpeg.FS('readFile', 'rec_out.mp4');
+                  if (testBytes && testBytes.length > 0) {
+                    finalBlob = new Blob([testBytes.buffer], { type: 'video/mp4' });
+                    remuxOk = true;
+                  }
+                } catch (copyErr) {
+                  console.warn('[Export:Hardware] Fast remux copy failed, falling back to full transcode:', copyErr);
+                  try { ffmpeg.FS('unlink', 'rec_out.mp4'); } catch (_) {}
+                }
+              }
+
+              // VP8/VP9 cannot be copied into MP4 directly. Full transcode to standard H.264 + AAC:
+              if (!remuxOk) {
+                updateExportProgress(96, 'Transcoding video to MP4 (H.264)...');
+                ffmpeg.setProgress(({ ratio }) => {
+                  if (ratio >= 0 && ratio <= 1) {
+                    const p = 95 + Math.round(ratio * 4);
+                    updateExportProgress(p, `Converting to MP4 (${Math.round(ratio * 100)}%)...`);
+                  }
+                });
+
+                const crfVal = (preset === 'detail') ? '18' : ((preset === 'light') ? '23' : '20');
+                await ffmpeg.run(
+                  '-i', 'rec_in.webm',
+                  '-c:v', 'libx264',
+                  '-preset', 'ultrafast',
+                  '-tune', 'fastdecode',
+                  '-pix_fmt', 'yuv420p',
+                  '-crf', crfVal,
+                  '-c:a', 'aac',
+                  '-b:a', '192k',
+                  'rec_out.mp4'
+                );
+
+                const mp4Bytes = ffmpeg.FS('readFile', 'rec_out.mp4');
+                finalBlob = new Blob([mp4Bytes.buffer], { type: 'video/mp4' });
+              }
+
               try { ffmpeg.FS('unlink', 'rec_in.webm'); } catch (_) {}
               try { ffmpeg.FS('unlink', 'rec_out.mp4'); } catch (_) {}
             } catch (convErr) {
-              console.warn('[Export:Hardware] Remux copy failed, using direct recording stream:', convErr);
+              console.warn('[Export:Hardware] FFmpeg conversion failed, using direct recording stream:', convErr);
             }
           }
 
           const rawBaseName = customName || currentProjectState.name || 'New_Project';
           const sanitizedName = rawBaseName.trim().replace(/\.mp4$/i, '').replace(/[/\\?%*:|"<>]/g, '_') || 'New_Project';
-          const filename = `${sanitizedName}.mp4`;
+          const isRealMp4 = finalBlob.type === 'video/mp4' || (!finalBlob.type.includes('webm') && isMp4);
+          const ext = isRealMp4 ? 'mp4' : 'webm';
+          const filename = `${sanitizedName}.${ext}`;
           const dlUrl = URL.createObjectURL(finalBlob);
           const a = document.createElement('a');
           a.href = dlUrl;

@@ -85,10 +85,12 @@
   /* =========================================================================
      3. CONTAIN — Limit repaint scope on static panel surfaces.
         Safari repaints entire document by default when anything changes.
+        NOTE: Only use 'contain: style' on timeline elements — they use
+        absolute positioning (left: Xpx) internally which 'contain: layout'
+        and 'contain: paint' would clip/break.
      ========================================================================= */
-  .timeline-track-lane,
-  .timeline-clip-block,
-  .timeline-lane-pill-slot,
+
+  /* Safe: self-contained cards with no overflow/absolute children */
   .project-item,
   .project-swipe-container,
   .media-grid-item,
@@ -96,6 +98,14 @@
   .drawer-param-row {
     contain: layout style paint;
   }
+
+  /* Timeline: only style containment — layout+paint breaks clip block positioning */
+  .timeline-track-lane,
+  .timeline-clip-block,
+  .timeline-lane-pill-slot {
+    contain: style;
+  }
+
 
   /* =========================================================================
      4. TEXT RENDERING — Sharper subpixel text on macOS Retina.

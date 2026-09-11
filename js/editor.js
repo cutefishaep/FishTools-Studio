@@ -17215,23 +17215,60 @@
       let lastGeneratedFps = 0;
       let lastGeneratedPps = 0;
 
+      function getRulerTickConfig(fps, pps) {
+        const framePx = pps / fps;
+        let framesPerTick = 1;
+        let showFrameLabels = false;
+
+        // Level of Detail (LOD) Adaptive Density & Anti-Lag Decimation
+        if (framePx >= 14) {
+          // LOD 1: Ultra Zoom (Renggang banget) -> 1 tick = 1 frame
+          framesPerTick = 1;
+          showFrameLabels = true;
+        } else if (framePx >= 7) {
+          // LOD 2: Medium Zoom -> 1 tick = 2 frames (or 1 frame if low FPS <= 24)
+          framesPerTick = (fps <= 24) ? 1 : ((fps % 2 === 0) ? 2 : 1);
+          showFrameLabels = (framePx >= 10);
+        } else if (framePx >= 3.2) {
+          // LOD 3: Standard Timeline -> 1 tick = 4/5/6 frames (~5-12 ticks per second)
+          if (fps % 5 === 0) framesPerTick = 5;
+          else if (fps % 4 === 0) framesPerTick = 4;
+          else if (fps % 6 === 0) framesPerTick = 6;
+          else if (fps % 3 === 0) framesPerTick = 3;
+          else framesPerTick = 2;
+        } else if (framePx >= 1.4) {
+          // LOD 4: Compact / Rapat -> 1 tick = 10-15 frames (quarter/half second, ~2-6 ticks/sec)
+          if (fps % 15 === 0) framesPerTick = 15;
+          else if (fps % 10 === 0) framesPerTick = 10;
+          else if (fps % 6 === 0) framesPerTick = 6;
+          else framesPerTick = Math.max(1, Math.round(fps / 4));
+        } else if (framePx >= 0.7) {
+          // LOD 5: Highly Compact -> 1 tick = half second (~2 ticks/sec)
+          framesPerTick = Math.max(1, Math.round(fps / 2));
+        } else {
+          // LOD 6: Macro (Zoom out jauh) -> 1 tick = 1 second only
+          framesPerTick = fps;
+        }
+
+        const subTicks = Math.max(1, Math.round(fps / framesPerTick));
+        return { framesPerTick, subTicks, framePx, showFrameLabels };
+      }
+
       function generateRulerTicks(fps, force = false) {
         const totalDur = getProjectTotalDuration();
+        const safeFps = Math.max(1, parseInt(fps, 10) || 60);
 
-        if (!force && totalDur === lastGeneratedDuration && fps === lastGeneratedFps && pixelsPerSecond === lastGeneratedPps) {
+        if (!force && totalDur === lastGeneratedDuration && safeFps === lastGeneratedFps && pixelsPerSecond === lastGeneratedPps) {
           return;
         }
         lastGeneratedDuration = totalDur;
-        lastGeneratedFps = fps;
+        lastGeneratedFps = safeFps;
         lastGeneratedPps = pixelsPerSecond;
 
-        let subTicks = 10;
-        if (fps === 16) subTicks = 8;
-        else if (fps === 25) subTicks = 5;
-        else if (fps === 45) subTicks = 9;
-        else if (fps === 50) subTicks = 10;
-        else if (fps === 120) subTicks = 12;
-        else subTicks = 10;
+        const config = getRulerTickConfig(safeFps, pixelsPerSecond);
+        const subTicks = config.subTicks;
+        const framesPerTick = config.framesPerTick;
+        const showFrameLabels = config.showFrameLabels;
 
         rulerTrack.style.setProperty('--ruler-ticks-count', subTicks);
 
@@ -17270,6 +17307,7 @@
         const fullSeconds = Math.floor(totalDur);
         const remSec = totalDur - fullSeconds;
         let rulerHtml = '';
+        const halfFps = Math.round(safeFps / 2);
 
         // Tampilkan detik utuh: 0..fullSeconds-1
         for (let s = 0; s < fullSeconds; s++) {
@@ -17279,16 +17317,40 @@
 
           let ticksHtml = '';
           for (let i = 0; i < subTicks; i++) {
+            const frameNum = i * framesPerTick;
             let tickClass = 'minor';
-            if (i === 0) tickClass = 'major';
-            else if (i === Math.floor(subTicks / 2)) tickClass = 'medium';
-            ticksHtml += `<div class="ruler-tick-cell"><div class="ruler-tick ${tickClass}"></div></div>`;
+            let frameLabelHtml = '';
+
+            if (i === 0) {
+              tickClass = 'major';
+            } else if (frameNum === halfFps) {
+              tickClass = 'medium';
+              if (showFrameLabels && framesPerTick === 1) {
+                frameLabelHtml = `<span class="ruler-frame-text">:${String(frameNum).padStart(2, '0')}</span>`;
+              }
+            } else if (framesPerTick === 1) {
+              if (frameNum % 10 === 0 || (frameNum % 5 === 0 && config.framePx >= 20)) {
+                tickClass = 'medium';
+                if (showFrameLabels) {
+                  frameLabelHtml = `<span class="ruler-frame-text">:${String(frameNum).padStart(2, '0')}</span>`;
+                }
+              }
+            } else if (framesPerTick <= 5 && frameNum % 10 === 0) {
+              tickClass = 'medium';
+            }
+
+            ticksHtml += `
+              <div class="ruler-tick-cell">
+                <div class="ruler-tick ${tickClass}"></div>
+                ${frameLabelHtml}
+              </div>
+            `;
           }
 
           rulerHtml += `
             <div class="ruler-second-mark" style="width: ${pixelsPerSecond}px;">
               <span class="ruler-second-text">${timeStr}</span>
-              <div class="ruler-ticks-row">
+              <div class="ruler-ticks-row" style="grid-template-columns: repeat(${subTicks}, 1fr);">
                 ${ticksHtml}
               </div>
             </div>
@@ -17303,14 +17365,35 @@
           const timeStr = `${mins}:${secs}:00`;
 
           const partialWidth = Math.max(2, Math.round(remSec * pixelsPerSecond));
-          const partialTicks = Math.max(1, Math.round(subTicks * remSec));
+          const remFrames = Math.round(remSec * safeFps);
+          const partialTicks = Math.max(1, Math.round(remFrames / framesPerTick));
 
           let ticksHtml = '';
           for (let i = 0; i < partialTicks; i++) {
+            const frameNum = i * framesPerTick;
             let tickClass = 'minor';
-            if (i === 0) tickClass = 'major';
-            else if (i === Math.floor(partialTicks / 2)) tickClass = 'medium';
-            ticksHtml += `<div class="ruler-tick-cell"><div class="ruler-tick ${tickClass}"></div></div>`;
+            let frameLabelHtml = '';
+
+            if (i === 0) {
+              tickClass = 'major';
+            } else if (frameNum === halfFps) {
+              tickClass = 'medium';
+              if (showFrameLabels && framesPerTick === 1) {
+                frameLabelHtml = `<span class="ruler-frame-text">:${String(frameNum).padStart(2, '0')}</span>`;
+              }
+            } else if (framesPerTick === 1 && (frameNum % 10 === 0 || (frameNum % 5 === 0 && config.framePx >= 20))) {
+              tickClass = 'medium';
+              if (showFrameLabels) {
+                frameLabelHtml = `<span class="ruler-frame-text">:${String(frameNum).padStart(2, '0')}</span>`;
+              }
+            }
+
+            ticksHtml += `
+              <div class="ruler-tick-cell">
+                <div class="ruler-tick ${tickClass}"></div>
+                ${frameLabelHtml}
+              </div>
+            `;
           }
 
           rulerHtml += `
@@ -17325,7 +17408,7 @@
 
         // Tanda akhir tepat di ujung durasi layer (width: 0px, tidak ada ruler tambahan lagi setelahnya)
         const endTotalSec = Math.floor(totalDur);
-        const endFrames = Math.round((totalDur - endTotalSec) * fps);
+        const endFrames = Math.round((totalDur - endTotalSec) * safeFps);
         const endMins = String(Math.floor(endTotalSec / 60)).padStart(2, '0');
         const endSecs = String(endTotalSec % 60).padStart(2, '0');
         const endFf = String(endFrames).padStart(2, '0');
@@ -17364,12 +17447,15 @@
       generateRulerTicks(currentFps, true);
 
       // Dynamic Timeline Scale Zoom Function (Zoom In / Out on Ruler)
-      function setTimelineZoom(targetPps) {
+      function setTimelineZoom(targetPps, anchorSec = null) {
         const oldPps = pixelsPerSecond;
-        const newPps = Math.max(30, Math.min(360, Math.round(targetPps)));
+        const newPps = Math.max(20, Math.min(1800, Math.round(targetPps)));
         if (newPps === oldPps) return;
 
-        const currentSec = Math.max(0, -panX / oldPps);
+        const currentSec = (anchorSec !== null && anchorSec !== undefined)
+          ? anchorSec
+          : Math.max(0, -panX / oldPps);
+
         pixelsPerSecond = newPps;
         window.currentPixelsPerSecond = newPps;
 
@@ -17379,7 +17465,7 @@
           if (layer.startSec === undefined) layer.startSec = (layer.startPx || 0) / oldPps;
           if (layer.durationSec === undefined) layer.durationSec = (layer.widthPx || 320) / oldPps;
           layer.startPx = Math.round(layer.startSec * newPps);
-          layer.widthPx = Math.max(30, Math.round(layer.durationSec * newPps));
+          layer.widthPx = Math.max(20, Math.round(layer.durationSec * newPps));
         });
 
         generateRulerTicks(currentFps, true);
@@ -18232,13 +18318,16 @@
         }
       }
 
-      // Pointer drag scrubbing & vertical layer panning
+      // Pointer drag scrubbing & vertical layer panning & multi-directional ruler gesture
       let isPanning = false;
       let startX = 0;
       let startY = 0;
       let startPanX = 0;
       let startScrollTop = 0;
       let isLayersDrag = false;
+      let isRulerDrag = false;
+      let rulerStartZoomPps = 80;
+      let rulerAnchorSec = 0;
       let timelineEmptyLpTimer = null;
       let hasTimelineEmptyLpFired = false;
 
@@ -18261,6 +18350,12 @@
         startPanX = panX;
         startScrollTop = layersViewport ? layersViewport.scrollTop : 0;
         isLayersDrag = !!e.target.closest('#timeline-layers-viewport');
+        isRulerDrag = !!e.target.closest('.timeline-header-ruler') || !!e.target.closest('#timeline-ruler-viewport');
+
+        if (isRulerDrag) {
+          rulerStartZoomPps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+          rulerAnchorSec = getCurrentPlayheadTime();
+        }
 
         // Long-press timer on empty timeline space (450ms hold -> open context menu popover like right click)
         if (isLayersDrag) {
@@ -18309,6 +18404,41 @@
         if (timelineEmptyLpTimer && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
           clearTimeout(timelineEmptyLpTimer);
           timelineEmptyLpTimer = null;
+        }
+
+        // Multi-directional Ruler Gesture:
+        // - Slide Up/Down: dynamic zoom in (renggangkan) / zoom out (rapatkan)
+        // - Slide Left/Right: timeline scrub
+        if (isRulerDrag) {
+          let activePps = rulerStartZoomPps;
+          if (Math.abs(deltaY) > 3) {
+            // Slide up (deltaY < 0): zoom in (renggang)
+            // Slide down (deltaY > 0): zoom out (rapat)
+            const zoomRatio = Math.pow(1.008, -deltaY);
+            const targetPps = Math.max(20, Math.min(1800, Math.round(rulerStartZoomPps * zoomRatio)));
+            if (targetPps !== pixelsPerSecond) {
+              setTimelineZoom(targetPps, rulerAnchorSec);
+            }
+            activePps = window.currentPixelsPerSecond || pixelsPerSecond;
+          }
+
+          const targetSec = Math.max(0, rulerAnchorSec - (deltaX / activePps));
+          const totalDur = getProjectTotalDuration();
+          const clampedSec = Math.min(totalDur, targetSec);
+          // Snap playhead to exact frame boundary when scrubbing on ruler
+          const safeFps = window.currentTimelineFps || currentFps || 60;
+          const snappedSec = Math.round(clampedSec * safeFps) / safeFps;
+          const targetPanX = -snappedSec * activePps;
+
+          const bounds = getTimelineBounds();
+          const finalPanX = Math.max(bounds.min, Math.min(bounds.max, targetPanX));
+
+          const needle = document.getElementById('timeline-center-needle');
+          if (needle) needle.classList.remove('is-snapped');
+          window._lastScrubSnapPx = null;
+
+          updateTimelinePosition(finalPanX);
+          return;
         }
 
         const bounds = getTimelineBounds();
@@ -18364,6 +18494,17 @@
         if (window.FishAudioEngine) {
           window.FishAudioEngine.stopScrub();
         }
+
+        // Align exactly to nearest frame when parking after ruler drag
+        if (isRulerDrag) {
+          const rawSec = getCurrentPlayheadTime();
+          const safeFps = window.currentTimelineFps || currentFps || 60;
+          const finalSnappedSec = Math.round(rawSec * safeFps) / safeFps;
+          const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+          updateTimelinePosition(-finalSnappedSec * pps, true);
+        }
+
+        isRulerDrag = false;
 
         const curSec = Math.max(0, -panX / pixelsPerSecond);
 
@@ -22499,6 +22640,17 @@
 
                   justFinishedSlide = true;
                   if (hasSlid) {
+                    const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+                    const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+                    if (isMultiDragging && multiDragLayers.length > 0) {
+                      multiDragLayers.forEach(m => {
+                        m.layer.startSec = Math.round(m.layer.startSec * fps) / fps;
+                        m.layer.startPx = Math.round(m.layer.startSec * pps);
+                      });
+                    } else {
+                      layer.startSec = Math.round(layer.startSec * fps) / fps;
+                      layer.startPx = Math.round(layer.startSec * pps);
+                    }
                     if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
                       window.selectedKeyframes.forEach(item => {
                         if (item.kf) item.time = item.kf.time;
@@ -22640,6 +22792,16 @@
                   leftHandle.removeEventListener('pointerup', onPointerUp);
                   leftHandle.removeEventListener('pointercancel', onPointerUp);
                   window.isTransformInteracting = false;
+
+                  const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+                  const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+                  layer.startSec = Math.round(layer.startSec * fps) / fps;
+                  layer.durationSec = Math.max(1 / fps, Math.round(layer.durationSec * fps) / fps);
+                  layer.startPx = Math.round(layer.startSec * pps);
+                  layer.widthPx = Math.max(minWidth, Math.round(layer.durationSec * pps));
+                  clipEl.style.left = `${layer.startPx}px`;
+                  clipEl.style.width = `${layer.widthPx}px`;
+
                   invalidatePreviewCacheForLayer(layer, initialStartSec, initialEndSec);
                   redrawComposition();
                   saveCurrentProjectLayers();
@@ -22720,6 +22882,13 @@
                   rightHandle.removeEventListener('pointerup', onPointerUp);
                   rightHandle.removeEventListener('pointercancel', onPointerUp);
                   window.isTransformInteracting = false;
+
+                  const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+                  const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+                  layer.durationSec = Math.max(1 / fps, Math.round(layer.durationSec * fps) / fps);
+                  layer.widthPx = Math.max(minWidth, Math.round(layer.durationSec * pps));
+                  clipEl.style.width = `${layer.widthPx}px`;
+
                   invalidatePreviewCacheForLayer(layer, initialStartSec, initialEndSec);
                   redrawComposition();
                   saveCurrentProjectLayers();

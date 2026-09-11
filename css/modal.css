@@ -1676,10 +1676,11 @@
 @media (max-width: 600px) {
   .welcome-modal-card,
   .donate-modal-card {
-    /* Full-width, slide from top — per modal mobile rule */
-    max-height: 100dvh;
-    height: 100dvh;
-    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 50dvh;
+    height: auto;
+    border-radius: 0 0 20px 20px !important;
     display: flex;
     flex-direction: column;
     overflow: hidden;

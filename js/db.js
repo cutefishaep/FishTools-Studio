@@ -1010,12 +1010,12 @@ window.FishDatabase = (function () {
   async function createProject(options) {
     options = options || {};
     var timestamp = Date.now();
-    var id = 'prj_' + timestamp + '_' + Math.random().toString(36).substring(2, 6);
+    var id = options.id || ('prj_' + timestamp + '_' + Math.random().toString(36).substring(2, 6));
     var nowIso = new Date().toISOString();
 
     var project = {
       id: id,
-      name: (options.name || 'New_Project').trim().replace(/[\s\/\\?%*:|"<>]/g, '_'),
+      name: (options.name || 'New Project').trim().replace(/[\/\\?%*:|"<>]/g, '_'),
       aspectRatio: options.aspectRatio || '16:9',
       resolution: options.resolution || '1080p',
       fps: options.fps ? String(options.fps) : '60',

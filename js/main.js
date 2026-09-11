@@ -836,23 +836,18 @@ async function createNewProjectAction() {
   const selectedFps = document.getElementById('dropdown-fps')?.dataset.value || '60';
   const selectedBg = document.querySelector('#options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
 
-  let projectId = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+  const projectId = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
   try {
     if (window.FishDatabase && typeof window.FishDatabase.createProject === 'function') {
-      const project = await Promise.race([
-        window.FishDatabase.createProject({
-          name: name,
-          aspectRatio: selectedRatio,
-          resolution: selectedRes,
-          fps: selectedFps,
-          bgColor: selectedBg
-        }),
-        new Promise(resolve => setTimeout(() => resolve(null), 800))
-      ]);
-      if (project && project.id) {
-        projectId = project.id;
-      }
+      await window.FishDatabase.createProject({
+        id: projectId,
+        name: name,
+        aspectRatio: selectedRatio,
+        resolution: selectedRes,
+        fps: selectedFps,
+        bgColor: selectedBg
+      });
     }
   } catch (err) {
     console.warn('FishDatabase createProject error, using fallback:', err);

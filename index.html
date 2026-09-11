@@ -92,91 +92,18 @@
         </button>
       </div>
 
-      <!-- Projects Panel: Local Projects & Cloud Projects Dual Tabs -->
+      <!-- Projects Panel: Local Projects -->
       <section class="projects-panel" aria-label="Projects Management">
-        <header class="projects-panel-header">
-          <div class="projects-tab-switch" role="tablist" aria-label="Project Storage Location">
-            <button type="button" class="projects-tab-btn is-active" id="tab-local-projects" role="tab" aria-selected="true" aria-controls="panel-local-projects">
-              <span>Local Projects</span>
-            </button>
-            <button type="button" class="projects-tab-btn" id="tab-cloud-projects" role="tab" aria-selected="false" aria-controls="panel-cloud-projects">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-              </svg>
-              <span>Cloud Projects</span>
-            </button>
-          </div>
-        </header>
-
         <!-- Local Projects Tab Pane -->
-        <div class="projects-tab-content is-active" id="panel-local-projects" role="tabpanel" aria-labelledby="tab-local-projects">
+        <div class="projects-tab-content is-active" id="panel-local-projects" role="tabpanel">
           <div class="projects-list" id="projects-container"></div>
         </div>
-
-        <!-- Cloud Projects Tab Pane -->
-        <div class="projects-tab-content" id="panel-cloud-projects" role="tabpanel" aria-labelledby="tab-cloud-projects" style="display: none;">
-          <!-- Logged out: Sign in CTA -->
-          <div class="gdrive-login-box" id="gdrive-login-box">
-            <div class="gdrive-login-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-              </svg>
-            </div>
-            <h3 class="gdrive-login-title">Google Drive Cloud Sync</h3>
-            <p class="gdrive-login-desc">Connect your Google account to store, sync, and access projects across your devices.</p>
-            <div class="gdrive-login-actions">
-              <button type="button" class="gdrive-auth-btn" id="btn-gdrive-login">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                <span>Sign in with Google</span>
-              </button>
-            </div>
-            <p class="gdrive-consent-notice">
-              By signing in, you agree to our <a href="terms.html" target="_blank" rel="noopener noreferrer">Terms</a> &amp; <a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
-            </p>
-          </div>
-
-          <!-- Cloud Projects list (fills upper area) -->
-          <div class="projects-list" id="cloud-projects-container" style="display: none;"></div>
-
-          <!-- Logged in: User bar at bottom -->
-          <div class="gdrive-user-bar" id="gdrive-user-bar" style="display: none;">
-            <div class="gdrive-user-info">
-              <div class="gdrive-user-avatar-wrap">
-                <img src="" alt="" class="gdrive-user-avatar" id="gdrive-user-avatar" style="display: none;">
-                <div class="gdrive-user-avatar-fallback" id="gdrive-user-avatar-fallback">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                  </svg>
-                </div>
-              </div>
-              <div class="gdrive-user-details">
-                <span class="gdrive-user-name" id="gdrive-user-name">User</span>
-                <span class="gdrive-user-email" id="gdrive-user-email">email@gmail.com</span>
-              </div>
-            </div>
-            <div class="gdrive-user-actions">
-              <button type="button" class="gdrive-icon-btn" id="btn-gdrive-refresh" title="Refresh Cloud Projects" aria-label="Refresh Cloud Projects">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                  <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-                </svg>
-              </button>
-              <button type="button" class="gdrive-icon-btn gdrive-btn-logout" id="btn-gdrive-logout" title="Sign Out" aria-label="Sign Out">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
       </section>
 
     </section>
 
   </main>
+
 
   <!-- ==========================================================================
        MODULAR POP-UP: NEW PROJECT MODAL
@@ -996,42 +923,9 @@
     </div>
   </div>
 
-  <!-- ==========================================================================
-       MODULAR POP-UP: GOOGLE DRIVE CONFIG MODAL
-       ========================================================================== -->
-  <div class="modal-backdrop" id="modal-gdrive-config" role="dialog" aria-modal="true" aria-label="Google Drive Configuration">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <header class="modal-header">
-        <h3 class="modal-title">Google Drive Settings</h3>
-        <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-gdrive-config')">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
-        </button>
-      </header>
-      <div class="modal-body">
-        <div class="modal-form-group">
-          <label class="modal-label" for="input-gdrive-client-id">GOOGLE OAUTH 2.0 CLIENT ID</label>
-          <input type="password" id="input-gdrive-client-id" class="modal-input-text" placeholder="Enter Client ID or leave blank to use .env" spellcheck="false" autocomplete="new-password">
-          <p class="modal-helper-text" id="gdrive-config-hint">OAuth Client ID is masked for privacy. Leave blank to use server .env configuration.</p>
-        </div>
-      </div>
-      <footer class="modal-footer is-horizontal">
-        <button type="button" class="modal-btn-secondary" onclick="Modal.close('modal-gdrive-config')">
-          <span>Cancel</span>
-        </button>
-        <button type="button" class="modal-btn-primary" id="btn-save-gdrive-config">
-          <span>Save Client ID</span>
-        </button>
-      </footer>
-    </div>
-  </div>
 
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="js/jszip.min.js"></script>
   <script src="js/db.js"></script>
-  <script src="js/gdrive-config.js"></script>
-  <script src="js/gdrive-sync.js"></script>
   <script src="js/modal.js"></script>
   <script src="js/context-menu.js"></script>
   <script src="js/main.js"></script>

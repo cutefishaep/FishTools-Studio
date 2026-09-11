@@ -79,12 +79,7 @@
             </svg>
           </button>
 
-          <!-- Cloud Sync Status Icon (Visible when source=gdrive) -->
-          <div class="editor-cloud-status editor-settings-btn" id="editor-cloud-status" style="display: none;" title="Google Drive Cloud Sync Status">
-            <svg class="cloud-status-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-            </svg>
-          </div>
+
           <button type="button" class="editor-settings-btn" id="btn-editor-settings" title="Composition Settings" aria-label="Composition Settings" onclick="openProjectSettingsModal()">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
@@ -182,19 +177,7 @@
       </div>
     </header>
 
-    <!-- Remote Cloud Project Update Notification Banner -->
-    <div class="cloud-remote-banner" id="cloud-remote-banner" style="display: none;">
-      <div class="cloud-remote-banner-content">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-        </svg>
-        <span>Project updated on Google Drive by another session.</span>
-      </div>
-      <div class="cloud-remote-banner-actions">
-        <button type="button" class="cloud-banner-btn-reload" id="btn-cloud-reload">Reload</button>
-        <button type="button" class="cloud-banner-btn-dismiss" id="btn-cloud-dismiss" title="Dismiss" aria-label="Dismiss">✕</button>
-      </div>
-    </div>
+
 
     <!-- Main Workspace Body -->
     <div class="editor-main-body">
@@ -3678,10 +3661,7 @@
   <script src="js/jszip.min.js"></script>
   <script src="vendor/ffmpeg/ffmpeg.min.js"></script>
   <script src="vendor/mp4-muxer.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="js/db.js"></script>
-  <script src="js/gdrive-config.js"></script>
-  <script src="js/gdrive-sync.js"></script>
   <script src="js/modal.js"></script>
   <script src="js/popover.js?v=3"></script>
   <script src="js/drawer.js"></script>
@@ -3749,11 +3729,9 @@
   <script src="js/template-editor.js"></script>
   <script src="js/text-engine.js"></script>
   <script src="js/motion-blur-engine.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="js/gdrive-config.js"></script>
-  <script src="js/gdrive-sync.js"></script>
-  <script src="js/FishExport-Enggine.js?v=0.4.8"></script>
-  <script src="js/editor.js?v=0.4.8"></script>
+
+  <script src="js/FishExport-Enggine.js?v=0.5.0"></script>
+  <script src="js/editor.js?v=0.5.0"></script>
   <script src="js/openfishtools-generators3d.js"></script>
   <script src="js/openfishtools-controller.js"></script>
 </body>

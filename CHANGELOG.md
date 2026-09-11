@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-09-11
+
+### Removed
+- **Google Drive Cloud Save** — Complete removal of GDrive integration. Deleted `js/gdrive-sync.js` (839 lines) and `js/gdrive-config.js` (89 lines). Removed all cloud UI from `index.html` (cloud tab panel, login box, user bar, gdrive config modal) and `editor.html` (cloud status icon, remote update banner). Cleaned all GDrive CSS from `css/layout.css` and `css/editor.css`. Stripped all GDrive JS from `js/editor.js` (media hooks, `triggerGDriveSync`, save bypass, project load block, cloud status UI) and `js/main.js` (`initGDriveDashboard`, cloud project list, `isCloud` branches). Project source is now always `local`.
+
+---
+
+## [0.5.0] - 2026-09-11
+
+### Removed
+- **Google Drive Cloud Save** — Complete removal. Deleted gdrive-sync.js + gdrive-config.js. Removed cloud UI (index.html, editor.html), cloud CSS (layout.css, editor.css), GDrive JS (editor.js + main.js). Project source always local.
+
+---
+
 ## [0.4.9] - 2026-09-11
+
 
 ### Fixed
 - **Timeline Visual Offset on Project Open**: Clip blocks appeared horizontally offset from the ruler immediately after opening a project, but snapped to the correct position when zooming. Root cause: `renderTimeline()` has a RAF guard (`if (panX === lastRenderedPanX) return`) that prevents redundant repaints — on first project load (async), the guard blocked the CSS `translate3d` transform from ever being applied to `rulerTrack`/`layersTrack`, so clip blocks rendered at their absolute `left: startPx` without the container offset. Fix: call `updateTimelinePosition(panX, immediate=true)` immediately after `renderTimelineLayers()` on project load to force a synchronous transform flush.

@@ -500,7 +500,12 @@ window.FishDatabase = (function () {
               resolve(null);
               return;
             }
-            resolve(req.result || null);
+            if (req.result) {
+              resolve(req.result);
+            } else {
+              var found = getLocalProjects().find(function (p) { return p.id === id; });
+              resolve(found || null);
+            }
           };
           req.onerror = function () {
             clearTimeout(safetyTimer);

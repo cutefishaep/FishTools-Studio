@@ -816,7 +816,18 @@ function showDashboardToast(text, duration = 2400) {
 /**
  * Creates project and navigates to editor
  */
+let isCreatingNewProject = false;
+
 async function createNewProjectAction() {
+  if (isCreatingNewProject) return;
+  isCreatingNewProject = true;
+
+  const createBtn = document.querySelector('#modal-new-project .modal-btn-create');
+  if (createBtn) {
+    createBtn.style.opacity = '0.6';
+    createBtn.style.pointerEvents = 'none';
+  }
+
   const nameInput = document.getElementById('project-input-name');
   const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'New_Project';
   

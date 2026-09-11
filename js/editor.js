@@ -15596,11 +15596,26 @@
         try {
           currentProject = await window.FishDatabase.getProject(idParam);
         } catch (_) {}
-        // Local project ID in URL but not found in DB → redirect
+        // Local project ID in URL but not found in DB
         if (!currentProject && idParam) {
-          console.warn('[Editor] Local project not found in DB — redirecting to dashboard.');
-          window.location.replace('index.html?error=project_not_found');
-          return;
+          if (nameParam || aspectParam || resParam) {
+            currentProject = {
+              id: idParam,
+              name: nameParam || 'New_Project',
+              aspectRatio: aspectParam || '16:9',
+              resolution: resParam || '1080p',
+              fps: fpsParam || '60',
+              bgColor: bgParam || 'transparent',
+              layers: []
+            };
+            if (window.FishDatabase && typeof window.FishDatabase.saveProject === 'function') {
+              window.FishDatabase.saveProject(currentProject).catch(() => {});
+            }
+          } else {
+            console.warn('[Editor] Local project not found in DB — redirecting to dashboard.');
+            window.location.replace('index.html?error=project_not_found');
+            return;
+          }
         }
       }
 

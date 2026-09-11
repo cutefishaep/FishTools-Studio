@@ -7,9 +7,29 @@
 (function(window) {
   'use strict';
 
+  /**
+   * Detect Safari and extract major version.
+   * Returns 0 if not Safari.
+   * Safari on Ventura (macOS 13) ships Safari 16.x which has a buggy
+   * WebCodecs (VideoDecoder) implementation in Worker threads that causes
+   * a hard WebContent process crash. We gate WebCodecs to Safari >= 17 only.
+   */
+  function _getSafariMajorVersion() {
+    const ua = navigator.userAgent;
+    // Must have 'Safari' but NOT 'Chrome'/'Chromium'/'EdgA'/'FxiOS' (which spoof Safari UA)
+    if (!/Safari\//.test(ua) || /Chrome\/|Chromium\/|EdgA\/|FxiOS\//.test(ua)) return 0;
+    const m = ua.match(/Version\/(\d+)\./);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
   class VideoStreamManager {
     constructor() {
-      this.isSupported = typeof window.VideoDecoder !== 'undefined' && typeof window.Worker !== 'undefined';
+      const safariVer = _getSafariMajorVersion();
+      // Disable WebCodecs on Safari < 17 — crashes WebContent process on Ventura
+      const safariWebCodecsOk = safariVer === 0 || safariVer >= 17;
+      this.isSupported = safariWebCodecsOk &&
+        typeof window.VideoDecoder !== 'undefined' &&
+        typeof window.Worker !== 'undefined';
       this.worker = null;
       this.requestId = 0;
       this.pendingRequests = new Map();
@@ -19,6 +39,8 @@
 
       if (this.isSupported) {
         this._initWorker();
+      } else if (safariVer > 0 && safariVer < 17) {
+        console.info('[VideoStreamManager] Safari ' + safariVer + ' detected — WebCodecs disabled, using HTML5 video fallback.');
       }
     }
 

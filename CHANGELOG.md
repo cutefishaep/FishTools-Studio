@@ -7,17 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.0] - 2026-09-11
+## [0.5.1] - 2026-09-12
 
-### Removed
-- **Google Drive Cloud Save** — Complete removal of GDrive integration. Deleted `js/gdrive-sync.js` (839 lines) and `js/gdrive-config.js` (89 lines). Removed all cloud UI from `index.html` (cloud tab panel, login box, user bar, gdrive config modal) and `editor.html` (cloud status icon, remote update banner). Cleaned all GDrive CSS from `css/layout.css` and `css/editor.css`. Stripped all GDrive JS from `js/editor.js` (media hooks, `triggerGDriveSync`, save bypass, project load block, cloud status UI) and `js/main.js` (`initGDriveDashboard`, cloud project list, `isCloud` branches). Project source is now always `local`.
+### Fixed
+- **Template Editor Duplicate Media Cards ("Replace Media")**: Resolved issue where identical media reused across multiple cut layers created duplicate cards in the Replace Media grid. The Template Editor now resolves layers directly against the project Media Pool (`window.FishDatabase.getProjectMedia` and `window._activeMediaMap`) matching by `mediaId`, file name, dataUrl, and thumbnail. Timeline cuts of the same media pool item group cleanly into a single card with cumulative duration, and replacing media updates all linked layers and the Media Pool item simultaneously.
+- **Safari WebKit Compatibility for Lightning Effects**: Resolved silent failure of Lightning category effects (`brightness-contrast`, `exposure-gamma`, `saturation-vibrant`, `highlight-shadow`, `invert`, `mono`, `lumia`, `diffusion`, `unsharp-mask`, etc.) on Safari caused by lack of `CanvasRenderingContext2D.filter` support and WebKit `<video>` WebGL texture upload constraints. Added `FishEffects.isCanvasFilterSupported()` runtime probe, `FishEffects.drawBlurred()` multi-pass pyramidal box downscale/upscale smoothing fallback, and WebGL scratch canvas texture uploads.
+- **Transform Mode Center Offset & Timeline Vertical Shift**: Fixed viewport centering offset when switching to transform mode, and resolved unexpected timeline vertical displacement.
+- **Timeline Layer Drag vs Popover Conflict**: Replaced instant drag activation with a hold-to-drag gesture. Holding without releasing enables horizontal layer sliding without opening the context popover; quick tap and release triggers the popover menu.
+
+### Added
+- **Media Occurrence Counter Badge**: Added `.template-card-badge-count` (`2x`, `3x`, etc.) in the top-right corner of template media cards when a media asset appears across multiple timeline cuts.
+- **Multi-Occurrence Scrubber Range Highlights**: Selecting a grouped media slot in the Template Editor highlights all timeline segments where that media appears simultaneously along the scrubber track.
 
 ---
 
 ## [0.5.0] - 2026-09-11
 
 ### Removed
-- **Google Drive Cloud Save** — Complete removal. Deleted gdrive-sync.js + gdrive-config.js. Removed cloud UI (index.html, editor.html), cloud CSS (layout.css, editor.css), GDrive JS (editor.js + main.js). Project source always local.
+- **Google Drive Cloud Save** — Complete removal of GDrive integration. Deleted `js/gdrive-sync.js` (839 lines) and `js/gdrive-config.js` (89 lines). Removed all cloud UI from `index.html` (cloud tab panel, login box, user bar, gdrive config modal) and `editor.html` (cloud status icon, remote update banner). Cleaned all GDrive CSS from `css/layout.css` and `css/editor.css`. Stripped all GDrive JS from `js/editor.js` (media hooks, `triggerGDriveSync`, save bypass, project load block, cloud status UI) and `js/main.js` (`initGDriveDashboard`, cloud project list, `isCloud` branches). Project source is now always `local`.
 
 ---
 

@@ -441,6 +441,22 @@
   height: 14px;
 }
 
+.template-card-badge-count {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  color: var(--color-primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+  z-index: 1;
+}
+
 .template-card-replace-icon {
   position: absolute;
   top: 50%;

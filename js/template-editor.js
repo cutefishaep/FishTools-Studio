@@ -312,12 +312,12 @@
       });
     },
 
-    open() {
+    async open() {
       this.init();
       const el = this._elements;
       if (!el.overlay) return;
 
-      this._collectReplaceableSlots();
+      await this._collectReplaceableSlots();
       this._syncDuration();
       this.currentTime = 0;
       this.isPlaying = false;
@@ -409,8 +409,15 @@
       }
       if (!dur || dur <= 0) {
         (this.slots || []).forEach(s => {
-          const end = (s.startSec || 0) + (s.durationSec || 0);
-          if (end > dur) dur = end;
+          if (Array.isArray(s.occurrences) && s.occurrences.length > 0) {
+            s.occurrences.forEach(occ => {
+              const end = (occ.startSec || 0) + (occ.durationSec || 0);
+              if (end > dur) dur = end;
+            });
+          } else {
+            const end = (s.startSec || 0) + (s.durationSec || 0);
+            if (end > dur) dur = end;
+          }
         });
       }
       this.duration = Math.max(0.5, dur || 5);
@@ -419,12 +426,74 @@
       }
     },
 
-    _collectReplaceableSlots() {
+    async _collectReplaceableSlots() {
       this.slots = [];
       const state = window.currentProjectState;
       if (!state) return;
 
       const pps = window.currentPixelsPerSecond || 80;
+
+      // 1. Fetch Media Pool items from IndexedDB and in-memory cache
+      let projectMedias = [];
+      const projectId = state.id;
+      if (projectId && window.FishDatabase && typeof window.FishDatabase.getProjectMedia === 'function') {
+        try {
+          projectMedias = (await window.FishDatabase.getProjectMedia(projectId)) || [];
+        } catch (_) {
+          projectMedias = [];
+        }
+      }
+      if (window._activeMediaMap && window._activeMediaMap instanceof Map) {
+        window._activeMediaMap.forEach(item => {
+          if (item && (!projectId || item.projectId === projectId) && !projectMedias.some(m => m.id === item.id)) {
+            projectMedias.push(item);
+          }
+        });
+      }
+
+      // Helper to clean names and remove copy/cut suffixes
+      const cleanName = (str) => (str || '').replace(/\s*\((Copy|\d+)\)$/i, '').trim().toLowerCase();
+
+      // Helper to match a layer to a Media Pool item
+      const findMediaPoolItem = (layer) => {
+        if (!projectMedias || projectMedias.length === 0) return null;
+
+        const lMediaId = layer.mediaId || layer.fillMediaId;
+        if (lMediaId) {
+          const byId = projectMedias.find(m => m.id === lMediaId);
+          if (byId) return byId;
+        }
+
+        const lDataUrl = layer.dataUrl || layer.fillMediaUrl;
+        if (lDataUrl && typeof lDataUrl === 'string' && lDataUrl.length > 20) {
+          const byUrl = projectMedias.find(m => m.dataUrl === lDataUrl || m.thumbUrl === lDataUrl);
+          if (byUrl) return byUrl;
+        }
+
+        const lThumbUrl = layer.thumbUrl;
+        if (lThumbUrl && typeof lThumbUrl === 'string' && lThumbUrl.length > 20) {
+          const byThumb = projectMedias.find(m => m.thumbUrl === lThumbUrl || m.dataUrl === lThumbUrl);
+          if (byThumb) return byThumb;
+        }
+
+        // Clean filename match (e.g. photo.jpg)
+        if (layer.name && typeof layer.name === 'string') {
+          const cName = cleanName(layer.name);
+          if (cName && cName !== 'image' && cName !== 'video' && cName !== 'media' && cName !== 'layer' && cName !== 'foto') {
+            const byName = projectMedias.find(m => m && m.name && cleanName(m.name) === cName);
+            if (byName) return byName;
+          }
+        }
+
+        // Single media item fallback for that type
+        const targetType = (layer.type === 'video' || (layer.dataUrl && /\.(mp4|webm|mov)(\?.*)?$/i.test(layer.dataUrl))) ? 'video' : 'image';
+        const sameTypeMedias = projectMedias.filter(m => m.type === targetType);
+        if (sameTypeMedias.length === 1) {
+          return sameTypeMedias[0];
+        }
+
+        return null;
+      };
 
       const traverse = (layers) => {
         if (!Array.isArray(layers)) return;
@@ -443,17 +512,108 @@
               slotType = 'video';
             }
             const defaultName = slotType === 'video' ? 'Video' : 'Image';
-            this.slots.push({
-              layerId: layer.id,
-              mediaId: layer.mediaId || layer.fillMediaId || null,
-              name: layer.name || defaultName,
-              type: slotType,
-              thumbUrl: layer.thumbUrl || (layer.dataUrl || layer.fillMediaUrl || ''),
-              dataUrl: layer.dataUrl || layer.fillMediaUrl || '',
-              startSec: startSec,
-              durationSec: durSec,
-              fillType: layer.fillType
-            });
+
+            // Resolve to Media Pool item if possible
+            const poolItem = findMediaPoolItem(layer);
+            if (poolItem) {
+              if (!layer.mediaId) layer.mediaId = poolItem.id;
+              if (!layer.dataUrl && poolItem.dataUrl) layer.dataUrl = poolItem.dataUrl;
+              if (!layer.thumbUrl && poolItem.thumbUrl) layer.thumbUrl = poolItem.thumbUrl;
+              if (!layer.name || layer.name === 'Image' || layer.name === 'Video') layer.name = poolItem.name;
+            }
+
+            const layerMediaId = layer.mediaId || layer.fillMediaId || (poolItem ? poolItem.id : null);
+            const layerDataUrl = layer.dataUrl || layer.fillMediaUrl || (poolItem ? poolItem.dataUrl : '');
+            const layerThumbUrl = layer.thumbUrl || (poolItem ? (poolItem.thumbUrl || poolItem.dataUrl) : '');
+            const cLayerName = cleanName(layer.name);
+            const isGenericName = !cLayerName || ['image', 'video', 'media', 'layer', 'foto'].includes(cLayerName);
+
+            // Check if this layer shares media with an already collected slot
+            let matchedSlot = null;
+
+            if (poolItem) {
+              matchedSlot = this.slots.find(s => s.mediaPoolId === poolItem.id || (s.mediaIds && s.mediaIds.has(poolItem.id)));
+            }
+
+            if (!matchedSlot) {
+              const hasMediaIdentifier = !!(layerMediaId || (layerDataUrl && layerDataUrl.length > 20) || (layerThumbUrl && layerThumbUrl.length > 20));
+              if (hasMediaIdentifier) {
+                matchedSlot = this.slots.find((s) => {
+                  if (layerMediaId && s.mediaIds && s.mediaIds.has(layerMediaId)) return true;
+                  if (layerDataUrl && s.mediaUrls && s.mediaUrls.has(layerDataUrl)) return true;
+                  if (layerThumbUrl && s.mediaUrls && s.mediaUrls.has(layerThumbUrl)) return true;
+                  if (layerMediaId && s.mediaId && s.mediaId === layerMediaId) return true;
+                  if (layerDataUrl && s.dataUrl && s.dataUrl === layerDataUrl) return true;
+                  if (layerThumbUrl && s.thumbUrl && s.thumbUrl === layerThumbUrl) return true;
+                  return false;
+                });
+              }
+            }
+
+            // Fallback match by exact clean name & type if non-generic
+            if (!matchedSlot && !isGenericName) {
+              matchedSlot = this.slots.find(s => {
+                if (!s.name) return false;
+                return cleanName(s.name) === cLayerName && s.type === slotType;
+              });
+            }
+
+            if (matchedSlot) {
+              // Group duplicate cut/layer into the existing slot
+              matchedSlot.layerIds.push(layer.id);
+              matchedSlot.occurrences.push({
+                layerId: layer.id,
+                startSec: startSec,
+                durationSec: durSec
+              });
+              matchedSlot.occurrences.sort((a, b) => a.startSec - b.startSec);
+              matchedSlot.startSec = matchedSlot.occurrences[0].startSec;
+              matchedSlot.durationSec = matchedSlot.occurrences.reduce((sum, o) => sum + o.durationSec, 0);
+
+              if (poolItem && !matchedSlot.mediaPoolId) matchedSlot.mediaPoolId = poolItem.id;
+              if (layerMediaId && matchedSlot.mediaIds) matchedSlot.mediaIds.add(layerMediaId);
+              if (layerDataUrl && matchedSlot.mediaUrls) matchedSlot.mediaUrls.add(layerDataUrl);
+              if (layerThumbUrl && matchedSlot.mediaUrls) matchedSlot.mediaUrls.add(layerThumbUrl);
+
+              if (!matchedSlot.mediaId && layerMediaId) matchedSlot.mediaId = layerMediaId;
+              if (!matchedSlot.dataUrl && layerDataUrl) matchedSlot.dataUrl = layerDataUrl;
+              if (!matchedSlot.thumbUrl && layerThumbUrl) matchedSlot.thumbUrl = layerThumbUrl;
+              if ((!matchedSlot.name || matchedSlot.name === 'Image' || matchedSlot.name === 'Video') && layer.name) {
+                matchedSlot.name = layer.name;
+              }
+            } else {
+              // Create new slot
+              const mediaIds = new Set();
+              if (layerMediaId) mediaIds.add(layerMediaId);
+              if (poolItem) mediaIds.add(poolItem.id);
+
+              const mediaUrls = new Set();
+              if (layerDataUrl) mediaUrls.add(layerDataUrl);
+              if (layerThumbUrl) mediaUrls.add(layerThumbUrl);
+              if (poolItem && poolItem.dataUrl) mediaUrls.add(poolItem.dataUrl);
+              if (poolItem && poolItem.thumbUrl) mediaUrls.add(poolItem.thumbUrl);
+
+              this.slots.push({
+                layerId: layer.id,
+                layerIds: [layer.id],
+                occurrences: [{
+                  layerId: layer.id,
+                  startSec: startSec,
+                  durationSec: durSec
+                }],
+                mediaPoolId: poolItem ? poolItem.id : null,
+                mediaIds: mediaIds,
+                mediaUrls: mediaUrls,
+                mediaId: layerMediaId,
+                name: (poolItem && poolItem.name) || layer.name || defaultName,
+                type: (poolItem && poolItem.type) || slotType,
+                thumbUrl: layerThumbUrl || layerDataUrl || (poolItem && (poolItem.thumbUrl || poolItem.dataUrl)) || '',
+                dataUrl: layerDataUrl || (poolItem && poolItem.dataUrl) || '',
+                startSec: startSec,
+                durationSec: durSec,
+                fillType: layer.fillType
+              });
+            }
           }
           if (Array.isArray(layer.layers)) {
             traverse(layer.layers);
@@ -495,8 +655,13 @@
           ? ('<img class="template-card-thumb" src="' + slot.thumbUrl + '" alt="' + slot.name + '" />')
           : ('<div class="template-card-fallback">' + slot.type.toUpperCase() + '</div>');
 
+        const countBadge = (slot.occurrences && slot.occurrences.length > 1)
+          ? ('<div class="template-card-badge-count" title="Used in ' + slot.occurrences.length + ' clips">' + slot.occurrences.length + 'x</div>')
+          : '';
+
         card.innerHTML = thumbHtml +
           '<div class="template-card-badge-type">' + typeIcon + '</div>' +
+          countBadge +
           '<div class="template-card-replace-icon" role="button" tabindex="0" title="Replace ' + slot.name + '" aria-label="Replace ' + slot.name + '">' + replaceSvg + '</div>' +
           '<div class="template-card-duration">' + formatTimeCS(slot.durationSec) + '</div>';
 
@@ -560,18 +725,34 @@
       cards.forEach((c, i) => c.classList.toggle('is-active', i === idx));
 
       const slot = this.slots[idx];
-      if (slot) {
-        const startSec = Math.max(0, slot.startSec !== undefined ? slot.startSec : 0);
-        const durSec = Math.max(0.1, slot.durationSec !== undefined ? slot.durationSec : 1);
+      if (slot && this._elements.scrubberTrack && this.duration > 0) {
+        const track = this._elements.scrubberTrack;
+        // Clean up previously created extra occurrence highlight bars
+        track.querySelectorAll('.template-scrubber-media-range-extra').forEach(el => el.remove());
 
-        // Highlight appearance span on the scrubber track (Alight Motion style)
-        if (this._elements.mediaRange && this.duration > 0) {
+        const occurrences = (Array.isArray(slot.occurrences) && slot.occurrences.length > 0)
+          ? slot.occurrences
+          : [{ startSec: slot.startSec || 0, durationSec: slot.durationSec || 1 }];
+
+        occurrences.forEach((occ, occIdx) => {
+          const startSec = Math.max(0, occ.startSec !== undefined ? occ.startSec : 0);
+          const durSec = Math.max(0.05, occ.durationSec !== undefined ? occ.durationSec : 1);
           const startPct = Math.max(0, Math.min(100, (startSec / this.duration) * 100));
           const widthPct = Math.max(0.5, Math.min(100 - startPct, (durSec / this.duration) * 100));
-          this._elements.mediaRange.style.left = startPct + '%';
-          this._elements.mediaRange.style.width = widthPct + '%';
-          this._elements.mediaRange.style.display = 'block';
-        }
+
+          if (occIdx === 0 && this._elements.mediaRange) {
+            this._elements.mediaRange.style.left = startPct + '%';
+            this._elements.mediaRange.style.width = widthPct + '%';
+            this._elements.mediaRange.style.display = 'block';
+          } else {
+            const extraRange = document.createElement('div');
+            extraRange.className = 'template-scrubber-media-range template-scrubber-media-range-extra';
+            extraRange.style.left = startPct + '%';
+            extraRange.style.width = widthPct + '%';
+            extraRange.style.display = 'block';
+            track.insertBefore(extraRange, this._elements.scrubberFill);
+          }
+        });
       }
 
       this.renderFrame();
@@ -600,8 +781,17 @@
         return null;
       };
 
-      const layer = findLayerRecursive(state.layers, slot.layerId);
-      if (!layer) return;
+      const targetLayerIds = (Array.isArray(slot.layerIds) && slot.layerIds.length > 0)
+        ? slot.layerIds
+        : [slot.layerId];
+
+      const targetLayers = [];
+      targetLayerIds.forEach((id) => {
+        const found = findLayerRecursive(state.layers, id);
+        if (found) targetLayers.push(found);
+      });
+
+      if (targetLayers.length === 0) return;
 
       const isVideoFile = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
       const isAudioFile = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
@@ -616,39 +806,23 @@
 
       if (!dataUrl) return;
 
-      // Update layer properties
-      layer.name = file.name || layer.name;
-      layer.dataUrl = dataUrl;
+      const sharedNewMediaId = slot.mediaPoolId || slot.mediaId || ('med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
 
-      // Detach old audio/media element if attached
-      if (window.FishAudioEngine) {
-        try {
-          const oldEntry = window.layerMediaCache && (window.layerMediaCache.get(layer.id) || (layer.mediaId && window.layerMediaCache.get(layer.mediaId)));
-          if (oldEntry && oldEntry.el) {
-            window.FishAudioEngine.detachMediaElement(oldEntry.el);
-            if (!oldEntry.el.paused) oldEntry.el.pause();
-          }
-        } catch (_) {}
-      }
-
-      // Clear video / image media cache
-      if (window.layerMediaCache) {
-        window.layerMediaCache.delete(layer.id);
-        if (layer.mediaId) window.layerMediaCache.delete(layer.mediaId);
-      }
+      let mediaWidth = 1280;
+      let mediaHeight = 720;
+      let mediaDuration = null;
+      let thumbUrl = '';
 
       if (isVideoFile) {
-        layer.type = 'video';
-        // Measure video dimensions and extract poster frame
         await new Promise((resolve) => {
           const vid = document.createElement('video');
           vid.preload = 'auto';
           vid.muted = true;
           vid.onloadeddata = () => {
-            layer.mediaWidth = vid.videoWidth || 1280;
-            layer.mediaHeight = vid.videoHeight || 720;
-            if (vid.duration && !layer.isDurationExplicit) {
-              layer.mediaDuration = vid.duration;
+            mediaWidth = vid.videoWidth || 1280;
+            mediaHeight = vid.videoHeight || 720;
+            if (vid.duration) {
+              mediaDuration = vid.duration;
             }
             // Capture thumbnail
             const c = document.createElement('canvas');
@@ -657,7 +831,7 @@
             const ctx = c.getContext('2d');
             if (ctx) {
               ctx.drawImage(vid, 0, 0, c.width, c.height);
-              layer.thumbUrl = c.toDataURL('image/jpeg', 0.85);
+              thumbUrl = c.toDataURL('image/jpeg', 0.85);
             }
             resolve();
           };
@@ -665,43 +839,25 @@
           vid.src = dataUrl;
         });
       } else if (isAudioFile) {
-        layer.type = 'audio';
-        layer.thumbUrl = '';
-        delete layer.layers;
-        delete layer._precompBufferCanvas;
-        // Measure audio duration
         await new Promise((resolve) => {
           const aud = new Audio();
           aud.preload = 'metadata';
           aud.onloadedmetadata = () => {
             if (isFinite(aud.duration) && aud.duration > 0) {
-              layer.mediaDuration = aud.duration;
-              if (!layer.isDurationExplicit) {
-                layer.durationSec = aud.duration;
-                const pps = window.currentPixelsPerSecond || 80;
-                layer.widthPx = Math.round(aud.duration * pps);
-              }
+              mediaDuration = aud.duration;
             }
             resolve();
           };
           aud.onerror = () => resolve();
           aud.src = dataUrl;
         });
-        if (typeof window.getOrLoadLayerMedia === 'function') {
-          const mediaEntry = window.getOrLoadLayerMedia(layer);
-          if (mediaEntry && mediaEntry.el) {
-            mediaEntry.el.src = dataUrl;
-            mediaEntry.el.load();
-          }
-        }
       } else {
-        layer.type = 'image';
-        layer.thumbUrl = dataUrl;
+        thumbUrl = dataUrl;
         await new Promise((resolve) => {
           const img = new Image();
           img.onload = () => {
-            layer.mediaWidth = img.naturalWidth || 1280;
-            layer.mediaHeight = img.naturalHeight || 720;
+            mediaWidth = img.naturalWidth || 1280;
+            mediaHeight = img.naturalHeight || 720;
             resolve();
           };
           img.onerror = () => resolve();
@@ -709,20 +865,92 @@
         });
       }
 
-      if (layer.fillType === 'media') {
-        layer.fillMediaUrl = dataUrl;
-        layer.fillMediaName = file.name;
-        layer._fillDirty = true;
-        layer._fillMediaImg = null;
+      // Update all linked layers simultaneously
+      targetLayers.forEach((layer) => {
+        layer.name = file.name || layer.name;
+        layer.dataUrl = dataUrl;
+        layer.mediaId = sharedNewMediaId;
+
+        // Detach old audio/media element if attached
+        if (window.FishAudioEngine) {
+          try {
+            const oldEntry = window.layerMediaCache && (window.layerMediaCache.get(layer.id) || (layer.mediaId && window.layerMediaCache.get(layer.mediaId)));
+            if (oldEntry && oldEntry.el) {
+              window.FishAudioEngine.detachMediaElement(oldEntry.el);
+              if (!oldEntry.el.paused) oldEntry.el.pause();
+            }
+          } catch (_) {}
+        }
+
+        // Clear video / image media cache
+        if (window.layerMediaCache) {
+          window.layerMediaCache.delete(layer.id);
+          if (layer.mediaId) window.layerMediaCache.delete(layer.mediaId);
+        }
+
+        if (isVideoFile) {
+          layer.type = 'video';
+          layer.mediaWidth = mediaWidth;
+          layer.mediaHeight = mediaHeight;
+          if (mediaDuration && !layer.isDurationExplicit) {
+            layer.mediaDuration = mediaDuration;
+          }
+          layer.thumbUrl = thumbUrl;
+        } else if (isAudioFile) {
+          layer.type = 'audio';
+          layer.thumbUrl = '';
+          delete layer.layers;
+          delete layer._precompBufferCanvas;
+          if (mediaDuration) {
+            layer.mediaDuration = mediaDuration;
+            if (!layer.isDurationExplicit) {
+              layer.durationSec = mediaDuration;
+              const pps = window.currentPixelsPerSecond || 80;
+              layer.widthPx = Math.round(mediaDuration * pps);
+            }
+          }
+          if (typeof window.getOrLoadLayerMedia === 'function') {
+            const mediaEntry = window.getOrLoadLayerMedia(layer);
+            if (mediaEntry && mediaEntry.el) {
+              mediaEntry.el.src = dataUrl;
+              mediaEntry.el.load();
+            }
+          }
+        } else {
+          layer.type = 'image';
+          layer.thumbUrl = thumbUrl;
+          layer.mediaWidth = mediaWidth;
+          layer.mediaHeight = mediaHeight;
+        }
+
+        if (layer.fillType === 'media') {
+          layer.fillMediaUrl = dataUrl;
+          layer.fillMediaName = file.name;
+          layer.fillMediaId = sharedNewMediaId;
+          layer._fillDirty = true;
+          layer._fillMediaImg = null;
+        }
+
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(layer);
+        }
+      });
+
+      // Sync slot properties in memory
+      slot.type = isVideoFile ? 'video' : (isAudioFile ? 'audio' : 'image');
+      slot.thumbUrl = thumbUrl || (isAudioFile ? '' : dataUrl);
+      slot.dataUrl = dataUrl;
+      slot.mediaPoolId = sharedNewMediaId;
+      slot.mediaId = sharedNewMediaId;
+      slot.name = file.name;
+      if (mediaDuration && (!slot.occurrences || slot.occurrences.length <= 1)) {
+        slot.durationSec = mediaDuration;
       }
 
-      // Sync slot thumbnail in UI
-      slot.type = layer.type;
-      slot.thumbUrl = layer.thumbUrl || (layer.type === 'audio' ? '' : dataUrl);
-      slot.dataUrl = dataUrl;
-      slot.name = file.name;
-      if (layer.mediaDuration) {
-        slot.durationSec = layer.mediaDuration;
+      if (slot.mediaIds) slot.mediaIds.add(sharedNewMediaId);
+      if (slot.mediaUrls) {
+        slot.mediaUrls.add(dataUrl);
+        if (thumbUrl) slot.mediaUrls.add(thumbUrl);
       }
 
       const activeCard = this._elements.mediaGrid.children[this.activeSlotIndex];
@@ -768,10 +996,48 @@
         }
       }
 
-      // Persist to IndexedDB
-      if (typeof window.invalidatePreviewCacheForLayer === 'function') {
-        window.invalidatePreviewCacheForLayer(layer);
+      // Persist to Media Pool in IndexedDB and in-memory cache
+      let arrayBuffer = null;
+      try {
+        if (file && typeof file.arrayBuffer === 'function') {
+          arrayBuffer = await file.arrayBuffer();
+        }
+      } catch (_) {}
+
+      const mediaItemToSave = {
+        id: sharedNewMediaId,
+        projectId: state.id,
+        name: file.name,
+        type: slot.type,
+        mimeType: file.type || (slot.type === 'video' ? 'video/mp4' : (slot.type === 'audio' ? 'audio/mpeg' : 'image/jpeg')),
+        size: file.size,
+        dataUrl: dataUrl,
+        blob: file,
+        buffer: arrayBuffer,
+        thumbUrl: thumbUrl || (slot.type === 'audio' ? '' : dataUrl),
+        duration: mediaDuration || slot.durationSec || 5,
+        width: mediaWidth || null,
+        height: mediaHeight || null,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (window.FishDatabase && typeof window.FishDatabase.saveMedia === 'function') {
+        try {
+          await window.FishDatabase.saveMedia(mediaItemToSave);
+        } catch (saveErr) {
+          console.warn('[TemplateEditor] FishDatabase.saveMedia error:', saveErr);
+        }
       }
+      window._activeMediaMap = window._activeMediaMap || new Map();
+      window._activeMediaMap.set(mediaItemToSave.id, mediaItemToSave);
+
+      if (typeof window.refreshProjectMediaGrid === 'function') {
+        try {
+          window.refreshProjectMediaGrid();
+        } catch (_) {}
+      }
+
+      // Persist to IndexedDB
       if (typeof window.saveCurrentProjectLayers === 'function') {
         await window.saveCurrentProjectLayers(true);
       }
@@ -779,6 +1045,11 @@
         try {
           await window.FishDatabase.saveProject(state);
         } catch (_) {}
+      }
+
+      // Sync to editor timeline UI
+      if (typeof window.renderTimelineLayers === 'function') {
+        window.renderTimelineLayers();
       }
 
       // Redraw canvas

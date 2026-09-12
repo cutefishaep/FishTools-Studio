@@ -179,7 +179,7 @@ async function initVersionFetcher() {
     }
   } catch (_) {}
 
-  syncWelcomeVersionTags('0.5.0');
+  syncWelcomeVersionTags('0.5.1');
 }
 
 /**

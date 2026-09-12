@@ -876,7 +876,9 @@
 
       if (layer.type === 'image') {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (layer.dataUrl && !layer.dataUrl.startsWith('blob:')) {
+          img.crossOrigin = 'anonymous';
+        }
         img.onload = () => {
           entry.isReady = true;
           if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -897,7 +899,9 @@
           }
           redrawComposition();
         };
-        img.src = layer.dataUrl || '';
+        if (layer.dataUrl) {
+          img.src = layer.dataUrl;
+        }
         entry.el = img;
       } else if (layer.type === 'video') {
         const video = document.createElement('video');
@@ -926,15 +930,23 @@
         }
 
         video.addEventListener('error', () => {
-          console.error(`[FishVideo:Error] key=${key}`, video.error);
+          console.warn(`[FishVideo:Error] key=${key}`, video.error);
+          if (layer.mediaId && window.FishDatabase && typeof window.FishDatabase.getMedia === 'function') {
+            window.FishDatabase.getMedia(layer.mediaId).then(m => {
+              if (m && m.dataUrl && m.dataUrl !== video.src) {
+                layer.dataUrl = m.dataUrl;
+                video.src = m.dataUrl;
+                video.load();
+              }
+            }).catch(() => {});
+          }
         });
 
         video.onloadedmetadata = () => {
-          if (window.FishAudioEngine && !layer.isMuted) {
+          const hasFx = Array.isArray(layer.audioEffects) && layer.audioEffects.some(fx => !fx.disabled);
+          if (window.FishAudioEngine && !layer.isMuted && hasFx) {
             window.FishAudioEngine.attachMediaElement(video);
-            if (Array.isArray(layer.audioEffects) && layer.audioEffects.length > 0) {
-              window.FishAudioEngine.applyAudioEffects(video, layer.audioEffects);
-            }
+            window.FishAudioEngine.applyAudioEffects(video, layer.audioEffects);
           }
           if (video.videoWidth > 0 && video.videoHeight > 0) {
             layer.mediaWidth = video.videoWidth;
@@ -1057,11 +1069,10 @@
         audio.preload = 'auto';
 
         audio.onloadedmetadata = () => {
-          if (window.FishAudioEngine && !layer.isMuted) {
+          const hasFx = Array.isArray(layer.audioEffects) && layer.audioEffects.some(fx => !fx.disabled);
+          if (window.FishAudioEngine && !layer.isMuted && hasFx) {
             window.FishAudioEngine.attachMediaElement(audio);
-            if (Array.isArray(layer.audioEffects) && layer.audioEffects.length > 0) {
-              window.FishAudioEngine.applyAudioEffects(audio, layer.audioEffects);
-            }
+            window.FishAudioEngine.applyAudioEffects(audio, layer.audioEffects);
           }
           if (isFinite(audio.duration) && audio.duration > 0) {
             layer.mediaDuration = audio.duration;
@@ -1078,6 +1089,34 @@
           entry.isReady = true;
         };
 
+        audio.onseeked = () => {
+          entry.isReady = true;
+          if (!window.isTimelinePlaying && audio._pendingScrubTime !== null && audio._pendingScrubTime !== undefined) {
+            const nextTime = audio._pendingScrubTime;
+            audio._pendingScrubTime = null;
+            const maxSeek = (audio.duration && !isNaN(audio.duration) && audio.duration > 0)
+              ? Math.max(0, audio.duration - 0.01)
+              : Infinity;
+            const targetSeek = Math.min(nextTime, maxSeek);
+            if (Math.abs(audio.currentTime - targetSeek) > 0.03) {
+              try { audio.currentTime = targetSeek; } catch (_) {}
+            }
+          }
+        };
+
+        audio.onerror = (e) => {
+          console.warn('[Editor] Audio load error for layer:', layer.id, e);
+          if (layer.mediaId && window.FishDatabase && typeof window.FishDatabase.getMedia === 'function') {
+            window.FishDatabase.getMedia(layer.mediaId).then(m => {
+              if (m && m.dataUrl && m.dataUrl !== audio.src) {
+                layer.dataUrl = m.dataUrl;
+                audio.src = m.dataUrl;
+                audio.load();
+              }
+            }).catch(() => {});
+          }
+        };
+
         if (layer.dataUrl) {
           audio.src = layer.dataUrl;
           audio.load();
@@ -1085,13 +1124,14 @@
         entry.el = audio;
       }
 
-      // Fallback async hydration if layer.dataUrl is missing but layer.mediaId exists
-      if (!layer.dataUrl && layer.mediaId && window.FishDatabase && currentProjectState.id) {
+      // Fallback async hydration if layer.dataUrl is missing or dead blob URL
+      const isDeadBlob = layer.dataUrl && typeof layer.dataUrl === 'string' && layer.dataUrl.startsWith('blob:') && !(window._activeMediaMap && window._activeMediaMap.has(layer.mediaId));
+      if ((!layer.dataUrl || isDeadBlob) && layer.mediaId && window.FishDatabase && currentProjectState.id) {
         window.FishDatabase.getProjectMedia(currentProjectState.id).then(medias => {
           const m = (medias || []).find(item => item.id === layer.mediaId);
           if (m && m.dataUrl) {
             layer.dataUrl = m.dataUrl;
-            if (entry.el) {
+            if (entry.el && entry.el.src !== m.dataUrl) {
               entry.el.src = m.dataUrl;
               if (typeof entry.el.load === 'function') entry.el.load();
             }
@@ -15690,23 +15730,40 @@
                 if (m) l.mediaId = m.id;
               }
               if (m) {
-                if (m.dataUrl && !m.dataUrl.startsWith('blob:')) {
+                if (!m.dataUrl && m.buffer) {
+                  try {
+                    m.blob = new Blob([m.buffer], { type: m.mimeType || '' });
+                    m.dataUrl = URL.createObjectURL(m.blob);
+                  } catch (_) {}
+                }
+                if (m.dataUrl) {
                   l.dataUrl = m.dataUrl;
                 } else if (m.blob) {
                   try { l.dataUrl = URL.createObjectURL(m.blob); } catch (_) {}
-                } else if (m.dataUrl) {
-                  l.dataUrl = m.dataUrl;
                 }
-                if (m.thumbUrl && !m.thumbUrl.startsWith('blob:')) {
+                if (m.thumbUrl) {
                   l.thumbUrl = m.thumbUrl;
                 } else if (m.thumbBlob) {
                   try { l.thumbUrl = URL.createObjectURL(m.thumbBlob); } catch (_) {}
-                } else if (m.thumbUrl) {
-                  l.thumbUrl = m.thumbUrl;
+                } else if (m.thumbBuffer) {
+                  try {
+                    m.thumbBlob = new Blob([m.thumbBuffer], { type: 'image/jpeg' });
+                    l.thumbUrl = URL.createObjectURL(m.thumbBlob);
+                  } catch (_) {}
                 }
                 if (!l.mediaDuration && m.duration) l.mediaDuration = m.duration;
                 if (!l.mediaWidth && m.width) l.mediaWidth = m.width;
                 if (!l.mediaHeight && m.height) l.mediaHeight = m.height;
+
+                // Sync with any media element already mounted in layerMediaCache
+                const cacheKey = l.type === 'video' ? l.id : (l.mediaId || l.id);
+                if (layerMediaCache && layerMediaCache.has(cacheKey)) {
+                  const entry = layerMediaCache.get(cacheKey);
+                  if (entry && entry.el && l.dataUrl && entry.el.src !== l.dataUrl) {
+                    entry.el.src = l.dataUrl;
+                    if (typeof entry.el.load === 'function') entry.el.load();
+                  }
+                }
               }
               if (l.type === 'precomp' && m && Array.isArray(m.layers)) {
                 if (!Array.isArray(l.layers) || l.layers.length === 0) {
@@ -16046,10 +16103,11 @@
         let blobUrl = null;
         let timeoutTimer = null;
 
-        if (file) {
+        // Use dataUrl if already provided to prevent duplicate blob URL collisions in Safari
+        if (!dataUrl && file) {
           try { blobUrl = URL.createObjectURL(file); } catch (_) {}
         }
-        const src = blobUrl || dataUrl;
+        const src = dataUrl || blobUrl;
         if (!src) {
           resolve({ duration: detectedDuration, fps: detectedFps, width: 0, height: 0, thumbUrl: '' });
           return;
@@ -16058,18 +16116,24 @@
         const video = document.createElement('video');
         video.muted = true;
         video.playsInline = true;
-        video.preload = 'auto';
+        video.preload = 'metadata';
         video.style.cssText = 'position:fixed;bottom:0;right:0;width:16px;height:16px;opacity:0.001;pointer-events:none;z-index:-9999;';
         const mountPool = document.getElementById('editor-video-mount-pool') || document.body;
         mountPool.appendChild(video);
 
         function cleanup() {
           if (timeoutTimer) clearTimeout(timeoutTimer);
-          if (blobUrl) {
-            try { URL.revokeObjectURL(blobUrl); } catch (_) {}
-          }
+          try {
+            video.pause();
+            video.src = '';
+          } catch (_) {}
           if (video.parentNode) {
             try { video.parentNode.removeChild(video); } catch (_) {}
+          }
+          if (blobUrl) {
+            setTimeout(() => {
+              try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+            }, 10000);
           }
         }
 
@@ -16386,7 +16450,13 @@
               try { captureCtx.close(); } catch (_) {}
             }
           } finally {
-            URL.revokeObjectURL(blobUrl);
+            try {
+              videoEl.pause();
+              videoEl.src = '';
+            } catch (_) {}
+            setTimeout(() => {
+              try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+            }, 10000);
           }
         } catch (captureErr) {
           console.warn('[decodeAudioFromBlob] MediaRecorder capture failed:', captureErr);
@@ -16436,6 +16506,7 @@
             mimeType: 'audio/mp3',
             size: mp3Blob.size || mp3DataUrl.length,
             dataUrl: mp3DataUrl,
+            blob: mp3Blob,
             thumbUrl: '',
             duration: audioDur,
             createdAt: new Date().toISOString()
@@ -16498,6 +16569,20 @@
         } catch (e) {
           mediaItems = [];
         }
+
+        window._activeMediaMap = window._activeMediaMap || new Map();
+        // Hydrate or merge in-memory session media items so live dataUrls are never lost
+        mediaItems.forEach(item => {
+          if ((!item.dataUrl || item.dataUrl.startsWith('blob:')) && window._activeMediaMap.has(item.id)) {
+            const cached = window._activeMediaMap.get(item.id);
+            if (cached && cached.dataUrl) item.dataUrl = cached.dataUrl;
+          }
+        });
+        window._activeMediaMap.forEach(item => {
+          if (item && item.projectId === projectId && !mediaItems.some(m => m.id === item.id)) {
+            mediaItems.push(item);
+          }
+        });
 
         // Remove existing media item tiles
         gridEl.querySelectorAll('.media-item-tile').forEach(el => el.remove());
@@ -16680,9 +16765,19 @@
       }
       mediaPoolInitialized = true;
 
-      // 2. Keyboard accessibility on import label (+ box)
+      // 2. Click & Keyboard accessibility on import box
+      importBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
       importBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           fileInput.click();
         }
@@ -16738,7 +16833,7 @@
           try {
             let dataUrl = '';
             let blob = file;
-            if (mediaType === 'video') {
+            if (mediaType === 'video' || mediaType === 'audio') {
               blob = file;
               dataUrl = URL.createObjectURL(file);
             } else if (file.size > 8 * 1024 * 1024) {
@@ -16781,17 +16876,27 @@
               } catch (_) {}
             } else if (mediaType === 'audio') {
               try {
-                const a = new Audio(dataUrl);
+                const a = new Audio();
+                a.preload = 'metadata';
+                a.src = dataUrl;
                 await new Promise(r => {
-                  a.onloadedmetadata = r;
-                  a.onerror = r;
-                  setTimeout(r, 600);
+                  a.onloadedmetadata = () => r();
+                  a.onerror = () => r();
+                  setTimeout(r, 1200);
                 });
                 if (isFinite(a.duration) && a.duration > 0) {
                   dur = a.duration;
                 }
+                // Do not clear a.src = '' as it causes WebKitBlobResource error 1 in Safari
               } catch (_) {}
             }
+
+            let arrayBuffer = null;
+            try {
+              if (file && typeof file.arrayBuffer === 'function') {
+                arrayBuffer = await file.arrayBuffer();
+              }
+            } catch (_) {}
 
             const mediaItem = {
               id: 'med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + i,
@@ -16802,6 +16907,7 @@
               size: file.size,
               dataUrl: dataUrl,
               blob: blob || file,
+              buffer: arrayBuffer,
               thumbUrl: thumbUrl,
               duration: dur,
               fps: detectedFps || null,
@@ -16811,8 +16917,14 @@
             };
 
             if (window.FishDatabase) {
-              await window.FishDatabase.saveMedia(mediaItem);
+              try {
+                await window.FishDatabase.saveMedia(mediaItem);
+              } catch (saveErr) {
+                console.warn('[MediaPool] FishDatabase.saveMedia error, using session memory:', saveErr);
+              }
             }
+            window._activeMediaMap = window._activeMediaMap || new Map();
+            window._activeMediaMap.set(mediaItem.id, mediaItem);
             addedItems.push(mediaItem);
           } catch (err) {
             console.error('Failed reading media file:', err);
@@ -16822,7 +16934,7 @@
         // Render newly imported tiles into media pool grid
         await renderMediaGrid();
 
-        // If dropped directly onto Timeline or Canvas, auto-add layers immediately
+        // If dropped directly onto Timeline or Canvas, or imported via picker, auto-add layers immediately
         if (autoAddToTimeline && addedItems.length > 0 && typeof window.addOrSelectMediaLayer === 'function') {
           addedItems.forEach(item => window.addOrSelectMediaLayer(item));
         }
@@ -16838,67 +16950,219 @@
         });
       }
 
-      fileInput.addEventListener('change', () => {
-        if (fileInput.files && fileInput.files.length > 0) {
-          handleFiles(fileInput.files);
-          fileInput.value = ''; // Reset for re-selection
+      function isVideoFile(file) {
+        if (!file) return false;
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const mime = (file.type || '').toLowerCase();
+        return ['mp4', 'mov', 'webm', 'mkv'].includes(ext) || mime.startsWith('video/');
+      }
+
+      async function convertVideoFileToAudioItem(file, projectId) {
+        if (!file) return null;
+        if (typeof showEffectsRackToast === 'function') {
+          showEffectsRackToast('Mengonversi video ke MP3...');
         }
-      });
+        try {
+          const decodedBuffer = await decodeAudioFromBlob(file);
+          if (!decodedBuffer || decodedBuffer.numberOfChannels === 0) {
+            if (typeof showEffectsRackToast === 'function') {
+              showEffectsRackToast('Video tidak memiliki track audio.');
+            }
+            return null;
+          }
 
-      // 4. Drag and drop file support on + box, Timeline Viewport, and Canvas
-      ['dragenter', 'dragover'].forEach(name => {
-        importBtn.addEventListener(name, (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          importBtn.classList.add('is-dragover');
-        });
-      });
+          const mp3Blob = await audioBufferToMp3(decodedBuffer, 192);
+          const dataUrl = URL.createObjectURL(mp3Blob);
+          const cleanBaseName = (file.name || 'Video').replace(/\.[^/.]+$/, '');
+          const audioItemName = cleanBaseName + ' (Audio).mp3';
+          const audioDur = decodedBuffer.duration || 5;
 
-      ['dragleave', 'dragend', 'drop'].forEach(name => {
-        importBtn.addEventListener(name, (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          importBtn.classList.remove('is-dragover');
-        });
-      });
+          const audioMediaItem = {
+            id: 'med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            projectId: projectId,
+            name: audioItemName,
+            type: 'audio',
+            mimeType: 'audio/mp3',
+            size: mp3Blob.size,
+            dataUrl: dataUrl,
+            blob: mp3Blob,
+            thumbUrl: '',
+            duration: audioDur,
+            createdAt: new Date().toISOString()
+          };
 
-      importBtn.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        importBtn.classList.remove('is-dragover');
-        if (e.dataTransfer && e.dataTransfer.files) {
-          handleFiles(e.dataTransfer.files);
+          if (window.FishDatabase) {
+            try {
+              await window.FishDatabase.saveMedia(audioMediaItem);
+            } catch (_) {}
+          }
+          window._activeMediaMap = window._activeMediaMap || new Map();
+          window._activeMediaMap.set(audioMediaItem.id, audioMediaItem);
+
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Audio berhasil dikonversi ke MP3');
+          }
+          return audioMediaItem;
+        } catch (err) {
+          console.error('[MediaPool] Failed to convert video file to audio:', err);
+          if (typeof showEffectsRackToast === 'function') {
+            showEffectsRackToast('Gagal mengonversi audio.');
+          }
+          return null;
         }
-      });
+      }
 
-      // Drag & drop onto Timeline Viewport and Canvas Container
-      const timelineVp = document.getElementById('timeline-layers-viewport');
-      const canvasCont = document.getElementById('canvas-container');
-      [timelineVp, canvasCont].forEach(target => {
-        if (!target) return;
-        ['dragenter', 'dragover'].forEach(name => {
-          target.addEventListener(name, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            target.classList.add('is-dragover');
+      async function handleDropFilesWithAction(filesArr, action, autoAddToTimeline = false) {
+        if (!filesArr || filesArr.length === 0) return;
+        const projectId = currentProjectState.id || 'default_project';
+
+        if (action === 'convert-mp3') {
+          const addedItems = [];
+          for (const file of filesArr) {
+            if (isVideoFile(file)) {
+              const audioItem = await convertVideoFileToAudioItem(file, projectId);
+              if (audioItem) {
+                addedItems.push(audioItem);
+              } else {
+                const imported = await handleFiles([file], false);
+                if (imported && imported.length > 0) addedItems.push(...imported);
+              }
+            } else {
+              const imported = await handleFiles([file], false);
+              if (imported && imported.length > 0) addedItems.push(...imported);
+            }
+          }
+
+          await renderMediaGrid();
+          if (autoAddToTimeline && addedItems.length > 0 && typeof window.addOrSelectMediaLayer === 'function') {
+            addedItems.forEach(item => window.addOrSelectMediaLayer(item));
+          }
+          return;
+        }
+
+        // action === 'import-video' or default
+        await handleFiles(filesArr, autoAddToTimeline);
+      }
+
+      function setupSplitDropzone(containerEl, overlayEl, autoAddToTimeline) {
+        if (!containerEl || !overlayEl) return;
+
+        let dragDepth = 0;
+        let activeHoverCol = null;
+
+        const cols = overlayEl.querySelectorAll('.media-dropzone-col');
+
+        function updateHoverState(clientX, clientY) {
+          cols.forEach(col => {
+            const rect = col.getBoundingClientRect();
+            if (
+              clientX >= rect.left &&
+              clientX <= rect.right &&
+              clientY >= rect.top &&
+              clientY <= rect.bottom
+            ) {
+              col.classList.add('is-hover');
+              activeHoverCol = col;
+            } else {
+              col.classList.remove('is-hover');
+            }
           });
-        });
-        ['dragleave', 'dragend'].forEach(name => {
-          target.addEventListener(name, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            target.classList.remove('is-dragover');
-          });
-        });
-        target.addEventListener('drop', async (e) => {
+        }
+
+        function clearHoverState() {
+          cols.forEach(col => col.classList.remove('is-hover'));
+          activeHoverCol = null;
+        }
+
+        function hideOverlay() {
+          dragDepth = 0;
+          clearHoverState();
+          overlayEl.classList.remove('is-active');
+        }
+
+        containerEl.addEventListener('dragenter', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          target.classList.remove('is-dragover');
-          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            await handleFiles(e.dataTransfer.files, true);
+          dragDepth++;
+          overlayEl.classList.add('is-active');
+          updateHoverState(e.clientX, e.clientY);
+        });
+
+        containerEl.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+          }
+          overlayEl.classList.add('is-active');
+          updateHoverState(e.clientX, e.clientY);
+        });
+
+        containerEl.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragDepth--;
+          if (dragDepth <= 0) {
+            hideOverlay();
           }
         });
+
+        containerEl.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const targetCol = activeHoverCol || e.target.closest('.media-dropzone-col');
+          const chosenAction = targetCol ? (targetCol.getAttribute('data-drop-action') || 'import-video') : 'import-video';
+
+          hideOverlay();
+
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const droppedFiles = Array.from(e.dataTransfer.files);
+            await handleDropFilesWithAction(droppedFiles, chosenAction, autoAddToTimeline);
+          }
+        });
+
+        window.addEventListener('dragend', hideOverlay);
+        window.addEventListener('drop', hideOverlay);
+        window.addEventListener('pointerdown', hideOverlay);
+        window.addEventListener('dragleave', (e) => {
+          if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+            hideOverlay();
+          }
+        });
+      }
+
+      fileInput.addEventListener('change', async () => {
+        if (fileInput.files && fileInput.files.length > 0) {
+          const filesToProcess = Array.from(fileInput.files);
+          try {
+            await handleDropFilesWithAction(filesToProcess, 'import-video', false);
+          } catch (err) {
+            console.error('[MediaPool] Error importing files:', err);
+          } finally {
+            try { fileInput.value = ''; } catch (_) {}
+          }
+        }
       });
+
+      // 4. Attach Split Dropzones
+      const mediaPoolEl = document.getElementById('add-layer-media-pool');
+      const mediaPoolOverlay = document.getElementById('media-pool-dropzone-split');
+      if (mediaPoolEl && mediaPoolOverlay) {
+        setupSplitDropzone(mediaPoolEl, mediaPoolOverlay, false);
+      }
+
+      const timelineVp = document.getElementById('timeline-layers-viewport');
+      const timelineOverlay = document.getElementById('timeline-dropzone-split');
+      if (timelineVp && timelineOverlay) {
+        setupSplitDropzone(timelineVp, timelineOverlay, true);
+      }
+
+      const canvasContainer = document.getElementById('editor-preview-container');
+      const canvasOverlay = document.getElementById('canvas-dropzone-split');
+      if (canvasContainer && canvasOverlay) {
+        setupSplitDropzone(canvasContainer, canvasOverlay, true);
+      }
 
       // 5. Re-render media grid when the drawer is opened or tab changes to media
       const addFab = document.getElementById('timeline-btn-add');
@@ -17607,6 +17871,20 @@
         }
       }
 
+      let _parkAudioTimer = null;
+      function scheduleParkAudio(sec) {
+        if (isPlaying) return;
+        if (_parkAudioTimer) clearTimeout(_parkAudioTimer);
+        _parkAudioTimer = setTimeout(() => {
+          _parkAudioTimer = null;
+          if (isPlaying) return;
+          if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function') {
+            const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+            window.FishAudioEngine.parkPlayback(currentProjectState.layers || [], sec, pps);
+          }
+        }, 50);
+      }
+
       function updateTimelinePosition(newPanX, immediate = false) {
         const bounds = getTimelineBounds();
         panX = Math.max(bounds.min, Math.min(bounds.max, newPanX));
@@ -17618,6 +17896,9 @@
           renderTimeline();
         } else {
           scheduleRender();
+        }
+        if (!isPlaying) {
+          scheduleParkAudio(curSec);
         }
         if (typeof updateGraphEditorUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'graph') {
           updateGraphEditorUI();
@@ -17670,6 +17951,9 @@
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
         const targetPanX = - (sec * pps);
         updateTimelinePosition(targetPanX, immediate);
+        if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function' && !isPlaying) {
+          window.FishAudioEngine.parkPlayback(currentProjectState.layers || [], sec, pps);
+        }
         if (typeof updateTimeBadgeBeatmarkState === 'function') {
           updateTimeBadgeBeatmarkState();
         }
@@ -18157,6 +18441,7 @@
 
       function pausePlayback() {
         if (!isPlaying) return;
+        const curSecAtPause = Math.max(0, -panX / pixelsPerSecond);
         isPlaying = false;
         window.isTimelinePlaying = false;
         updatePlayButtonUI();
@@ -18173,6 +18458,11 @@
           if (layer.type === 'video' || layer.type === 'audio') {
             const media = getOrLoadLayerMedia(layer);
             if (media && media.el) {
+              media.el._pauseTime = media.el.currentTime;
+              media.el._lastPlaybackStopTime = media.el.currentTime;
+              media.el._lastMasterSec = null;
+              media.el._lastReportedTime = undefined;
+              media.el._lastAdvanceWallTime = undefined;
               if (!media.el.paused) {
                 try { media.el.pause(); } catch (_) {}
               }
@@ -18523,6 +18813,9 @@
             }
           }
         });
+        if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function' && !isPlaying) {
+          window.FishAudioEngine.parkPlayback(layers, curSec, pixelsPerSecond);
+        }
         redrawComposition('scrubEnd');
 
         // Stationary tap on empty timeline space (not a drag scrub): deselect active layer
@@ -18656,13 +18949,30 @@
         const effectiveDeltaSec = Math.min(0.25, rawDeltaSec) * playbackSpeed;
         let nextSec = currentSec + effectiveDeltaSec;
 
+        let masterSecVal = null;
+        let driftVal = null;
         if (window.FishAudioEngine && _playTickCount > 3 && playbackSpeed === 1.0) {
           const masterSec = window.FishAudioEngine.getMasterAudioTime(layers, currentSec, pixelsPerSecond);
+          masterSecVal = masterSec;
           if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec >= 0) {
-            // Master Audio Clock: Visual timeline tracks hardware audio clock directly at 1.0x
-            nextSec = Math.max(currentSec, masterSec);
+            const drift = masterSec - nextSec;
+            driftVal = drift;
+            // Smooth clock slewing: strictly monotonic forward motion.
+            // NEVER subtract or pull backwards!
+            if (drift >= 0.035) {
+              // Master audio ahead (> 35ms): catch up smoothly
+              nextSec += Math.min(effectiveDeltaSec * 0.35, drift * 0.25);
+            } else if (drift < -0.045 && drift > -0.80) {
+              // Master audio behind (> 45ms, e.g. startup delay): advance timeline at 85% pace so audio naturally catches up
+              nextSec = currentSec + (effectiveDeltaSec * 0.85);
+            } else {
+              // Tightly synchronized within [-45ms, +35ms] deadband: advance at 100% wall-clock pace (zero judder)
+              nextSec = currentSec + effectiveDeltaSec;
+            }
           }
         }
+        // Strict invariant: timeline playhead MUST ALWAYS advance forward monotonically (never freeze or jitter backwards)
+        nextSec = Math.max(currentSec + (effectiveDeltaSec * 0.5), nextSec);
 
         let nextPan = -(nextSec * pixelsPerSecond);
         if (nextPan <= bounds.min) {
@@ -18784,6 +19094,14 @@
             });
             lastTime = 0;
             _playTickCount = 0;
+            // Synchronously prime audio playback inside direct user activation gesture
+            const startSec = Math.max(0, -panX / pixelsPerSecond);
+            const initialPlaybackSpeed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
+              ? window.timelinePlaybackSpeed
+              : 1.0;
+            if (window.FishAudioEngine) {
+              window.FishAudioEngine.syncPlayback(layers, startSec, pixelsPerSecond, initialPlaybackSpeed);
+            }
             playAnimationId = requestAnimationFrame(stepPlay);
           }
         });
@@ -21319,6 +21637,7 @@
             mimeType: 'audio/mp3',
             size: mp3Blob.size || mp3DataUrl.length,
             dataUrl: mp3DataUrl,
+            blob: mp3Blob,
             thumbUrl: '',
             duration: audioDur,
             createdAt: new Date().toISOString()

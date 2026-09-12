@@ -210,11 +210,195 @@
 
 /* Bottom: Media Pool Container & Grid */
 .add-layer-media-pool {
+  position: relative;
   width: 100%;
   min-height: 84px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Split Dual Dropzone Overlay (.media-dropzone-split)
+   Appears during dragover on Timeline, Media Pool, and Canvas
+   Column 1: Convert to MP3
+   Column 2: Import Saja (Video/File)
+   Strictly flat & high contrast, Cal Sans typography, theme tokens
+   ========================================================================== */
+.media-dropzone-split {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+  background-color: var(--bg-dashboard);
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  user-select: none;
+}
+
+.media-dropzone-split.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.media-dropzone-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-panel);
+  border: 2px dashed var(--border-subtle);
+  border-radius: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  cursor: copy;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  color: var(--text-primary);
+}
+
+.media-dropzone-divider {
+  width: 1px;
+  background-color: var(--border-subtle);
+  align-self: stretch;
+  margin: 4px 0;
+  flex-shrink: 0;
+}
+
+.media-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  pointer-events: none;
+  width: 100%;
+}
+
+.media-dropzone-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.media-dropzone-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+  display: block;
+}
+
+.media-dropzone-title {
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  transition: color 0.15s ease;
+}
+
+.media-dropzone-desc {
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.media-dropzone-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background-color: var(--bg-dashboard);
+  color: var(--color-primary);
+  border: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Simultaneous Foreground Adaptation on Hover */
+.media-dropzone-col:hover,
+.media-dropzone-col.is-hover {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.media-dropzone-col:hover .media-dropzone-icon,
+.media-dropzone-col.is-hover .media-dropzone-icon {
+  color: var(--bg-canvas);
+  transform: scale(1.08);
+}
+
+.media-dropzone-col:hover .media-dropzone-title,
+.media-dropzone-col.is-hover .media-dropzone-title {
+  color: var(--bg-canvas);
+}
+
+.media-dropzone-col:hover .media-dropzone-desc,
+.media-dropzone-col.is-hover .media-dropzone-desc {
+  color: var(--bg-canvas);
+  opacity: 0.9;
+}
+
+.media-dropzone-col:hover .media-dropzone-badge,
+.media-dropzone-col.is-hover .media-dropzone-badge {
+  background-color: var(--bg-canvas);
+  color: var(--color-primary);
+  border-color: var(--bg-canvas);
+}
+
+/* Compact layout for small dropzone heights (such as in drawer media pool) */
+.add-layer-media-pool .media-dropzone-split {
+  border-radius: 12px;
+}
+
+.add-layer-media-pool .media-dropzone-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.add-layer-media-pool .media-dropzone-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.add-layer-media-pool .media-dropzone-title {
+  font-size: 12px;
+}
+
+.add-layer-media-pool .media-dropzone-desc {
+  font-size: 10px;
+}
+
+@media (max-width: 480px) {
+  .media-dropzone-split {
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+  }
+  .media-dropzone-divider {
+    display: none;
+  }
+  .media-dropzone-col {
+    padding: 8px;
+  }
 }
 
 .drawer-media-grid {
@@ -239,6 +423,7 @@
   justify-content: center;
   cursor: pointer;
   outline: none;
+  font: inherit;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
   padding: 0;
@@ -264,6 +449,7 @@
   height: 26px;
   display: block;
   fill: currentColor;
+  pointer-events: none;
   transition: transform 0.15s ease;
 }
 

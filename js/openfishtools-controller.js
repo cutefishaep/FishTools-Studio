@@ -3103,7 +3103,7 @@
         break;
 
       default:
-        console.log('[OpenFishTools] Unhandled tool:', tool, args);
+        break;
     }
   }
 

@@ -65,7 +65,6 @@
       const { type, id, mediaId, bitmap, timeSec } = data;
 
       if (type === 'init_ok') {
-        console.log(`%c[FishWebCodecs:Ready] mediaId=${mediaId} | ${data.width}x${data.height} | dur=${data.duration.toFixed(2)}s`, 'color: #8ce135; font-weight: bold;');
         const streamInfo = this.streams.get(mediaId);
         if (streamInfo) {
           streamInfo.ready = true;
@@ -133,7 +132,6 @@
             oldEntry.bitmap.close();
           }
           this.frameCache.delete(oldestKey);
-          console.log(`[FishWebCodecs:CachePrune] Pruned ${oldestKey} (cap: ${this.maxCacheSize})`);
         }
       }
 
@@ -159,8 +157,6 @@
       if (this.streams.has(mediaId) && this.streams.get(mediaId).ready) {
         return true;
       }
-
-      console.log(`%c[FishWebCodecs:LoadStart] mediaId=${mediaId}`, 'color: #e5a700; font-weight: bold;');
 
       try {
         let arrayBuffer;
@@ -193,8 +189,6 @@
           console.warn(`[FishWebCodecs:LoadFail] Empty array buffer for mediaId=${mediaId}`);
           return false;
         }
-
-        console.log(`[FishWebCodecs:BufferReady] mediaId=${mediaId} size=${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
 
         return new Promise((resolve, reject) => {
           const streamInfo = {

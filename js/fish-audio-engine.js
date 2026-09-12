@@ -12,6 +12,7 @@
       this.ctx = null;
       this.masterGain = null;
       this.sources = new Map(); // HTMLMediaElement -> { sourceNode, gainNode, fxInputNode, fxOutputNode, activeFxChains, currentStructureKey }
+      this.knownMediaElements = new Set();
       this.pendingMediaElements = new Set();
       this.isScrubbing = false;
       this.isUnlocked = false;
@@ -225,6 +226,7 @@
 
     attachMediaElement(mediaEl) {
       if (!mediaEl) return;
+      this.knownMediaElements.add(mediaEl);
       if (!this.isUnlocked) {
         this.pendingMediaElements.add(mediaEl);
         return;
@@ -265,6 +267,7 @@
     }
 
     detachMediaElement(mediaEl) {
+      this.knownMediaElements.delete(mediaEl);
       const entry = this.sources.get(mediaEl);
       if (entry) {
         try {
@@ -281,11 +284,17 @@
     }
 
     applyAudioEffects(mediaEl, audioEffects) {
-      const entry = this.sources.get(mediaEl);
-      if (!entry || !this.ctx || !entry.fxInputNode || !entry.fxOutputNode) return;
-
       const effects = Array.isArray(audioEffects) ? audioEffects : [];
       const enabledEffects = effects.filter(fx => !fx.disabled);
+      if (enabledEffects.length === 0 && !this.sources.has(mediaEl)) {
+        return;
+      }
+      if (!this.sources.has(mediaEl)) {
+        this.attachMediaElement(mediaEl);
+      }
+
+      const entry = this.sources.get(mediaEl);
+      if (!entry || !this.ctx || !entry.fxInputNode || !entry.fxOutputNode) return;
 
       const structureKey = enabledEffects.map(fx => `${fx.id}:${fx.type}`).join('|');
 
@@ -335,6 +344,9 @@
 
     setElementGain(mediaEl, gain) {
       if (!mediaEl) return;
+      if (mediaEl._suppressAudioUntil && Date.now() < mediaEl._suppressAudioUntil) {
+        gain = 0;
+      }
       const targetGain = Math.max(0, Math.min(2, typeof gain === 'number' ? gain : 1));
       const entry = this.sources.get(mediaEl);
       if (entry && entry.gainNode && this.ctx) {
@@ -343,7 +355,11 @@
           if (Math.abs(curVal - targetGain) > 0.002) {
             const now = this.ctx.currentTime;
             entry.gainNode.gain.cancelScheduledValues(now);
-            entry.gainNode.gain.setTargetAtTime(targetGain, now, 0.015);
+            if (targetGain === 0) {
+              entry.gainNode.gain.setValueAtTime(0, now);
+            } else {
+              entry.gainNode.gain.setTargetAtTime(targetGain, now, 0.015);
+            }
           }
         } catch (_) {}
       } else {
@@ -432,10 +448,50 @@
         const el = media.el;
         if (el.paused || el.seeking || el.readyState < 2) continue;
 
+        // Skip master audio synchronization if element is suppressing stale audio
+        if (el._suppressAudioUntil && Date.now() < el._suppressAudioUntil + 30) {
+          continue;
+        }
+
+        // Detect if audio element currentTime is stalled using wall-clock time (> 500ms)
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (el._lastReportedTime === undefined || Math.abs(el.currentTime - el._lastReportedTime) >= 0.0005) {
+          el._lastReportedTime = el.currentTime;
+          el._lastAdvanceWallTime = now;
+        } else if (now - (el._lastAdvanceWallTime || now) > 500) {
+          // Audio decoder is truly stalled for > 500ms — do not sync timeline to frozen clock
+          continue;
+        }
+
+        // Interpolate smooth continuous time between discrete browser currentTime ticks
+        // Capped at 40ms to prevent runaway phantom advance during any decoder lag
+        const wallElapsedSec = Math.min(0.040, Math.max(0, (now - (el._lastAdvanceWallTime || now)) / 1000));
+        const interpolatedTime = el._lastReportedTime + (wallElapsedSec * (el.playbackRate || 1.0));
+
         const startSec = item.rootStartSec;
         const endSec = item.rootEndSec;
-        const timeInClip = el.currentTime - (item.sourceOffsetSec || 0);
-        const timelineSec = startSec + timeInClip;
+        const timeInClip = interpolatedTime - (item.sourceOffsetSec || 0);
+
+        // Guard against reporting time before audio element actually begins advancing
+        if ((currentSec - startSec) > 0.03 && timeInClip <= 0.001) {
+          continue;
+        }
+
+        let timelineSec = startSec + timeInClip;
+
+        // Reject master audio sync only on massive jump across timeline (> 1.0s)
+        if (Math.abs(timelineSec - currentSec) > 1.0) {
+          el._lastMasterSec = null;
+          continue;
+        }
+
+        // Master clock invariant: strictly monotonic forward advance during playback
+        if (el._lastMasterSec !== undefined && el._lastMasterSec !== null) {
+          if (timelineSec < el._lastMasterSec) {
+            timelineSec = el._lastMasterSec;
+          }
+        }
+        el._lastMasterSec = timelineSec;
 
         if (timelineSec >= startSec - 0.2 && timelineSec <= endSec + 0.3) {
           return timelineSec;
@@ -465,6 +521,7 @@
         if (!media || !media.el) return;
 
         const el = media.el;
+        this.knownMediaElements.add(el);
         if (isMuted) {
           el.muted = true;
           if (this.sources.has(el)) {
@@ -475,7 +532,13 @@
           }
           return;
         } else {
-          this.attachMediaElement(el);
+          // Only attach to Web Audio API graph if layer has enabled audio effects.
+          // Clean layers play natively to bypass WebKit AudioSourceProviderAVFObjC ring buffer underruns.
+          const hasFx = Array.isArray(layer.audioEffects) && layer.audioEffects.some(fx => !fx.disabled);
+          if (hasFx) {
+            this.attachMediaElement(el);
+            this.applyAudioEffects(el, layer.audioEffects);
+          }
         }
 
         if (currentSec >= rootStartSec && currentSec < rootEndSec) {
@@ -578,7 +641,7 @@
           }
 
           this.setElementGain(el, currentVol);
-          if (layer.audioEffects) {
+          if (Array.isArray(layer.audioEffects) && layer.audioEffects.some(fx => !fx.disabled)) {
             this.applyAudioEffects(el, layer.audioEffects);
           }
 
@@ -597,8 +660,10 @@
             activeElementTargets.set(el, {
               targetTime,
               currentSpeed: finalPlaybackRate,
+              currentVol,
               isFreezeOrReverse,
-              preservePitch: layer.preservePitch !== false
+              preservePitch: layer.preservePitch !== false,
+              isMuted: !!isMuted
             });
           }
         }
@@ -608,7 +673,7 @@
       const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
       activeElementTargets.forEach((info, el) => {
-        const { targetTime, currentSpeed, isFreezeOrReverse, preservePitch } = info;
+        const { targetTime, currentSpeed, currentVol, isFreezeOrReverse, preservePitch, isMuted } = info;
         try {
           // Keep pitch preservation setting constant — never dynamically toggle during playback to avoid loud clicks/pops
           if (el.preservesPitch !== preservePitch) {
@@ -627,49 +692,152 @@
 
         if (el.paused) {
           try {
-            el.currentTime = targetTime;
+            el._lastMasterSec = null;
+            el._lastReportedTime = undefined;
+            el._lastAdvanceWallTime = undefined;
+            // Check if playhead jumped from last playback stop position or target differs from currentTime
+            const hasPositionJump = (el._lastPlaybackStopTime !== undefined && Math.abs(el._lastPlaybackStopTime - targetTime) > 0.08) ||
+                                    (Math.abs((el.currentTime || 0) - targetTime) > 0.04);
+            if (hasPositionJump) {
+              // Safari WebKit CoreAudio Stale Buffer Suppression:
+              // When resuming playback after playhead repositioning, AVPlayer and
+              // WebKit's MediaElementAudioSourceNode output residual samples from
+              // the previous position for up to 200ms.
+              // Suppress output completely in both Web Audio gain graph and native element.
+              const suppressDuration = 220;
+              el._suppressAudioUntil = Date.now() + suppressDuration;
+              el._jumpTarget = targetTime;
+              el.muted = true;
+              this.setElementGain(el, 0);
+
+              try {
+                el.currentTime = targetTime;
+              } catch (_) {}
+
+              const unmute = () => {
+                if (el._unmuteTimer) {
+                  clearTimeout(el._unmuteTimer);
+                  el._unmuteTimer = null;
+                }
+                el._suppressAudioUntil = 0;
+                try {
+                  if (!isMuted) {
+                    el.muted = false;
+                  }
+                } catch (_) {}
+                this.setElementGain(el, currentVol);
+              };
+
+              el._unmute = unmute;
+              el._unmuteTimer = setTimeout(() => {
+                if (!el.paused && el._unmute) {
+                  el._unmute();
+                  el._unmute = null;
+                }
+              }, suppressDuration);
+            }
             el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
             el._lastRateSteerTime = nowMs;
             el._lastSteeredRate = currentSpeed;
             el._baseSpeed = currentSpeed;
+            el._playStartTime = Date.now();
+            el._lastPlaybackStopTime = targetTime;
             el.play().catch(() => {});
           } catch (_) {}
           return;
         }
 
+        // Unmute once audio element has actually begun rendering new samples past the jump target
+        if (el._suppressAudioUntil && el._unmute) {
+          const baseTarget = el._jumpTarget !== undefined ? el._jumpTarget : targetTime;
+          if (Date.now() >= el._suppressAudioUntil || ((el.currentTime || 0) > baseTarget + 0.008)) {
+            el._unmute();
+            el._unmute = null;
+          }
+        }
+
         if (!el.seeking) {
-          // Keep steady playback rate matching desired speed — avoid continuous micro rate steering which introduces resampler distortion
+          // Keep steady playback rate matching desired speed — avoid continuous micro rate steering which triggers 300ms CoreAudio AVPlayer resampler stalls in Safari
           if (Math.abs((el.playbackRate || 1.0) - currentSpeed) > 0.01) {
             try {
               el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
             } catch (_) {}
           }
-          const drift = el.currentTime - targetTime;
+          const drift = (el.currentTime || 0) - targetTime;
           const absDrift = Math.abs(drift);
-          // Hard seek only on massive divergence (e.g. user jumped > 3s across timeline)
-          if (absDrift > 3.0) {
+          // Hard seek only on massive divergence (> 2.5s), throttled to once every 1000ms
+          if (absDrift > 2.5 && (!el._lastHardSeekTime || (nowMs - el._lastHardSeekTime > 1000))) {
             try {
+              el._lastHardSeekTime = nowMs;
+              el._suppressAudioUntil = Date.now() + 250;
+              el.muted = true;
+              this.setElementGain(el, 0);
               el.currentTime = targetTime;
               el.playbackRate = Math.max(0.0625, Math.min(8.0, currentSpeed));
+              setTimeout(() => {
+                if (!el.paused && !isMuted) {
+                  el.muted = false;
+                  this.setElementGain(el, currentVol);
+                }
+              }, 250);
             } catch (_) {}
           }
         }
       });
 
       // Pause elements that have no active layer at currentSec
-      this.sources.forEach((_, el) => {
+      const allKnownElements = new Set([...this.knownMediaElements, ...this.sources.keys()]);
+      allKnownElements.forEach(el => {
         if (!activeElementTargets.has(el) && !el.paused) {
           try {
             el.preservesPitch = true;
             el.playbackRate = 1.0;
+            el._lastPlaybackStopTime = el.currentTime;
+            el._lastMasterSec = null;
+            el._lastReportedTime = undefined;
+            el._lastAdvanceWallTime = undefined;
             el.pause();
           } catch (_) {}
         }
       });
     }
 
+    parkPlayback(layers, currentSec, pixelsPerSecond = 80) {
+      if (!layers || !layers.length) return;
+      const flatItems = this._flattenPlayableLayers(layers, 0, 1.0, false, 1.0, pixelsPerSecond);
+
+      flatItems.forEach(item => {
+        const { layer, rootStartSec, rootEndSec, sourceOffsetSec, effectiveSpeed } = item;
+        const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
+        if (!media || !media.el) return;
+
+        const el = media.el;
+        this.knownMediaElements.add(el);
+        el._lastMasterSec = null;
+        el._lastReportedTime = undefined;
+        el._lastAdvanceWallTime = undefined;
+        if (currentSec >= rootStartSec && currentSec < rootEndSec) {
+          const speed = (effectiveSpeed > 0 ? effectiveSpeed : 1.0);
+          const timeInClip = Math.max(0, (sourceOffsetSec || 0) + (currentSec - rootStartSec) * speed);
+          const maxSeek = (el.duration && !isNaN(el.duration) && el.duration > 0)
+            ? Math.max(0, el.duration - 0.01)
+            : Infinity;
+          const targetSeek = Math.min(timeInClip, maxSeek);
+
+          if (el.seeking) {
+            el._pendingScrubTime = targetSeek;
+          } else if (Math.abs((el.currentTime || 0) - targetSeek) > 0.03) {
+            try {
+              el.currentTime = targetSeek;
+            } catch (_) {}
+          }
+        }
+      });
+    }
+
     pauseAll() {
-      this.sources.forEach((_, el) => {
+      const allElements = new Set([...this.knownMediaElements, ...this.sources.keys()]);
+      allElements.forEach(el => {
         if (el) {
           try {
             el.preservesPitch = true;
@@ -677,6 +845,10 @@
             el._lastRateSteerTime = 0;
             el._lastSteeredRate = 1.0;
             el._baseSpeed = 1.0;
+            el._lastPlaybackStopTime = el.currentTime;
+            el._lastMasterSec = null;
+            el._lastReportedTime = undefined;
+            el._lastAdvanceWallTime = undefined;
             if (!el.paused) el.pause();
           } catch (_) {}
         }

@@ -2217,3 +2217,133 @@
   line-height: 1;
 }
 
+/* ==========================================================================
+   MODULAR VIDEO IMPORT OPTIONS MODAL CARD (.video-import-modal-card)
+   Flat, borderless, zero shadows, high-contrast hover state
+   ========================================================================== */
+.video-import-modal-card {
+  width: 92%;
+  max-width: 440px;
+  background-color: var(--bg-dashboard);
+  border-radius: 16px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.video-import-modal-body {
+  padding: 12px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
+}
+
+.video-import-file-name {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.video-import-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.video-import-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  font-family: var(--font-brand);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.video-import-option-btn:hover {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+.video-import-option-btn:hover .video-import-option-desc {
+  color: var(--bg-canvas);
+  opacity: 0.9;
+}
+
+.video-import-option-btn:hover .video-import-option-badge {
+  background-color: var(--bg-canvas);
+  color: var(--color-primary);
+}
+
+.video-import-option-btn:hover .video-import-option-icon {
+  background-color: var(--bg-canvas);
+  color: var(--color-primary);
+}
+
+.video-import-option-btn:active {
+  transform: scale(0.98);
+}
+
+.video-import-option-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: var(--bg-panel-inner);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.video-import-option-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.video-import-option-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.video-import-option-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  transition: color 0.15s ease;
+}
+
+.video-import-option-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: var(--bg-panel-inner);
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+

@@ -997,7 +997,6 @@ window.FishToolsBridge = (function () {
       return JSON.stringify({ error: false, type: 'info', message: 'Screenshot saved successfully!' });
     }
 
-    console.log('[FishToolsBridge] Tool not yet handled:', toolName, args);
     return 'true';
   }
 

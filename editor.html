@@ -21,6 +21,14 @@
   <link rel="stylesheet" href="css/template-editor.css">
   <link rel="stylesheet" href="css/safari.css">
   <script src="js/sync-height.js"></script>
+  <script>
+    if (!window.DEBUG && !new URLSearchParams(window.location.search).has('debug') && localStorage.getItem('FISH_DEBUG') !== 'true') {
+      window._originalConsole = { log: console.log, debug: console.debug, info: console.info };
+      console.log = () => {};
+      console.debug = () => {};
+      console.info = () => {};
+    }
+  </script>
 </head>
 <body oncontextmenu="return false;" onselectstart="return false;">
 
@@ -186,6 +194,34 @@
       <div class="editor-left-pane">
         <!-- 2. Preview Canvas (Black Box Viewport) -->
         <main class="editor-preview" id="editor-preview-container">
+          <!-- Split Dual Dropzone Overlay for Preview Canvas -->
+          <div class="media-dropzone-split" id="canvas-dropzone-split" aria-hidden="true">
+            <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
+              <div class="media-dropzone-content">
+                <div class="media-dropzone-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                  </svg>
+                </div>
+                <div class="media-dropzone-title">Convert to MP3</div>
+                <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
+                <span class="media-dropzone-badge">MP3</span>
+              </div>
+            </div>
+            <div class="media-dropzone-divider"></div>
+            <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-video">
+              <div class="media-dropzone-content">
+                <div class="media-dropzone-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                  </svg>
+                </div>
+                <div class="media-dropzone-title">Import Video</div>
+                <div class="media-dropzone-desc">Add full video to timeline</div>
+                <span class="media-dropzone-badge">Video</span>
+              </div>
+            </div>
+          </div>
           <div class="preview-canvas-box" id="editor-preview-canvas" role="region" aria-label="Video Preview Canvas">
             <div id="editor-video-mount-pool" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 0;"></div>
             <canvas id="editor-active-canvas" class="editor-active-canvas" style="position: relative; z-index: 1;"></canvas>
@@ -265,6 +301,34 @@
 
           <!-- 3. Bottom Layers Viewport (Isian layer-layer, scrolls vertically) -->
           <div class="timeline-layers-viewport" id="timeline-layers-viewport">
+            <!-- Split Dual Dropzone Overlay for Timeline -->
+            <div class="media-dropzone-split" id="timeline-dropzone-split" aria-hidden="true">
+              <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">Convert to MP3</div>
+                  <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
+                  <span class="media-dropzone-badge">MP3</span>
+                </div>
+              </div>
+              <div class="media-dropzone-divider"></div>
+              <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-video">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">Import Video</div>
+                  <div class="media-dropzone-desc">Add full video to timeline</div>
+                  <span class="media-dropzone-badge">Video</span>
+                </div>
+              </div>
+            </div>
             <!-- Floating Left Lane Heads (Eye Hide/Show & Thumbnail Preview Overlay) -->
             <div class="timeline-lane-heads-overlay" id="timeline-lane-heads-overlay"></div>
             <!-- Floating Right Reorder Pill (Single Floating Handle anchored to Selected Layer) -->
@@ -331,14 +395,42 @@
 
                   <!-- 2. Bottom Media Pool Area -->
                   <div class="add-layer-media-pool" id="add-layer-media-pool">
-                    <input type="file" id="media-file-input" class="media-file-input" multiple accept=".mp4,.mp3,.png,.jpg,.jpeg,video/mp4,audio/mpeg,audio/mp3,image/png,image/jpeg" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; opacity: 0;">
+                    <input type="file" id="media-file-input" class="media-file-input" multiple accept=".mp4,.mov,.webm,.mkv,.mp3,.wav,.ogg,.m4a,.aac,.flac,.png,.jpg,.jpeg,.webp,video/*,audio/*,image/*" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; opacity: 0;">
+                    <!-- Split Dual Dropzone Overlay for Media Pool -->
+                    <div class="media-dropzone-split" id="media-pool-dropzone-split" aria-hidden="true">
+                      <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
+                        <div class="media-dropzone-content">
+                          <div class="media-dropzone-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                            </svg>
+                          </div>
+                          <div class="media-dropzone-title">Convert to MP3</div>
+                          <div class="media-dropzone-desc">Extract audio track to MP3</div>
+                          <span class="media-dropzone-badge">MP3</span>
+                        </div>
+                      </div>
+                      <div class="media-dropzone-divider"></div>
+                      <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-video">
+                        <div class="media-dropzone-content">
+                          <div class="media-dropzone-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                            </svg>
+                          </div>
+                          <div class="media-dropzone-title">Import Video</div>
+                          <div class="media-dropzone-desc">Import video to media pool</div>
+                          <span class="media-dropzone-badge">Video</span>
+                        </div>
+                      </div>
+                    </div>
                     <div class="drawer-media-grid" id="drawer-media-grid">
                       <!-- Square Card with Centered + Icon for Importing Media -->
-                      <label for="media-file-input" class="media-import-box" id="btn-import-media" role="button" tabindex="0" title="Import Media (MP4, MP3, PNG, JPG)" aria-label="Import Media">
+                      <button type="button" class="media-import-box" id="btn-import-media" title="Import Media (MP4, MP3, PNG, JPG)" aria-label="Import Media">
                         <svg class="media-import-plus-icon" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                         </svg>
-                      </label>
+                      </button>
                     </div>
                   </div>
 

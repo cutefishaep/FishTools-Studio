@@ -151,6 +151,21 @@ window.FishDatabase = (function () {
     }
   }
 
+  function stripDeadBlobUrls(proj) {
+    if (!proj) return proj;
+    function cleanLayer(l) {
+      if (!l) return;
+      if (l.dataUrl && typeof l.dataUrl === 'string' && l.dataUrl.startsWith('blob:')) l.dataUrl = '';
+      if (l.thumbUrl && typeof l.thumbUrl === 'string' && l.thumbUrl.startsWith('blob:')) l.thumbUrl = '';
+      if (l.fillMediaUrl && typeof l.fillMediaUrl === 'string' && l.fillMediaUrl.startsWith('blob:')) l.fillMediaUrl = '';
+      if (Array.isArray(l.layers)) l.layers.forEach(cleanLayer);
+    }
+    if (proj.previewUrl && typeof proj.previewUrl === 'string' && proj.previewUrl.startsWith('blob:')) proj.previewUrl = '';
+    if (proj.thumbnail && typeof proj.thumbnail === 'string' && proj.thumbnail.startsWith('blob:')) proj.thumbnail = '';
+    if (Array.isArray(proj.layers)) proj.layers.forEach(cleanLayer);
+    return proj;
+  }
+
   function saveLocalProjects(list) {
     if (!list || !Array.isArray(list)) return;
 
@@ -158,9 +173,9 @@ window.FishDatabase = (function () {
       if (!l) return l;
       var lClone = Object.assign({}, l);
       // Strip all heavy base64 / blob / frame data from localStorage mirror (full data safely stored in IndexedDB)
-      if (lClone.dataUrl && (lClone.dataUrl.startsWith('data:') || lClone.dataUrl.length > 100)) lClone.dataUrl = '';
-      if (lClone.thumbUrl && (lClone.thumbUrl.startsWith('data:') || lClone.thumbUrl.length > 100)) lClone.thumbUrl = '';
-      if (lClone.fillMediaUrl && (lClone.fillMediaUrl.startsWith('data:') || lClone.fillMediaUrl.length > 100)) lClone.fillMediaUrl = '';
+      if (lClone.dataUrl && (lClone.dataUrl.startsWith('blob:') || lClone.dataUrl.startsWith('data:') || lClone.dataUrl.length > 100)) lClone.dataUrl = '';
+      if (lClone.thumbUrl && (lClone.thumbUrl.startsWith('blob:') || lClone.thumbUrl.startsWith('data:') || lClone.thumbUrl.length > 100)) lClone.thumbUrl = '';
+      if (lClone.fillMediaUrl && (lClone.fillMediaUrl.startsWith('blob:') || lClone.fillMediaUrl.startsWith('data:') || lClone.fillMediaUrl.length > 100)) lClone.fillMediaUrl = '';
       if (Array.isArray(lClone.videoFrames)) lClone.videoFrames = [];
       delete lClone._shapeBufferCanvas;
       delete lClone._precompBufferCanvas;
@@ -501,26 +516,26 @@ window.FishDatabase = (function () {
               return;
             }
             if (req.result) {
-              resolve(req.result);
+              resolve(stripDeadBlobUrls(req.result));
             } else {
               var found = getLocalProjects().find(function (p) { return p.id === id; });
-              resolve(found || null);
+              resolve(stripDeadBlobUrls(found) || null);
             }
           };
           req.onerror = function () {
             clearTimeout(safetyTimer);
             var found = getLocalProjects().find(function (p) { return p.id === id; });
-            resolve(found || null);
+            resolve(stripDeadBlobUrls(found) || null);
           };
         } catch (e) {
           clearTimeout(safetyTimer);
           var found = getLocalProjects().find(function (p) { return p.id === id; });
-          resolve(found || null);
+          resolve(stripDeadBlobUrls(found) || null);
         }
       });
     }
     var found = getLocalProjects().find(function (p) { return p.id === id; });
-    return found || null;
+    return stripDeadBlobUrls(found) || null;
   }
 
   /**
@@ -540,6 +555,35 @@ window.FishDatabase = (function () {
     return formatted + ' ' + units[i];
   }
 
+  function prepareProjectForStorage(p) {
+    if (!p) return p;
+    var pClone = Object.assign({}, p);
+    delete pClone.cache;
+    delete pClone.previewCache;
+    delete pClone.renderedFrames;
+    if (pClone.previewUrl && typeof pClone.previewUrl === 'string' && pClone.previewUrl.startsWith('blob:')) pClone.previewUrl = '';
+    if (pClone.thumbnail && typeof pClone.thumbnail === 'string' && pClone.thumbnail.startsWith('blob:')) pClone.thumbnail = '';
+    if (Array.isArray(p.layers)) {
+      pClone.layers = p.layers.map(function (l) {
+        if (!l) return l;
+        var lClone = Object.assign({}, l);
+        if (lClone.dataUrl && typeof lClone.dataUrl === 'string' && lClone.dataUrl.startsWith('blob:')) lClone.dataUrl = '';
+        if (lClone.thumbUrl && typeof lClone.thumbUrl === 'string' && lClone.thumbUrl.startsWith('blob:')) lClone.thumbUrl = '';
+        if (lClone.fillMediaUrl && typeof lClone.fillMediaUrl === 'string' && lClone.fillMediaUrl.startsWith('blob:')) lClone.fillMediaUrl = '';
+        delete lClone._shapeBufferCanvas;
+        delete lClone._precompBufferCanvas;
+        delete lClone._fillBufferCanvas;
+        delete lClone._textBufferCanvas;
+        delete lClone._fillMediaImg;
+        delete lClone._alphaHitCanvas;
+        delete lClone._alphaHitCtx;
+        delete lClone._canvasBounds;
+        return lClone;
+      });
+    }
+    return pClone;
+  }
+
   /**
    * Saves or updates a project object
    * @param {Object} project
@@ -550,17 +594,19 @@ window.FishDatabase = (function () {
     _deletedIds.delete(String(project.id).trim());
     _saveDeletedIds();
     project.updatedAt = new Date().toISOString();
-    delete project.cache;
-    delete project.previewCache;
-    delete project.renderedFrames;
+
+    // Prepare non-mutating copy for persistence (live project retains active blob: in memory)
+    var storageProject = prepareProjectForStorage(project);
 
     // Default or update JSON size if missing or legacy '12 KB'
     if (!project.size || project.size === '12 KB') {
       try {
-        var str = JSON.stringify(project);
+        var str = JSON.stringify(storageProject);
         var b = (typeof Blob !== 'undefined') ? new Blob([str]).size : str.length;
         project.size = formatBytes(b);
         project.sizeBytes = b;
+        storageProject.size = project.size;
+        storageProject.sizeBytes = b;
       } catch (_) {}
     }
 
@@ -568,9 +614,9 @@ window.FishDatabase = (function () {
     var list = getLocalProjects();
     var idx = list.findIndex(function (p) { return p.id === project.id; });
     if (idx >= 0) {
-      list[idx] = project;
+      list[idx] = storageProject;
     } else {
-      list.unshift(project);
+      list.unshift(storageProject);
     }
     saveLocalProjects(list);
 
@@ -584,7 +630,7 @@ window.FishDatabase = (function () {
         try {
           var tx = db.transaction('projects', 'readwrite');
           var store = tx.objectStore('projects');
-          store.put(project);
+          store.put(storageProject);
           tx.oncomplete = function () {
             clearTimeout(safetyTimer);
             window.dispatchEvent(new CustomEvent('fish-db-projects-updated', { detail: { action: 'save', project: project } }));
@@ -1110,6 +1156,36 @@ window.FishDatabase = (function () {
     }
   }
 
+  function hydrateMediaItemBlobs(m) {
+    if (!m) return m;
+    if (m.buffer) {
+      try {
+        m.blob = new Blob([m.buffer], { type: m.mimeType || '' });
+        m.dataUrl = URL.createObjectURL(m.blob);
+      } catch (_) {}
+    } else if (m.blob) {
+      try {
+        m.dataUrl = URL.createObjectURL(m.blob);
+      } catch (_) {}
+    } else if (m.dataUrl && typeof m.dataUrl === 'string' && m.dataUrl.startsWith('blob:')) {
+      m.dataUrl = '';
+    }
+
+    if (m.thumbBuffer) {
+      try {
+        m.thumbBlob = new Blob([m.thumbBuffer], { type: 'image/jpeg' });
+        m.thumbUrl = URL.createObjectURL(m.thumbBlob);
+      } catch (_) {}
+    } else if (m.thumbBlob) {
+      try {
+        m.thumbUrl = URL.createObjectURL(m.thumbBlob);
+      } catch (_) {}
+    } else if (m.thumbUrl && typeof m.thumbUrl === 'string' && m.thumbUrl.startsWith('blob:')) {
+      m.thumbUrl = '';
+    }
+    return m;
+  }
+
   /**
    * Saves a media item into IndexedDB with localStorage fallback
    * @param {Object} mediaItem { id, projectId, name, type, mimeType, size, dataUrl, createdAt }
@@ -1118,25 +1194,91 @@ window.FishDatabase = (function () {
     if (!mediaItem || !mediaItem.id || !mediaItem.projectId) return null;
     mediaItem.createdAt = mediaItem.createdAt || new Date().toISOString();
 
+    // 1. Convert binary blobs to ArrayBuffer for durable storage across reloads.
+    // Safari WebKit has a critical bug where Blobs stored directly in IndexedDB
+    // become detached/corrupted upon page reload, causing WebKitBlobResource error 1.
+    // Raw ArrayBuffer is structured-cloned directly into SQLite without relying on WebKit's fragile temp file sandbox.
+    var buffer = mediaItem.buffer || null;
+    if (!buffer && mediaItem.blob && typeof mediaItem.blob.arrayBuffer === 'function') {
+      try {
+        buffer = await mediaItem.blob.arrayBuffer();
+        mediaItem.buffer = buffer;
+      } catch (_) {}
+    }
+    var thumbBuffer = mediaItem.thumbBuffer || null;
+    if (!thumbBuffer && mediaItem.thumbBlob && typeof mediaItem.thumbBlob.arrayBuffer === 'function') {
+      try {
+        thumbBuffer = await mediaItem.thumbBlob.arrayBuffer();
+        mediaItem.thumbBuffer = thumbBuffer;
+      } catch (_) {}
+    }
+
     var db = await openDB();
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
+        var isDone = false;
+        var saveTimer = setTimeout(function () {
+          if (isDone) return;
+          isDone = true;
+          console.warn('[FishDatabase] saveMedia transaction timeout, resolving optimistic');
+          saveToLocalFull(mediaItem);
+          resolve(mediaItem);
+        }, 2500);
+
+        function finish(item) {
+          if (isDone) return;
+          isDone = true;
+          clearTimeout(saveTimer);
+          resolve(item);
+        }
+
         try {
           var tx = db.transaction('media', 'readwrite');
           var store = tx.objectStore('media');
-          store.put(mediaItem);
+          var itemToStore = Object.assign({}, mediaItem);
+
+          if (buffer) {
+            itemToStore.buffer = buffer;
+            delete itemToStore.blob;
+          } else if (itemToStore.blob && typeof itemToStore.blob.slice === 'function') {
+            try {
+              itemToStore.blob = itemToStore.blob.slice(0, itemToStore.blob.size, itemToStore.mimeType || itemToStore.blob.type || '');
+            } catch (_) {}
+          }
+
+          if (thumbBuffer) {
+            itemToStore.thumbBuffer = thumbBuffer;
+            delete itemToStore.thumbBlob;
+          }
+
+          if (itemToStore.dataUrl && typeof itemToStore.dataUrl === 'string' && itemToStore.dataUrl.startsWith('blob:')) {
+            itemToStore.dataUrl = '';
+          }
+          if (itemToStore.thumbUrl && typeof itemToStore.thumbUrl === 'string' && itemToStore.thumbUrl.startsWith('blob:')) {
+            itemToStore.thumbUrl = '';
+          }
+
+          store.put(itemToStore);
+
           tx.oncomplete = function () {
             // Also keep light metadata in local fallback
             saveMetaToLocal(mediaItem);
-            resolve(mediaItem);
+            finish(mediaItem);
           };
-          tx.onerror = function () {
+          tx.onerror = function (err) {
+            console.warn('[FishDatabase] saveMedia tx error:', err);
             saveToLocalFull(mediaItem);
-            resolve(mediaItem);
+            finish(mediaItem);
+          };
+          tx.onabort = function (err) {
+            console.warn('[FishDatabase] saveMedia tx aborted:', err);
+            saveToLocalFull(mediaItem);
+            finish(mediaItem);
           };
         } catch (e) {
+          console.warn('[FishDatabase] saveMedia store.put error:', e);
           saveToLocalFull(mediaItem);
-          resolve(mediaItem);
+          finish(mediaItem);
         }
       });
     }
@@ -1150,6 +1292,8 @@ window.FishDatabase = (function () {
         var clone = Object.assign({}, item);
         delete clone.blob; // Never keep binary blob in localStorage copy!
         delete clone.thumbBlob;
+        delete clone.buffer;
+        delete clone.thumbBuffer;
         clone.dataUrl = ''; // Full data kept safely in IndexedDB
         clone.thumbUrl = '';
         var idx = list.findIndex(function (m) { return m.id === clone.id; });
@@ -1165,6 +1309,8 @@ window.FishDatabase = (function () {
         var clone = Object.assign({}, item);
         delete clone.blob;
         delete clone.thumbBlob;
+        delete clone.buffer;
+        delete clone.thumbBuffer;
         clone.dataUrl = '';
         clone.thumbUrl = '';
         var idx = list.findIndex(function (m) { return m.id === clone.id; });
@@ -1187,6 +1333,22 @@ window.FishDatabase = (function () {
     var db = await openDB();
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
+        var isDone = false;
+        var timer = setTimeout(function () {
+          if (isDone) return;
+          isDone = true;
+          console.warn('[FishDatabase] getProjectMedia transaction timeout, returning fallback');
+          var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+          resolve(local);
+        }, 2500);
+
+        function finish(items) {
+          if (isDone) return;
+          isDone = true;
+          clearTimeout(timer);
+          resolve(items);
+        }
+
         try {
           var tx = db.transaction('media', 'readonly');
           var store = tx.objectStore('media');
@@ -1203,32 +1365,66 @@ window.FishDatabase = (function () {
               items = items.filter(function (m) { return m && m.projectId === projectId; });
             }
             if (hydrateBlobs) {
-              items.forEach(function (m) {
-                if (m && m.blob && (!m.dataUrl || m.dataUrl.startsWith('blob:'))) {
-                  try {
-                    m.dataUrl = URL.createObjectURL(m.blob);
-                  } catch (_) {}
-                }
-                if (m && m.thumbBlob && (!m.thumbUrl || m.thumbUrl.startsWith('blob:'))) {
-                  try {
-                    m.thumbUrl = URL.createObjectURL(m.thumbBlob);
-                  } catch (_) {}
-                }
-              });
+              items.forEach(hydrateMediaItemBlobs);
             }
-            resolve(items);
+            finish(items);
           };
           req.onerror = function () {
             var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-            resolve(local);
+            finish(local);
+          };
+          tx.onerror = function () {
+            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+            finish(local);
+          };
+          tx.onabort = function () {
+            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+            finish(local);
           };
         } catch (e) {
           var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-          resolve(local);
+          finish(local);
         }
       });
     }
     return getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+  }
+
+  /**
+   * Retrieves a single media item by ID
+   * @param {string} id
+   * @param {boolean} [hydrateBlobs=true]
+   * @returns {Promise<Object|null>}
+   */
+  async function getMedia(id, hydrateBlobs) {
+    if (hydrateBlobs === undefined) hydrateBlobs = true;
+    if (!id) return null;
+    var db = await openDB();
+    if (db && db.objectStoreNames.contains('media')) {
+      return new Promise(function (resolve) {
+        try {
+          var tx = db.transaction('media', 'readonly');
+          var store = tx.objectStore('media');
+          var req = store.get(id);
+          req.onsuccess = function () {
+            var m = req.result || null;
+            if (m && hydrateBlobs) {
+              hydrateMediaItemBlobs(m);
+            }
+            resolve(m);
+          };
+          req.onerror = function () {
+            var found = getLocalMedia().find(function (item) { return item.id === id; });
+            resolve(found || null);
+          };
+        } catch (_) {
+          var found = getLocalMedia().find(function (item) { return item.id === id; });
+          resolve(found || null);
+        }
+      });
+    }
+    var found = getLocalMedia().find(function (item) { return item.id === id; });
+    return found || null;
   }
 
   /**
@@ -1244,7 +1440,11 @@ window.FishDatabase = (function () {
           var tx = db.transaction('media', 'readonly');
           var store = tx.objectStore('media');
           var req = store.getAll();
-          req.onsuccess = function () { resolve(req.result || []); };
+          req.onsuccess = function () {
+            var items = req.result || [];
+            items.forEach(hydrateMediaItemBlobs);
+            resolve(items);
+          };
           req.onerror  = function () { resolve(getLocalMedia()); };
         } catch (_) { resolve(getLocalMedia()); }
       });
@@ -2108,6 +2308,7 @@ window.FishDatabase = (function () {
     clearProjects: clearProjects,
     cleanupLegacyData: cleanupLegacyData,
     saveMedia: saveMedia,
+    getMedia: getMedia,
     getProjectMedia: getProjectMedia,
     getAllMedia: getAllMedia,
     deleteMedia: deleteMedia,

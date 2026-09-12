@@ -232,9 +232,9 @@ const Popover = (function () {
 
     if (!triggerEl || !popoverEl) return;
 
-    // Toggle close if clicking same active trigger
+    // If already open on this trigger, just update position and return
     if (activePopover === popoverEl && activeTrigger === triggerEl) {
-      close();
+      updatePosition();
       return;
     }
 

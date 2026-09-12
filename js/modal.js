@@ -32,6 +32,15 @@ class ModalManager {
 
     // 3. Native / Browser Back Button Interception (History popstate)
     window.addEventListener('popstate', (e) => {
+      if (window._popoverClosingHistoryBack) {
+        return;
+      }
+      if (window.Popover && typeof window.Popover.getAwaitedPopstate === 'function' && window.Popover.getAwaitedPopstate() > 0) {
+        return;
+      }
+      if (e.state && e.state.modalOpen) {
+        return;
+      }
       if (this.activeModal) {
         // User clicked Back button: Close the modal without navigating away
         this.close(false); // don't call history.back again
@@ -56,8 +65,8 @@ class ModalManager {
     el.classList.add('is-active');
 
     // Push invisible state into history so Back button closes modal without changing URL
-    if (!this.historyPushed) {
-      window.history.pushState({ modalOpen: true }, '');
+    if (!this.historyPushed && (!window.history.state || !window.history.state.modalOpen)) {
+      window.history.pushState({ modalOpen: true, modalId: el.id }, '');
       this.historyPushed = true;
     }
 
@@ -75,10 +84,11 @@ class ModalManager {
   close(triggerHistoryBack = true) {
     if (!this.activeModal) return;
 
-    this.activeModal.classList.remove('is-active');
+    const el = this.activeModal;
+    el.classList.remove('is-active');
     this.activeModal = null;
 
-    if (triggerHistoryBack && this.historyPushed) {
+    if (triggerHistoryBack && this.historyPushed && window.history.state && window.history.state.modalOpen) {
       this.historyPushed = false;
       window.history.back();
     } else {

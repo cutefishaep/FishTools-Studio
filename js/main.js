@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initProjectsFetcher();
   initWelcomeModal();
 
+  // Purge all non-essential caches when opening index.html (preserves projects and media)
+  if (typeof window.cleanupAllStudioCaches === 'function') {
+    window.cleanupAllStudioCaches('index_init').catch(() => {});
+  }
+
   // Handle redirect errors from editor (ghost project guard)
   const _urlErr = new URLSearchParams(window.location.search).get('error');
   if (_urlErr) {
@@ -1059,11 +1064,7 @@ async function handleImportedFiles(files, dropzone, statusEl) {
     if (statusEl) statusEl.textContent = '';
     
     if (importedProject && importedProject.id) {
-      if (importedProject.isTemplate) {
-        window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}&template=1`;
-      } else {
-        window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}`;
-      }
+      window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}&template=1`;
     } else {
       loadAndRender();
     }

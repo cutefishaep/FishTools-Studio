@@ -2184,8 +2184,9 @@ window.FishDatabase = (function () {
       projectData.layers = projectData.layers.map(sanitizeImportedLayer).filter(Boolean);
     }
 
-    // Assign a fresh, unique project ID
+    // Assign a fresh, unique project ID and mark as customizable template
     projectData.id = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    projectData.isTemplate = true;
     projectData.updatedAt = new Date().toISOString();
     projectData.createdAt = projectData.createdAt || new Date().toISOString();
 
@@ -2290,6 +2291,119 @@ window.FishDatabase = (function () {
     } catch (_) {}
   }
 
+  /**
+   * Purges extracted video frames from FishFrameCacheDB.
+   * Leaves user projects and user media 100% untouched.
+   */
+  async function clearFrameCacheDB() {
+    if (typeof indexedDB === 'undefined') return true;
+    return new Promise(function(resolve) {
+      try {
+        var req = indexedDB.open('FishFrameCacheDB');
+        req.onsuccess = function (e) {
+          var db = e.target.result;
+          if (db && db.objectStoreNames.contains('frames')) {
+            try {
+              var tx = db.transaction('frames', 'readwrite');
+              tx.objectStore('frames').clear();
+              tx.oncomplete = function () { try { db.close(); } catch (_) {} resolve(true); };
+              tx.onerror = function () { try { db.close(); } catch (_) {} resolve(false); };
+            } catch (_) {
+              try { db.close(); } catch (_) {}
+              resolve(false);
+            }
+          } else {
+            if (db) try { db.close(); } catch (_) {}
+            resolve(true);
+          }
+        };
+        req.onerror = function() { resolve(false); };
+        req.onblocked = function() { resolve(false); };
+      } catch (_) {
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Universal studio-wide cache cleanup helper.
+   * Purges RAM preview cache, video frame cache, layer media freeze canvases,
+   * export canvas/temp buffers, while keeping user projects and media completely safe.
+   */
+  var _cleanupInFlight = null;
+  async function cleanupAllStudioCaches(triggerReason) {
+    if (_cleanupInFlight) return _cleanupInFlight;
+    var reason = triggerReason || 'manual';
+    console.info('[FishStudio] 🧹 Purging all non-essential caches (trigger=' + reason + ')...');
+
+    _cleanupInFlight = (async function() {
+      try {
+
+    // 1. Timeline RAM preview frame cache
+    if (typeof window !== 'undefined' && window.PreviewCacheManager) {
+      try {
+        window.PreviewCacheManager.clearAll('all');
+        if (typeof window.PreviewCacheManager.stopIdleWorker === 'function') {
+          window.PreviewCacheManager.stopIdleWorker();
+        }
+        if (typeof window.PreviewCacheManager.updateRulerUI === 'function') {
+          window.PreviewCacheManager.updateRulerUI();
+        }
+      } catch (_) {}
+    }
+
+    // 2. Extracted video frames in-memory and in IndexedDB
+    if (typeof window !== 'undefined' && window.VideoFrameExtractor && typeof window.VideoFrameExtractor.clearAllCache === 'function') {
+      try {
+        await window.VideoFrameExtractor.clearAllCache();
+      } catch (_) {}
+    } else {
+      await clearFrameCacheDB();
+    }
+
+    // 3. Layer media freeze canvases
+    if (typeof window !== 'undefined' && window.layerMediaCache) {
+      try {
+        window.layerMediaCache.forEach(function(entry) {
+          if (entry) {
+            if (entry.freezeCanvas) {
+              entry.freezeCanvas.width = 1;
+              entry.freezeCanvas.height = 1;
+              entry.freezeCanvas = null;
+              entry.hasFreezeFrame = false;
+            }
+          }
+        });
+      } catch (_) {}
+    }
+
+    // 4. Export engine state, offscreen canvas, and virtual FS temp files
+    if (typeof window !== 'undefined' && window.FishExportEngine && typeof window.FishExportEngine.cleanup === 'function') {
+      try {
+        window.FishExportEngine.cleanup();
+      } catch (_) {}
+    }
+
+    // 5. Redraw composition if in editor
+    if (typeof window !== 'undefined' && typeof window.redrawComposition === 'function') {
+      try {
+        window.redrawComposition('cache-cleaned');
+      } catch (_) {}
+    }
+
+        console.info('[FishStudio] ✅ Cache purge finished. Projects & media preserved.');
+        return true;
+      } finally {
+        setTimeout(function() { _cleanupInFlight = null; }, 150);
+      }
+    })();
+    return _cleanupInFlight;
+  }
+
+  if (typeof window !== 'undefined') {
+    window.cleanupAllStudioCaches = cleanupAllStudioCaches;
+  }
+
   return {
     init: init,
     getSettings: getSettings,
@@ -2320,6 +2434,8 @@ window.FishDatabase = (function () {
     formatBytes: formatBytes,
     getProjectTotalSize: getProjectTotalSize,
     updateProjectSize: updateProjectSize,
-    deleteProjectFrameCaches: deleteProjectFrameCaches
+    deleteProjectFrameCaches: deleteProjectFrameCaches,
+    clearFrameCacheDB: clearFrameCacheDB,
+    cleanupAllStudioCaches: cleanupAllStudioCaches
   };
 })();

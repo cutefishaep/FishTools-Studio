@@ -217,7 +217,9 @@ function handleRequest(req, res) {
     res.writeHead(200, {
       'Content-Type': contentType,
       'Cache-Control': process.env.VERCEL ? 'public, max-age=3600' : 'no-store, no-cache, must-revalidate',
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless'
     });
     res.end(content);
   } catch (err) {

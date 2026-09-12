@@ -494,6 +494,7 @@
               if (!l) return null;
               return {
                 id: l.id,
+                sourceLayerId: l.sourceLayerId || undefined,
                 mediaId: l.mediaId,
                 name: l.name,
                 type: l.type,
@@ -2092,7 +2093,7 @@
       // LIVE PRECOMPOSE RAM PREVIEW CACHING:
       // Cache rendered precomp frame into its own pool (precompLayer.id)
       // Enables fast-path blit during playback outside precompose and updates timeline precomp clip progress
-      if (window.PreviewCacheManager && !isExport && triggerSource !== 'export-video' && triggerSource !== 'prebake' && targetCanvas && targetCanvas.width > 0 && targetCanvas.height > 0) {
+      if (window.PreviewCacheManager && !isExport && !window.isExporting && triggerSource !== 'export-video' && triggerSource !== 'prebake' && targetCanvas && targetCanvas.width > 0 && targetCanvas.height > 0) {
         if (!window.isTimelinePlaying || (window.PreviewCacheManager._inFlightFrames && window.PreviewCacheManager._inFlightFrames.size <= 2)) {
           window.PreviewCacheManager.setFrameFromCanvas(fInner, targetCanvas, false, precompLayer.id);
         }
@@ -2103,7 +2104,7 @@
     function renderCanvasFrame(canvas, bg, w, h, triggerSource = '', overrideSec = null) {
       if (!canvas) return;
       const isTemplate = (typeof triggerSource === 'string') && triggerSource.startsWith('template');
-      const isExport = (typeof triggerSource === 'string') && triggerSource.startsWith('export');
+      const isExport = !!window.isExporting || ((typeof triggerSource === 'string') && triggerSource.startsWith('export'));
       const isIdleCache = triggerSource === 'idle-cache';
       const needsAlpha = isExport && triggerSource !== 'export-video' && (!bg || bg === 'transparent');
       const ctx = canvas.getContext('2d', { alpha: needsAlpha }) || canvas.getContext('2d');
@@ -3296,7 +3297,7 @@
         // LIVE FRAME CACHING (After Effects RAM Preview Style)
         // STRICT RULE: only cache when the exact video frame is available (hasExtractingVideo = false).
         // Caching during playback, scrubbing, and frame park ensures subsequent scrubbing is instant 60fps.
-        if (!hasExtractingVideo && !isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
+        if (!hasExtractingVideo && !isExport && !window.isExporting && !isIdleCache && !isTransformDragging && window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
           window.PreviewCacheManager.setFrameFromCanvas(frameIndex, canvas);
           // NEVER delete cached frames during extraction — was causing patchy cache bar!
         }
@@ -15639,6 +15640,11 @@
       const bgParam = params.get('bg');
       const nameInput = document.getElementById('editor-project-name');
 
+      // Clean up all non-essential studio caches on opening project (preserves projects & media)
+      if (typeof window.cleanupAllStudioCaches === 'function') {
+        window.cleanupAllStudioCaches('project_open').catch(() => {});
+      }
+
       let currentProject = null;
       if (idParam && window.FishDatabase) {
         try {
@@ -15892,8 +15898,8 @@
       }
 
       // Initialize RAM Preview Cache BEFORE initial preview canvas rendering
-      // Idle cache enabled by default (like AE RAM Preview — fills background automatically)
-      const savedIdleCache = localStorage.getItem('oft_idle_cache') !== 'false'; // default TRUE
+      // Idle cache disabled by default
+      const savedIdleCache = localStorage.getItem('oft_idle_cache') === 'true'; // default FALSE
       currentProjectState.idleCache = savedIdleCache;
       const initialFps = currentProjectState.fps || 60;
       window.currentTimelineFps = initialFps;
@@ -15960,13 +15966,18 @@
         redrawComposition('initProjectLoaded');
       }
 
-      // Auto-open Template Editor ONLY for genuine templates
+      // Auto-open Template Editor for imported projects or templates
       const isTemplateParam = params.get('template') === '1';
       const isTemplateProject = isTemplateParam || (currentProject && currentProject.isTemplate);
-      if (isTemplateProject && window.FishTemplateEditor) {
-        setTimeout(() => {
-          window.FishTemplateEditor.open();
-        }, 150);
+      if (isTemplateProject) {
+        const tryOpenTemplate = (attempts = 0) => {
+          if (window.FishTemplateEditor && typeof window.FishTemplateEditor.open === 'function') {
+            window.FishTemplateEditor.open();
+          } else if (attempts < 20) {
+            setTimeout(() => tryOpenTemplate(attempts + 1), 100);
+          }
+        };
+        setTimeout(() => tryOpenTemplate(), 150);
       }
     })();
 
@@ -17910,6 +17921,10 @@
         }
         if (typeof updateBeatmarkPlayheadNeedle === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'beatmark') {
           updateBeatmarkPlayheadNeedle();
+        }
+
+        if (typeof updateReorderHandlesContrast === 'function') {
+          updateReorderHandlesContrast();
         }
 
         // Live refresh canvas preview to show/hide layers matching playhead timecode
@@ -21946,65 +21961,6 @@
           const isSelected = selectedLayerIds.has(layer.id) || layer.id === selectedLayerId;
           const isHidden = !!layer.hidden;
 
-          let resolvedThumb = layer.thumbUrl;
-          if (!resolvedThumb && layer.type === 'image' && layer.dataUrl) {
-            const media = getOrLoadLayerMedia(layer);
-            if (media && media.el && media.el.naturalWidth > 0) {
-              try {
-                const mini = document.createElement('canvas');
-                mini.width = 32;
-                mini.height = 24;
-                const mctx = mini.getContext('2d', { alpha: false });
-                mctx.imageSmoothingQuality = 'low';
-                mctx.drawImage(media.el, 0, 0, 32, 24);
-                resolvedThumb = mini.toDataURL('image/jpeg', 0.45);
-                layer.thumbUrl = resolvedThumb;
-              } catch (_) {}
-            }
-          }
-          if (!resolvedThumb && layer.thumbUrl) {
-            resolvedThumb = layer.thumbUrl;
-          }
-
-          let thumbContent = '';
-          if (clipType === 'shape') {
-            const shpIcons = {
-              circle: '<circle cx="12" cy="12" r="9"/>',
-              rectangle: '<rect x="3" y="3" width="18" height="18" rx="2"/>',
-              triangle: '<path d="M12 3.2L2.8 19.5c-.8 1.4.2 3.2 1.8 3.2h14.8c1.6 0 2.6-1.8 1.8-3.2L12 3.2z"/>',
-              star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
-              polygon: '<path d="M12 2.5l8.66 5v10L12 22.5l-8.66-5v-10L12 2.5z"/>',
-              capsule: '<rect x="3" y="6" width="18" height="12" rx="6"/>',
-              heart: '<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>'
-            };
-            const innerSvg = shpIcons[layer.shapeType] || shpIcons.rectangle;
-            thumbContent = `<svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; color: var(--color-primary);" aria-hidden="true">${innerSvg}</svg>`;
-          } else if (clipType === 'text') {
-            thumbContent = `<svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; color: var(--color-primary);" aria-hidden="true"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>`;
-          } else if (clipType === 'audio') {
-            thumbContent = `<span class="svg-icon svg-icon-audio" style="width: 18px; height: 18px; background-color: var(--track-audio);" aria-hidden="true"></span>`;
-          } else if (clipType === 'adjustment') {
-            thumbContent = `<span class="svg-icon svg-icon-adjustment" style="width: 18px; height: 18px; background-color: var(--track-adj);" aria-hidden="true"></span>`;
-          } else if (clipType === 'camera') {
-            thumbContent = `<svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; color: var(--color-primary);" aria-hidden="true"><path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-2c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/></svg>`;
-          } else if (clipType === 'null') {
-            thumbContent = `<svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; color: var(--color-primary);" aria-hidden="true"><rect x="3" y="3" width="3.5" height="3.5" rx="0.5"/><rect x="17.5" y="3" width="3.5" height="3.5" rx="0.5"/><rect x="3" y="17.5" width="3.5" height="3.5" rx="0.5"/><rect x="17.5" y="17.5" width="3.5" height="3.5" rx="0.5"/><path d="M6.5 4h11v1.5h-11zm0 14.5h11v1.5h-11zM4 6.5h1.5v11H4zm14.5 0h1.5v11h-1.5z"/><path d="M11.25 8h1.5v3.25H16v1.5h-3.25V16h-1.5v-3.25H8v-1.5h3.25z"/></svg>`;
-          } else if (clipType === 'precomp') {
-            thumbContent = `<svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; color: var(--color-primary);" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h6v4H7zm4 6h6v4h-6z"/></svg>`;
-          } else if (clipType === 'color') {
-            const bgStyle = (layer.fillType === 'gradient' && Array.isArray(layer.fillGradientStops) && layer.fillGradientStops.length > 0)
-              ? `linear-gradient(135deg, ${layer.fillGradientStops.map(s => `${s.color} ${Math.round(s.offset * 100)}%`).join(', ')})`
-              : (layer.color || layer.fillColor || 'var(--track-color)');
-            thumbContent = `<span style="width: 18px; height: 18px; border-radius: 4px; background: ${bgStyle}; display: inline-block; border: 1px solid var(--border-subtle);" aria-hidden="true"></span>`;
-          } else if (resolvedThumb) {
-            thumbContent = `<img src="${resolvedThumb}" class="timeline-layer-thumb-img" alt="" loading="lazy" draggable="false" />`;
-          } else {
-            // Clean vector icon placeholder when image/video is loading (NO circle badge, pure icon)
-            const fallbackIcon = clipType === 'video' ? 'svg-icon-video' : 'svg-icon-image';
-            const iconColor = clipType === 'video' ? 'var(--track-video)' : 'var(--track-image)';
-            thumbContent = `<span class="svg-icon ${fallbackIcon}" style="width: 18px; height: 18px; background-color: ${iconColor};" aria-hidden="true"></span>`;
-          }
-
           // 1. Floating Pill Control anchored on the left overlay of viewport
           if (overlayContainer) {
             const isFocused = !isSelectorMode && isSelected && (layer.id === selectedLayerId);
@@ -22021,9 +21977,6 @@
                 <button type="button" class="timeline-layer-checkbox ${isSelected ? 'is-selected' : ''}" aria-label="${isSelected ? 'Deselect Layer' : 'Select Layer'}" title="${isSelected ? 'Deselect Layer' : 'Select Layer'}">
                   <span class="svg-icon svg-icon-check" aria-hidden="true"></span>
                 </button>
-                <div class="timeline-layer-thumb-circle">
-                  ${thumbContent}
-                </div>
               </div>
             `;
 
@@ -23396,6 +23349,11 @@
 
           // Jika tidak dalam selector mode, render handle untuk setiap layer
           if (!isSelectorMode && layers.length > 0) {
+            const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+            const vpWidth = layersViewport ? layersViewport.clientWidth : 800;
+            const curPan = (window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0));
+            const handleTimelinePx = (vpWidth / 2 - 20) - curPan;
+
             layers.forEach((layer, layerIdx) => {
               const isSelected = selectedLayerIds.has(layer.id) || layer.id === selectedLayerId;
               const slot = document.createElement('div');
@@ -23403,13 +23361,22 @@
               slot.dataset.layerId = layer.id;
               slot.dataset.layerIndex = layerIdx;
 
+              const startPx = layer.startSec !== undefined ? Math.round(layer.startSec * pps) : (layer.startPx || 0);
+              const widthPx = layer.durationSec !== undefined ? Math.round(layer.durationSec * pps) : (layer.widthPx || 320);
+              const endPx = startPx + widthPx;
+              const isOverClip = !layer.hidden && (handleTimelinePx >= startPx && handleTimelinePx <= endPx);
+
               const pill = document.createElement('div');
-              pill.className = `timeline-layer-reorder-pill ${isSelected ? 'is-selected' : ''}`;
+              pill.className = `timeline-layer-reorder-pill ${isSelected ? 'is-selected' : ''} ${isOverClip ? 'is-over-clip' : ''}`;
               pill.dataset.layerId = layer.id;
               pill.title = `Move Layer: ${layer.name}`;
               pill.innerHTML = `
                 <div class="reorder-grip" title="Drag to Move Layer Up / Down" aria-label="Drag to Reorder Layer">
-                  <span class="svg-icon svg-icon-reorder" aria-hidden="true"></span>
+                  <svg class="reorder-grip-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                    <line x1="4" y1="7" x2="20" y2="7"/>
+                    <line x1="4" y1="12" x2="20" y2="12"/>
+                    <line x1="4" y1="17" x2="20" y2="17"/>
+                  </svg>
                 </div>
               `;
 
@@ -23585,6 +23552,7 @@
             });
           }
         }
+        updateReorderHandlesContrast();
         updateTimelineSpotlight();
         renderTimelineLinkConnectors();
         if (typeof window.renderTimelineBeatmarks === 'function') {
@@ -23625,6 +23593,33 @@
           }
         }
       }
+
+      function updateReorderHandlesContrast() {
+        const reorderOverlay = document.getElementById('timeline-lane-reorder-overlay');
+        const vp = document.getElementById('timeline-layers-viewport');
+        if (!reorderOverlay || !vp) return;
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const curPan = (window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0));
+        const vpWidth = vp.clientWidth;
+        if (!vpWidth) return;
+        const handleTimelinePx = (vpWidth / 2 - 20) - curPan;
+
+        const layers = (currentProjectState && currentProjectState.layers) ? currentProjectState.layers : [];
+        const pills = reorderOverlay.querySelectorAll('.timeline-layer-reorder-pill');
+        for (let i = 0; i < pills.length; i++) {
+          const pill = pills[i];
+          const layerId = pill.dataset.layerId;
+          const layer = layers.find(l => l.id === layerId);
+          if (!layer) continue;
+          const startPx = layer.startSec !== undefined ? Math.round(layer.startSec * pps) : (layer.startPx || 0);
+          const widthPx = layer.durationSec !== undefined ? Math.round(layer.durationSec * pps) : (layer.widthPx || 320);
+          const endPx = startPx + widthPx;
+          const isOverClip = !layer.hidden && (handleTimelinePx >= startPx && handleTimelinePx <= endPx);
+          pill.classList.toggle('is-over-clip', isOverClip);
+        }
+      }
+      window.updateReorderHandlesContrast = updateReorderHandlesContrast;
+      window.addEventListener('resize', updateReorderHandlesContrast, { passive: true });
 
       function renderTimelineLinkConnectors() {
         // Connectors render strictly in the timeline track (to the left of layer clips).
@@ -24296,6 +24291,7 @@
         layer.widthPx = Math.round(remainingDurSec * pps);
         layer.sourceOffsetSec = (layer.sourceOffsetSec || 0) + trimmedSec;
         layer.isDurationExplicit = true;
+        layer.sourceLayerId = layer.sourceLayerId || layer.id;
         layer._cachedStartSec = currentSec;
         layer._cachedEndSec = endSec;
 
@@ -24328,6 +24324,9 @@
 
         // Invalidate original span BEFORE redrawing
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
+
+        const cutSrcId = layer.sourceLayerId || layer.id;
+        layer.sourceLayerId = cutSrcId;
 
         const newLayerId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
@@ -24489,6 +24488,7 @@
         const newLayer = {
           ...layer,
           id: newLayerId,
+          sourceLayerId: cutSrcId,
           startPx: Math.round(currentSec * pps),
           widthPx: rightWidthPx,
           startSec: currentSec,
@@ -24593,6 +24593,7 @@
         layer.durationSec = remainingDurSec;
         layer.widthPx = Math.round(remainingDurSec * pps);
         layer.isDurationExplicit = true;
+        layer.sourceLayerId = layer.sourceLayerId || layer.id;
         layer._cachedStartSec = startSec;
         layer._cachedEndSec = currentSec;
 
@@ -25125,15 +25126,20 @@
       let ffmpegInstance = null;
 
       // 1. Progress Overlay Helpers
-      function showExportProgress(title, percent = 0, stage = '') {
+      function showExportProgress(title, percent = 0, stage = '', engineBadge = 'GPU') {
         window.isExporting = true;
+        if (window.PreviewCacheManager && typeof window.PreviewCacheManager.stopIdleWorker === 'function') {
+          window.PreviewCacheManager.stopIdleWorker();
+        }
         const overlay = document.getElementById('editor-export-progress-overlay');
         const titleEl = document.getElementById('export-progress-title');
+        const badgeEl = document.getElementById('export-engine-badge');
         const fillEl = document.getElementById('export-progress-fill');
         const percentEl = document.getElementById('export-progress-percent');
         const stageEl = document.getElementById('export-progress-stage');
 
-        if (titleEl) titleEl.textContent = title || 'Exporting video...';
+        if (titleEl) titleEl.textContent = title || 'Exporting video';
+        if (badgeEl) badgeEl.textContent = (engineBadge || 'GPU').toUpperCase();
         if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, percent))}%`;
         if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
         if (stageEl) stageEl.textContent = stage || '';
@@ -25157,18 +25163,39 @@
         window.isExporting = false;
         const overlay = document.getElementById('editor-export-progress-overlay');
         if (overlay) overlay.style.display = 'none';
-        isExportCancelled = false;
       }
+
+      // Unified Cancel Handler (for Image Sequence, Video, and any ongoing render)
+      function cancelExport() {
+        console.warn('[FishExport] 🛑 User requested export cancellation');
+        isExportCancelled = true;
+        window.isExportCancelled = true;
+        window.isExporting = false;
+
+        // Cancel video export in FishExportEngine if running
+        if (window.FishExportEngine && typeof window.FishExportEngine.cancel === 'function') {
+          if (!window.FishExportEngine._isCancelling) {
+            window.FishExportEngine._isCancelling = true;
+            try { window.FishExportEngine.cancel(); } catch (_) {}
+            window.FishExportEngine._isCancelling = false;
+          }
+        }
+
+        // Full purge of all non-essential caches (timeline preview, extracted video frames, freeze canvases)
+        if (typeof window.cleanupAllStudioCaches === 'function') {
+          window.cleanupAllStudioCaches('export_cancelled').catch(() => {});
+        }
+
+        updateExportProgress(0, 'Cancelling export...');
+        setTimeout(hideExportProgress, 250);
+        restoreVideoPreviewAfterExport();
+      }
+      window._cancelEditorExport = cancelExport;
 
       // Cancel button
       const cancelBtn = document.getElementById('btn-export-cancel');
       if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-          isExportCancelled = true;
-          window.isExporting = false;
-          updateExportProgress(0, 'Cancelling export...');
-          setTimeout(hideExportProgress, 300);
-        });
+        cancelBtn.addEventListener('click', cancelExport);
       }
 
       // 1.5 Video Cache & Preview Restoration Helpers
@@ -25537,10 +25564,24 @@
           return;
         }
 
-        showExportProgress('Exporting image sequence...', 0, 'Initializing sequence generator...');
+        if (window.isExporting) {
+          console.warn('[FishExport] Export already in progress. Aborting duplicate request.');
+          return;
+        }
+
+        showExportProgress('Exporting image sequence...', 0, 'Initializing sequence generator...', 'CPU');
+        isExportCancelled = false;
+        window.isExportCancelled = false;
+        window.isExporting = true;
 
         const cacheOk = await ensureAllVideosCached();
-        if (!cacheOk) return;
+        if (!cacheOk || isExportCancelled || window.isExportCancelled || !window.isExporting) {
+          hideExportProgress();
+          return;
+        }
+
+        let exportCanvas = null;
+        let zip = null;
 
         try {
           const fps = parseInt(currentProjectState.fps || 60, 10);
@@ -25552,17 +25593,17 @@
           const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
           const [baseW, baseH] = baseDims;
 
-          const exportCanvas = document.createElement('canvas');
+          exportCanvas = document.createElement('canvas');
           exportCanvas.width = baseW;
           exportCanvas.height = baseH;
 
-          const zip = new JSZip();
+          zip = new JSZip();
           const videoLayers = (currentProjectState.layers || []).filter(l => l.type === 'video' && !l.hidden);
           const pps = window.currentPixelsPerSecond || 80;
 
           for (let i = 0; i < totalFrames; i++) {
-            if (isExportCancelled) {
-              hideExportProgress();
+            if (isExportCancelled || window.isExportCancelled || !window.isExporting) {
+              console.warn(`[Export:Sequence] Cancelled at frame ${i}/${totalFrames}`);
               return;
             }
 
@@ -25570,35 +25611,46 @@
 
             // Prepare active video frames from cache without video element seek
             await prepareVideoFramesForTime(t, videoLayers, pps);
+            if (isExportCancelled || window.isExportCancelled || !window.isExporting) {
+              return;
+            }
 
             renderCanvasFrame(exportCanvas, currentProjectState.bgColor, baseW, baseH, 'export-sequence', t);
 
             const frameBlob = await new Promise(res => exportCanvas.toBlob(res, 'image/png'));
+            if (isExportCancelled || window.isExportCancelled || !window.isExporting) {
+              return;
+            }
             const frameBytes = await frameBlob.arrayBuffer();
             const filename = `frame_${String(i).padStart(5, '0')}.png`;
             zip.file(filename, frameBytes);
 
             const pct = Math.round((i / totalFrames) * 85);
-            updateExportProgress(pct, `Rendered frame ${i + 1} of ${totalFrames}...`);
+            updateExportProgress(pct, `${i + 1} / ${totalFrames}`);
 
-            if (i % 6 === 0) {
+            if (i % 4 === 0) {
               await new Promise(r => setTimeout(r, 0));
             }
           }
 
-          if (isExportCancelled) {
-            hideExportProgress();
+          if (isExportCancelled || window.isExportCancelled || !window.isExporting) {
+            console.warn('[Export:Sequence] Cancelled before ZIP generation');
             return;
           }
 
           updateExportProgress(88, 'Packing ZIP archive...');
+          let abortedZip = false;
           const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' }, (meta) => {
+            if (isExportCancelled || window.isExportCancelled || !window.isExporting) {
+              abortedZip = true;
+              return;
+            }
             const zipPct = 88 + Math.round((meta.percent || 0) * 0.11);
             updateExportProgress(zipPct, `Compressing ZIP (${Math.round(meta.percent)}%)...`);
           });
 
-          if (isExportCancelled) {
-            hideExportProgress();
+          if (abortedZip || isExportCancelled || window.isExportCancelled || !window.isExporting) {
+            console.warn('[Export:Sequence] Cancelled during/after ZIP compression');
             return;
           }
 
@@ -25619,7 +25671,28 @@
           setTimeout(hideExportProgress, 600);
         } finally {
           window.isExporting = false;
+          if (exportCanvas) {
+            exportCanvas.width = 1;
+            exportCanvas.height = 1;
+            if (exportCanvas.parentNode) exportCanvas.parentNode.removeChild(exportCanvas);
+            exportCanvas = null;
+          }
+          if (zip && zip.files) {
+            for (const k in zip.files) {
+              try { delete zip.files[k]; } catch (_) {}
+            }
+            zip = null;
+          }
+          if (isExportCancelled || window.isExportCancelled) {
+            if (typeof window.cleanupAllStudioCaches === 'function') {
+              window.cleanupAllStudioCaches('export_cancelled').catch(() => {});
+            }
+            hideExportProgress();
+          }
           restoreVideoPreviewAfterExport();
+          try {
+            if (typeof window.redrawComposition === 'function') window.redrawComposition('exportFinished');
+          } catch (_) {}
         }
       }
 
@@ -25706,6 +25779,8 @@
               const probeCanvas = document.createElement('canvas');
               probeCanvas.width = config.width;
               probeCanvas.height = config.height;
+              const pctx = probeCanvas.getContext('2d');
+              if (pctx) pctx.fillRect(0, 0, 1, 1);
               testFrame = new VideoFrame(probeCanvas, { timestamp: 0, duration: 16666 });
               testEnc.encode(testFrame, { keyFrame: true });
               testEnc.flush().then(() => finish(true)).catch(() => finish(false));
@@ -25713,15 +25788,15 @@
               finish(false);
             }
 
-            setTimeout(() => finish(false), 120);
+            setTimeout(() => finish(false), 1000);
           });
         }
 
         let chosenCodec = null;
         let chosenConfig = null;
-        const hwModes = ['no-preference', 'prefer-software', 'prefer-hardware'];
+        const hwModes = ['no-preference', 'prefer-hardware', 'prefer-software'];
         const brModes = chosenBitrateMode === 'variable' ? ['variable'] : [chosenBitrateMode, 'variable'];
-        const latencyModes = ['realtime', 'quality'];
+        const latencyModes = ['quality', 'realtime'];
 
         codecLoop:
         for (const candidate of candidateCodecs) {
@@ -26028,7 +26103,7 @@
         const totalDur = Math.max(0.5, (typeof window.getProjectTotalDuration === 'function' ? window.getProjectTotalDuration() : (currentProjectState.defaultDuration || 5)));
         const pps = window.currentPixelsPerSecond || 80;
 
-        showExportProgress('Exporting video...', 0, 'Preparing...');
+        showExportProgress('Exporting video', 0, 'Preparing...', 'GPU');
         isExportCancelled = false;
         window.isExporting = true;
 
@@ -26078,6 +26153,9 @@
             const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
             if (AudioCtxClass) {
               audioCtx = new AudioCtxClass({ sampleRate: renderedAudioBuffer.sampleRate || 44100 });
+              if (audioCtx.state === 'suspended') {
+                try { await audioCtx.resume(); } catch (_) {}
+              }
               const dest = audioCtx.createMediaStreamDestination();
               audioSourceNode = audioCtx.createBufferSource();
               audioSourceNode.buffer = renderedAudioBuffer;
@@ -26412,7 +26490,7 @@
       async function exportVideoFFmpeg(preset = 'normal', customName = '') {
         if (window.Popover) window.Popover.close();
 
-        showExportProgress('Exporting video (FFmpeg CPU)...', 0, 'Initializing FFmpeg encoder...');
+        showExportProgress('Exporting video', 0, 'Initializing...', 'CPU');
 
         const cacheOk = await ensureAllVideosCached();
         if (!cacheOk) return;
@@ -26500,7 +26578,7 @@
             frameBytes = null;
 
             const framePercent = 10 + Math.round((i / totalFrames) * 60);
-            updateExportProgress(framePercent, `Rendering frame ${i + 1} of ${totalFrames}...`);
+            updateExportProgress(framePercent, `${i + 1} / ${totalFrames}`);
 
             if (i % 3 === 0) {
               await new Promise(r => setTimeout(r, 0));
@@ -26622,21 +26700,13 @@
       window.exportVideoHardware = exportVideoHardware;
       window.exportVideoFFmpeg = exportVideoFFmpeg;
       // 8. Bind Events
-      const btnExportHeader = document.getElementById('btn-editor-export');
-      if (btnExportHeader) {
-        btnExportHeader.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (window.Popover) {
-            window.Popover.open(btnExportHeader, 'popover-editor-export');
-          }
-        });
-      }
 
       const btnExportPNG = document.getElementById('btn-export-png');
       if (btnExportPNG) {
         btnExportPNG.addEventListener('click', (e) => {
           e.preventDefault();
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close();
           exportCurrentFrameAsPNG();
         });
       }
@@ -26645,6 +26715,8 @@
       if (btnExportSeq) {
         btnExportSeq.addEventListener('click', (e) => {
           e.preventDefault();
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close();
           exportImageSequenceZIP();
         });
       }
@@ -26669,7 +26741,8 @@
       if (btnExportVideoModal) {
         btnExportVideoModal.addEventListener('click', (e) => {
           e.preventDefault();
-          if (window.Popover) window.Popover.close();
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close(false);
           const fnInput = document.getElementById('export-video-filename');
           if (fnInput) {
             fnInput.value = currentProjectState.name || 'New_Project';

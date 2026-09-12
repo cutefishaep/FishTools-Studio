@@ -57,13 +57,18 @@
   }
 
   /* Popover: scale-in floating panels */
+  .popover-card,
   .popover-panel,
-  .popover-container,
-  [class*="popover-"]:not([class*="popover-value"]):not([class*="popover-label"]) {
+  .popover-container {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+  }
+
+  .popover-tail {
+    -webkit-transform-origin: 50% 50%;
+    transform-origin: 50% 50%;
   }
 
   /* Context menu */

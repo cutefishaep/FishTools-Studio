@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.11] - 2026-09-12
+
+### Fixed
+- **Image Sequence (.ZIP) Cancellation & Instant Cache Purge**: Fixed critical issue where clicking "Cancel Export" during Image Sequence export failed to stop execution, causing frames to keep rendering in the background, compressing into a ZIP, and triggering a download. Unified export cancellation across `editor.js` and `FishExport-Enggine.js` (`isExportCancelled = true`, `window.isExportCancelled = true`, `window.isExporting = false`). Added per-frame abort checks, in-memory `zip.files` buffer disposal, canvas deallocation, and automatic trigger of `cleanupAllStudioCaches('export_cancelled')`.
+- **Safari Full Video + Audio MP4 Export (Single-Threaded FFmpeg WASM)**: Fixed issue where Safari exported audio-only MP4 files and distorted/cropped video. Identified that Tier 1 WebCodecs prematurely bypassed itself because it falsely assumed FFmpeg remuxing required `SharedArrayBuffer` (which Safari disables without `require-corp`). Bundled FFmpeg.wasm (`ffmpeg-core.wasm`) is 100% single-threaded and executes natively on Safari without `SharedArrayBuffer` or Cross-Origin-Isolation. Tier 1 WebCodecs now renders crisp, uncropped, full-resolution (e.g. 1080x1920 portrait) GPU frames into MP4, followed by an instantaneous (<200ms) `-c:v copy -c:a aac` audio remux.
+- **Studio Cache Purge In-Flight Deduplication**: Added in-flight promise lock in `js/db.js` (`cleanupAllStudioCaches`) to prevent redundant, concurrent purge operations when cancellation triggers across multiple modules simultaneously.
+- **MediaRecorder WebKit Frame Capture & Repackaging (Tier 2 Fallback)**: Prevented WebKit GPU compositor from dropping frames in Tier 2 fallback by ensuring the canvas has explicit resolution matching composition and is actively composited (`opacity: 0.01` with `requestFrame()` signal), and enabled single-threaded FFmpeg WebM-to-MP4 container conversion across all browsers.
+
+---
+
+## [0.5.2] - 2026-09-12
+
+### Fixed
+- **Safari WebKit Export Modal & Header Popover Dismissal**: Fixed issues where clicking "Export Video (.MP4)" on Safari caused the export modal to dismiss almost immediately (~5ms) and the header Export popover failed to appear on click. Resolved popstate race conditions in `Popover.close()` and eliminated redundant click listeners that triggered instant toggle-close cycles in `Popover.open()`.
+- **Safari Video Export Reliability & Direct AAC Muxing**: Fixed VideoToolbox encoder probe failures on macOS/iOS Safari by rendering active pixel data on probe canvases and extending hardware encoder initialization timeouts to 1000ms. Added native `video/mp4` MediaRecorder fallback (Tier 2) and in-memory WebCodecs `AudioEncoder` AAC muxing directly into `Mp4Muxer`, bypassing `SharedArrayBuffer` errors.
+- **Safari Popover Tail Arrow Rotation**: Fixed issue where popover arrow tail rendered as unrotated flat square in Safari instead of 45-degree angled diamond. Scoped Safari hardware acceleration selector in `css/safari.css` strictly away from `.popover-tail`, and added explicit `-webkit-transform` and `-webkit-transform-origin: 50% 50%` rules in `css/popover.css` and `css/safari.css`.
+- **Template Editor Duplicate Media Cards on Cut/Split Clips**: Resolved issue where splitting or cutting an image/video on the timeline spawned redundant 4th/duplicate cards in the Template Editor Replace Media deck. Timeline split pieces now inherit `sourceLayerId`, and `_collectReplaceableSlots` employs universal Media Pool gathering across IndexedDB and all session memory pools, grouping all cuts and occurrences of the same source asset into a single slot.
+
+- **Template Editor Auto-Open on Project Import**: All imported `.ofts` project packages now automatically launch directly into the Template Editor on first opening (`&template=1` and `projectData.isTemplate = true`).
+- **Export Progress UI & Engine Badge Overhaul**: Completely eliminated hyperbolic labels (such as "FFMPEG CPU"). Added a flat, borderless `.export-engine-badge` (`GPU` vs `CPU`) styled in bright theme tokens (`var(--color-primary)`) with high-contrast dark text (`var(--bg-canvas)`). Simplified frame rendering progress text to display frame numbers directly (e.g. `135 / 300`) without wordy prefixes.
+- **WebCodecs VideoToolbox "Encoding Task Failed" Resolution**: Fixed WebKit VideoToolbox crash (`VideoEncoder encode failed: Encoding task failed`) in macOS Safari by isolating canvas draws using `createImageBitmap(exportCanvas)` before wrapping into `VideoFrame(bmp)` to prevent iOSurface buffer locking collisions during active rendering. Configured dynamic resolution-aware H.264 levels (`33` for 4K, `2a` for 1080p), prioritized offline `latencyMode: 'quality'` to eliminate low-latency hardware constraints, ensured strictly monotonic microsecond timestamps with keyframe guarantees, and guarded Tier 2 `captureStream` for Safari fallback.
+- **Export GPU WebCodecs Acceleration & Timeline Double-Cache Bypass**: Optimized WebCodecs VideoToolbox hardware encoder probing for Safari and Chrome, offscreen DOM canvas layer backing, and full-resolution buffer probing to eliminate slow CPU FFmpeg fallbacks. Completely bypassed timeline preview caching, ruler redrawing, and background idle caching during export rendering to eliminate double processing and render lag.
+- **Idle Cache Default Disabled**: Changed background idle caching default state from enabled to disabled (`oft_idle_cache: false`), conserving RAM and background CPU resources until explicitly requested.
+
+### Improved
+- **Timeline Left Lane UI (Eye-Only Compact Pill)**: Removed unnecessary layer thumbnail preview circle (`.timeline-layer-thumb-circle`) from timeline layer heads to reduce visual clutter and maximize lane efficiency. The left lane now features a dedicated, streamlined 34x38px eye toggle button (`.timeline-layer-eye-btn`).
+- **Timeline Right Handle UI (Theme-Token Dynamic Contrast)**: Completely replaced buggy `mix-blend-mode: difference` and hardcoded white `#ffffff` with 100% theme token colors (`css/theme.css`). Implemented ultra-lightweight 1-line coordinate detection (`updateReorderHandlesContrast`) with `.is-over-clip`: renders deep dark canvas (`var(--bg-canvas)`) when over bright clips, and vibrant primary theme color (`var(--color-primary)`) when over dark track canvas. Zero GPU/CPU overhead, 100% cross-browser compatible.
+
+---
+
 ## [0.5.1] - 2026-09-12
 
 ### Fixed

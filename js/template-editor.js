@@ -234,7 +234,8 @@
       if (btnExpVideo) {
         btnExpVideo.addEventListener('click', (e) => {
           e.preventDefault();
-          if (window.Popover) window.Popover.close();
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close(false);
           const mainBtn = document.getElementById('btn-export-video-modal');
           if (mainBtn) mainBtn.click();
         });
@@ -443,9 +444,19 @@
           projectMedias = [];
         }
       }
+      if (window.FishDatabase && typeof window.FishDatabase.getAllMedia === 'function' && projectMedias.length === 0) {
+        try {
+          const allMedias = (await window.FishDatabase.getAllMedia()) || [];
+          allMedias.forEach(m => {
+            if (m && !projectMedias.some(x => x.id === m.id)) {
+              projectMedias.push(m);
+            }
+          });
+        } catch (_) {}
+      }
       if (window._activeMediaMap && window._activeMediaMap instanceof Map) {
         window._activeMediaMap.forEach(item => {
-          if (item && (!projectId || item.projectId === projectId) && !projectMedias.some(m => m.id === item.id)) {
+          if (item && !projectMedias.some(m => m.id === item.id)) {
             projectMedias.push(item);
           }
         });
@@ -456,9 +467,12 @@
 
       // Helper to match a layer to a Media Pool item
       const findMediaPoolItem = (layer) => {
+        const lMediaId = layer.mediaId || layer.fillMediaId;
+        if (lMediaId && window._activeMediaMap && window._activeMediaMap.has(lMediaId)) {
+          return window._activeMediaMap.get(lMediaId);
+        }
         if (!projectMedias || projectMedias.length === 0) return null;
 
-        const lMediaId = layer.mediaId || layer.fillMediaId;
         if (lMediaId) {
           const byId = projectMedias.find(m => m.id === lMediaId);
           if (byId) return byId;
@@ -476,10 +490,19 @@
           if (byThumb) return byThumb;
         }
 
+        // Match by layer.sourceLayerId if sibling layer resolved to a media pool item
+        if (layer.sourceLayerId) {
+          const sibling = (state.layers || []).find(l => l && l.id !== layer.id && (l.sourceLayerId === layer.sourceLayerId || l.id === layer.sourceLayerId));
+          if (sibling && (sibling.mediaId || sibling.fillMediaId)) {
+            const bySibId = projectMedias.find(m => m.id === (sibling.mediaId || sibling.fillMediaId));
+            if (bySibId) return bySibId;
+          }
+        }
+
         // Clean filename match (e.g. photo.jpg)
         if (layer.name && typeof layer.name === 'string') {
           const cName = cleanName(layer.name);
-          if (cName && cName !== 'image' && cName !== 'video' && cName !== 'media' && cName !== 'layer' && cName !== 'foto') {
+          if (cName && cName !== 'image' && cName !== 'video' && cName !== 'media' && cName !== 'layer') {
             const byName = projectMedias.find(m => m && m.name && cleanName(m.name) === cName);
             if (byName) return byName;
           }
@@ -501,9 +524,9 @@
           // Audio and fixed template videos are strictly excluded from Replace Media
           if (layer.type === 'audio') return;
           if (layer.dataUrl && (layer.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(layer.dataUrl))) return;
-          if (layer.type === 'video' && !layer.isReplaceableSlot) return;
+          if (layer.type === 'video' && !layer.isReplaceableSlot && !layer.mediaId) return;
 
-          const isMedia = layer.type === 'image' || layer.fillType === 'media' || layer.isReplaceableSlot;
+          const isMedia = layer.type === 'image' || layer.fillType === 'media' || layer.isReplaceableSlot || (layer.type === 'video' && layer.mediaId);
           if (isMedia) {
             const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
             const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
@@ -526,13 +549,24 @@
             const layerDataUrl = layer.dataUrl || layer.fillMediaUrl || (poolItem ? poolItem.dataUrl : '');
             const layerThumbUrl = layer.thumbUrl || (poolItem ? (poolItem.thumbUrl || poolItem.dataUrl) : '');
             const cLayerName = cleanName(layer.name);
-            const isGenericName = !cLayerName || ['image', 'video', 'media', 'layer', 'foto'].includes(cLayerName);
+            const isGenericName = !cLayerName || ['image', 'video', 'media', 'layer'].includes(cLayerName);
 
             // Check if this layer shares media with an already collected slot
             let matchedSlot = null;
 
             if (poolItem) {
               matchedSlot = this.slots.find(s => s.mediaPoolId === poolItem.id || (s.mediaIds && s.mediaIds.has(poolItem.id)));
+            }
+
+            // Match by sourceLayerId (cut / split pieces of the same clip)
+            if (!matchedSlot) {
+              const srcId = layer.sourceLayerId || layer.id;
+              matchedSlot = this.slots.find(s => {
+                if (s.sourceLayerId && (s.sourceLayerId === srcId || s.sourceLayerId === layer.id || (layer.sourceLayerId && s.sourceLayerId === layer.sourceLayerId))) return true;
+                if (s.sourceLayerIds && (s.sourceLayerIds.has(srcId) || (layer.sourceLayerId && s.sourceLayerIds.has(layer.sourceLayerId)) || s.sourceLayerIds.has(layer.id))) return true;
+                if (s.layerIds && (s.layerIds.includes(srcId) || (layer.sourceLayerId && s.layerIds.includes(layer.sourceLayerId)) || s.layerIds.includes(layer.id))) return true;
+                return false;
+              });
             }
 
             if (!matchedSlot) {
@@ -558,9 +592,16 @@
               });
             }
 
+            const srcId = layer.sourceLayerId || layer.id;
+
             if (matchedSlot) {
               // Group duplicate cut/layer into the existing slot
               matchedSlot.layerIds.push(layer.id);
+              matchedSlot.sourceLayerIds = matchedSlot.sourceLayerIds || new Set();
+              matchedSlot.sourceLayerIds.add(srcId);
+              if (layer.sourceLayerId) matchedSlot.sourceLayerIds.add(layer.sourceLayerId);
+              matchedSlot.sourceLayerIds.add(layer.id);
+
               matchedSlot.occurrences.push({
                 layerId: layer.id,
                 startSec: startSec,
@@ -593,9 +634,14 @@
               if (poolItem && poolItem.dataUrl) mediaUrls.add(poolItem.dataUrl);
               if (poolItem && poolItem.thumbUrl) mediaUrls.add(poolItem.thumbUrl);
 
+              const sourceLayerIds = new Set([srcId, layer.id]);
+              if (layer.sourceLayerId) sourceLayerIds.add(layer.sourceLayerId);
+
               this.slots.push({
                 layerId: layer.id,
                 layerIds: [layer.id],
+                sourceLayerId: srcId,
+                sourceLayerIds: sourceLayerIds,
                 occurrences: [{
                   layerId: layer.id,
                   startSec: startSec,

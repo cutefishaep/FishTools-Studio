@@ -47,12 +47,15 @@
   pointer-events: none;
   box-sizing: border-box;
   z-index: -1;
+  -webkit-transform-origin: 50% 50%;
+  transform-origin: 50% 50%;
 }
 
 /* Tail Placements & Rotation */
 .popover-card[data-placement^="bottom"] > .popover-tail {
   top: -6px;
   bottom: auto !important;
+  -webkit-transform: translateX(-50%) rotate(45deg);
   transform: translateX(-50%) rotate(45deg);
   border-top-width: 1px;
   border-left-width: 1px;
@@ -63,6 +66,7 @@
 .popover-card[data-placement^="top"] > .popover-tail {
   bottom: -6px;
   top: auto !important;
+  -webkit-transform: translateX(-50%) rotate(45deg);
   transform: translateX(-50%) rotate(45deg);
   border-bottom-width: 1px;
   border-right-width: 1px;
@@ -72,6 +76,7 @@
 
 .popover-card[data-placement^="right"] > .popover-tail {
   left: -6px;
+  -webkit-transform: translateY(-50%) rotate(45deg);
   transform: translateY(-50%) rotate(45deg);
   border-bottom-width: 1px;
   border-left-width: 1px;
@@ -79,6 +84,7 @@
 
 .popover-card[data-placement^="left"] > .popover-tail {
   right: -6px;
+  -webkit-transform: translateY(-50%) rotate(45deg);
   transform: translateY(-50%) rotate(45deg);
   border-top-width: 1px;
   border-right-width: 1px;

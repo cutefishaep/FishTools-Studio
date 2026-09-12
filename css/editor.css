@@ -1534,7 +1534,6 @@ html, body {
 }
 
 .timeline-lane-reorder-slot.is-dragging {
-  z-index: 30;
   transition: none !important;
 }
 
@@ -2237,7 +2236,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 25;
+  isolation: auto;
   pointer-events: none;
 }
 
@@ -2248,75 +2247,69 @@ html, body {
   justify-content: flex-end;
   pointer-events: none;
   position: relative;
+  isolation: auto;
 }
 
 .timeline-layer-reorder-pill {
   position: relative;
-  right: 0;
+  right: 6px;
   height: 38px;
+  width: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 10px 0 12px;
-  background-color: var(--bg-canvas);
-  color: var(--text-primary);
-  border-radius: 999px 0 0 999px;
+  padding: 0;
+  background-color: transparent !important;
+  background: transparent !important;
+  color: var(--color-primary);
+  border-radius: 0;
   box-sizing: border-box;
   pointer-events: auto;
   user-select: none;
   border: none;
   outline: none;
   cursor: grab;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.12s ease, opacity 0.15s ease, color 0.15s ease;
 }
 
 .timeline-layer-reorder-pill:hover {
-  background-color: var(--bg-panel-inner);
+  background-color: transparent !important;
 }
 
 .timeline-layer-reorder-pill.is-selected {
-  background-color: var(--color-primary);
-  color: var(--bg-canvas);
+  background-color: transparent !important;
 }
 
 .timeline-layer-reorder-pill.is-selected:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.timeline-layer-reorder-pill.is-selected .reorder-grip {
-  color: var(--bg-canvas);
-}
-
-.timeline-layer-reorder-pill.is-selected .reorder-grip .svg-icon {
-  background-color: var(--bg-canvas);
+  background-color: transparent !important;
 }
 
 .timeline-layer-reorder-pill.is-dragging {
   cursor: grabbing !important;
-  background-color: var(--color-primary);
-  color: var(--bg-canvas);
-  z-index: 30;
+  background-color: transparent !important;
   transition: none !important;
-}
-
-.timeline-layer-reorder-pill.is-dragging .reorder-grip {
-  color: var(--bg-canvas) !important;
-}
-
-.timeline-layer-reorder-pill.is-dragging .reorder-grip .svg-icon {
-  background-color: var(--bg-canvas) !important;
 }
 
 .reorder-grip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   cursor: inherit;
-  color: currentColor;
+  color: var(--color-primary);
   border-radius: 4px;
-  transition: transform 0.1s ease, color 0.1s ease;
+  transition: transform 0.12s ease, color 0.15s ease;
+}
+
+.reorder-grip svg,
+.reorder-grip .reorder-grip-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+  pointer-events: none;
 }
 
 .reorder-grip .svg-icon {
@@ -2325,8 +2318,28 @@ html, body {
   background-color: currentColor;
 }
 
+/* 1. Default (Over Dark Track Canvas): bright theme primary */
+.timeline-layer-reorder-pill .reorder-grip {
+  color: var(--color-primary);
+}
+
 .timeline-layer-reorder-pill:hover .reorder-grip {
-  transform: scale(1.12);
+  color: var(--color-primary-hover);
+  transform: scale(1.22);
+}
+
+/* 2. Over Bright Clip Background: dark theme canvas color for high contrast */
+.timeline-layer-reorder-pill.is-over-clip .reorder-grip {
+  color: var(--bg-canvas);
+}
+
+.timeline-layer-reorder-pill.is-over-clip:hover .reorder-grip {
+  color: var(--bg-dashboard);
+  transform: scale(1.22);
+}
+
+.timeline-layer-reorder-pill.is-dragging .reorder-grip {
+  transform: scale(1.28);
 }
 
 /* Hide right reorder pill completely in Selector Mode */
@@ -2338,12 +2351,13 @@ html, body {
 .timeline-layer-ctrl-pill {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
-  border-radius: 0 999px 999px 0;
-  padding: 0 12px 0 10px;
+  border-radius: 0 12px 12px 0;
+  width: 34px;
   height: 38px;
+  padding: 0;
   box-sizing: border-box;
   user-select: none;
   -webkit-user-select: none;
@@ -2352,7 +2366,7 @@ html, body {
   cursor: pointer;
   border: none;
   outline: none;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .timeline-layer-ctrl-pill:hover {
@@ -2392,10 +2406,6 @@ html, body {
   background-color: var(--color-primary) !important;
 }
 
-.timeline-layer-ctrl-pill.is-selected .timeline-layer-thumb-circle .svg-icon {
-  background-color: var(--bg-canvas) !important;
-}
-
 .timeline-layer-eye-btn {
   background: transparent;
   border: none;
@@ -2418,10 +2428,6 @@ html, body {
 
 .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn {
   color: var(--text-muted);
-  opacity: 1 !important;
-}
-
-.timeline-layer-ctrl-pill.is-hidden .timeline-layer-thumb-circle {
   opacity: 1 !important;
 }
 
@@ -2812,14 +2818,40 @@ body.has-active-drawer .timeline-fab-add {
   box-sizing: border-box;
 }
 
+.export-progress-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 20px 0;
+}
+
 .export-progress-title {
   font-family: var(--font-brand);
   font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 20px 0;
+  margin: 0;
   letter-spacing: -0.3px;
   text-align: center;
+}
+
+.export-engine-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  font-family: var(--font-brand);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  line-height: 1;
 }
 
 .export-progress-bar-track {

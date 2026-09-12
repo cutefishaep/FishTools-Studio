@@ -247,6 +247,7 @@
 
     // Throttled ruler update: rapid batched updates to display green progress bar promptly
     _scheduleRulerUpdate() {
+      if (typeof window !== 'undefined' && window.isExporting) return;
       if (this._rulerUpdatePending) return;
       this._rulerUpdatePending = true;
       setTimeout(() => {
@@ -256,6 +257,7 @@
     }
 
     async setFrameFromCanvas(frameIndex, sourceCanvas, isDraft = this.isDraftMode, compId = null) {
+      if (typeof window !== 'undefined' && window.isExporting) return;
       if (!sourceCanvas || sourceCanvas.width === 0 || sourceCanvas.height === 0) return;
       const targetComp = compId || this.activeCompId;
       const targetPool = this.getPool(targetComp);
@@ -422,6 +424,7 @@
     }
 
     _renderRuler() {
+      if (typeof window !== 'undefined' && window.isExporting) return;
       if (!this.rulerCanvas) {
         this.rulerCanvas = document.getElementById('timeline-cache-ruler-bar');
         if (this.rulerCanvas) this.rulerCtx = this.rulerCanvas.getContext('2d');
@@ -512,10 +515,12 @@
     }
 
     scheduleIdleCheck(immediate = false) {
+      if (typeof window !== 'undefined' && window.isExporting) return;
       if (!this.idleCacheEnabled) return;
       if (this.idleTimer) clearTimeout(this.idleTimer);
       const delay = immediate ? 50 : 600;
       this.idleTimer = setTimeout(() => {
+        if (typeof window !== 'undefined' && window.isExporting) return;
         if (!this.idleCacheEnabled) return;
         if (window.isTimelinePlaying || window.isTransformInteracting) return;
         // Only pause idle cache if an active video layer in this composition is currently extracting
@@ -529,6 +534,7 @@
      * Force immediate background recache for a specific time range or whole active composition
      */
     forceRecache(startSec = null, endSec = null) {
+      if (typeof window !== 'undefined' && window.isExporting) return;
       if (startSec !== null && endSec !== null && isFinite(startSec) && isFinite(endSec)) {
         this.invalidateRange(startSec, endSec);
       } else {
@@ -540,6 +546,7 @@
     }
 
     startIdleWorker() {
+      if (typeof window !== 'undefined' && window.isExporting) return;
       if (this.isIdleRunning || !this.idleCacheEnabled || window.isTimelinePlaying || window.isTransformInteracting) return;
       if (this._hasExtractingVideoInActiveComp()) return;
       this.isIdleRunning = true;
@@ -591,6 +598,10 @@
     }
 
     runIdleStep() {
+      if (typeof window !== 'undefined' && window.isExporting) {
+        this.stopIdleWorker();
+        return;
+      }
       if (!this.isIdleRunning || !this.idleCacheEnabled || window.isTimelinePlaying || window.isTransformInteracting) {
         this.stopIdleWorker();
         return;

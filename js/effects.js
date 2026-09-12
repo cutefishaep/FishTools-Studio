@@ -118,8 +118,102 @@
       return layer.effects;
     },
 
+    _filterSupported: null,
+    isCanvasFilterSupported() {
+      if (this._filterSupported !== null) return this._filterSupported;
+      if (typeof document === 'undefined') {
+        this._filterSupported = false;
+        return false;
+      }
+      try {
+        const c = document.createElement('canvas');
+        c.width = 2; c.height = 2;
+        const ctx = c.getContext('2d');
+        if (!ctx || !('filter' in ctx)) {
+          this._filterSupported = false;
+          return false;
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 2, 2);
+        const c2 = document.createElement('canvas');
+        c2.width = 2; c2.height = 2;
+        const ctx2 = c2.getContext('2d');
+        ctx2.filter = 'invert(100%)';
+        ctx2.drawImage(c, 0, 0);
+        const p = ctx2.getImageData(0, 0, 1, 1).data;
+        this._filterSupported = (p[0] === 0 && p[1] === 0 && p[2] === 0);
+      } catch (_) {
+        this._filterSupported = false;
+      }
+      return this._filterSupported;
+    },
+
+    _blurCanvases: [],
+    _getBlurCanvas(index, w, h) {
+      if (!this._blurCanvases[index]) {
+        const c = document.createElement('canvas');
+        this._blurCanvases[index] = { canvas: c, ctx: c.getContext('2d') };
+      }
+      const entry = this._blurCanvases[index];
+      const nw = Math.max(1, Math.round(w));
+      const nh = Math.max(1, Math.round(h));
+      if (entry.canvas.width !== nw || entry.canvas.height !== nh) {
+        entry.canvas.width = nw;
+        entry.canvas.height = nh;
+      }
+      return entry;
+    },
+
+    drawBlurred(targetCtx, srcEl, w, h, radius) {
+      if (!targetCtx || !srcEl) return;
+      const r = Math.max(0, Number(radius) || 0);
+      const dw = Math.max(1, Math.round(w));
+      const dh = Math.max(1, Math.round(h));
+      if (r <= 0.5) {
+        try { targetCtx.drawImage(srcEl, 0, 0, dw, dh); } catch (_) {}
+        return;
+      }
+
+      if (this.isCanvasFilterSupported()) {
+        targetCtx.save();
+        targetCtx.filter = `blur(${r.toFixed(1)}px)`;
+        try { targetCtx.drawImage(srcEl, 0, 0, dw, dh); } catch (_) {}
+        targetCtx.restore();
+        return;
+      }
+
+      // Universal Safari / WebKit Fallback: Multi-pass pyramidal downscale & upscale with bilinear smoothing
+      const scaleDown = Math.max(0.02, Math.min(0.5, 1 / (1 + r * 0.35)));
+      const sw = Math.max(2, Math.round(dw * scaleDown));
+      const sh = Math.max(2, Math.round(dh * scaleDown));
+
+      const b0 = this._getBlurCanvas(0, sw, sh);
+      b0.ctx.imageSmoothingEnabled = true;
+      b0.ctx.imageSmoothingQuality = 'high';
+      b0.ctx.clearRect(0, 0, sw, sh);
+      try { b0.ctx.drawImage(srcEl, 0, 0, sw, sh); } catch (_) { return; }
+
+      const midW = Math.max(2, Math.round(sw * 0.75));
+      const midH = Math.max(2, Math.round(sh * 0.75));
+      const b1 = this._getBlurCanvas(1, midW, midH);
+      b1.ctx.imageSmoothingEnabled = true;
+      b1.ctx.imageSmoothingQuality = 'high';
+      b1.ctx.clearRect(0, 0, midW, midH);
+      try { b1.ctx.drawImage(b0.canvas, 0, 0, midW, midH); } catch (_) {}
+
+      targetCtx.save();
+      targetCtx.imageSmoothingEnabled = true;
+      targetCtx.imageSmoothingQuality = 'high';
+      try {
+        targetCtx.drawImage(b1.canvas, 0, 0, dw, dh);
+      } catch (_) {
+        try { targetCtx.drawImage(srcEl, 0, 0, dw, dh); } catch (_) {}
+      }
+      targetCtx.restore();
+    },
+
     buildFilter(layer) {
-      if (!layer) return '';
+      if (!layer || !this.isCanvasFilterSupported()) return '';
       const parts = [];
 
       if (Array.isArray(layer.effects) && layer.effects.length > 0) {
@@ -128,6 +222,7 @@
           if (!fx || fx.disabled === true) continue;
           const def = FishEffectsRegistry.get(fx.type);
           if (def && def.category === 'expression') continue;
+          if (def && typeof def.render === 'function') continue;
           if (def && typeof def.filter === 'function') {
             const fStr = def.filter(fx);
             if (fStr) parts.push(fStr);
@@ -135,7 +230,7 @@
         }
       } else if (layer.hasBrightnessContrast && layer.effectsDisabled !== true) {
         const def = FishEffectsRegistry.get('brightness-contrast');
-        if (def && typeof def.filter === 'function') {
+        if (def && typeof def.render !== 'function' && typeof def.filter === 'function') {
           const fStr = def.filter(layer);
           if (fStr) parts.push(fStr);
         }
@@ -145,7 +240,7 @@
     },
 
     applyToContext(ctx, layer) {
-      if (!ctx || !layer) return;
+      if (!ctx || !layer || !this.isCanvasFilterSupported()) return;
       const filter = this.buildFilter(layer);
       if (filter) {
         ctx.filter = filter;

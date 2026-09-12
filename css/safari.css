@@ -134,6 +134,11 @@
   /* =========================================================================
      6. SCROLL SNAP — Timeline horizontal scroll with momentum + no bounce
      ========================================================================= */
+  .timeline-layers-viewport {
+    overflow-x: clip !important;
+    overflow-y: auto;
+  }
+
   .timeline-layers-viewport,
   #timeline-ruler-viewport {
     overscroll-behavior-x: none;
@@ -156,20 +161,28 @@
      8. SCROLLBAR — Hide Safari's native overlay scrollbar in panels where
         it visually conflicts with the flat UI design.
      ========================================================================= */
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  *::-webkit-scrollbar,
   .timeline-layers-viewport::-webkit-scrollbar,
   .effects-rack-list::-webkit-scrollbar,
   .drawer-body::-webkit-scrollbar,
   .popover-body::-webkit-scrollbar {
-    width: 3px;
-    height: 3px;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-thumb,
   .timeline-layers-viewport::-webkit-scrollbar-thumb,
   .effects-rack-list::-webkit-scrollbar-thumb,
   .drawer-body::-webkit-scrollbar-thumb,
   .popover-body::-webkit-scrollbar-thumb {
-    background-color: var(--border-panel);
-    border-radius: 99px;
+    display: none !important;
   }
 
   /* =========================================================================

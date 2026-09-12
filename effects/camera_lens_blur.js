@@ -32,16 +32,28 @@
 
       ctx.save();
       // 1. Base optical blur pass
-      ctx.filter = `blur(${Math.round(r)}px)`;
-      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
-      ctx.filter = 'none';
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.isCanvasFilterSupported === 'function' && window.FishEffects.isCanvasFilterSupported()) {
+        ctx.filter = `blur(${Math.round(r)}px)`;
+        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+        ctx.filter = 'none';
 
-      // 2. Specular bokeh / highlight bloom pass
-      if (bloom > 0) {
-        ctx.globalAlpha = bloom * 0.7;
-        ctx.globalCompositeOperation = 'screen';
-        const bloomR = Math.round(r * 1.4);
-        ctx.filter = `brightness(1.6) contrast(1.5) blur(${bloomR}px)`;
+        // 2. Specular bokeh / highlight bloom pass
+        if (bloom > 0) {
+          ctx.globalAlpha = bloom * 0.7;
+          ctx.globalCompositeOperation = 'screen';
+          const bloomR = Math.round(r * 1.4);
+          ctx.filter = `brightness(1.6) contrast(1.5) blur(${bloomR}px)`;
+          try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+        }
+      } else if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+        ctx.translate(x, y);
+        window.FishEffects.drawBlurred(ctx, el, w, h, r);
+        if (bloom > 0) {
+          ctx.globalAlpha = bloom * 0.7;
+          ctx.globalCompositeOperation = 'screen';
+          window.FishEffects.drawBlurred(ctx, el, w, h, r * 1.4);
+        }
+      } else {
         try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
       }
       ctx.restore();

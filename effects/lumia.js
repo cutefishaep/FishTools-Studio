@@ -3,6 +3,9 @@
   const reg = (window && window.FishEffectsRegistry) || (typeof global !== 'undefined' && global.FishEffectsRegistry);
   if (!reg) return;
 
+  let _lumiaCanvas = null;
+  let _lumiaCtx = null;
+
   reg.register({
     id: 'lumia',
     name: 'Lumia',
@@ -33,10 +36,57 @@
 
       const contrastVal = 1 + thresh * 2.5;
       const blurVal = Math.round(smooth * 12);
-      ctx.filter = `contrast(${contrastVal.toFixed(2)}) brightness(${intensity.toFixed(2)}) ${blurVal > 0 ? `blur(${blurVal}px)` : ''}`;
+
+      // Primary Path: Native Canvas filter if supported
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.isCanvasFilterSupported === 'function' && window.FishEffects.isCanvasFilterSupported()) {
+        ctx.filter = `contrast(${contrastVal.toFixed(2)}) brightness(${intensity.toFixed(2)}) ${blurVal > 0 ? `blur(${blurVal}px)` : ''}`;
+        try {
+          ctx.drawImage(el, x, y, w, h);
+        } catch (_) {}
+        ctx.restore();
+        return;
+      }
+
+      // Universal Safari WebKit Fallback: Offscreen thresholding & blur
+      if (!_lumiaCanvas && typeof document !== 'undefined') {
+        _lumiaCanvas = document.createElement('canvas');
+        _lumiaCtx = _lumiaCanvas.getContext('2d');
+      }
+      if (!_lumiaCanvas || !_lumiaCtx) {
+        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+        ctx.restore();
+        return;
+      }
+
+      const rw = Math.max(1, Math.round(w));
+      const rh = Math.max(1, Math.round(h));
+      if (_lumiaCanvas.width !== rw || _lumiaCanvas.height !== rh) {
+        _lumiaCanvas.width = rw;
+        _lumiaCanvas.height = rh;
+      }
+      _lumiaCtx.clearRect(0, 0, rw, rh);
       try {
-        ctx.drawImage(el, x, y, w, h);
-      } catch (_) {}
+        _lumiaCtx.drawImage(el, 0, 0, rw, rh);
+      } catch (_) {
+        ctx.restore();
+        return;
+      }
+
+      // Threshold: multiply pass suppresses shadow & midtones to isolate specular highlights
+      const multPasses = Math.min(3, Math.max(1, Math.round(thresh * 3)));
+      _lumiaCtx.save();
+      _lumiaCtx.globalCompositeOperation = 'multiply';
+      for (let p = 0; p < multPasses; p++) {
+        try { _lumiaCtx.drawImage(_lumiaCanvas, 0, 0); } catch (_) {}
+      }
+      _lumiaCtx.restore();
+
+      // Render blurred highlights
+      if (blurVal > 0 && typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+        window.FishEffects.drawBlurred(ctx, _lumiaCanvas, rw, rh, blurVal);
+      } else {
+        try { ctx.drawImage(_lumiaCanvas, x, y, w, h); } catch (_) {}
+      }
       ctx.restore();
     }
   });

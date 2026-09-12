@@ -69,13 +69,26 @@
 
       // --- PASS 1: Extract highlights with threshold ---
       // Magic Bullet style: soft threshold that preserves highlight roll-off
-      const threshContrast = 1.0 + highlight * 4.0;
-      const threshBright = 0.3 + (1.0 - highlight) * 1.2;
       bloom.x.clearRect(0, 0, w, h);
-      bloom.x.save();
-      bloom.x.filter = `contrast(${threshContrast.toFixed(2)}) brightness(${threshBright.toFixed(2)}) saturate(${(0.5 + saturation * 0.8).toFixed(2)})`;
-      try { bloom.x.drawImage(el, 0, 0, w, h); } catch (_) {}
-      bloom.x.restore();
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.isCanvasFilterSupported === 'function' && window.FishEffects.isCanvasFilterSupported()) {
+        const threshContrast = 1.0 + highlight * 4.0;
+        const threshBright = 0.3 + (1.0 - highlight) * 1.2;
+        bloom.x.save();
+        bloom.x.filter = `contrast(${threshContrast.toFixed(2)}) brightness(${threshBright.toFixed(2)}) saturate(${(0.5 + saturation * 0.8).toFixed(2)})`;
+        try { bloom.x.drawImage(el, 0, 0, w, h); } catch (_) {}
+        bloom.x.restore();
+      } else {
+        try { bloom.x.drawImage(el, 0, 0, w, h); } catch (_) {}
+        if (highlight > 0.1) {
+          bloom.x.save();
+          bloom.x.globalCompositeOperation = 'multiply';
+          const pCount = Math.min(3, Math.max(1, Math.round(highlight * 3)));
+          for (let p = 0; p < pCount; p++) {
+            try { bloom.x.drawImage(bloom.c, 0, 0); } catch (_) {}
+          }
+          bloom.x.restore();
+        }
+      }
 
       // --- PASS 2: Multi-radius halation bloom ---
       // MBL style: multiple concentric bloom passes at different radii for natural falloff
@@ -94,8 +107,14 @@
         halo.x.save();
         halo.x.globalCompositeOperation = i === 0 ? 'source-over' : 'lighter';
         halo.x.globalAlpha = p.alpha;
-        halo.x.filter = `blur(${p.radius.toFixed(1)}px)`;
-        try { halo.x.drawImage(bloom.c, 0, 0, w, h); } catch (_) {}
+        if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+          window.FishEffects.drawBlurred(halo.x, bloom.c, w, h, p.radius);
+        } else {
+          try {
+            halo.x.filter = `blur(${p.radius.toFixed(1)}px)`;
+            halo.x.drawImage(bloom.c, 0, 0, w, h);
+          } catch (_) {}
+        }
         halo.x.restore();
       }
 

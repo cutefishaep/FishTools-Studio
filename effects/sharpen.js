@@ -11,6 +11,8 @@
   let _uvBuf = null;
   let _tex = null;
   let _glFailed = false;
+  let _scratchCanvas = null;
+  let _scratchCtx = null;
 
   function initSharpenGL() {
     if (_gl && _glProg) return true;
@@ -189,7 +191,31 @@
 
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, _tex);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+
+          let uploaded = false;
+          try {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+            uploaded = true;
+          } catch (_) {
+            if (!_scratchCanvas) {
+              _scratchCanvas = document.createElement('canvas');
+              _scratchCtx = _scratchCanvas.getContext('2d');
+            }
+            const sw = Math.min(1920, el.videoWidth || el.naturalWidth || el.width || w);
+            const sh = Math.min(1080, el.videoHeight || el.naturalHeight || el.height || h);
+            if (_scratchCanvas.width !== sw || _scratchCanvas.height !== sh) {
+              _scratchCanvas.width = sw;
+              _scratchCanvas.height = sh;
+            }
+            _scratchCtx.clearRect(0, 0, sw, sh);
+            _scratchCtx.drawImage(el, 0, 0, sw, sh);
+            try {
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _scratchCanvas);
+              uploaded = true;
+            } catch (_) {}
+          }
+
+          if (!uploaded) throw new Error('Sharpen texture upload failed');
           gl.uniform1i(u.image, 0);
 
           gl.uniform2f(u.texelSize, 1.0 / w, 1.0 / h);

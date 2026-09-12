@@ -12,6 +12,8 @@
   let _posBuf = null;
   let _uvBuf = null;
   let _tex = null;
+  let _scratchCanvas = null;
+  let _scratchCtx = null;
   let _glFailed = false;
 
   function initWaveGL() {
@@ -268,6 +270,11 @@
       }
 
       const width = Math.max(10, fx && fx.waveWidth !== undefined ? fx.waveWidth : 120);
+      const baseRefW = Math.abs((layer && layer.scaleW) || (layer && layer.mediaWidth) || w);
+      const bufferScale = baseRefW > 0 ? (w / baseRefW) : 1;
+      const effectiveHeight = height * bufferScale;
+      const effectiveWidth = Math.max(1, width * bufferScale);
+
       const rawType = (fx && fx.waveType ? String(fx.waveType) : 'sine').toLowerCase().replace(/[\s_]+/g, '-');
       const dirDeg = fx && fx.direction !== undefined ? fx.direction : 0;
       const speed = fx && fx.speed !== undefined ? fx.speed : 1;
@@ -284,7 +291,9 @@
         else if (window.timelinePanX !== undefined) curSec = Math.abs(window.timelinePanX) / (window.currentPixelsPerSecond || 80);
       }
       const layerStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
-      const t = curSec - layerStart;
+      const sourceOffset = (layer && layer.sourceOffsetSec !== undefined) ? layer.sourceOffsetSec : 0;
+      // Continuous phase: offset by sourceOffset ensures cuts don't jump phase
+      const t = curSec - (layerStart - sourceOffset);
 
       // Positive speed moves the wave forward along the direction vector
       const phaseRad = (phaseDeg * Math.PI / 180) - (t * speed * Math.PI * 2);
@@ -324,31 +333,56 @@
 
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, _tex);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
-          gl.uniform1i(u.image, 0);
 
-          gl.uniform2f(u.resolution, rw, rh);
-          gl.uniform1f(u.waveHeight, height);
-          gl.uniform1f(u.waveWidth, width);
-          gl.uniform1f(u.dirRad, dirRad);
-          gl.uniform1f(u.phaseRad, phaseRad);
-          gl.uniform1i(u.waveType, typeInt);
-          gl.uniform1i(u.tile, isTile ? 1 : 0);
+          let uploaded = false;
+          try {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+            uploaded = true;
+          } catch (_) {
+            // Safari WebKit texture fallback buffer
+            if (!_scratchCanvas) {
+              _scratchCanvas = document.createElement('canvas');
+              _scratchCtx = _scratchCanvas.getContext('2d');
+            }
+            const sw = Math.min(1920, el.videoWidth || el.naturalWidth || el.width || rw);
+            const sh = Math.min(1080, el.videoHeight || el.naturalHeight || el.height || rh);
+            if (_scratchCanvas.width !== sw || _scratchCanvas.height !== sh) {
+              _scratchCanvas.width = sw;
+              _scratchCanvas.height = sh;
+            }
+            _scratchCtx.clearRect(0, 0, sw, sh);
+            _scratchCtx.drawImage(el, 0, 0, sw, sh);
+            try {
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _scratchCanvas);
+              uploaded = true;
+            } catch (_) {}
+          }
 
-          const posLoc = gl.getAttribLocation(prog, 'a_pos');
-          gl.bindBuffer(gl.ARRAY_BUFFER, _posBuf);
-          gl.enableVertexAttribArray(posLoc);
-          gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+          if (uploaded) {
+            gl.uniform1i(u.image, 0);
+            gl.uniform2f(u.resolution, rw, rh);
+            gl.uniform1f(u.waveHeight, effectiveHeight);
+            gl.uniform1f(u.waveWidth, effectiveWidth);
+            gl.uniform1f(u.dirRad, dirRad);
+            gl.uniform1f(u.phaseRad, phaseRad);
+            gl.uniform1i(u.waveType, typeInt);
+            gl.uniform1i(u.tile, isTile ? 1 : 0);
 
-          const uvLoc = gl.getAttribLocation(prog, 'a_uv');
-          gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
-          gl.enableVertexAttribArray(uvLoc);
-          gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
+            const posLoc = gl.getAttribLocation(prog, 'a_pos');
+            gl.bindBuffer(gl.ARRAY_BUFFER, _posBuf);
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            const uvLoc = gl.getAttribLocation(prog, 'a_uv');
+            gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
+            gl.enableVertexAttribArray(uvLoc);
+            gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
 
-          ctx.drawImage(_glCanvas, x, y, w, h);
-          return;
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            ctx.drawImage(_glCanvas, x, y, w, h);
+            return;
+          }
         } catch (err) {
           console.warn('[WaveWarp] WebGL render failed, falling back to 2D:', err);
         }
@@ -402,9 +436,9 @@
       const spanW = Math.ceil(w * cosA + h * sinA);
       const spanH = Math.ceil(w * sinA + h * cosA);
 
-      const padY = Math.ceil(Math.abs(height) * 2) + (isTile ? 24 : 4);
+      const padY = Math.ceil(Math.abs(effectiveHeight) * 2) + (isTile ? 24 : 4);
       const totalW = Math.ceil(spanW + (isTile ? padY * 2 : 4));
-      const totalH = Math.ceil(spanH + padY * (isTile ? 2 : 1));
+      const totalH = Math.ceil(spanH + padY * 2);
 
       const buf = getWaveBuffer(totalW, totalH);
       if (!buf || !buf.ctx) {
@@ -486,7 +520,7 @@
         const sw = Math.min(sliceW, endSx - sx);
         const u = (sx + sw / 2) - halfTotalW;
         const wave = getWave(u);
-        const dy = wave * height;
+        const dy = wave * effectiveHeight;
 
         ctx.drawImage(
           bCanvas,

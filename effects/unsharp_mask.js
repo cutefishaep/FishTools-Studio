@@ -12,6 +12,8 @@
   let _origTex = null;
   let _blurTex = null;
   let _glFailed = false;
+  let _scratchCanvas = null;
+  let _scratchCtx = null;
 
   let _blurCanvas = null;
   let _blurCtx = null;
@@ -210,12 +212,14 @@
       }
       const bCtx = blurEntry.ctx;
       bCtx.clearRect(0, 0, w, h);
-      bCtx.save();
-      bCtx.filter = `blur(${radius.toFixed(1)}px)`;
-      try {
-        bCtx.drawImage(el, 0, 0, w, h);
-      } catch (_) {}
-      bCtx.restore();
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+        window.FishEffects.drawBlurred(bCtx, el, w, h, radius);
+      } else {
+        bCtx.save();
+        try { bCtx.filter = `blur(${radius.toFixed(1)}px)`; } catch (_) {}
+        try { bCtx.drawImage(el, 0, 0, w, h); } catch (_) {}
+        bCtx.restore();
+      }
 
       if (!_glFailed && initUnsharpGL()) {
         try {
@@ -236,7 +240,31 @@
 
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, _origTex);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+
+          let uploaded = false;
+          try {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+            uploaded = true;
+          } catch (_) {
+            if (!_scratchCanvas) {
+              _scratchCanvas = document.createElement('canvas');
+              _scratchCtx = _scratchCanvas.getContext('2d');
+            }
+            const sw = Math.min(1920, el.videoWidth || el.naturalWidth || el.width || w);
+            const sh = Math.min(1080, el.videoHeight || el.naturalHeight || el.height || h);
+            if (_scratchCanvas.width !== sw || _scratchCanvas.height !== sh) {
+              _scratchCanvas.width = sw;
+              _scratchCanvas.height = sh;
+            }
+            _scratchCtx.clearRect(0, 0, sw, sh);
+            _scratchCtx.drawImage(el, 0, 0, sw, sh);
+            try {
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _scratchCanvas);
+              uploaded = true;
+            } catch (_) {}
+          }
+
+          if (!uploaded) throw new Error('Unsharp mask upload failed');
           gl.uniform1i(u.orig, 0);
 
           gl.activeTexture(gl.TEXTURE1);

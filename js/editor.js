@@ -478,6 +478,8 @@
 
           if (prj && prj.id) {
             prj.beatmarks = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
+            prj.pixelsPerSecond = window.currentPixelsPerSecond || 80;
+            currentProjectState.pixelsPerSecond = prj.pixelsPerSecond;
 
             // Sync current active precomp layers if inside precomp
             if (currentActivePrecomp) {
@@ -860,7 +862,7 @@
           isReady: true
         };
       }
-      const key = layer.type === 'video' ? layer.id : (layer.mediaId || layer.id);
+      const key = (layer.type === 'video' || layer.type === 'audio') ? layer.id : (layer.mediaId || layer.id);
       if (layerMediaCache.has(key)) {
         return layerMediaCache.get(key);
       }
@@ -5641,6 +5643,7 @@
           drawerCard.style.height = '';
           const nextH = drawerCard.offsetHeight;
           if (nextH > 0 && Math.abs(prevH - nextH) > 4) {
+            drawerCard._targetHeight = nextH;
             drawerCard.style.height = `${prevH}px`;
             drawerCard.style.transition = 'height 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
             requestAnimationFrame(() => {
@@ -5650,12 +5653,15 @@
             drawerCard._subviewHeightTimer = setTimeout(() => {
               drawerCard.style.height = '';
               drawerCard.style.transition = '';
+              delete drawerCard._targetHeight;
             }, 240);
           } else {
             drawerCard.style.height = '';
+            delete drawerCard._targetHeight;
           }
         } else {
           drawerCard.style.height = '';
+          delete drawerCard._targetHeight;
         }
       }
 
@@ -5777,8 +5783,7 @@
       }
       if (typeof centerSelectedTimelineLayer === 'function') {
         centerSelectedTimelineLayer(true);
-        setTimeout(() => centerSelectedTimelineLayer(true), 80);
-        setTimeout(() => centerSelectedTimelineLayer(false), 260);
+        setTimeout(() => centerSelectedTimelineLayer(false), 240);
       }
     }
     window.switchLayerDrawerSubview = switchLayerDrawerSubview;
@@ -7452,6 +7457,9 @@
           syncTransformControllerValues();
           if (typeof redrawComposition === 'function') {
             redrawComposition('switchTransformTool');
+          }
+          if (typeof centerSelectedTimelineLayer === 'function') {
+            centerSelectedTimelineLayer(false);
           }
         });
       });
@@ -15670,6 +15678,8 @@
       currentProjectState.bgColor = (currentProject && currentProject.bgColor) || bgParam || 'transparent';
       currentProjectState.layers = (currentProject && Array.isArray(currentProject.layers)) ? currentProject.layers : [];
       currentProjectState.beatmarks = (currentProject && Array.isArray(currentProject.beatmarks)) ? currentProject.beatmarks.slice().sort((a, b) => a - b) : [];
+      const loadedPps = (currentProject && typeof currentProject.pixelsPerSecond === 'number' && currentProject.pixelsPerSecond > 0) ? currentProject.pixelsPerSecond : 80;
+      currentProjectState.pixelsPerSecond = loadedPps;
       if (currentProject && currentProject.motionBlur) {
         currentProjectState.motionBlur = JSON.parse(JSON.stringify(currentProject.motionBlur));
       } else {
@@ -15797,13 +15807,23 @@
       }
 
       // Seed preview cache boundaries for all loaded layers and ensure unique effect IDs
+      const initPps = currentProjectState.pixelsPerSecond || window.currentPixelsPerSecond || 80;
       currentProjectState.layers.forEach(l => {
         if (typeof ensureLayerEffects === 'function') ensureLayerEffects(l);
-        const pps = window.currentPixelsPerSecond || 80;
-        const s = l.startSec !== undefined ? l.startSec : ((l.startPx || 0) / pps);
-        const d = l.durationSec !== undefined ? l.durationSec : ((l.widthPx || 400) / pps);
-        l._cachedStartSec = s;
-        l._cachedEndSec = s + d;
+        if (l.startSec !== undefined) {
+          l.startPx = Math.round(l.startSec * initPps);
+        } else {
+          l.startSec = (l.startPx || 0) / initPps;
+          l.startPx = Math.round(l.startSec * initPps);
+        }
+        if (l.durationSec !== undefined) {
+          l.widthPx = Math.max(16, Math.round(l.durationSec * initPps));
+        } else {
+          l.durationSec = Math.max(0.1, (l.widthPx || 320) / initPps);
+          l.widthPx = Math.max(16, Math.round(l.durationSec * initPps));
+        }
+        l._cachedStartSec = l.startSec;
+        l._cachedEndSec = l.startSec + l.durationSec;
       });
 
       // Ensure valid project ID for media persistence
@@ -15897,6 +15917,9 @@
 
       if (typeof window.setTimelineFps === 'function') {
         window.setTimelineFps(currentProjectState.fps);
+      }
+      if (typeof window.setTimelineZoom === 'function' && currentProjectState.pixelsPerSecond) {
+        window.setTimelineZoom(currentProjectState.pixelsPerSecond);
       }
 
       // Initialize project media pool
@@ -17362,7 +17385,29 @@
       const mainBody = document.querySelector('.editor-main-body');
       if (!handle || !mainBody) return;
 
+      try {
+        const savedWidth = localStorage.getItem('oft_left_pane_width');
+        if (savedWidth && window.innerWidth > 600) {
+          mainBody.style.setProperty('--left-pane-width', savedWidth);
+        }
+        syncTimelineAfterSplitResize();
+      } catch (_) {}
+
       let isDragging = false;
+
+      function syncTimelineAfterSplitResize() {
+        fitPreviewCanvasBox();
+        const layersVp = document.getElementById('timeline-layers-viewport');
+        if (layersVp && layersVp.scrollLeft !== 0) {
+          layersVp.scrollLeft = 0;
+        }
+        if (typeof window.updateTimelinePosition === 'function') {
+          window.updateTimelinePosition(window.timelinePanX || 0, true);
+        }
+        if (window.PreviewCacheManager) {
+          window.PreviewCacheManager.updateRulerUI();
+        }
+      }
 
       function onPointerDown(e) {
         if (window.innerWidth <= 600) return; // Disabled on mobile top/bottom flow
@@ -17382,7 +17427,10 @@
         // Clamp between 20% and 80% to keep both panes functional
         percent = Math.max(20, Math.min(80, percent));
         mainBody.style.setProperty('--left-pane-width', percent + '%');
-        fitPreviewCanvasBox();
+        try {
+          localStorage.setItem('oft_left_pane_width', percent + '%');
+        } catch (_) {}
+        syncTimelineAfterSplitResize();
       }
 
       function onPointerUp(e) {
@@ -17393,6 +17441,7 @@
           handle.releasePointerCapture(e.pointerId);
         } catch (_) {}
         document.body.style.cursor = '';
+        syncTimelineAfterSplitResize();
       }
 
       handle.addEventListener('pointerdown', onPointerDown);
@@ -17409,12 +17458,18 @@
         if (e.key === 'ArrowLeft') {
           currentPercent = Math.max(20, currentPercent - 5);
           mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
-          fitPreviewCanvasBox();
+          try {
+            localStorage.setItem('oft_left_pane_width', currentPercent + '%');
+          } catch (_) {}
+          syncTimelineAfterSplitResize();
           e.preventDefault();
         } else if (e.key === 'ArrowRight') {
           currentPercent = Math.min(80, currentPercent + 5);
           mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
-          fitPreviewCanvasBox();
+          try {
+            localStorage.setItem('oft_left_pane_width', currentPercent + '%');
+          } catch (_) {}
+          syncTimelineAfterSplitResize();
           e.preventDefault();
         }
       });
@@ -17434,6 +17489,11 @@
       window.currentPixelsPerSecond = 80;
       let currentFps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
       window.currentTimelineFps = currentFps;
+      let panX = 0;
+      let lastRenderedPanX = null;
+      let lastDisplayedMs = -1;
+      let rafScheduled = false;
+      const maxPanX = 0;
 
       // Dynamic timeline duration based strictly on maximum layer length
       function getProjectTotalDuration() {
@@ -17750,12 +17810,6 @@
       };
 
       // 2. High-Performance GPU-Accelerated Motion beneath Fixed Center Playhead
-      let panX = 0;
-      let lastRenderedPanX = null;
-      let lastDisplayedMs = -1;
-      let rafScheduled = false;
-
-      const maxPanX = 0;
 
       // Returns current allowable timeline bounds (from 0s to total project duration)
       function getTimelineBounds() {
@@ -17791,9 +17845,9 @@
       window.getCurrentPlayheadTime = getCurrentPlayheadTime;
       window.getTimelineCurrentSec = getCurrentPlayheadTime;
 
-      function renderTimeline() {
+      function renderTimeline(force = false) {
         rafScheduled = false;
-        if (panX === lastRenderedPanX) return;
+        if (!force && panX === lastRenderedPanX) return;
         lastRenderedPanX = panX;
         window.timelinePanX = panX;
         const curSec = Math.max(0, -panX / pixelsPerSecond);
@@ -17893,7 +17947,7 @@
         window.currentPlaybackSec = curSec;
         window.currentSec = curSec;
         if (immediate) {
-          renderTimeline();
+          renderTimeline(true);
         } else {
           scheduleRender();
         }
@@ -18859,6 +18913,12 @@
 
       // Wheel on Layers Viewport: Vertical scroll for layers, or Shift+Wheel for horizontal pan
       if (layersViewport) {
+        layersViewport.addEventListener('scroll', () => {
+          if (layersViewport.scrollLeft !== 0) {
+            layersViewport.scrollLeft = 0;
+          }
+        }, { passive: true });
+
         layersViewport.addEventListener('wheel', (e) => {
           // Block Ctrl+Wheel from accidentally triggering browser zoom or resizing preview window
           if (e.ctrlKey) {
@@ -18871,6 +18931,9 @@
             if (isPlaying) pausePlayback();
             const delta = e.deltaX !== 0 ? -e.deltaX : -e.deltaY;
             updateTimelinePosition(panX + delta);
+            if (layersViewport.scrollLeft !== 0) layersViewport.scrollLeft = 0;
+          } else {
+            if (layersViewport.scrollLeft !== 0) layersViewport.scrollLeft = 0;
           }
           // Otherwise, native vertical scroll scrolls layers up and down smoothly
         }, { passive: false });
@@ -19240,11 +19303,16 @@
         const timelineEl = document.getElementById('main-editor-timeline');
         const tlBottom = timelineEl ? timelineEl.getBoundingClientRect().bottom : vpRect.bottom;
         const cardRect = drawerCard ? drawerCard.getBoundingClientRect() : null;
-        const cardHeight = drawerCard ? (drawerCard.offsetHeight || (cardRect ? cardRect.height : 0) || 260) : 260;
+        let cardHeight = 260;
+        if (drawerCard) {
+          if (drawerCard._targetHeight && drawerCard.style.transition) {
+            cardHeight = drawerCard._targetHeight;
+          } else {
+            cardHeight = Math.max(drawerCard.offsetHeight, drawerCard.scrollHeight, (cardRect ? cardRect.height : 0), 260);
+          }
+        }
         const cardRestingTop = tlBottom - cardHeight;
-        const drawerTop = (isDrawerOpen && drawerCard)
-          ? ((cardRect && cardRect.top > 0 && cardRect.top < vpRect.bottom) ? Math.min(cardRect.top, cardRestingTop) : cardRestingTop)
-          : vpRect.bottom;
+        const drawerTop = (isDrawerOpen && drawerCard) ? cardRestingTop : vpRect.bottom;
 
         const drawerH = isDrawerOpen ? Math.max(0, Math.round(tlBottom - drawerTop)) : 0;
         if (timelineEl && drawerH > 0) {
@@ -19271,6 +19339,11 @@
           targetScrollTop = Math.max(0, Math.round(layerCenterInContent - targetCenterInVp));
         }
 
+        if (viewport._centerScrollTimer) {
+          clearTimeout(viewport._centerScrollTimer);
+          viewport._centerScrollTimer = null;
+        }
+
         try {
           if (smooth) {
             viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
@@ -19281,16 +19354,13 @@
           viewport.scrollTop = targetScrollTop;
         }
 
-        setTimeout(() => {
-          if (Math.abs(viewport.scrollTop - targetScrollTop) > 2) {
-            viewport.scrollTop = targetScrollTop;
-          }
-        }, 80);
-        setTimeout(() => {
-          if (Math.abs(viewport.scrollTop - targetScrollTop) > 2) {
-            viewport.scrollTop = targetScrollTop;
-          }
-        }, 220);
+        if (!smooth) {
+          viewport._centerScrollTimer = setTimeout(() => {
+            if (Math.abs(viewport.scrollTop - targetScrollTop) > 2) {
+              viewport.scrollTop = targetScrollTop;
+            }
+          }, 60);
+        }
       }
       window.centerSelectedTimelineLayer = centerSelectedTimelineLayer;
 
@@ -21820,6 +21890,9 @@
 
       function renderTimelineLayers() {
         if (!layersTrack) return;
+        const viewport = document.getElementById('timeline-layers-viewport');
+        const prevScrollTop = viewport ? viewport.scrollTop : 0;
+
         updateTimelineDuration();
         layersTrack.innerHTML = '';
         const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
@@ -21829,8 +21902,24 @@
         }
 
         const layers = currentProjectState.layers || [];
-        const viewport = document.getElementById('timeline-layers-viewport');
+        if (viewport && viewport.scrollLeft !== 0) viewport.scrollLeft = 0;
         const existingEmpty = viewport ? viewport.querySelector('.timeline-empty-state') : null;
+
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        layers.forEach(layer => {
+          if (layer.startSec !== undefined) {
+            layer.startPx = Math.round(layer.startSec * pps);
+          } else {
+            layer.startSec = (layer.startPx || 0) / pps;
+            layer.startPx = Math.round(layer.startSec * pps);
+          }
+          if (layer.durationSec !== undefined) {
+            layer.widthPx = Math.max(16, Math.round(layer.durationSec * pps));
+          } else {
+            layer.durationSec = Math.max(0.1, (layer.widthPx || 320) / pps);
+            layer.widthPx = Math.max(16, Math.round(layer.durationSec * pps));
+          }
+        });
 
         if (layers.length === 0) {
           if (!existingEmpty && viewport) {
@@ -22157,7 +22246,8 @@
           if (clipEl) {
             const kfContainer = clipEl.querySelector('.timeline-clip-keyframes');
             if (kfContainer && layer.keyframes) {
-              const clipStartSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+              const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+              const clipStartSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
               const activeProp = window.activeKeyframeProperty || 'move';
               const isPropActive = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
               const isSelectedLayer = (layer.id === window.selectedLayerId);
@@ -22168,7 +22258,7 @@
 
                 list.forEach(kf => {
                   const relSec = kf.time - clipStartSec;
-                  const relPx = relSec * pixelsPerSecond;
+                  const relPx = relSec * pps;
                   const clipW = layer.widthPx || 320;
                   if (relPx < -5 || relPx > clipW + 5) return;
 
@@ -22502,15 +22592,22 @@
               });
             }
 
-            let lpMenuTimer = null;
-            let isLongPressActive = false;
+            let lpHoldTimer = null;
+            let isHoldActive = false;
+            let isDraggingLayer = false;
             let hasSlid = false;
             let hasMenuOpened = false;
+            let isPanPassthrough = false;
             let startPointerX = 0;
             let startPointerY = 0;
+            let panStartX = 0;
+            let panStartY = 0;
+            let panStartPanX = 0;
+            let panStartScrollTop = 0;
             let initialStartPx = 0;
             let justFinishedSlide = false;
             let slideRedrawRaf = null;
+            const HOLD_DELAY = 360;
 
             function onClipPointerDown(e) {
               if (e.target.closest('.timeline-clip-handle') || e.target.closest('.timeline-keyframe-marker.is-active-prop') || e.target.closest('.text-anim-marker')) return;
@@ -22523,9 +22620,11 @@
               const initialSlideDurSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
               const initialSlideEndSec = initialSlideStartSec + initialSlideDurSec;
               const initialLayerKeyframes = layer.keyframes ? JSON.parse(JSON.stringify(layer.keyframes)) : null;
-              isLongPressActive = false;
+              isHoldActive = false;
+              isDraggingLayer = false;
               hasSlid = false;
               hasMenuOpened = false;
+              isPanPassthrough = false;
 
               const isSelectedLayer = (layer.id === window.selectedLayerId);
               let isMarqueeActive = false;
@@ -22656,28 +22755,21 @@
                     initialEndSec: sInitSec + sDurSec,
                     durationSec: sDurSec,
                     clipEl: sClipEl,
-                    initialKeyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : null
+                    initialKeyframes: l.keyframes ? JSON.parse(JSON.stringify(layer.keyframes)) : null
                   };
                 });
               }
 
-              // Long-press context menu timer (450ms hold without drag -> open context menu popover like right click)
-              lpMenuTimer = setTimeout(() => {
-                if (hasSlid || isMarqueeActive) return;
-                hasMenuOpened = true;
-                isLongPressActive = false;
-                window.isTransformInteracting = false;
+              // Hold timer (360ms): triggers hold state without opening popover yet
+              lpHoldTimer = setTimeout(() => {
+                if (hasSlid || isMarqueeActive || isPanPassthrough) return;
+                isHoldActive = true;
+                if (navigator.vibrate) try { navigator.vibrate(25); } catch (_) {}
+                clipEl.classList.add('is-held');
                 if (isMultiDragging && multiDragLayers.length > 0) {
-                  multiDragLayers.forEach(m => { if (m.clipEl) m.clipEl.classList.remove('is-sliding'); });
-                } else {
-                  clipEl.classList.remove('is-sliding');
+                  multiDragLayers.forEach(m => { if (m.clipEl) m.clipEl.classList.add('is-held'); });
                 }
-                try {
-                  clipEl.releasePointerCapture(e.pointerId);
-                } catch (_) {}
-                if (navigator.vibrate) navigator.vibrate(25);
-                triggerClipContextMenu(layer, startPointerX, startPointerY);
-              }, 450);
+              }, HOLD_DELAY);
 
               function onClipPointerMove(moveEvent) {
                 const dist = Math.hypot(moveEvent.clientX - startPointerX, moveEvent.clientY - startPointerY);
@@ -22686,9 +22778,9 @@
                 const isPropActiveNow = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
                 if (isSelectedLayer && isPropActiveNow && window.activeKeyframeProperty) {
                   if (dist > 4) {
-                    if (lpMenuTimer) {
-                      clearTimeout(lpMenuTimer);
-                      lpMenuTimer = null;
+                    if (lpHoldTimer) {
+                      clearTimeout(lpHoldTimer);
+                      lpHoldTimer = null;
                     }
                     if (!isMarqueeActive) {
                       isMarqueeActive = true;
@@ -22723,22 +22815,58 @@
 
                 if (hasMenuOpened) return;
 
-                // Deadzone check: distinguish intentional drag from micro jitter / click
-                if (dist <= 4 && !isLongPressActive) return;
+                // 1. If user moves pointer BEFORE hold duration is reached: cancel hold, pan timeline
+                if (!isHoldActive) {
+                  if (dist > 6) {
+                    if (lpHoldTimer) {
+                      clearTimeout(lpHoldTimer);
+                      lpHoldTimer = null;
+                    }
 
-                if (lpMenuTimer) {
-                  clearTimeout(lpMenuTimer);
-                  lpMenuTimer = null;
+                    // Forward to timeline scrubbing & vertical viewport scrolling
+                    if (!isPanPassthrough) {
+                      isPanPassthrough = true;
+                      panStartX = moveEvent.clientX;
+                      panStartY = moveEvent.clientY;
+                      panStartPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+                      panStartScrollTop = document.getElementById('timeline-layers-viewport')?.scrollTop || 0;
+                      window.isTimelinePanning = true;
+                      window.isTimelineScrubbing = true;
+                      if (window.FishAudioEngine) window.FishAudioEngine.startScrub();
+                      const vp = document.getElementById('timeline-layers-viewport');
+                      if (vp) vp.classList.add('is-dragging');
+                    }
+
+                    const deltaX = moveEvent.clientX - panStartX;
+                    const deltaY = moveEvent.clientY - panStartY;
+                    const bounds = (typeof getTimelineBounds === 'function') ? getTimelineBounds() : { min: -10000, max: 0 };
+                    let targetPanX = Math.max(bounds.min, Math.min(0, panStartPanX + deltaX));
+                    if (typeof updateTimelinePosition === 'function') {
+                      updateTimelinePosition(targetPanX);
+                    }
+                    const vp = document.getElementById('timeline-layers-viewport');
+                    if (vp) {
+                      vp.scrollTop = panStartScrollTop - deltaY;
+                    }
+                  }
+                  return;
                 }
 
-                // Instant responsive activation of sliding mode on drag threshold
-                if (!isLongPressActive) {
-                  isLongPressActive = true;
+                // 2. User HAS held (isHoldActive === true): drag enters layer slide mode!
+                if (dist <= 4 && !isDraggingLayer) return;
+
+                if (!isDraggingLayer) {
+                  isDraggingLayer = true;
+                  clipEl.classList.remove('is-held');
                   if (isMultiDragging && multiDragLayers.length > 0) {
                     multiDragLayers.forEach(m => {
-                      if (m.clipEl) m.clipEl.classList.add('is-sliding');
+                      if (m.clipEl) {
+                        m.clipEl.classList.remove('is-held');
+                        m.clipEl.classList.add('is-sliding');
+                      }
                     });
                   } else {
+                    clipEl.classList.remove('is-held');
                     clipEl.classList.add('is-sliding');
                   }
                   try {
@@ -22896,14 +23024,32 @@
                   cancelAnimationFrame(slideRedrawRaf);
                   slideRedrawRaf = null;
                 }
-                if (lpMenuTimer) {
-                  clearTimeout(lpMenuTimer);
-                  lpMenuTimer = null;
+                if (lpHoldTimer) {
+                  clearTimeout(lpHoldTimer);
+                  lpHoldTimer = null;
+                }
+
+                clipEl.classList.remove('is-held');
+                if (isMultiDragging && multiDragLayers.length > 0) {
+                  multiDragLayers.forEach(m => { if (m.clipEl) m.clipEl.classList.remove('is-held'); });
                 }
 
                 window.removeEventListener('pointermove', onClipPointerMove);
                 window.removeEventListener('pointerup', onClipPointerUp);
                 window.removeEventListener('pointercancel', onClipPointerUp);
+
+                // Passthrough timeline pan cleanup
+                if (isPanPassthrough) {
+                  isPanPassthrough = false;
+                  window.isTimelinePanning = false;
+                  window.isTimelineScrubbing = false;
+                  if (window.FishAudioEngine) window.FishAudioEngine.stopScrub();
+                  const vp = document.getElementById('timeline-layers-viewport');
+                  if (vp) vp.classList.remove('is-dragging');
+                  justFinishedSlide = true;
+                  setTimeout(() => { justFinishedSlide = false; }, 150);
+                  return;
+                }
 
                 if (isMarqueeActive) {
                   isMarqueeActive = false;
@@ -22927,17 +23073,10 @@
                   return;
                 }
 
-                if (isSelectedLayer && !hasSlid) {
-                  const dist = Math.hypot(upEvent.clientX - startPointerX, upEvent.clientY - startPointerY);
-                  if (dist <= 5 && !upEvent.shiftKey) {
-                    if (typeof window.clearSelectedKeyframes === 'function') {
-                      window.clearSelectedKeyframes();
-                    }
-                  }
-                }
-
-                if (isLongPressActive) {
-                  isLongPressActive = false;
+                // Case 1: Was in layer slide mode (hold + drag) -> DO NOT open popover ("klo di lepas ga muncul pop over karena ini mode geser")
+                if (isDraggingLayer || hasSlid) {
+                  isDraggingLayer = false;
+                  isHoldActive = false;
                   window.isTransformInteracting = false;
                   if (isMultiDragging && multiDragLayers.length > 0) {
                     multiDragLayers.forEach(m => {
@@ -22981,9 +23120,36 @@
                     }
                   }
                   setTimeout(() => { justFinishedSlide = false; }, 150);
-                } else {
-                  window.isTransformInteracting = false;
+                  return;
                 }
+
+                // Case 2: Held and released WITHOUT dragging -> Open context menu popover! ("kalau hold dan lepas doang itu muncul pop over nya")
+                if (isHoldActive && !hasSlid) {
+                  isHoldActive = false;
+                  hasMenuOpened = true;
+                  window.isTransformInteracting = false;
+                  if (isMultiDragging && multiDragLayers.length > 0) {
+                    multiDragLayers.forEach(m => { if (m.clipEl) m.clipEl.classList.remove('is-sliding'); });
+                  } else {
+                    clipEl.classList.remove('is-sliding');
+                  }
+                  try {
+                    clipEl.releasePointerCapture(upEvent.pointerId);
+                  } catch (_) {}
+                  triggerClipContextMenu(layer, upEvent.clientX, upEvent.clientY);
+                  return;
+                }
+
+                // Case 3: Tap without hold
+                if (isSelectedLayer && !hasSlid) {
+                  const dist = Math.hypot(upEvent.clientX - startPointerX, upEvent.clientY - startPointerY);
+                  if (dist <= 5 && !upEvent.shiftKey) {
+                    if (typeof window.clearSelectedKeyframes === 'function') {
+                      window.clearSelectedKeyframes();
+                    }
+                  }
+                }
+                window.isTransformInteracting = false;
               }
 
               window.addEventListener('pointermove', onClipPointerMove, { passive: false });
@@ -22995,7 +23161,7 @@
 
             clipEl.addEventListener('click', (e) => {
               if (e.target.closest('.timeline-clip-handle')) return;
-              if (hasMenuOpened || justFinishedSlide) {
+              if (hasMenuOpened || justFinishedSlide || isPanPassthrough) {
                 e.stopPropagation();
                 e.preventDefault();
                 hasMenuOpened = false;
@@ -23440,6 +23606,23 @@
         }
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
+        }
+
+        // Restore viewport scrollTop to prevent timeline vertical jump / shifting down
+        if (viewport && prevScrollTop > 0) {
+          viewport.scrollTop = prevScrollTop;
+        }
+
+        // Keep active layer centered if layer action drawer is currently open
+        const drawerContainer = document.getElementById('timeline-layer-drawer');
+        const isDrawerActive = Boolean(
+          (window.Drawer && typeof window.Drawer.isOpen === 'function' && window.Drawer.isOpen('timeline-layer-drawer')) ||
+          (drawerContainer && drawerContainer.classList.contains('is-active'))
+        );
+        if (isDrawerActive && (window.selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0))) {
+          if (typeof centerSelectedTimelineLayer === 'function') {
+            centerSelectedTimelineLayer(false);
+          }
         }
       }
 
@@ -24076,13 +24259,14 @@
         const layer = currentProjectState.layers.find(l => l.id === selectedLayerId);
         if (!layer) return null;
 
+        const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
         const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : panX;
         const playheadPx = Math.abs(currentPanX || 0);
-        const startPx = layer.startPx !== undefined ? layer.startPx : Math.round((layer.startSec || 0) * pixelsPerSecond);
-        const widthPx = layer.widthPx !== undefined ? layer.widthPx : Math.round((layer.durationSec || 5) * pixelsPerSecond);
+        const startPx = Math.round((layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps)) * pps);
+        const widthPx = Math.max(16, Math.round((layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps)) * pps));
         const endPx = startPx + widthPx;
 
-        return { layer, playheadPx, startPx, widthPx, endPx };
+        return { layer, playheadPx, startPx, widthPx, endPx, pps };
       }
 
       // 1. Cut Left: Trim start of layer to current playhead
@@ -24090,13 +24274,14 @@
         const info = getSelectedLayerForCut();
         if (!info) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
-        const minDuration = 16 / pixelsPerSecond;
+        const minDuration = 16 / pps;
         if (currentSec <= startSec + minDuration || currentSec >= endSec) return;
 
         const trimmedSec = currentSec - startSec;
@@ -24107,8 +24292,8 @@
 
         layer.startSec = currentSec;
         layer.durationSec = remainingDurSec;
-        layer.startPx = Math.round(currentSec * pixelsPerSecond);
-        layer.widthPx = Math.round(remainingDurSec * pixelsPerSecond);
+        layer.startPx = Math.round(currentSec * pps);
+        layer.widthPx = Math.round(remainingDurSec * pps);
         layer.sourceOffsetSec = (layer.sourceOffsetSec || 0) + trimmedSec;
         layer.isDurationExplicit = true;
         layer._cachedStartSec = currentSec;
@@ -24125,39 +24310,235 @@
         const info = getSelectedLayerForCut();
         if (!info) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
-        const minDuration = 16 / pixelsPerSecond;
+        const minDuration = 16 / pps;
         if (currentSec <= startSec + minDuration || currentSec >= endSec - minDuration) return;
 
         const leftDurSec = currentSec - startSec;
         const rightDurSec = endSec - currentSec;
 
-        const leftWidthPx = Math.round(leftDurSec * pixelsPerSecond);
-        const rightWidthPx = Math.round(rightDurSec * pixelsPerSecond);
+        const leftWidthPx = Math.round(leftDurSec * pps);
+        const rightWidthPx = Math.round(rightDurSec * pps);
 
         // Invalidate original span BEFORE redrawing
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
-        // Potongan kanan (setelah playhead)
         const newLayerId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
+        // Deep clone effects with fresh unique IDs so both pieces are 100% decoupled
+        const fxIdMap = new Map();
+        let clonedEffects = [];
+        if (Array.isArray(layer.effects)) {
+          clonedEffects = JSON.parse(JSON.stringify(layer.effects));
+          clonedEffects.forEach(fx => {
+            const oldFxId = fx.id;
+            const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+            fx.id = newFxId;
+            if (oldFxId) fxIdMap.set(oldFxId, newFxId);
+          });
+        }
+
+        // Deep clone audio effects with fresh unique IDs
+        let clonedAudioEffects = [];
+        if (Array.isArray(layer.audioEffects)) {
+          clonedAudioEffects = JSON.parse(JSON.stringify(layer.audioEffects));
+          clonedAudioEffects.forEach(afx => {
+            afx.id = 'afx_' + (afx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+          });
+        }
+
+        // Split keyframes cleanly between left and right pieces
+        let leftKeyframes = {};
+        let rightKeyframes = {};
+
+        if (layer.keyframes && typeof layer.keyframes === 'object') {
+          const allProps = Object.keys(layer.keyframes);
+          allProps.forEach(prop => {
+            const list = layer.keyframes[prop];
+            if (!Array.isArray(list) || list.length === 0) return;
+
+            let rightProp = prop;
+            if (prop.includes(':')) {
+              const colonIdx = prop.indexOf(':');
+              const oldFxId = prop.slice(0, colonIdx);
+              const paramName = prop.slice(colonIdx + 1);
+              if (fxIdMap.has(oldFxId)) {
+                rightProp = `${fxIdMap.get(oldFxId)}:${paramName}`;
+              }
+            }
+
+            const leftList = [];
+            const rightList = [];
+
+            list.forEach(kf => {
+              if (kf.time <= currentSec) {
+                leftList.push(JSON.parse(JSON.stringify(kf)));
+              }
+              if (kf.time >= currentSec) {
+                rightList.push(JSON.parse(JSON.stringify(kf)));
+              }
+            });
+
+            // Boundary interpolation if animation spans across cut position
+            const hasExactLeft = leftList.some(k => Math.abs(k.time - currentSec) < 0.001);
+            const hasExactRight = rightList.some(k => Math.abs(k.time - currentSec) < 0.001);
+            const hasPreceding = list.some(k => k.time < currentSec);
+            const hasSucceeding = list.some(k => k.time > currentSec);
+
+            if (hasPreceding && hasSucceeding && (!hasExactLeft || !hasExactRight)) {
+              let boundaryVal = null;
+              let boundaryEasing = [0, 0, 1, 1];
+              const sorted = [...list].sort((a, b) => a.time - b.time);
+              for (let i = 0; i < sorted.length - 1; i++) {
+                const k0 = sorted[i];
+                const k1 = sorted[i + 1];
+                if (currentSec >= k0.time && currentSec <= k1.time) {
+                  const span = k1.time - k0.time;
+                  const tNorm = span > 0 ? ((currentSec - k0.time) / span) : 0;
+                  const easing = k0.easing || [0, 0, 1, 1];
+                  const factor = typeof evaluateCubicBezier === 'function'
+                    ? evaluateCubicBezier(easing[0], easing[1], easing[2], easing[3], tNorm)
+                    : tNorm;
+                  const pId = prop.includes(':') ? prop.slice(prop.indexOf(':') + 1) : prop;
+                  if (typeof interpolatePropertyValues === 'function') {
+                    boundaryVal = interpolatePropertyValues(pId, k0.value, k1.value, factor);
+                  } else {
+                    boundaryVal = k0.value;
+                  }
+                  boundaryEasing = k0.easing ? [...k0.easing] : [0, 0, 1, 1];
+                  break;
+                }
+              }
+
+              if (boundaryVal) {
+                if (!hasExactLeft) {
+                  leftList.push({
+                    time: Number(currentSec.toFixed(3)),
+                    value: JSON.parse(JSON.stringify(boundaryVal)),
+                    easing: [...boundaryEasing]
+                  });
+                }
+                if (!hasExactRight) {
+                  rightList.push({
+                    time: Number(currentSec.toFixed(3)),
+                    value: JSON.parse(JSON.stringify(boundaryVal)),
+                    easing: [...boundaryEasing]
+                  });
+                }
+              }
+            }
+
+            if (leftList.length > 0) {
+              leftList.sort((a, b) => a.time - b.time);
+              leftKeyframes[prop] = leftList;
+            }
+            if (rightList.length > 0) {
+              rightList.sort((a, b) => a.time - b.time);
+              rightKeyframes[rightProp] = rightList;
+            }
+          });
+        }
+
+        // Deep-clone nested style and binding objects
+        const clonedTextStyle = layer.textStyle ? JSON.parse(JSON.stringify(layer.textStyle)) : undefined;
+        const clonedShapeProps = layer.shapeProps ? JSON.parse(JSON.stringify(layer.shapeProps)) : undefined;
+        const clonedParentBind = layer.parentBind ? JSON.parse(JSON.stringify(layer.parentBind)) : undefined;
+        const clonedMask = layer.mask ? JSON.parse(JSON.stringify(layer.mask)) : undefined;
+
+        // Sample instantaneous effective transform properties at cut time
+        const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
+          ? getLayerEffectivePropsAtTime(layer, currentSec)
+          : layer;
+
+        const aspect = currentProjectState.aspectRatio || '16:9';
+        const res = currentProjectState.resolution || '1080p';
+        const baseDims = (resMap && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseW = baseDims[0];
+        const baseH = baseDims[1];
+
+        const effPosX = effProps.posX !== undefined ? effProps.posX : (layer.posX !== undefined ? layer.posX : baseW / 2);
+        const effPosY = effProps.posY !== undefined ? effProps.posY : (layer.posY !== undefined ? layer.posY : baseH / 2);
+        const effPosZ = effProps.posZ !== undefined ? effProps.posZ : (layer.posZ || 0);
+        const effScaleW = effProps.scaleW !== undefined ? effProps.scaleW : (layer.scaleW || baseW);
+        const effScaleH = effProps.scaleH !== undefined ? effProps.scaleH : (layer.scaleH || baseH);
+        const effRotZ = effProps.rotZ !== undefined ? effProps.rotZ : (layer.rotZ !== undefined ? layer.rotZ : (layer.rotation || 0));
+        const effRotX = effProps.rotX !== undefined ? effProps.rotX : (layer.rotX || 0);
+        const effRotY = effProps.rotY !== undefined ? effProps.rotY : (layer.rotY || 0);
+        const effOpacity = effProps.opacity !== undefined ? effProps.opacity : (layer.opacity !== undefined ? layer.opacity : 1.0);
+        const effSkewX = effProps.skewX !== undefined ? effProps.skewX : (layer.skewX || 0);
+        const effSkewY = effProps.skewY !== undefined ? effProps.skewY : (layer.skewY || 0);
+        const effAnchorX = effProps.anchorX !== undefined ? effProps.anchorX : (layer.anchorX || 0);
+        const effAnchorY = effProps.anchorY !== undefined ? effProps.anchorY : (layer.anchorY || 0);
+        const effAnchorZ = effProps.anchorZ !== undefined ? effProps.anchorZ : (layer.anchorZ || 0);
+
+        // Ensure left piece (layer) has completely independent state
+        layer.effects = Array.isArray(layer.effects) ? JSON.parse(JSON.stringify(layer.effects)) : [];
+        layer.audioEffects = Array.isArray(layer.audioEffects) ? JSON.parse(JSON.stringify(layer.audioEffects)) : [];
+        layer.keyframes = leftKeyframes;
+        layer._userResized = true;
+        if (layer.textStyle) layer.textStyle = JSON.parse(JSON.stringify(layer.textStyle));
+        if (layer.shapeProps) layer.shapeProps = JSON.parse(JSON.stringify(layer.shapeProps));
+
+        // Potongan kanan (setelah playhead)
         const newLayer = {
           ...layer,
           id: newLayerId,
-          startPx: Math.round(currentSec * pixelsPerSecond),
+          startPx: Math.round(currentSec * pps),
           widthPx: rightWidthPx,
           startSec: currentSec,
           durationSec: rightDurSec,
           sourceOffsetSec: (layer.sourceOffsetSec || 0) + leftDurSec,
           mediaDuration: layer.mediaDuration || getLayerMediaDuration(layer) || null,
           isDurationExplicit: true,
+          posX: effPosX,
+          posY: effPosY,
+          posZ: effPosZ,
+          scaleW: effScaleW,
+          scaleH: effScaleH,
+          rotZ: effRotZ,
+          rotation: effRotZ,
+          rotX: effRotX,
+          rotY: effRotY,
+          opacity: effOpacity,
+          skewX: effSkewX,
+          skewY: effSkewY,
+          anchorX: effAnchorX,
+          anchorY: effAnchorY,
+          anchorZ: effAnchorZ,
+          normW: Math.abs(effScaleW) / baseW,
+          normH: Math.abs(effScaleH) / baseH,
+          normX: (effPosX - effScaleW / 2) / baseW,
+          normY: (effPosY - effScaleH / 2) / baseH,
+          _userResized: true,
+          effects: clonedEffects,
+          audioEffects: clonedAudioEffects,
+          keyframes: rightKeyframes,
+          textStyle: clonedTextStyle,
+          shapeProps: clonedShapeProps,
+          parentBind: clonedParentBind,
+          mask: clonedMask,
           _cachedStartSec: currentSec,
           _cachedEndSec: endSec
         };
+
+        delete newLayer._precompBufferCanvas;
+        delete newLayer._runtimeEl;
+        delete newLayer._tempCanvas;
+
+        // Share active loaded media element in layerMediaCache so new piece renders instantly without reload
+        const origKey = (layer.type === 'video' || layer.type === 'audio') ? layer.id : (layer.mediaId || layer.id);
+        if (layerMediaCache && layerMediaCache.has(origKey)) {
+          const origEntry = layerMediaCache.get(origKey);
+          if (origEntry && (layer.type === 'image' || layer.type === 'video')) {
+            layerMediaCache.set(newLayerId, origEntry);
+          }
+        }
 
         // Potongan kiri (layer asli)
         layer.widthPx = leftWidthPx;
@@ -24165,6 +24546,13 @@
         layer.isDurationExplicit = true;
         layer._cachedStartSec = startSec;
         layer._cachedEndSec = currentSec;
+
+        // Invalidate preview cache across both halves explicitly
+        if (window.PreviewCacheManager) {
+          window.PreviewCacheManager.invalidateRange(startSec, endSec);
+        }
+        invalidatePreviewCacheForLayer(layer);
+        invalidatePreviewCacheForLayer(newLayer);
 
         // Sisipkan potongan depan (kanan) di ATAS layer asli dalam timeline layering
         const layerIdx = currentProjectState.layers.findIndex(l => l.id === layer.id);
@@ -24187,13 +24575,14 @@
         const info = getSelectedLayerForCut();
         if (!info) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
-        const minDuration = 16 / pixelsPerSecond;
+        const minDuration = 16 / pps;
         if (currentSec <= startSec || currentSec >= endSec - minDuration) return;
 
         const remainingDurSec = currentSec - startSec;
@@ -24202,7 +24591,7 @@
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
         layer.durationSec = remainingDurSec;
-        layer.widthPx = Math.round(remainingDurSec * pixelsPerSecond);
+        layer.widthPx = Math.round(remainingDurSec * pps);
         layer.isDurationExplicit = true;
         layer._cachedStartSec = startSec;
         layer._cachedEndSec = currentSec;
@@ -24218,10 +24607,11 @@
         const info = getSelectedLayerForCut();
         if (!info || !info.layer) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
         if (currentSec <= endSec) return;
@@ -24236,7 +24626,7 @@
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
         layer.durationSec = newDurSec;
-        layer.widthPx = Math.round(newDurSec * pixelsPerSecond);
+        layer.widthPx = Math.round(newDurSec * pps);
         layer.isDurationExplicit = true;
         layer._cachedStartSec = startSec;
         layer._cachedEndSec = startSec + newDurSec;
@@ -24252,10 +24642,11 @@
         const info = getSelectedLayerForCut();
         if (!info || !info.layer) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
         if (currentSec <= endSec) return;
@@ -24266,7 +24657,7 @@
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
         layer.startSec = newStartSec;
-        layer.startPx = Math.round(newStartSec * pixelsPerSecond);
+        layer.startPx = Math.round(newStartSec * pps);
         layer.isDurationExplicit = true;
         layer._cachedStartSec = newStartSec;
         layer._cachedEndSec = currentSec;
@@ -24292,10 +24683,11 @@
         const info = getSelectedLayerForCut();
         if (!info || !info.layer) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
         if (currentSec >= startSec) return;
@@ -24306,7 +24698,7 @@
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
         layer.startSec = newStartSec;
-        layer.startPx = Math.round(newStartSec * pixelsPerSecond);
+        layer.startPx = Math.round(newStartSec * pps);
         layer.isDurationExplicit = true;
         layer._cachedStartSec = newStartSec;
         layer._cachedEndSec = newStartSec + durSec;
@@ -24332,10 +24724,11 @@
         const info = getSelectedLayerForCut();
         if (!info || !info.layer) return;
         const { layer, playheadPx } = info;
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
 
-        const currentSec = playheadPx / pixelsPerSecond;
-        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const endSec = startSec + durSec;
 
         if (currentSec >= startSec) return;
@@ -24358,9 +24751,9 @@
         invalidatePreviewCacheForLayer(layer, startSec, endSec);
 
         layer.startSec = actualStartSec;
-        layer.startPx = Math.round(actualStartSec * pixelsPerSecond);
+        layer.startPx = Math.round(actualStartSec * pps);
         layer.durationSec = actualDurSec;
-        layer.widthPx = Math.round(actualDurSec * pixelsPerSecond);
+        layer.widthPx = Math.round(actualDurSec * pps);
         layer.isDurationExplicit = true;
         layer._cachedStartSec = actualStartSec;
         layer._cachedEndSec = endSec;

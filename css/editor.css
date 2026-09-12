@@ -23,6 +23,19 @@
   outline: none;
   font-family: var(--font-brand);
   -webkit-font-smoothing: antialiased;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-thumb {
+  display: none !important;
 }
 
 html, body {
@@ -877,7 +890,7 @@ html, body {
     width: 100%;
     background-color: var(--bg-panel-hover);
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: clip !important;
     position: relative;
     z-index: 15;
     padding: 12px 0 48px;
@@ -1257,6 +1270,7 @@ html, body {
   height: 100%;
   position: relative;
   overflow: hidden;
+  overscroll-behavior-x: none !important;
   cursor: grab;
   user-select: none;
   touch-action: none;
@@ -1386,7 +1400,8 @@ html, body {
   width: 100%;
   background-color: var(--bg-panel-hover);
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: clip !important;
+  overscroll-behavior-x: none !important;
   position: relative;
   z-index: 15;
   padding: 12px 0 24px;
@@ -2011,6 +2026,11 @@ html, body {
 
 .timeline-clip-block:active {
   filter: brightness(0.96);
+}
+
+.timeline-clip-block.is-held {
+  opacity: 0.94;
+  cursor: grab;
 }
 
 .timeline-clip-block.is-sliding {

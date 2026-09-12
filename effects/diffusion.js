@@ -5,6 +5,8 @@
 
   let _diffBuf = null;
   let _diffCtx = null;
+  let _threshBuf = null;
+  let _threshCtx = null;
 
   function getDiffBuffer(w, h) {
     if (typeof document === 'undefined') return null;
@@ -57,16 +59,46 @@
       if (!buf || !buf.ctx) return;
       const bCtx = buf.ctx;
 
-      bCtx.clearRect(0, 0, w, h);
-      bCtx.save();
-      // Contrast and brightness thresholding to isolate highlights
-      const contrast = 1.0 + threshold * 2.0;
-      const brightness = 0.6 + (1.0 - threshold) * 0.8;
-      bCtx.filter = `contrast(${contrast.toFixed(2)}) brightness(${brightness.toFixed(2)}) blur(${radius.toFixed(1)}px)`;
-      try {
-        bCtx.drawImage(el, 0, 0, w, h);
-      } catch (_) {}
-      bCtx.restore();
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.isCanvasFilterSupported === 'function' && window.FishEffects.isCanvasFilterSupported()) {
+        bCtx.clearRect(0, 0, w, h);
+        bCtx.save();
+        const contrast = 1.0 + threshold * 2.0;
+        const brightness = 0.6 + (1.0 - threshold) * 0.8;
+        bCtx.filter = `contrast(${contrast.toFixed(2)}) brightness(${brightness.toFixed(2)}) blur(${radius.toFixed(1)}px)`;
+        try {
+          bCtx.drawImage(el, 0, 0, w, h);
+        } catch (_) {}
+        bCtx.restore();
+      } else {
+        // Universal Safari WebKit Fallback: Extract highlights via thresholding and blur
+        bCtx.clearRect(0, 0, w, h);
+        try { bCtx.drawImage(el, 0, 0, w, h); } catch (_) {}
+        if (threshold > 0.1) {
+          bCtx.save();
+          bCtx.globalCompositeOperation = 'multiply';
+          const multPasses = Math.min(3, Math.max(1, Math.round(threshold * 3)));
+          for (let p = 0; p < multPasses; p++) {
+            try { bCtx.drawImage(buf.canvas, 0, 0); } catch (_) {}
+          }
+          bCtx.restore();
+        }
+        if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+          // Create temp snapshot to blur from
+          if (!_threshBuf) {
+            _threshBuf = document.createElement('canvas');
+            _threshCtx = _threshBuf.getContext('2d');
+          }
+          if (_threshBuf.width !== w || _threshBuf.height !== h) {
+            _threshBuf.width = w;
+            _threshBuf.height = h;
+          }
+          _threshCtx.clearRect(0, 0, w, h);
+          _threshCtx.drawImage(buf.canvas, 0, 0);
+
+          bCtx.clearRect(0, 0, w, h);
+          window.FishEffects.drawBlurred(bCtx, _threshBuf, w, h, radius);
+        }
+      }
 
       // Tint bloom if color is specified and not pure white
       if (color && color.toLowerCase() !== '#ffffff') {

@@ -68,14 +68,26 @@
       if (!thresh || !streak || !comp) return;
 
       // --- STEP 1: Isolate bright highlights ---
-      // Aggressive threshold to only keep hot spots
-      const contrast = 2.0 + threshold * 8.0;
-      const bright = Math.max(0.1, (1.0 - threshold) * 1.5);
       thresh.x.clearRect(0, 0, w, h);
-      thresh.x.save();
-      thresh.x.filter = `contrast(${contrast.toFixed(1)}) brightness(${bright.toFixed(2)})`;
-      try { thresh.x.drawImage(el, 0, 0, w, h); } catch (_) {}
-      thresh.x.restore();
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.isCanvasFilterSupported === 'function' && window.FishEffects.isCanvasFilterSupported()) {
+        const contrast = 2.0 + threshold * 8.0;
+        const bright = Math.max(0.1, (1.0 - threshold) * 1.5);
+        thresh.x.save();
+        thresh.x.filter = `contrast(${contrast.toFixed(1)}) brightness(${bright.toFixed(2)})`;
+        try { thresh.x.drawImage(el, 0, 0, w, h); } catch (_) {}
+        thresh.x.restore();
+      } else {
+        try { thresh.x.drawImage(el, 0, 0, w, h); } catch (_) {}
+        if (threshold > 0.05) {
+          thresh.x.save();
+          thresh.x.globalCompositeOperation = 'multiply';
+          const pCount = Math.min(4, Math.max(1, Math.round(threshold * 4)));
+          for (let p = 0; p < pCount; p++) {
+            try { thresh.x.drawImage(thresh.c, 0, 0); } catch (_) {}
+          }
+          thresh.x.restore();
+        }
+      }
 
       // --- STEP 2: Create FULL-WIDTH horizontal streak ---
       // The MBL anamorphic key: squash image horizontally to extreme ratio, then stretch back
@@ -101,17 +113,15 @@
         streak.x.save();
         streak.x.globalCompositeOperation = i === 0 ? 'source-over' : 'lighter';
         streak.x.globalAlpha = p.alpha;
-        // Apply vertical blur for thickness control
-        streak.x.filter = `blur(${vBlur.toFixed(1)}px)`;
-        // Draw squashed threshold → stretch back to full width = horizontal smear
-        try { streak.x.drawImage(thresh.c, 0, 0, w, h, 0, 0, sw, h); } catch (_) {}
-        streak.x.clearRect(0, 0, w, h);
-        // Now redraw: squash → full width creates the horizontal streak
-        try {
-          // First draw squashed
+        if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.isCanvasFilterSupported === 'function' && window.FishEffects.isCanvasFilterSupported()) {
           streak.x.filter = `blur(${vBlur.toFixed(1)}px)`;
-          streak.x.drawImage(thresh.c, 0, 0, w, h, 0, 0, sw, h);
-        } catch (_) {}
+          try { streak.x.drawImage(thresh.c, 0, 0, w, h, 0, 0, sw, h); } catch (_) {}
+        } else {
+          try { streak.x.drawImage(thresh.c, 0, 0, w, h, 0, 0, sw, h); } catch (_) {}
+          if (vBlur > 1.0 && typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+            window.FishEffects.drawBlurred(streak.x, streak.c, sw, h, vBlur);
+          }
+        }
         streak.x.restore();
 
         // Stretch the squashed result back to full width

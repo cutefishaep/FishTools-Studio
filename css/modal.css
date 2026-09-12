@@ -1207,7 +1207,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none !important;
 }
 
 .welcome-banner {
@@ -1412,8 +1412,7 @@
   overflow-y: auto;
   padding-right: 4px;
   box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-panel) transparent;
+  scrollbar-width: none !important;
 }
 
 .welcome-version-block {

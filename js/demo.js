@@ -113,6 +113,48 @@
       handle.addEventListener('pointercancel', stopDrag);
     })();
 
+    // Interactive Demo Mobile Preview Split Handle Resizer
+    (function initDemoMobileSplitResizer() {
+      const handle = document.getElementById('demo-preview-split-handle');
+      const container = document.getElementById('demo-mobile-split-container');
+      if (!handle || !container) return;
+
+      let isDragging = false;
+      let startY = 0;
+      let startH = 0;
+
+      handle.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        startY = e.clientY;
+        const topEl = container.firstElementChild;
+        startH = topEl ? topEl.getBoundingClientRect().height : (container.getBoundingClientRect().height * 0.5);
+        handle.classList.add('is-dragging');
+        handle.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+
+      handle.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect();
+        const deltaY = e.clientY - startY;
+        const minH = 36;
+        const maxH = rect.height - 36;
+        const clampedH = Math.max(minH, Math.min(maxH, startH + deltaY));
+        const percent = (clampedH / rect.height) * 100;
+        container.style.setProperty('--demo-top-h', percent.toFixed(1) + '%');
+      });
+
+      const stopDrag = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        handle.classList.remove('is-dragging');
+        try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+      };
+
+      handle.addEventListener('pointerup', stopDrag);
+      handle.addEventListener('pointercancel', stopDrag);
+    })();
+
     // Interactive Demo Timeline Sandbox Manager
     (function initDemoTimelineSandbox() {
       const rulerTrack = document.getElementById('demo-timeline-ruler-track');

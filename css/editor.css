@@ -118,6 +118,60 @@ html, body {
 }
 
 /* ==========================================================================
+   MODULAR PREVIEW HORIZONTAL SPLIT HANDLE (Mobile Split Resizer <= 600px)
+   - Centered in the middle between preview and controller
+   - Color strictly matches controller background token: var(--bg-panel)
+   ========================================================================== */
+.preview-split-handle {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 30;
+  outline: none;
+  border: none;
+  background: transparent;
+}
+
+.preview-split-handle .split-handle-pill {
+  width: 52px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--bg-panel);
+  border: none;
+  outline: none;
+  transition: background-color 0.15s ease, height 0.15s ease, width 0.15s ease;
+  pointer-events: none;
+}
+
+.preview-split-handle:hover .split-handle-pill,
+.preview-split-handle:active .split-handle-pill {
+  background-color: var(--color-primary-hover);
+  width: 68px;
+  height: 7px;
+}
+
+.preview-split-handle.is-dragging .split-handle-pill {
+  background-color: var(--color-primary-active);
+  width: 80px;
+  height: 8px;
+}
+
+.preview-split-handle:focus-visible .split-handle-pill {
+  background-color: var(--color-primary);
+  width: 68px;
+  height: 7px;
+}
+
+/* ==========================================================================
    MODULAR CONTROLLER BUTTONS (Undo, Redo, Playback, Settings, Fish)
    - Flexible stretching across controller width (Space-Between)
    - Pure floating icons (No border, transparent surface)
@@ -818,16 +872,19 @@ html, body {
     width: 100%;
     position: relative;
     overflow: hidden;
+    --mobile-preview-height: 48%;
   }
 
   .editor-left-pane {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 100px;
+    height: var(--mobile-preview-height, 48%);
+    min-height: 120px;
+    max-height: calc(100% - 140px);
     width: 100%;
     position: relative;
     overflow: hidden;
+    flex-shrink: 0;
   }
 
   .editor-preview {
@@ -839,8 +896,13 @@ html, body {
     justify-content: center;
     position: relative;
     overflow: hidden;
-    padding: 6px;
+    padding: 6px 6px 0 6px;
     box-sizing: border-box;
+  }
+
+  /* Modular Horizontal Preview Split Handle (Visible below preview on mobile) */
+  .preview-split-handle {
+    display: flex;
   }
 
   .editor-controller {
@@ -853,16 +915,16 @@ html, body {
     justify-content: center;
     flex-shrink: 0;
     z-index: 10;
+    position: relative;
   }
 
   /* Timeline Mobile: Flexible, adaptive split - never overflows */
   .editor-timeline-wrapper {
     background-color: var(--bg-panel);
     width: 100%;
-    flex: 1.15;
+    height: calc(100% - var(--mobile-preview-height, 48%));
     min-height: 140px;
-    height: auto;
-    flex-shrink: 1;
+    flex: 1;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -1051,6 +1113,11 @@ html, body {
   /* Vertical split handle active on Tablet & Desktop */
   .timeline-split-handle {
     display: flex;
+  }
+
+  /* Horizontal preview split handle strictly hidden on Tablet & Desktop */
+  .preview-split-handle {
+    display: none !important;
   }
 }
 

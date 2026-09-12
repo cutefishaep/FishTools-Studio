@@ -599,6 +599,7 @@
             if (currentProjectState.customEasingPresets) {
               prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
             }
+            prj.isTemplate = !!currentProjectState.isTemplate;
             await window.FishDatabase.saveProject(prj);
 
             _projectDirty = false;
@@ -15675,6 +15676,7 @@
 
       currentProjectState.id = idParam || (currentProject && currentProject.id) || '';
       currentProjectState.source = (currentProject && currentProject.source) || 'local';
+      currentProjectState.isTemplate = !!(currentProject && currentProject.isTemplate);
 
       currentProjectState.name = (currentProject && currentProject.name) || nameParam || 'New_Project';
       currentProjectState.aspectRatio = (currentProject && currentProject.aspectRatio) || aspectParam || '16:9';
@@ -15978,6 +15980,30 @@
           }
         };
         setTimeout(() => tryOpenTemplate(), 150);
+
+        // Turn off isTemplate in project state and IndexedDB so it only opens once on initial import
+        if (currentProject) {
+          currentProject.isTemplate = false;
+        }
+        currentProjectState.isTemplate = false;
+
+        if (window.FishDatabase && currentProjectState.id) {
+          window.FishDatabase.getProject(currentProjectState.id).then(prj => {
+            if (prj && prj.isTemplate) {
+              prj.isTemplate = false;
+              window.FishDatabase.saveProject(prj).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+
+        // Clean up URL query param so refresh (F5/Cmd+R) won't re-trigger it
+        try {
+          const url = new URL(window.location.href);
+          if (url.searchParams.has('template')) {
+            url.searchParams.delete('template');
+            window.history.replaceState(window.history.state || {}, document.title, url.pathname + url.search);
+          }
+        } catch (_) {}
       }
     })();
 
@@ -17253,6 +17279,23 @@
       initProjectMediaPool();
     }
 
+    // Dynamic version synchronization for editor
+    async function initEditorVersion() {
+      try {
+        const res = await fetch('./version.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.version) {
+            const clean = String(data.version).trim().replace(/^v\.?/i, '');
+            window.OFT_VERSION = clean;
+            const welcomeBadge = document.querySelector('.welcome-header-title-box .welcome-badge');
+            if (welcomeBadge) welcomeBadge.textContent = `v${clean}`;
+          }
+        }
+      } catch (_) {}
+    }
+    initEditorVersion();
+
     // Interactive Option Selectors for Modal Dialogs (Custom Dropdowns, Aspect Frames, Swatches)
     document.addEventListener('DOMContentLoaded', () => {
       // 1. Custom Themed Dropdowns
@@ -17393,18 +17436,22 @@
     // Interactive Horizontal Split Resizer (Left Pane vs Right Timeline)
     (function initTimelineSplitResizer() {
       const handle = document.getElementById('timeline-split-handle');
+      const mobileHandle = document.getElementById('preview-split-handle');
       const mainBody = document.querySelector('.editor-main-body');
-      if (!handle || !mainBody) return;
+      const leftPane = document.querySelector('.editor-left-pane');
+      if (!mainBody) return;
 
       try {
         const savedWidth = localStorage.getItem('oft_left_pane_width');
         if (savedWidth && window.innerWidth > 600) {
           mainBody.style.setProperty('--left-pane-width', savedWidth);
         }
+        const savedMobileH = localStorage.getItem('oft_mobile_preview_height');
+        if (savedMobileH && window.innerWidth <= 600) {
+          mainBody.style.setProperty('--mobile-preview-height', savedMobileH);
+        }
         syncTimelineAfterSplitResize();
       } catch (_) {}
-
-      let isDragging = false;
 
       function syncTimelineAfterSplitResize() {
         fitPreviewCanvasBox();
@@ -17420,69 +17467,165 @@
         }
       }
 
-      function onPointerDown(e) {
-        if (window.innerWidth <= 600) return; // Disabled on mobile top/bottom flow
-        isDragging = true;
-        handle.classList.add('is-dragging');
-        handle.setPointerCapture(e.pointerId);
-        document.body.style.cursor = 'col-resize';
-        e.preventDefault();
-      }
+      // --- Desktop Vertical Split Handle (>= 601px) ---
+      if (handle) {
+        let isDragging = false;
 
-      function onPointerMove(e) {
-        if (!isDragging) return;
-        const rect = mainBody.getBoundingClientRect();
-        const offsetX = e.clientX - rect.left;
-        let percent = (offsetX / rect.width) * 100;
-        
-        // Clamp between 20% and 80% to keep both panes functional
-        percent = Math.max(20, Math.min(80, percent));
-        mainBody.style.setProperty('--left-pane-width', percent + '%');
-        try {
-          localStorage.setItem('oft_left_pane_width', percent + '%');
-        } catch (_) {}
-        syncTimelineAfterSplitResize();
-      }
-
-      function onPointerUp(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        handle.classList.remove('is-dragging');
-        try {
-          handle.releasePointerCapture(e.pointerId);
-        } catch (_) {}
-        document.body.style.cursor = '';
-        syncTimelineAfterSplitResize();
-      }
-
-      handle.addEventListener('pointerdown', onPointerDown);
-      handle.addEventListener('pointermove', onPointerMove);
-      handle.addEventListener('pointerup', onPointerUp);
-      handle.addEventListener('pointercancel', onPointerUp);
-
-      // Keyboard arrow key support for accessibility
-      handle.addEventListener('keydown', (e) => {
-        if (window.innerWidth <= 600) return;
-        const currentStyle = getComputedStyle(mainBody).getPropertyValue('--left-pane-width').trim();
-        let currentPercent = parseFloat(currentStyle) || 50;
-
-        if (e.key === 'ArrowLeft') {
-          currentPercent = Math.max(20, currentPercent - 5);
-          mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
-          try {
-            localStorage.setItem('oft_left_pane_width', currentPercent + '%');
-          } catch (_) {}
-          syncTimelineAfterSplitResize();
-          e.preventDefault();
-        } else if (e.key === 'ArrowRight') {
-          currentPercent = Math.min(80, currentPercent + 5);
-          mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
-          try {
-            localStorage.setItem('oft_left_pane_width', currentPercent + '%');
-          } catch (_) {}
-          syncTimelineAfterSplitResize();
+        function onPointerDown(e) {
+          if (window.innerWidth <= 600) return; // Handled by mobileHandle
+          isDragging = true;
+          handle.classList.add('is-dragging');
+          handle.setPointerCapture(e.pointerId);
+          document.body.style.cursor = 'col-resize';
           e.preventDefault();
         }
+
+        function onPointerMove(e) {
+          if (!isDragging) return;
+          const rect = mainBody.getBoundingClientRect();
+          const offsetX = e.clientX - rect.left;
+          let percent = (offsetX / rect.width) * 100;
+          
+          // Clamp between 20% and 80% to keep both panes functional
+          percent = Math.max(20, Math.min(80, percent));
+          mainBody.style.setProperty('--left-pane-width', percent + '%');
+          try {
+            localStorage.setItem('oft_left_pane_width', percent + '%');
+          } catch (_) {}
+          syncTimelineAfterSplitResize();
+        }
+
+        function onPointerUp(e) {
+          if (!isDragging) return;
+          isDragging = false;
+          handle.classList.remove('is-dragging');
+          try {
+            handle.releasePointerCapture(e.pointerId);
+          } catch (_) {}
+          document.body.style.cursor = '';
+          syncTimelineAfterSplitResize();
+        }
+
+        handle.addEventListener('pointerdown', onPointerDown);
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerUp);
+        handle.addEventListener('pointercancel', onPointerUp);
+
+        // Keyboard arrow key support for accessibility
+        handle.addEventListener('keydown', (e) => {
+          if (window.innerWidth <= 600) return;
+          const currentStyle = getComputedStyle(mainBody).getPropertyValue('--left-pane-width').trim();
+          let currentPercent = parseFloat(currentStyle) || 50;
+
+          if (e.key === 'ArrowLeft') {
+            currentPercent = Math.max(20, currentPercent - 5);
+            mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
+            try {
+              localStorage.setItem('oft_left_pane_width', currentPercent + '%');
+            } catch (_) {}
+            syncTimelineAfterSplitResize();
+            e.preventDefault();
+          } else if (e.key === 'ArrowRight') {
+            currentPercent = Math.min(80, currentPercent + 5);
+            mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
+            try {
+              localStorage.setItem('oft_left_pane_width', currentPercent + '%');
+            } catch (_) {}
+            syncTimelineAfterSplitResize();
+            e.preventDefault();
+          }
+        });
+      }
+
+      // --- Mobile Horizontal Preview Split Handle (<= 600px) ---
+      if (mobileHandle) {
+        let isMobileDragging = false;
+        let startY = 0;
+        let startH = 0;
+
+        function onMobilePointerDown(e) {
+          if (window.innerWidth > 600) return;
+          isMobileDragging = true;
+          startY = e.clientY;
+          const currentRect = leftPane ? leftPane.getBoundingClientRect() : null;
+          startH = currentRect ? currentRect.height : (mainBody.getBoundingClientRect().height * 0.48);
+          mobileHandle.classList.add('is-dragging');
+          mobileHandle.setPointerCapture(e.pointerId);
+          document.body.style.cursor = 'row-resize';
+          e.preventDefault();
+        }
+
+        function onMobilePointerMove(e) {
+          if (!isMobileDragging) return;
+          const deltaY = e.clientY - startY;
+          const rect = mainBody.getBoundingClientRect();
+          const minH = 120;
+          const maxH = Math.max(minH, rect.height - 140);
+          const clampedH = Math.max(minH, Math.min(maxH, startH + deltaY));
+          const percent = (clampedH / rect.height) * 100;
+          mainBody.style.setProperty('--mobile-preview-height', percent.toFixed(2) + '%');
+          try {
+            localStorage.setItem('oft_mobile_preview_height', percent.toFixed(2) + '%');
+          } catch (_) {}
+          syncTimelineAfterSplitResize();
+        }
+
+        function onMobilePointerUp(e) {
+          if (!isMobileDragging) return;
+          isMobileDragging = false;
+          mobileHandle.classList.remove('is-dragging');
+          try {
+            mobileHandle.releasePointerCapture(e.pointerId);
+          } catch (_) {}
+          document.body.style.cursor = '';
+          syncTimelineAfterSplitResize();
+        }
+
+        mobileHandle.addEventListener('pointerdown', onMobilePointerDown);
+        mobileHandle.addEventListener('pointermove', onMobilePointerMove);
+        mobileHandle.addEventListener('pointerup', onMobilePointerUp);
+        mobileHandle.addEventListener('pointercancel', onMobilePointerUp);
+
+        // Keyboard arrow key support for mobile handle
+        mobileHandle.addEventListener('keydown', (e) => {
+          if (window.innerWidth > 600) return;
+          const currentStyle = getComputedStyle(mainBody).getPropertyValue('--mobile-preview-height').trim();
+          let currentPercent = parseFloat(currentStyle) || 48;
+
+          if (e.key === 'ArrowDown') {
+            currentPercent = Math.min(78, currentPercent + 5);
+            mainBody.style.setProperty('--mobile-preview-height', currentPercent + '%');
+            try {
+              localStorage.setItem('oft_mobile_preview_height', currentPercent + '%');
+            } catch (_) {}
+            syncTimelineAfterSplitResize();
+            e.preventDefault();
+          } else if (e.key === 'ArrowUp') {
+            currentPercent = Math.max(22, currentPercent - 5);
+            mainBody.style.setProperty('--mobile-preview-height', currentPercent + '%');
+            try {
+              localStorage.setItem('oft_mobile_preview_height', currentPercent + '%');
+            } catch (_) {}
+            syncTimelineAfterSplitResize();
+            e.preventDefault();
+          }
+        });
+      }
+
+      // Restore layout on viewport change
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 600) {
+          const savedWidth = localStorage.getItem('oft_left_pane_width');
+          if (savedWidth) {
+            mainBody.style.setProperty('--left-pane-width', savedWidth);
+          }
+        } else {
+          const savedMobileH = localStorage.getItem('oft_mobile_preview_height');
+          if (savedMobileH) {
+            mainBody.style.setProperty('--mobile-preview-height', savedMobileH);
+          }
+        }
+        syncTimelineAfterSplitResize();
       });
     })();
 

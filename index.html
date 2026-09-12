@@ -32,7 +32,7 @@
         <h1 class="brand-title">OpenFishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.5.11</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.5.13</span>
         </div>
       </div>
       <div class="studio-header-actions">
@@ -416,7 +416,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.11</span>
+          <span class="welcome-badge">v0.5.13</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -452,11 +452,76 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.13 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.13</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 12, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Single Source of Truth (SSOT) Versioning (`scripts/sync-version.js`)</span>
+                  <span class="changelog-item-desc">Unified project version management into `version.json`. Changing `version.json` (or running `npm run bump &lt;version&gt;`) automatically synchronizes `package.json`, HTML badges, script cache busters, and release notes feeds across `index.html`, `editor.html`, and `demo.html`.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Live Dev Server Version Synchronizer (`server.js`)</span>
+                  <span class="changelog-item-desc">Hooked `syncVersion()` directly into `fs.watch(ROOT)`. Editing and saving `version.json` in any editor immediately propagates new version data and reloads the browser.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Template Editor Initial-Import Auto-Open &amp; Clean Refresh</span>
+                  <span class="changelog-item-desc">Exported `.ofts` project packages now include `isTemplate: true` so the Template Editor pops up automatically on first import. Once displayed, `isTemplate` immediately resets to `false` in memory and IndexedDB and `&amp;template=1` is removed from the URL, guaranteeing the Template Editor never re-appears unexpectedly on browser refresh.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Zero Hardcoded Fallback Versions</span>
+                  <span class="changelog-item-desc">Completely eliminated hardcoded fallback version strings in `js/main.js`, `js/editor.js`, and `js/FishExport-Enggine.js`. Runtime components now dynamically query `version.json` or the DOM changelog feed, degrading cleanly without hardcoded version literals.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Version 0.5.12 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.12</span>
+                <span class="welcome-version-date">Sep 12, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Mobile Preview Splitter Drag Handle</span>
+                  <span class="changelog-item-desc">Interactive horizontal drag handle anchored right on the boundary between preview canvas and controller on mobile viewports. Fluidly resize preview height (22%–78%).</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Borderless Theme-Bound Splitter Styling</span>
+                  <span class="changelog-item-desc">Pill surface styled seamlessly with controller background without outlines or borders, featuring vibrant primary neon feedback on touch and drag.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Persistent Mobile Sizing &amp; Showcase</span>
+                  <span class="changelog-item-desc">Custom preview split height is saved to local storage with real-time ruler and needle recalibration. Showcase added to component catalog.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.11 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.11</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 12, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -992,9 +1057,9 @@
 
 
   <script src="js/jszip.min.js"></script>
-  <script src="js/db.js?v=0.5.11"></script>
-  <script src="js/modal.js?v=0.5.11"></script>
-  <script src="js/context-menu.js?v=0.5.11"></script>
-  <script src="js/main.js?v=0.5.11"></script>
+  <script src="js/db.js?v=0.5.13"></script>
+  <script src="js/modal.js?v=0.5.13"></script>
+  <script src="js/context-menu.js?v=0.5.13"></script>
+  <script src="js/main.js?v=0.5.13"></script>
 </body>
 </html>

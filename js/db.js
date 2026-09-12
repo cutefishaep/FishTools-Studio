@@ -1930,6 +1930,7 @@ window.FishDatabase = (function () {
 
     // Sanitize project metadata & layers, extracting embedded base64 layers if any
     var projectData = sanitizeProjectForExport(project, mediaItems);
+    projectData.isTemplate = true;
 
     // Assign safe, collision-free filenames for the media archive and manifest
     projectData.media = mediaItems.map(function (m, idx) {

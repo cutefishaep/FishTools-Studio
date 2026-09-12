@@ -49,9 +49,9 @@ Boundaries: code/commits/PRs written normal.
 - **Showcase Integration**: Any newly introduced modular element must be registered in `demo.html` with a live interactive preview and copyable boilerplate snippet.
 
 ## Editor Layout & Splitter Handle Rules
-- **Vertical Pill Splitter Handle**: On Tablet & Desktop (`>= 601px`), the timeline boundary must feature an interactive vertical pill-shaped drag handle (`.timeline-split-handle`) allowing horizontal resize (widening/narrowing) of the left pane vs right timeline pane.
-- **Mobile Exclusion**: The vertical splitter handle is strictly hidden on Mobile (`<= 600px`, `display: none;`), where the editor preserves a clean vertical top/bottom 50/50 flow.
-- **Fluid & Constrained Dragging**: Split resize must use standard Pointer Events (`pointerdown`, `pointermove`, `pointerup`) with a clamped range (min 20%, max 80%) to prevent layout collapse.
+- **Vertical Pill Splitter Handle**: On Tablet & Desktop (`>= 601px`), the timeline boundary features an interactive vertical pill-shaped drag handle (`.timeline-split-handle`) allowing horizontal resize (widening/narrowing) of the left pane vs right timeline pane.
+- **Horizontal Preview Splitter Handle (Mobile)**: On Mobile (`<= 600px`), an interactive horizontal pill-shaped drag handle (`.preview-split-handle`) is placed directly below the preview area (`editor-preview`) allowing vertical resize (enlarging/shrinking) of the preview vs timeline.
+- **Fluid & Constrained Dragging**: Split resize must use standard Pointer Events (`pointerdown`, `pointermove`, `pointerup`) with clamped ranges (20% to 80% on desktop; 22% to 78% on mobile) to prevent layout collapse.
 
 ## Vector Icon Assets & Creation Rules
 - **Automatic SVG Generation**: When a requested UI component requires an icon and no matching asset exists in `assets/`, the agent MUST immediately generate a crisp, dedicated vector SVG file in `assets/<name>.svg`.
@@ -65,4 +65,10 @@ Boundaries: code/commits/PRs written normal.
 - **Pure Modular JS Plugin Files**: All layer effects MUST be defined as standalone `.js` files inside the `effects/` directory (e.g. `effects/<id>.js`). No `.xml` files needed.
 - **Direct Registry Pattern**: Effects register directly via `FishEffectsRegistry.register({...})` with their own `id`, `name`, `category`, `params`, and rendering logic (`filter`, `render`, or `renderPost`).
 - **Unified Parameter & Keyframe Binding**: Every parameter defined in `params` automatically wires to the Effects Rack UI (scrubbers, badges, labels) and timeline keyframing under the standard `${effectInstanceId}:${paramId}` identifier.
+
+## Unified Versioning & Single Source of Truth (SSOT) - MANDATORY
+- **Single Source of Truth (`version.json`)**: Version is strictly defined in `version.json`. NEVER manually hunt-and-peck across 10 different files to bump a version.
+- **Automated Synchronization**: Run `npm run bump <version>` or edit `version.json` (auto-synced by `server.js` or `npm run bump`). This automatically updates `package.json`, HTML badges, cache busters, and synchronizes the changelog feed from `CHANGELOG.md` across `index.html`, `editor.html`, and `demo.html`.
+- **NO Hardcoded Fallback Versions**: Hardcoded version strings in JS code (e.g. `if (!raw) return '0.5.12'`, `syncWelcomeVersionTags('0.5.12')`, or `console.log('v0.5.12')`) are STRICTLY BANNED. Code must dynamically read from `version.json`, `window.OFT_VERSION`, or the DOM, and degrade cleanly without hardcoded version literals.
+
 

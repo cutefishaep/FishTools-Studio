@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.13] - 2026-09-12
+
+### Added
+- **Single Source of Truth (SSOT) Versioning (`scripts/sync-version.js`)**: Unified project version management into `version.json`. Changing `version.json` (or running `npm run bump <version>`) automatically synchronizes `package.json`, HTML badges, script cache busters, and release notes feeds across `index.html`, `editor.html`, and `demo.html`.
+- **Live Dev Server Version Synchronizer (`server.js`)**: Hooked `syncVersion()` directly into `fs.watch(ROOT)`. Editing and saving `version.json` in any editor immediately propagates new version data and reloads the browser.
+
+### Improved
+- **Template Editor Initial-Import Auto-Open & Clean Refresh**: Exported `.ofts` project packages now include `isTemplate: true` so the Template Editor pops up automatically on first import. Once displayed, `isTemplate` immediately resets to `false` in memory and IndexedDB and `&template=1` is removed from the URL, guaranteeing the Template Editor never re-appears unexpectedly on browser refresh.
+- **Zero Hardcoded Fallback Versions**: Completely eliminated hardcoded fallback version strings in `js/main.js`, `js/editor.js`, and `js/FishExport-Enggine.js`. Runtime components now dynamically query `version.json` or the DOM changelog feed, degrading cleanly without hardcoded version literals.
+
+---
+
+## [0.5.12] - 2026-09-12
+
+### Added
+- **Mobile Horizontal Preview Splitter Handle (`.preview-split-handle`)**: Introduced an interactive horizontal drag handle anchored directly on the boundary seam (`top: 0; transform: translateY(-50%)`) between the preview canvas and the controller bar on mobile viewports (`<= 600px`). Allows users to fluidly enlarge or shrink preview height vs timeline height (constrained from 22% to 78%).
+- **Theme-Bound Borderless Controller Surface**: Styled the handle pill with pure `var(--bg-panel)` color matching the controller background, with 100% borderless/outlineless geometry (`border: none; outline: none;`) and dynamic neon feedback on hover, touch, and active dragging (`var(--color-primary-hover)` / `var(--color-primary-active)`).
+- **Splitter Component Showcase Integration**: Added Section 6b to `demo.html` with a live interactive dragging sandbox and clean boilerplate HTML snippet.
+- **Persistent Mobile Preview Sizing**: Automatically caches user's custom preview split height into `localStorage.oft_mobile_preview_height` and synchronizes ruler, playhead needle, and canvas scale in real-time.
+
+---
+
 ## [0.5.11] - 2026-09-12
 
 ### Fixed

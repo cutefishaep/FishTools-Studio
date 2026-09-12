@@ -59,9 +59,15 @@ function notifyClients() {
   });
 }
 
+let syncVersion = null;
+try {
+  syncVersion = require('./scripts/sync-version.js').syncVersion;
+} catch (_) {}
+
 // File watcher for local dev auto-reload
 if (!process.env.VERCEL) {
   let debounceTimer = null;
+  let isAutoSyncingVersion = false;
   try {
     fs.watch(ROOT, { recursive: true }, (eventType, filename) => {
       if (!filename) return;
@@ -76,6 +82,22 @@ if (!process.env.VERCEL) {
       ) {
         return;
       }
+
+      // Automatically sync all files when version.json is modified
+      if ((normalized === 'version.json' || normalized.endsWith('/version.json')) && !isAutoSyncingVersion) {
+        if (typeof syncVersion === 'function') {
+          isAutoSyncingVersion = true;
+          try {
+            console.log('[DevServer] version.json changed -> Auto-syncing version across all studio files...');
+            syncVersion();
+          } catch (e) {
+            console.error('[DevServer] Auto-sync version failed:', e);
+          } finally {
+            setTimeout(() => { isAutoSyncingVersion = false; }, 300);
+          }
+        }
+      }
+
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         console.log(`[DevServer] Change detected in ${filename} -> Triggering Live Reload`);

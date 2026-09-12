@@ -1,12 +1,14 @@
 {
   "name": "openfishtools-studio",
-  "version": "0.5.11",
+  "version": "0.5.13",
   "description": "Professional lightweight browser-based motion graphics video editor in the browser",
   "main": "js/main.js",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
     "tunnel": "node server.js --tunnel",
+    "bump": "node scripts/sync-version.js",
+    "version:sync": "node scripts/sync-version.js",
     "serve": "npx serve .",
     "test": "node scratch/test_suite.js"
   },

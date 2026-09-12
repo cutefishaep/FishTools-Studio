@@ -1750,8 +1750,10 @@
       setTimeout(hideProgress, 300);
     },
     cleanup: cleanupExportResources,
-    version: '0.5.11'
+    get version() {
+      return (typeof window !== 'undefined' && window.OFT_VERSION) ? window.OFT_VERSION : '';
+    }
   };
 
-  console.info('[FishExport-Enggine] v0.5.11 loaded. Offline deterministic render engine ready.');
+  console.info('[FishExport-Enggine] Offline deterministic render engine ready.');
 })();

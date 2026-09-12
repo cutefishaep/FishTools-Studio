@@ -66,7 +66,7 @@ function initUIProtections() {
  * e.g., "0.1.0-pre-alpha" -> "0.1.0 PA"
  */
 function formatAppVersion(raw) {
-  if (!raw) return '0.5.11';
+  if (!raw) return '';
   let str = String(raw).trim().replace(/^v\.?/i, '');
   
   let tag = '';
@@ -117,11 +117,14 @@ function syncWelcomeVersionTags(pkgVersion) {
     }
   }
   if (!detected) {
-    detected = '0.5.11';
+    return;
   }
 
   const cleanNum = String(detected).trim().replace(/^v\.?/i, '');
   const displayTag = `v${cleanNum}`;
+  if (typeof window !== 'undefined') {
+    window.OFT_VERSION = cleanNum;
+  }
 
   // 1. Sync Studio top navbar badge
   const badgeEl = document.getElementById('studio-version-badge');
@@ -184,7 +187,7 @@ async function initVersionFetcher() {
     }
   } catch (_) {}
 
-  syncWelcomeVersionTags('0.5.11');
+  syncWelcomeVersionTags();
 }
 
 /**

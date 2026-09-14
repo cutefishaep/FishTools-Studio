@@ -49,165 +49,12 @@
     presetId: 'default'
   };
 
-  const TEXT_PRESETS = [
-    {
-      id: 'default',
-      name: 'Clean Bold',
-      desc: 'Modern flat headline typography',
-      props: {
-        text: 'OPEN FISH',
-        fontSize: 72,
-        fontWeight: '700',
-        letterSpacing: 3,
-        fillColor: '#ffffff',
-        strokeWidth: 0,
-        longShadow: false,
-        neonGlow: false,
-        badgeEnabled: false,
-        animation: 'none'
-      }
-    },
-    {
-      id: 'outline',
-      name: 'Hero Outline',
-      desc: 'High contrast black stroke outline',
-      props: {
-        text: 'HEADLINE',
-        fontSize: 76,
-        fontWeight: '800',
-        letterSpacing: 4,
-        fillColor: '#ffffff',
-        strokeColor: '#000000',
-        strokeWidth: 10,
-        strokeJoin: 'round',
-        longShadow: false,
-        neonGlow: false,
-        badgeEnabled: false,
-        animation: 'none'
-      }
-    },
-    {
-      id: 'long_shadow',
-      name: 'Long Shadow',
-      desc: 'Extruded 45° flat shadow effect',
-      props: {
-        text: 'SHADOW',
-        fontSize: 72,
-        fontWeight: '800',
-        letterSpacing: 2,
-        fillColor: '#98ce7b',
-        strokeWidth: 0,
-        longShadow: true,
-        longShadowColor: 'rgba(13, 17, 9, 0.75)',
-        longShadowLength: 32,
-        longShadowAngle: 45,
-        neonGlow: false,
-        badgeEnabled: false,
-        animation: 'none'
-      }
-    },
-    {
-      id: 'neon',
-      name: 'Neon Glow',
-      desc: 'Vibrant matcha cyan cyberpunk glow',
-      props: {
-        text: 'NEON WAVE',
-        fontSize: 68,
-        fontWeight: '800',
-        letterSpacing: 4,
-        fillColor: '#ffffff',
-        strokeColor: '#98ce7b',
-        strokeWidth: 4,
-        neonGlow: true,
-        neonGlowColor: '#98ce7b',
-        neonGlowBlur: 20,
-        longShadow: false,
-        badgeEnabled: false,
-        animation: 'none'
-      }
-    },
-    {
-      id: 'typewriter',
-      name: 'Typewriter',
-      desc: 'Terminal typewriter typing effect',
-      props: {
-        text: 'System Initialized...',
-        fontSize: 54,
-        fontWeight: '700',
-        letterSpacing: 2,
-        fillColor: '#98ce7b',
-        strokeWidth: 0,
-        longShadow: false,
-        neonGlow: false,
-        badgeEnabled: false,
-        animation: 'typewriter',
-        animSpeed: 1.0,
-        animDuration: 2.5
-      }
-    },
-    {
-      id: 'wave',
-      name: 'Kinetic Wave',
-      desc: 'Smooth bouncing wave character animation',
-      props: {
-        text: 'KINETIC FLOW',
-        fontSize: 64,
-        fontWeight: '800',
-        letterSpacing: 3,
-        fillColor: '#ffffff',
-        strokeColor: '#000000',
-        strokeWidth: 6,
-        longShadow: false,
-        neonGlow: false,
-        badgeEnabled: false,
-        animation: 'wave',
-        animSpeed: 1.2
-      }
-    },
-    {
-      id: 'pop_in',
-      name: 'Pop-in Bounce',
-      desc: 'Elastic staggered character scale pop',
-      props: {
-        text: 'SUPER POP!',
-        fontSize: 70,
-        fontWeight: '800',
-        letterSpacing: 3,
-        fillColor: '#ffffff',
-        strokeColor: '#000000',
-        strokeWidth: 8,
-        longShadow: true,
-        longShadowColor: 'rgba(0, 0, 0, 0.4)',
-        longShadowLength: 16,
-        longShadowAngle: 45,
-        badgeEnabled: false,
-        animation: 'bounce_2',
-        animDuration: 1.2
-      }
-    },
-    {
-      id: 'badge',
-      name: 'Badge Pill',
-      desc: 'Contrasting solid surface badge box',
-      props: {
-        text: 'FEATURED CLIP',
-        fontSize: 48,
-        fontWeight: '800',
-        letterSpacing: 2,
-        fillColor: '#0d1109',
-        strokeWidth: 0,
-        badgeEnabled: true,
-        badgeColor: '#98ce7b',
-        badgePaddingX: 28,
-        badgePaddingY: 14,
-        badgeRadius: 999,
-        longShadow: false,
-        neonGlow: false,
-        animation: 'fade_up'
-      }
-    }
-  ];
+  // ─── Text Preset Registry ─────────────────────────────────────────────────
+  // Presets live in text/[name].js — each file calls FishTextEngine.registerPreset({...})
+  // after text-engine.js loads. No presets are hardcoded here.
+  const _textPresetRegistry = [];
 
+  // ─── Animation Type Definitions ──────────────────────────────────────────
   function normalizeAnimIn(anim) {
     if (!anim || anim === 'none') return 'none';
     if (anim === 'bounce_1' || anim === 'bounce_pop') return 'bounce_1';
@@ -222,40 +69,57 @@
     { id: 'bounce_2', label: 'Bounce 2 (Inertial 0.10s)', desc: 'AE Linear Spring: dur 0.10s, frame retard, freq 2, decay 9' },
     { id: 'bounce_3', label: 'Bounce 3 (Stagger 60ms)', desc: 'AE Cosine Pop: delay 60ms, freq 2, decay 8, amp 50' },
     { id: 'bounce_4', label: 'Bounce 4 (Inertial 0.25s)', desc: 'AE Linear Spring: dur 0.25s, frame retard, freq 1, decay 8' },
-    { id: 'wave', label: 'Kinetic Wave', desc: 'Fluid sinusoidal wave motion' },
-    { id: 'typewriter', label: 'Typewriter', desc: 'Sequential character typing with cursor' },
-    { id: 'fade_up', label: 'Fade Up', desc: 'Smooth vertical cascade fade-in' },
-    { id: 'glitch', label: 'Glitch', desc: 'High-energy digital displacement' },
-    { id: 'none', label: 'None', desc: 'Static crisp typography' }
+    { id: 'wave',       label: 'Kinetic Wave', desc: 'Fluid sinusoidal wave motion' },
+    { id: 'typewriter', label: 'Typewriter',   desc: 'Sequential character typing with cursor' },
+    { id: 'fade_up',    label: 'Fade Up',      desc: 'Smooth vertical cascade fade-in' },
+    { id: 'glitch',     label: 'Glitch',       desc: 'High-energy digital displacement' },
+    { id: 'none',       label: 'None',         desc: 'Static crisp typography' }
   ];
 
   const ANIMATION_OUT_TYPES = [
-    { id: 'none', label: 'None', desc: 'Static until end of clip' },
-    { id: 'bounce_out', label: 'Bounce Out', desc: 'Windup anticipation & spring snap collapse' },
-    { id: 'slide_out', label: 'Slide Out', desc: 'Snappy inertia slide exit' },
-    { id: 'fade_down', label: 'Fade Down', desc: 'Gravity drop & fade away' },
+    { id: 'none',        label: 'None',        desc: 'Static until end of clip' },
+    { id: 'bounce_out',  label: 'Bounce Out',  desc: 'Windup anticipation & spring snap collapse' },
+    { id: 'slide_out',   label: 'Slide Out',   desc: 'Snappy inertia slide exit' },
+    { id: 'fade_down',   label: 'Fade Down',   desc: 'Gravity drop & fade away' },
     { id: 'shrink_drop', label: 'Shrink Drop', desc: 'Scale-down fall through floor' }
   ];
 
   const ANIMATION_TYPES = ANIMATION_IN_TYPES;
 
+
   class FishTextEngine {
-    static get PRESETS() { return TEXT_PRESETS; }
+    // Registry access — consumed by editor.js renderTextPresetsGrid / addTextLayer
+    static get PRESETS() { return _textPresetRegistry; }
     static get ANIMATIONS() { return ANIMATION_IN_TYPES; }
     static get ANIMATION_IN_TYPES() { return ANIMATION_IN_TYPES; }
     static get ANIMATION_OUT_TYPES() { return ANIMATION_OUT_TYPES; }
     static get DEFAULT_PROPS() { return DEFAULT_TEXT_PROPS; }
+
+    /**
+     * Register a text preset from an external text/[name].js plugin file.
+     * @param {{ id:string, name:string, desc:string, props:object }} preset
+     */
+    static registerPreset(preset) {
+      if (!preset || !preset.id) return;
+      // Prevent duplicate registration
+      const existing = _textPresetRegistry.findIndex(p => p.id === preset.id);
+      if (existing >= 0) {
+        _textPresetRegistry[existing] = preset;
+      } else {
+        _textPresetRegistry.push(preset);
+      }
+    }
 
     static getDefaultProps() {
       return Object.assign({}, DEFAULT_TEXT_PROPS);
     }
 
     static getPresets() {
-      return TEXT_PRESETS;
+      return _textPresetRegistry;
     }
 
     static getPreset(presetId) {
-      return TEXT_PRESETS.find(p => p.id === presetId) || TEXT_PRESETS[0];
+      return _textPresetRegistry.find(p => p.id === presetId) || _textPresetRegistry[0] || null;
     }
 
     /**

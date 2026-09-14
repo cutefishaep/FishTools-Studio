@@ -1,0 +1,4306 @@
+/* ==========================================================================
+   DESKTOP.CSS - Professional Desktop NLE Workstation Layout
+   FishTools Studio - Strict Performance & Aesthetics:
+   - 100% Theme Token Binding (css/theme.css)
+   - Zero Box-Shadow, Zero Blur, Zero Gradients
+   - Flat, Crisp Vector Lines, 100% Cal Sans Typography
+   - Professional Desktop Radius: 4px (No mobile pills)
+   - 3-Column Top (Media + Preview + Inspector) & Full-Width Bottom Timeline
+   ========================================================================== */
+
+/* --- Desktop Tokens --- */
+:root {
+  --desktop-radius: 4px;
+  --desktop-radius-sm: 3px;
+  --desktop-btn-h-sm: 28px;
+  --desktop-btn-h: 30px;
+  --desktop-btn-h-lg: 40px;
+  --desktop-layer-panel-w: 160px;
+}
+
+/* --- Global Desktop Viewport Root --- */
+.desktop-viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  overflow: hidden;
+  box-sizing: border-box;
+
+  /* Resizable layout variables */
+  --desktop-upper-height: 54%;
+  --desktop-left-width: 280px;
+  --desktop-right-width: 320px;
+  --desktop-extension-width: 320px;
+  --desktop-header-height: 36px;
+}
+
+/* --- 1. Top Header Bar (Desktop Topbar) --- */
+.desktop-header {
+  height: var(--desktop-header-height);
+  min-height: var(--desktop-header-height);
+  width: 100%;
+  background-color: var(--bg-dashboard);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.desktop-header .editor-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.desktop-header .editor-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Desktop Back Button: 30px x 30px, 4px radius */
+.desktop-header .editor-back-btn {
+  width: var(--desktop-btn-h);
+  height: var(--desktop-btn-h);
+  border-radius: var(--desktop-radius);
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-header .editor-back-btn:hover {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+.desktop-header .editor-back-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* Project / Layer Name Input */
+.desktop-header .editor-title-input {
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--desktop-radius);
+  padding: 4px 8px;
+  outline: none;
+  min-width: 160px;
+  max-width: 280px;
+  height: var(--desktop-btn-h);
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-header .editor-title-input:hover {
+  background-color: var(--bg-panel);
+  border-color: var(--border-subtle);
+}
+
+.desktop-header .editor-title-input:focus {
+  background-color: var(--bg-panel);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.desktop-header .editor-layer-batch-title {
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  user-select: none;
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.desktop-header .editor-layer-batch-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.desktop-header .editor-header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* Header Action Buttons: Strict 30px x 30px, 4px radius */
+.desktop-header .editor-settings-btn,
+.desktop-header .editor-precomp-collapse-btn,
+.desktop-header .editor-layer-precomp-btn,
+.desktop-header .editor-layer-group-mask-btn,
+.desktop-header .editor-layer-group-exclude-btn,
+.desktop-header .editor-layer-delete-btn,
+.desktop-header .editor-layer-collapse-btn,
+.desktop-header .editor-layer-motion-blur-btn,
+.desktop-header .editor-layer-link-btn,
+.desktop-header .editor-layer-more-btn {
+  width: var(--desktop-btn-h);
+  height: var(--desktop-btn-h);
+  border-radius: var(--desktop-radius);
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* SVGs inside Header Action Buttons: Strict 16px */
+.desktop-header .editor-settings-btn svg,
+.desktop-header .editor-precomp-collapse-btn svg,
+.desktop-header .editor-layer-precomp-btn svg,
+.desktop-header .editor-layer-group-mask-btn svg,
+.desktop-header .editor-layer-group-exclude-btn svg,
+.desktop-header .editor-layer-delete-btn svg,
+.desktop-header .editor-layer-collapse-btn svg,
+.desktop-header .editor-layer-motion-blur-btn svg,
+.desktop-header .editor-layer-link-btn svg,
+.desktop-header .editor-layer-more-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* STROKE FIX: Link icon MUST be stroke outline, NEVER filled solid! */
+.desktop-header .editor-layer-link-btn svg {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* STROKE FIX: Collapse icon */
+.desktop-header .editor-precomp-collapse-btn svg,
+.desktop-header .editor-layer-collapse-btn svg {
+  stroke: currentColor !important;
+}
+
+/* Fill icons */
+.desktop-header .editor-layer-delete-btn svg,
+.desktop-header .editor-layer-motion-blur-btn svg,
+.desktop-header .editor-layer-more-btn svg,
+.desktop-header .editor-settings-btn#btn-editor-settings svg {
+  fill: currentColor;
+}
+
+/* Hover highlights */
+.desktop-header .editor-settings-btn:hover,
+.desktop-header .editor-precomp-collapse-btn:hover,
+.desktop-header .editor-layer-precomp-btn:hover,
+.desktop-header .editor-layer-group-mask-btn:hover,
+.desktop-header .editor-layer-group-exclude-btn:hover,
+.desktop-header .editor-layer-collapse-btn:hover,
+.desktop-header .editor-layer-motion-blur-btn:hover,
+.desktop-header .editor-layer-link-btn:hover,
+.desktop-header .editor-layer-more-btn:hover {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+.desktop-header .editor-layer-delete-btn:hover {
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger);
+}
+
+/* Header Export Button — same size as settings btn, solid green accent */
+.desktop-header .editor-export-btn {
+  width: var(--desktop-btn-h);
+  height: var(--desktop-btn-h);
+  min-width: var(--desktop-btn-h);
+  min-height: var(--desktop-btn-h);
+  border-radius: var(--desktop-radius);
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border: 1px solid var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-header .editor-export-btn:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.desktop-header .editor-export-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.desktop-header .editor-export-btn span {
+  display: none;
+}
+
+/* --- 2. Main Desktop Workstation --- */
+.desktop-workstation {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* --- 3. Upper Row: 3 Panels (Left Media, Center Preview, Right Inspector) --- */
+.desktop-upper-row {
+  display: flex;
+  flex-direction: row;
+  height: var(--desktop-upper-height);
+  min-height: 200px;
+  max-height: calc(100% - 165px);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Panel Generic Wrapper */
+.desktop-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-dashboard);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.desktop-panel-header {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.desktop-panel-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desktop-panel-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- 3A. Left Panel: Media Pool & Add Layer Browser --- */
+.desktop-panel-left {
+  width: var(--desktop-left-width);
+  min-width: 220px;
+  max-width: 460px;
+  border-right: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* Category Tabs: ICON-ONLY (Labels hidden), 30px height, 4px radius, 100% Symmetrical Grid */
+.desktop-panel-left .add-layer-categories-switch {
+  width: calc(100% - 20px) !important;
+  margin: 8px 10px 6px 10px !important;
+  height: var(--desktop-btn-h) !important;
+  border-radius: var(--desktop-radius) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  padding: 2px !important;
+  gap: 2px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+/* Hide text label strictly as requested */
+.desktop-panel-left .segmented-switch-item .category-label {
+  display: none !important;
+}
+
+.desktop-panel-left .segmented-switch-item {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-left .segmented-switch-item svg {
+  width: 16px !important;
+  height: 16px !important;
+  fill: currentColor !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-left .segmented-switch-item:hover {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-panel-left .segmented-switch-item.is-active,
+.desktop-panel-left .segmented-switch-item.is-selected {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-left .segmented-switch-item.is-active svg,
+.desktop-panel-left .segmented-switch-item.is-selected svg {
+  fill: var(--bg-canvas) !important;
+}
+
+/* Left Panel Media Pool */
+.desktop-panel-left .add-layer-media-pool {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 10px;
+  position: relative;
+}
+
+.desktop-panel-left .drawer-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.desktop-panel-left .media-import-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--desktop-radius);
+  background-color: var(--bg-panel);
+  border: 1px dashed var(--border-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.desktop-panel-left .media-import-box:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-panel-left .media-import-plus-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* SHAPES: STRICT 3-COLUMN SQUARE GRID */
+.desktop-panel-left .add-layer-shape-panel {
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-left #add-layer-shape-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn {
+  grid-column: span 1 !important;
+  aspect-ratio: 1 / 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 80px !important;
+  border-radius: var(--desktop-radius) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover .layer-action-icon {
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-left #add-layer-shape-grid .layer-action-icon {
+  width: 24px !important;
+  height: 24px !important;
+  fill: currentColor !important;
+}
+
+/* CONTROL PANEL: 3-COLUMN TILES */
+.desktop-panel-left .add-layer-control-panel {
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-left #add-layer-control-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.desktop-panel-left #add-layer-control-grid .layer-action-btn {
+  grid-column: span 1 !important;
+  aspect-ratio: 1 / 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 80px !important;
+  border-radius: var(--desktop-radius) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  margin: 0 !important;
+  cursor: pointer;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-panel-left #add-layer-control-grid .layer-action-btn:hover {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-left #add-layer-control-grid .layer-action-btn:hover .layer-action-icon {
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-left #add-layer-control-grid .layer-action-btn:hover .layer-action-label {
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-left #add-layer-control-grid .layer-action-icon {
+  width: 20px !important;
+  height: 20px !important;
+  fill: currentColor !important;
+}
+
+.desktop-panel-left #add-layer-control-grid .layer-action-label {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}
+
+/* TEXT PRESET GRID IN DESKTOP LEFT PANEL */
+.desktop-panel-left .add-layer-text-panel {
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-left .drawer-text-preset-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 4px 0 !important;
+}
+
+.desktop-panel-left .text-preset-card {
+  width: 100% !important;
+  min-height: 56px !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 6px 8px !important;
+  cursor: pointer !important;
+  transform: none !important;
+  box-sizing: border-box !important;
+  gap: 4px !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-left .text-preset-card:hover {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  transform: none !important;
+}
+
+.desktop-panel-left .text-preset-card:hover .text-preset-preview-text,
+.desktop-panel-left .text-preset-card:hover .text-preset-title {
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-left .text-preset-card:active {
+  transform: none !important;
+}
+
+/* Un-drawerize Add Drawer */
+.desktop-panel-left .drawer-container {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  z-index: 1 !important;
+  background: transparent !important;
+}
+
+.desktop-panel-left .drawer-backdrop,
+.desktop-panel-left .drawer-drag-handle {
+  display: none !important;
+}
+
+.desktop-panel-left .drawer-card {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  transform: none !important;
+  transition: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: transparent !important;
+  padding-bottom: 0 !important;
+}
+
+.desktop-panel-left .drawer-body {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* --- 3B. Center Panel: Preview Canvas & Controller --- */
+.desktop-panel-center {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-canvas);
+  position: relative;
+  overflow: hidden;
+}
+
+.desktop-panel-center .editor-preview {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.desktop-panel-center .preview-canvas-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desktop-panel-center .editor-controller {
+  display: none !important;
+}
+
+.desktop-panel-center .preview-split-handle {
+  display: none !important;
+}
+
+/* --- 3C. Extension Panel: FishTools (After Effects CEP Docked Panel) --- */
+.desktop-panel-extension {
+  width: var(--desktop-extension-width);
+  min-width: 220px;
+  max-width: 600px;
+  border-left: 1px solid var(--border-subtle);
+  background-color: var(--bg-dashboard);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.desktop-panel-extension .desktop-panel-header {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 8px 0 12px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.desktop-panel-extension .desktop-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desktop-panel-extension .desktop-panel-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.desktop-panel-extension .desktop-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.desktop-panel-extension .desktop-panel-header-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--desktop-radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.desktop-panel-extension .desktop-panel-header-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.desktop-panel-extension .desktop-panel-header-btn#desktop-fishtool-btn-close:hover {
+  background-color: var(--color-danger);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger);
+}
+
+.desktop-panel-extension .desktop-panel-header-btn svg {
+  display: block;
+}
+
+.desktop-panel-extension .desktop-extension-body {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  background-color: var(--bg-dashboard);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-panel-extension .popover-loader-box {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background-color: var(--bg-dashboard);
+}
+
+.desktop-panel-extension iframe.desktop-extension-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background-color: transparent;
+  flex: 1;
+  display: block;
+}
+
+/* --- 3D. Right Panel: Inspector / Properties Rack --- */
+.desktop-panel-right {
+  width: var(--desktop-right-width);
+  min-width: 260px;
+  max-width: 500px;
+  border-left: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* STRICT INSPECTOR STATE CONTROLLER:
+   When no layer is selected -> Show empty state, HIDE layer drawer completely!
+   When layer is selected -> Show layer drawer, HIDE empty state! */
+.desktop-panel-right:not(.has-active-layer) #timeline-layer-drawer {
+  display: none !important;
+}
+
+.desktop-panel-right:not(.has-active-layer) #desktop-inspector-empty {
+  display: flex !important;
+}
+
+/* Inspector Empty / Comp Specs Card */
+.desktop-panel-right.has-active-layer #desktop-inspector-empty {
+  display: none !important;
+}
+
+.desktop-panel-right.has-active-layer #timeline-layer-drawer {
+  display: flex !important;
+}
+
+.desktop-panel-right:not(.has-active-layer) #timeline-layer-drawer {
+  display: none !important;
+}
+
+.desktop-panel-right:not(.has-active-layer) #desktop-inspector-empty {
+  display: flex !important;
+}
+
+/* Inspector Empty / Comp Specs Card */
+.desktop-inspector-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  gap: 10px;
+  user-select: none;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.desktop-inspector-empty-icon {
+  width: 36px;
+  height: 36px;
+  color: var(--border-subtle);
+  fill: currentColor;
+}
+
+.desktop-inspector-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.desktop-inspector-empty-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  max-width: 220px;
+}
+
+/* Un-drawerize Selected Layer Drawer inside Right Panel */
+.desktop-panel-right .drawer-container {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 1 !important;
+  background: transparent !important;
+}
+
+.desktop-panel-right .drawer-backdrop,
+.desktop-panel-right .drawer-drag-handle {
+  display: none !important;
+}
+
+.desktop-panel-right .drawer-card {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  transform: none !important;
+  transition: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: transparent !important;
+  padding-bottom: 0 !important;
+}
+
+.desktop-panel-right .drawer-drag-handle {
+  display: none !important;
+}
+
+.desktop-panel-right .drawer-body {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Inspector Action Buttons Grid: Clean 2-Column Desktop Big Tiles (70px height) */
+#desktop-panel-inspector #layer-drawer-main-view {
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+#desktop-panel-inspector .layer-action-btn-grid,
+#desktop-panel-inspector #layer-action-btn-grid,
+#desktop-panel-inspector .layer-action-btn-grid.is-solo-mode,
+#desktop-panel-inspector .layer-action-btn-grid.is-2-items,
+#desktop-panel-inspector .layer-action-btn-grid.is-3-items,
+#desktop-panel-inspector .layer-action-btn-grid.is-4-items,
+#desktop-panel-inspector .layer-action-btn-grid.is-5-items,
+#desktop-panel-inspector .layer-action-btn-grid.is-6-items,
+#desktop-panel-inspector .layer-action-btn-grid.is-camera-mode {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn,
+#desktop-panel-inspector .layer-action-btn-grid [id^="btn-layer-"],
+#desktop-panel-inspector .layer-action-btn,
+.desktop-panel-right .layer-action-btn-grid .layer-action-btn,
+.desktop-panel-right .layer-action-btn-grid [id^="btn-layer-"],
+.desktop-panel-right .layer-action-btn,
+#layer-action-btn-grid .layer-action-btn,
+#layer-action-btn-grid [id^="btn-layer-"] {
+  grid-column: span 1 !important;
+  min-height: 68px !important;
+  max-height: 76px !important;
+  height: 70px !important;
+  width: 100% !important;
+  flex-direction: column !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 6px !important;
+  gap: 6px !important;
+  cursor: pointer;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* If odd number of visible items (5 items), let the 5th item (Effects) span 2 columns across the bottom row */
+#desktop-panel-inspector .layer-action-btn-grid.is-5-items #btn-layer-effects {
+  grid-column: span 2 !important;
+}
+
+/* Solo button (1 item): span 2 */
+#desktop-panel-inspector .layer-action-btn-grid.is-solo-mode .layer-action-btn,
+#desktop-panel-inspector .layer-action-btn-grid.is-solo-mode [id^="btn-layer-"],
+#desktop-panel-inspector .layer-action-btn-grid > :only-child {
+  grid-column: span 2 !important;
+}
+
+/* Strictly hide buttons marked as display: none by editor.js for layer-specific action sets */
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-edit-group[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-edit-shape[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-edit-text[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-transform[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-camera-settings[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-fill[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-blend[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-effects[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid #btn-layer-beatmark[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid [id^="btn-layer-"][style*="display: none"],
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn[style*="display: none"],
+#desktop-panel-inspector .layer-action-btn[style*="display: none"] {
+  display: none !important;
+}
+
+/* Inspector Action Buttons Hover State: Bright Background, Dark Content */
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:hover,
+#desktop-panel-inspector .layer-action-btn-grid [id^="btn-layer-"]:hover,
+#desktop-panel-inspector .layer-action-btn:hover,
+#desktop-panel-inspector .layer-action-btn.is-hover-simulated,
+#desktop-panel-inspector [id^="btn-layer-"]:hover,
+#desktop-panel-inspector [id^="btn-layer-"].is-hover-simulated,
+.desktop-panel-right .layer-action-btn-grid .layer-action-btn:hover,
+.desktop-panel-right .layer-action-btn-grid [id^="btn-layer-"]:hover,
+.desktop-panel-right .layer-action-btn:hover,
+.desktop-panel-right .layer-action-btn.is-hover-simulated,
+#layer-action-btn-grid .layer-action-btn:hover,
+#layer-action-btn-grid .layer-action-btn.is-hover-simulated,
+#layer-action-btn-grid [id^="btn-layer-"]:hover,
+#layer-action-btn-grid [id^="btn-layer-"].is-hover-simulated {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* Inspector Action Buttons Active / Pressed State */
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:active,
+#desktop-panel-inspector .layer-action-btn-grid [id^="btn-layer-"]:active,
+#desktop-panel-inspector .layer-action-btn:active,
+#desktop-panel-inspector [id^="btn-layer-"]:active,
+.desktop-panel-right .layer-action-btn-grid .layer-action-btn:active,
+.desktop-panel-right .layer-action-btn-grid [id^="btn-layer-"]:active,
+.desktop-panel-right .layer-action-btn:active,
+#layer-action-btn-grid .layer-action-btn:active,
+#layer-action-btn-grid [id^="btn-layer-"]:active {
+  background-color: var(--color-primary-active) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary-active) !important;
+}
+
+/* Icons & SVGs on Hover: Dark Canvas Fill & Stroke on Bright Background */
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:hover .layer-action-icon,
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:hover svg,
+#desktop-panel-inspector .layer-action-btn-grid [id^="btn-layer-"]:hover .layer-action-icon,
+#desktop-panel-inspector .layer-action-btn-grid [id^="btn-layer-"]:hover svg,
+#desktop-panel-inspector .layer-action-btn:hover .layer-action-icon,
+#desktop-panel-inspector .layer-action-btn:hover svg,
+#desktop-panel-inspector [id^="btn-layer-"]:hover .layer-action-icon,
+#desktop-panel-inspector [id^="btn-layer-"]:hover svg,
+.desktop-panel-right .layer-action-btn:hover .layer-action-icon,
+.desktop-panel-right .layer-action-btn:hover svg,
+.desktop-panel-right .layer-action-btn.is-hover-simulated .layer-action-icon,
+.desktop-panel-right .layer-action-btn.is-hover-simulated svg,
+#layer-action-btn-grid .layer-action-btn:hover .layer-action-icon,
+#layer-action-btn-grid .layer-action-btn:hover svg,
+#layer-action-btn-grid [id^="btn-layer-"]:hover .layer-action-icon,
+#layer-action-btn-grid [id^="btn-layer-"]:hover svg {
+  fill: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+  stroke: var(--bg-canvas) !important;
+}
+
+#desktop-panel-inspector .layer-action-btn:hover svg[fill="none"],
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:hover svg[fill="none"],
+#desktop-panel-inspector [id^="btn-layer-"]:hover svg[fill="none"],
+.desktop-panel-right .layer-action-btn:hover svg[fill="none"],
+#layer-action-btn-grid .layer-action-btn:hover svg[fill="none"] {
+  fill: none !important;
+  stroke: var(--bg-canvas) !important;
+}
+
+#desktop-panel-inspector .layer-action-btn:active .layer-action-icon,
+#desktop-panel-inspector .layer-action-btn:active svg,
+.desktop-panel-right .layer-action-btn:active .layer-action-icon,
+.desktop-panel-right .layer-action-btn:active svg,
+#layer-action-btn-grid .layer-action-btn:active .layer-action-icon,
+#layer-action-btn-grid .layer-action-btn:active svg {
+  fill: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+  stroke: var(--bg-canvas) !important;
+}
+
+/* Masked SVG Icons on Hover & Active */
+#desktop-panel-inspector .layer-action-btn:hover .svg-icon,
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:hover .svg-icon,
+#desktop-panel-inspector [id^="btn-layer-"]:hover .svg-icon,
+.desktop-panel-right .layer-action-btn:hover .svg-icon,
+.desktop-panel-right .layer-action-btn.is-hover-simulated .svg-icon,
+#layer-action-btn-grid .layer-action-btn:hover .svg-icon,
+#layer-action-btn-grid [id^="btn-layer-"]:hover .svg-icon {
+  background-color: var(--bg-canvas) !important;
+}
+
+#desktop-panel-inspector .layer-action-btn:active .svg-icon,
+.desktop-panel-right .layer-action-btn:active .svg-icon,
+#layer-action-btn-grid .layer-action-btn:active .svg-icon {
+  background-color: var(--bg-canvas) !important;
+}
+
+/* Button Labels on Hover & Active: Dark Canvas Text */
+#desktop-panel-inspector .layer-action-btn:hover .layer-action-label,
+#desktop-panel-inspector .layer-action-btn-grid .layer-action-btn:hover .layer-action-label,
+#desktop-panel-inspector [id^="btn-layer-"]:hover .layer-action-label,
+.desktop-panel-right .layer-action-btn:hover .layer-action-label,
+.desktop-panel-right .layer-action-btn.is-hover-simulated .layer-action-label,
+#layer-action-btn-grid .layer-action-btn:hover .layer-action-label,
+#layer-action-btn-grid [id^="btn-layer-"]:hover .layer-action-label {
+  color: var(--bg-canvas) !important;
+}
+
+#desktop-panel-inspector .layer-action-btn:active .layer-action-label,
+.desktop-panel-right .layer-action-btn:active .layer-action-label,
+#layer-action-btn-grid .layer-action-btn:active .layer-action-label {
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .layer-action-icon,
+.desktop-panel-right .layer-action-btn svg,
+.desktop-panel-right .layer-action-btn .svg-icon {
+  width: 24px !important;
+  height: 24px !important;
+  fill: currentColor !important;
+  flex-shrink: 0;
+}
+
+.desktop-panel-right .layer-action-btn .svg-icon {
+  background-color: currentColor !important;
+  display: inline-block !important;
+}
+
+.desktop-panel-right .layer-action-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  line-height: 1.2 !important;
+  color: inherit !important;
+}
+
+/* Universal Subviews inside Desktop Inspector */
+.desktop-panel-right .drawer-subview {
+  display: none !important;
+  flex-direction: column;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 !important;
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.desktop-panel-right .drawer-subview.is-active {
+  display: flex !important;
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* All Subview Controllers in Desktop Inspector */
+.desktop-panel-right .transform-controller,
+.desktop-panel-right .blend-controller-layout,
+.desktop-panel-right .volume-controller-layout,
+.desktop-panel-right .speed-controller-layout,
+.desktop-panel-right .shape-controller-layout,
+.desktop-panel-right .camera-controller-layout,
+.desktop-panel-right .fill-controller-layout,
+.desktop-panel-right .graph-editor-container,
+.desktop-panel-right .effects-rack-layout,
+.desktop-panel-right .effects-gallery-layout,
+.desktop-panel-right .beatmark-controller-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  background-color: var(--bg-dashboard) !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Universal Subview Top Bar in Desktop Inspector */
+.desktop-panel-right .transform-nav-col,
+.desktop-panel-right .blend-nav-col,
+.desktop-panel-right .volume-nav-col,
+.desktop-panel-right .speed-nav-col,
+.desktop-panel-right .shape-nav-col {
+  order: 1 !important;
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 10px !important;
+  background-color: var(--bg-panel) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .transform-nav-group-top,
+.desktop-panel-right .blend-nav-group-top {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  gap: 6px !important;
+}
+
+.desktop-panel-right .transform-nav-group-bottom {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-left: auto !important;
+}
+
+/* Back button pinned to left */
+.desktop-panel-right [id$="-back"]:not(#btn-fill-back),
+.desktop-panel-right .btn-subview-back,
+.desktop-panel-right .effects-back-btn {
+  margin-right: auto !important;
+}
+
+/* Subview Nav Buttons: Sleek 26px x 26px Desktop Buttons */
+.desktop-panel-right .transform-nav-btn,
+.desktop-panel-right .fill-back-btn,
+.desktop-panel-right .effects-back-btn,
+.desktop-panel-right [id$="-back"],
+#desktop-panel-inspector .transform-nav-btn,
+#desktop-panel-inspector .fill-back-btn,
+#desktop-panel-inspector .effects-back-btn,
+#desktop-panel-inspector [id$="-back"] {
+  width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-panel-right .transform-nav-btn:hover,
+.desktop-panel-right .fill-back-btn:hover,
+.desktop-panel-right .effects-back-btn:hover,
+.desktop-panel-right [id$="-back"]:hover,
+#desktop-panel-inspector .transform-nav-btn:hover,
+#desktop-panel-inspector .fill-back-btn:hover,
+#desktop-panel-inspector .effects-back-btn:hover,
+#desktop-panel-inspector [id$="-back"]:hover {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .transform-nav-btn:hover svg,
+.desktop-panel-right .fill-back-btn:hover svg,
+.desktop-panel-right .effects-back-btn:hover svg,
+.desktop-panel-right [id$="-back"]:hover svg,
+#desktop-panel-inspector .transform-nav-btn:hover svg,
+#desktop-panel-inspector .fill-back-btn:hover svg,
+#desktop-panel-inspector .effects-back-btn:hover svg,
+#desktop-panel-inspector [id$="-back"]:hover svg {
+  fill: var(--bg-canvas) !important;
+  stroke: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .transform-nav-btn:hover svg[fill="none"],
+.desktop-panel-right .fill-back-btn:hover svg[fill="none"],
+.desktop-panel-right .effects-back-btn:hover svg[fill="none"],
+.desktop-panel-right [id$="-back"]:hover svg[fill="none"],
+#desktop-panel-inspector .transform-nav-btn:hover svg[fill="none"],
+#desktop-panel-inspector .fill-back-btn:hover svg[fill="none"],
+#desktop-panel-inspector .effects-back-btn:hover svg[fill="none"],
+#desktop-panel-inspector [id$="-back"]:hover svg[fill="none"] {
+  fill: none !important;
+  stroke: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .transform-nav-btn.is-active,
+.desktop-panel-right .transform-nav-btn.has-expression {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .transform-nav-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Row 2: Tool Mode Selector Tabs (Move, Rotate, Scale, Skew) */
+.desktop-panel-right .transform-tools-col {
+  order: 2 !important;
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 4px !important;
+  padding: 5px 10px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right .transform-tool-btn {
+  width: 100% !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-panel-right .transform-tool-btn:hover,
+#desktop-panel-inspector .transform-tool-btn:hover {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .transform-tool-btn:hover svg,
+#desktop-panel-inspector .transform-tool-btn:hover svg {
+  stroke: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .transform-tool-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .transform-tool-btn.is-active svg {
+  stroke: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .transform-tool-btn.is-active svg circle[fill="currentColor"] {
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .transform-tool-btn svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* Row 3: Full Width Interactive Work Area for Subviews */
+.desktop-panel-right .transform-work-area {
+  order: 3 !important;
+  flex: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 10px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+  background-color: var(--bg-dashboard) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.desktop-panel-right .blend-work-area,
+.desktop-panel-right .volume-work-area,
+.desktop-panel-right .speed-work-area,
+.desktop-panel-right .shape-work-area,
+.desktop-panel-right .camera-work-area {
+  order: 2 !important;
+  flex: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 12px 10px !important;
+  padding-bottom: 24px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+  background-color: var(--bg-dashboard) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Blend & Overlay Subview Desktop Styling */
+.desktop-panel-right .blend-group-card {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  margin-bottom: 6px !important;
+  overflow: hidden !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-panel-right .blend-group-card:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.desktop-panel-right .blend-group-card.is-expanded,
+.desktop-panel-right .blend-group-card.is-selected-group {
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .blend-group-header {
+  padding: 0 12px !important;
+  height: 38px !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.desktop-panel-right .blend-group-title {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+.desktop-panel-right .blend-chevron-icon {
+  fill: var(--text-secondary) !important;
+}
+
+.desktop-panel-right .blend-group-card.is-expanded .blend-group-items {
+  background-color: var(--bg-panel-inner) !important;
+  border-top: 1px solid var(--border-subtle) !important;
+  padding: 6px 8px !important;
+}
+
+.desktop-panel-right .transform-pane {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: none;
+  flex-direction: column !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .transform-pane.is-active {
+  display: flex !important;
+}
+
+/* Numeric Values Cards inside Transform Panes */
+.desktop-panel-right .transform-values-header {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  margin-bottom: 0 !important;
+  flex-shrink: 0 !important;
+  position: static !important;
+}
+
+/* Pin Move X Y Z Header to top inside Swipe Pad */
+.desktop-panel-right .transform-swipe-pad .transform-values-header {
+  position: absolute !important;
+  top: 10px !important;
+  left: 10px !important;
+  right: 10px !important;
+  width: auto !important;
+  margin: 0 !important;
+  z-index: 5 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right .transform-val-card {
+  flex: 1 !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 5px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+}
+
+.desktop-panel-right .transform-val-card.is-dual {
+  flex: 2 !important;
+  flex-direction: row !important;
+  justify-content: space-around !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 5px 12px !important;
+}
+
+.desktop-panel-right .transform-val-group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 1px !important;
+}
+
+.desktop-panel-right .transform-val-num {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  font-family: var(--font-brand) !important;
+  line-height: 1.1 !important;
+}
+
+.desktop-panel-right .transform-val-num.is-neutral {
+  color: var(--text-muted) !important;
+}
+
+.desktop-panel-right .transform-val-label {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Position Pane Move Layout: Pad + Z-Ruler */
+.desktop-panel-right .transform-move-layout {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  width: 100% !important;
+  flex: 1 !important;
+  min-height: 220px !important;
+}
+
+.desktop-panel-right .transform-swipe-pad {
+  flex: 1 !important;
+  height: 100% !important;
+  min-height: 200px !important;
+  background-color: var(--bg-canvas) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: crosshair !important;
+  box-sizing: border-box !important;
+  padding: 8px !important;
+}
+
+.desktop-panel-right .transform-swipe-pad .pad-corner {
+  position: absolute !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.desktop-panel-right .transform-swipe-pad:hover .pad-corner,
+.desktop-panel-right .transform-swipe-pad.is-dragging .pad-corner {
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .transform-swipe-prompt {
+  position: absolute !important;
+  bottom: 14px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Z-Ruler Strip next to Position Pad */
+.desktop-panel-right .transform-z-ruler-wrap {
+  width: 36px !important;
+  height: 100% !important;
+  min-height: 200px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 6px 0 !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .transform-z-label {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  margin-top: 4px !important;
+}
+
+/* Rotation Pane */
+.desktop-panel-right #pane-transform-rotate .rotate-axis-switch {
+  width: 100% !important;
+  height: 28px !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 2px !important;
+  gap: 2px !important;
+}
+
+.desktop-panel-right #pane-transform-rotate .rotate-axis-switch .segmented-switch-item {
+  height: 100% !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.desktop-panel-right #pane-transform-rotate .rotate-axis-switch .segmented-switch-item.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .transform-rotate-body {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 200px !important;
+}
+
+/* Scale Pane */
+.desktop-panel-right #pane-transform-scale .transform-link-btn {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.desktop-panel-right #pane-transform-scale .transform-link-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* Single Unified Scale Jog Wheel (Linked Proportional Mode) */
+.desktop-panel-right #pane-transform-scale #jog-scale-linked {
+  flex: none !important;
+  width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  border-radius: var(--desktop-radius) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-sizing: border-box !important;
+  margin: 4px 0 !important;
+}
+
+/* Dual Independent Jog Wheels (Unlinked Mode: Width & Height) */
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked {
+  flex: none !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin: 4px 0 !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-container {
+  flex: none !important;
+  width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  border-radius: var(--desktop-radius) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+/* Strictly hide elements with display: none in scale pane */
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked[style*="display: none"],
+.desktop-panel-right #pane-transform-scale #jog-scale-linked[style*="display: none"],
+.desktop-panel-right .transform-dual-rulers[style*="display: none"],
+.desktop-panel-right .jog-wheel-container[style*="display: none"] {
+  display: none !important;
+}
+
+/* Skew Pane */
+.desktop-panel-right #pane-transform-skew .jog-wheel-container {
+  flex: none !important;
+  width: 100% !important;
+  height: 38px !important;
+  border-radius: var(--desktop-radius) !important;
+}
+
+/* --- Desktop Inspector Subviews Specifics --- */
+
+/* 1. Graph Editor Subview */
+.desktop-panel-right .graph-editor-container {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.desktop-panel-right .graph-editor-work-area {
+  order: 2 !important;
+  flex: 1 !important;
+  min-height: 180px !important;
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.desktop-panel-right .graph-canvas-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 180px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  position: relative !important;
+}
+
+.desktop-panel-right .graph-presets-col {
+  order: 3 !important;
+  width: 100% !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  padding: 4px 10px !important;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  background-color: var(--bg-panel) !important;
+  border-top: 1px solid var(--border-subtle) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .graph-preset-btn {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-panel-right .graph-preset-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .graph-preset-btn.is-active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .graph-preset-btn.is-active .preset-thumb-curve {
+  stroke: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .graph-preset-btn.is-active .preset-thumb-dot,
+.desktop-panel-right .graph-preset-btn.is-active .preset-thumb-handle {
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .graph-preset-btn.is-active .preset-thumb-tangent {
+  stroke: var(--bg-canvas) !important;
+  opacity: 0.85 !important;
+}
+
+.desktop-panel-right .graph-preset-btn.is-active svg {
+  color: var(--bg-canvas) !important;
+  fill: var(--bg-canvas) !important;
+}
+
+/* 2. Effects Rack Subview */
+.desktop-panel-right .effects-rack-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.desktop-panel-right .effects-rack-main {
+  order: 2 !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+}
+
+/* Effects Rack Desktop Overrides */
+.desktop-panel-right .effects-rack-header {
+  display: none !important;
+}
+
+.desktop-panel-right .effects-rack-title {
+  display: none !important;
+}
+
+.desktop-panel-right #btn-add-effect,
+.desktop-panel-right .btn-add-effect-nav {
+  width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--color-primary) !important;
+  border: 1px solid var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-right #btn-add-effect:hover,
+.desktop-panel-right .btn-add-effect-nav:hover {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right #btn-add-effect svg,
+.desktop-panel-right .btn-add-effect-nav svg {
+  width: 14px !important;
+  height: 14px !important;
+  fill: currentColor !important;
+}
+
+/* 3. Fill Controller Subview Overhaul */
+.desktop-panel-right .fill-controller-layout,
+#desktop-panel-inspector .fill-controller-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  background-color: var(--bg-dashboard) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* 3. Fill Controller Subview (No Gap, Clean Desktop Segmented Header) */
+.desktop-panel-right .fill-top-header,
+#desktop-panel-inspector .fill-top-header {
+  order: 1 !important;
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 10px !important;
+  margin: 0 !important;
+  background-color: var(--bg-panel) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  border-top: none !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  gap: 6px !important;
+}
+
+.desktop-panel-right .fill-back-btn,
+#desktop-panel-inspector .fill-back-btn {
+  margin: 0 !important;
+  margin-right: 0 !important;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  max-width: 26px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  flex: none !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+}
+
+.desktop-panel-right .fill-back-btn:hover,
+#desktop-panel-inspector .fill-back-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .fill-category-bar,
+#desktop-panel-inspector .fill-category-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  flex: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 26px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.desktop-panel-right .fill-tab-btn,
+#desktop-panel-inspector .fill-tab-btn {
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+}
+
+.desktop-panel-right .fill-tab-btn:last-child,
+#desktop-panel-inspector .fill-tab-btn:last-child {
+  border-right: none !important;
+}
+
+.desktop-panel-right .fill-tab-btn:hover,
+#desktop-panel-inspector .fill-tab-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .fill-tab-btn.is-active,
+#desktop-panel-inspector .fill-tab-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .fill-tab-btn svg,
+#desktop-panel-inspector .fill-tab-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke: currentColor !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right .fill-tab-btn.is-active svg,
+#desktop-panel-inspector .fill-tab-btn.is-active svg {
+  stroke: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .fill-tab-btn.is-active svg path[fill],
+#desktop-panel-inspector .fill-tab-btn.is-active svg path[fill] {
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .fill-tab-btn.is-active svg polygon[fill],
+#desktop-panel-inspector .fill-tab-btn.is-active svg polygon[fill] {
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .fill-grad-tab-swatch,
+#desktop-panel-inspector .fill-grad-tab-swatch {
+  width: 14px !important;
+  height: 10px !important;
+  border-radius: 2px !important;
+  border: 1px solid currentColor !important;
+  display: inline-block !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right .fill-tab-btn.is-active .fill-grad-tab-swatch,
+#desktop-panel-inspector .fill-tab-btn.is-active .fill-grad-tab-swatch {
+  border-color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .fill-panel-view,
+#desktop-panel-inspector .fill-panel-view {
+  order: 2 !important;
+  flex: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  background-color: var(--bg-dashboard) !important;
+}
+
+/* STRICT TAB ISOLATION: Inactive sub-panels are strictly hidden */
+.desktop-panel-right .fill-panel-view:not(.is-active),
+#desktop-panel-inspector .fill-panel-view:not(.is-active) {
+  display: none !important;
+}
+
+.desktop-panel-right .fill-panel-view.is-active,
+#desktop-panel-inspector .fill-panel-view.is-active {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+/* ==========================================================================
+   3A. Solid Color Panel (#fill-view-color) - Desktop Rebuild
+   ========================================================================== */
+.desktop-panel-right #fill-view-color,
+#desktop-panel-inspector #fill-view-color {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.desktop-panel-right #fill-view-color.is-active,
+#desktop-panel-inspector #fill-view-color.is-active {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right #fill-color-picker-inner,
+#desktop-panel-inspector #fill-color-picker-inner {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+}
+
+/* 1. Header Bar: Swatch Chip + Hex + Alpha + Quick Eyedropper & Add */
+.desktop-panel-right #fill-color-picker-header,
+#desktop-panel-inspector #fill-color-picker-header {
+  order: 1 !important;
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 0 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right .color-picker-preview-dot,
+#desktop-panel-inspector .color-picker-preview-dot {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-subtle) !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  background-color: #3D4CF5;
+}
+
+.desktop-panel-right .color-picker-header-info,
+#desktop-panel-inspector .color-picker-header-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.desktop-panel-right #fill-color-picker-label,
+#desktop-panel-inspector #fill-color-picker-label,
+.desktop-panel-right .color-picker-header-label,
+#desktop-panel-inspector .color-picker-header-label {
+  color: var(--text-primary) !important;
+  font-family: var(--font-brand) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  flex: none !important;
+  text-align: left !important;
+  line-height: 1 !important;
+}
+
+.desktop-panel-right .color-picker-header-alpha,
+#desktop-panel-inspector .color-picker-header-alpha {
+  font-family: var(--font-brand) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  background-color: var(--bg-panel-inner) !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  border: 1px solid var(--border-subtle) !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right .color-picker-header-actions,
+#desktop-panel-inspector .color-picker-header-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right .color-picker-header-action-btn,
+#desktop-panel-inspector .color-picker-header-action-btn,
+.desktop-panel-right #fill-color-picker-add-btn,
+#desktop-panel-inspector #fill-color-picker-add-btn {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-subtle) !important;
+  background: var(--bg-panel-inner) !important;
+  color: var(--text-secondary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease !important;
+}
+
+.desktop-panel-right .color-picker-header-action-btn svg,
+#desktop-panel-inspector .color-picker-header-action-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  stroke: currentColor !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right .color-picker-header-action-btn:hover,
+#desktop-panel-inspector .color-picker-header-action-btn:hover,
+.desktop-panel-right #fill-color-picker-add-btn:hover,
+#desktop-panel-inspector #fill-color-picker-add-btn:hover {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .color-picker-header-action-btn:active,
+#desktop-panel-inspector .color-picker-header-action-btn:active {
+  transform: scale(0.94) !important;
+}
+
+/* 2. Mode Selector Bar: Full-Width 2-Segmented Pill [Palette] & [Mixer] */
+.desktop-panel-right #fill-color-picker-sidebar,
+#desktop-panel-inspector #fill-view-color .color-picker-sidebar,
+.desktop-panel-right #fill-view-color .color-picker-sidebar {
+  order: 2 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 2px !important;
+  gap: 2px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  align-self: stretch !important;
+  margin: 0 !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-btn,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn {
+  flex: 1 1 50% !important;
+  width: 50% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  padding: 0 8px !important;
+  box-sizing: border-box !important;
+  font-family: var(--font-brand) !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-btn span,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn span {
+  display: inline-block !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-btn:hover,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  font-weight: 700 !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-icon,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-icon {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0 !important;
+  stroke: currentColor !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active svg,
+.desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active svg path,
+.desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active svg rect,
+.desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active svg circle,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn.is-active svg,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn.is-active svg path,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn.is-active svg rect,
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn.is-active svg circle {
+  stroke: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active svg circle[fill],
+#desktop-panel-inspector #fill-view-color .color-picker-tab-btn.is-active svg circle[fill] {
+  fill: var(--bg-canvas) !important;
+}
+
+/* 3. Color Picker Body Card (Holds Palette and Spectrum) */
+.desktop-panel-right #fill-color-picker-inner .color-picker-body,
+#desktop-panel-inspector #fill-color-picker-inner .color-picker-body {
+  order: 3 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: none !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+}
+
+/* STRICT TAB ISOLATION: Hidden view NEVER shows */
+.desktop-panel-right .color-picker-view-palette[style*="display: none"],
+#desktop-panel-inspector .color-picker-view-palette[style*="display: none"] {
+  display: none !important;
+}
+
+.desktop-panel-right .color-picker-view-spectrum[style*="display: none"],
+#desktop-panel-inspector .color-picker-view-spectrum[style*="display: none"] {
+  display: none !important;
+}
+
+/* Subview A: Palette Grid */
+.desktop-panel-right .color-picker-view-palette:not([style*="display: none"]),
+#desktop-panel-inspector .color-picker-view-palette:not([style*="display: none"]) {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right .color-picker-swatch-grid,
+#desktop-panel-inspector .color-picker-swatch-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+.desktop-panel-right .color-picker-swatch-item,
+#desktop-panel-inspector .color-picker-swatch-item {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-subtle) !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: transform 0.1s ease, border-color 0.1s ease !important;
+}
+
+.desktop-panel-right .color-picker-swatch-item:hover,
+#desktop-panel-inspector .color-picker-swatch-item:hover {
+  transform: scale(1.12) !important;
+  border-color: #ffffff !important;
+  z-index: 2 !important;
+}
+
+.desktop-panel-right .color-picker-swatch-item.is-selected,
+#desktop-panel-inspector .color-picker-swatch-item.is-selected {
+  border: 2px solid var(--color-primary) !important;
+  transform: scale(1.06) !important;
+}
+
+.desktop-panel-right .color-picker-saved-section[style*="display: none"],
+#desktop-panel-inspector .color-picker-saved-section[style*="display: none"] {
+  display: none !important;
+}
+
+.desktop-panel-right .color-picker-saved-section:not([style*="display: none"]),
+#desktop-panel-inspector .color-picker-saved-section:not([style*="display: none"]) {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  border-top: 1px solid var(--border-subtle) !important;
+  padding-top: 8px !important;
+  margin-top: 2px !important;
+  width: 100% !important;
+}
+
+.desktop-panel-right .color-picker-saved-title,
+#desktop-panel-inspector .color-picker-saved-title {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.desktop-panel-right .color-picker-saved-grid,
+#desktop-panel-inspector .color-picker-saved-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+/* Subview B: Spectrum Mixer View */
+.desktop-panel-right .color-picker-view-spectrum:not([style*="display: none"]),
+#desktop-panel-inspector .color-picker-view-spectrum:not([style*="display: none"]) {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .color-picker-sv-box,
+#desktop-panel-inspector .color-picker-sv-box {
+  width: 100% !important;
+  height: 80px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border-subtle) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  cursor: crosshair !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .color-picker-mixer-row,
+#desktop-panel-inspector .color-picker-mixer-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+  gap: 12px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 2px 0 !important;
+}
+
+.desktop-panel-right .color-picker-wheel-box,
+#desktop-panel-inspector .color-picker-wheel-box {
+  width: 106px !important;
+  height: 106px !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+}
+
+.desktop-panel-right .color-picker-alpha-box,
+#desktop-panel-inspector .color-picker-alpha-box {
+  width: 22px !important;
+  height: 106px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border-subtle) !important;
+  position: relative !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+/* 3B. Gradient Panel (#fill-view-gradient) */
+.desktop-panel-right #fill-view-gradient {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.desktop-panel-right .fill-grad-card {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 14px 12px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 14px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .fill-grad-types-bar {
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  height: 32px !important;
+  width: 100% !important;
+  max-width: none !important;
+  display: flex !important;
+  overflow: hidden !important;
+}
+
+.desktop-panel-right .fill-grad-type-btn {
+  flex: 1 !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-right: 1px solid var(--border-subtle) !important;
+  background: transparent !important;
+  cursor: pointer !important;
+}
+
+.desktop-panel-right .fill-grad-type-btn:last-child {
+  border-right: none !important;
+}
+
+.desktop-panel-right .fill-grad-type-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-panel-right .fill-grad-type-btn.is-active {
+  background-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .fill-grad-type-btn.is-active svg rect {
+  stroke: var(--bg-canvas) !important;
+  stroke-width: 2 !important;
+}
+
+.desktop-panel-right .fill-grad-slider-row {
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right .fill-grad-track-container {
+  width: 100% !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.desktop-panel-right .fill-grad-track-bar {
+  width: 100% !important;
+  height: 14px !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+.desktop-panel-right .fill-grad-handle {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 4px !important;
+}
+
+/* 3C. Media Panel (#fill-view-media) - Desktop Overhaul */
+.desktop-panel-right #fill-view-media,
+#desktop-panel-inspector #fill-view-media {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.desktop-panel-right .fill-media-pool-card,
+#desktop-panel-inspector .fill-media-pool-card {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 8px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 140px !important;
+  max-height: 360px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .fill-media-pool-grid,
+#desktop-panel-inspector .fill-media-pool-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: 340px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  align-content: start !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .fill-media-import-tile,
+#desktop-panel-inspector .fill-media-import-tile {
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: var(--desktop-radius-sm, 5px) !important;
+  border: 1.5px dashed var(--border-subtle) !important;
+  background-color: var(--bg-panel-inner) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  color: var(--text-muted) !important;
+  outline: none !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  font-family: var(--font-brand) !important;
+  transition: border-color 0.12s ease, color 0.12s ease, background-color 0.12s ease !important;
+}
+
+.desktop-panel-right .fill-media-import-tile:hover,
+#desktop-panel-inspector .fill-media-import-tile:hover {
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+  background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-panel-right .fill-media-import-tile svg,
+#desktop-panel-inspector .fill-media-import-tile svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: currentColor !important;
+}
+
+.desktop-panel-right .fill-media-import-tile span,
+#desktop-panel-inspector .fill-media-import-tile span {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: inherit !important;
+  line-height: 1 !important;
+}
+
+.desktop-panel-right .fill-media-tile,
+#desktop-panel-inspector .fill-media-tile {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: var(--desktop-radius-sm, 5px) !important;
+  border: 1px solid var(--border-subtle) !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  background-color: var(--bg-panel-inner) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.12s ease, transform 0.1s ease !important;
+}
+
+.desktop-panel-right .fill-media-tile:hover,
+#desktop-panel-inspector .fill-media-tile:hover {
+  border-color: var(--color-primary) !important;
+  transform: scale(1.04) !important;
+  z-index: 2 !important;
+}
+
+.desktop-panel-right .fill-media-tile.is-active,
+#desktop-panel-inspector .fill-media-tile.is-active {
+  border: 2px solid var(--color-primary) !important;
+  outline: 1px solid var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .fill-media-thumb,
+#desktop-panel-inspector .fill-media-thumb {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right .fill-media-fallback,
+#desktop-panel-inspector .fill-media-fallback {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: var(--bg-panel-inner) !important;
+  color: var(--text-muted) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  font-family: var(--font-brand) !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right .fill-media-vid-fallback svg,
+#desktop-panel-inspector .fill-media-vid-fallback svg {
+  width: 20px !important;
+  height: 20px !important;
+  fill: var(--text-muted) !important;
+}
+
+.desktop-panel-right .fill-media-badge,
+#desktop-panel-inspector .fill-media-badge {
+  position: absolute !important;
+  bottom: 3px !important;
+  right: 3px !important;
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  color: #ffffff !important;
+  line-height: 1.1 !important;
+  z-index: 3 !important;
+  pointer-events: none !important;
+}
+
+/* 3D. No Fill Panel (#fill-view-none) */
+.desktop-panel-right #fill-view-none,
+#desktop-panel-inspector #fill-view-none {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.desktop-panel-right .fill-none-card,
+#desktop-panel-inspector .fill-none-card {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  min-height: 140px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-panel-right .fill-none-card:hover,
+#desktop-panel-inspector .fill-none-card:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .fill-none-watermark-icon,
+#desktop-panel-inspector .fill-none-watermark-icon {
+  width: 44px !important;
+  height: 44px !important;
+  stroke: var(--text-muted) !important;
+}
+
+/* 4. Desktop Sliders & Jog Rulers */
+.desktop-panel-right .blend-opacity-row,
+.desktop-panel-right .volume-slider-row,
+.desktop-panel-right .speed-slider-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 8px 0 !important;
+}
+
+.desktop-panel-right .blend-slider-container,
+.desktop-panel-right .volume-slider-container,
+.desktop-panel-right .speed-slider-container {
+  flex: 1 !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.desktop-panel-right .blend-opacity-badge,
+.desktop-panel-right .volume-slider-badge,
+.desktop-panel-right .speed-slider-badge {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  min-width: 44px !important;
+  text-align: right !important;
+}
+
+.desktop-panel-right .camera-control-row,
+.desktop-panel-right .shape-control-row {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  margin-bottom: 12px !important;
+}
+
+.desktop-panel-right .camera-control-header,
+.desktop-panel-right .shape-control-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+
+.desktop-panel-right .camera-control-label,
+.desktop-panel-right .shape-control-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  text-transform: uppercase !important;
+}
+
+.desktop-panel-right .camera-val-badge,
+.desktop-panel-right .shape-val-badge {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .jog-wheel-container.is-horizontal,
+.desktop-panel-right .jog-wheel-container:not(.is-vertical) {
+  width: 100% !important;
+  height: 36px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+.desktop-panel-right .transform-dual-rulers:not([style*="display: none"]),
+.desktop-panel-right .shape-dual-rulers:not([style*="display: none"]) {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+/* 5. Desktop Inspector Subviews Consistency (Text, Camera, Beatmark, Audio, Speed) */
+/* Text Subview */
+.desktop-panel-right #layer-drawer-text-view .shape-work-area {
+  height: 100% !important;
+  max-height: none !important;
+  padding: 12px 10px 24px 10px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right #input-text-content {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-brand) !important;
+  font-size: 13px !important;
+  transition: border-color 0.12s ease !important;
+}
+
+.desktop-panel-right #input-text-content:focus {
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .custom-dropdown-trigger {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-brand) !important;
+}
+
+.desktop-panel-right .custom-dropdown-menu {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+}
+
+.desktop-panel-right .custom-dropdown-item:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .custom-dropdown-item.is-selected {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  font-weight: 700 !important;
+}
+
+/* Camera Subview */
+.desktop-panel-right .camera-toggle-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .camera-toggle-label-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.desktop-panel-right .camera-toggle-subtext {
+  font-size: 10px !important;
+  color: var(--text-muted) !important;
+}
+
+.desktop-panel-right .camera-dof-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+
+.desktop-panel-right .segmented-switch.camera-blur-switch,
+.desktop-panel-right .segmented-switch.camera-focus-mode-switch {
+  height: 28px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 2px !important;
+  gap: 2px !important;
+}
+
+.desktop-panel-right .segmented-switch-item {
+  height: 22px !important;
+  border-radius: 4px !important;
+  border: none !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  cursor: pointer !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+}
+
+.desktop-panel-right .segmented-switch-item:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .segmented-switch-item.is-selected,
+.desktop-panel-right .segmented-switch-item.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+/* Beatmark Subview */
+.desktop-panel-right .beatmark-work-area {
+  order: 2 !important;
+  flex: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 12px 10px 24px 10px !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  background-color: var(--bg-dashboard) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.desktop-panel-right .beatmark-waveform-card {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 10px 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right .beatmark-waveform-wrapper {
+  height: 52px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 6px !important;
+}
+
+.desktop-panel-right .beatmark-center-action {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 0 !important;
+  flex: none !important;
+}
+
+.desktop-panel-right .beatmark-giant-btn {
+  width: 100% !important;
+  max-width: 240px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  color: var(--text-primary) !important;
+  cursor: pointer !important;
+  padding: 0 16px !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-right .beatmark-giant-btn:hover {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .beatmark-giant-btn:hover .beatmark-giant-svg,
+.desktop-panel-right .beatmark-giant-btn:hover .beatmark-giant-label,
+.desktop-panel-right .beatmark-giant-btn:hover .beatmark-giant-hint {
+  color: var(--bg-canvas) !important;
+  fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .beatmark-giant-icon-wrap {
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+}
+
+.desktop-panel-right .beatmark-giant-svg {
+  width: 18px !important;
+  height: 18px !important;
+  fill: currentColor !important;
+}
+
+.desktop-panel-right .beatmark-giant-label {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.desktop-panel-right .beatmark-giant-hint {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  margin-left: 4px !important;
+}
+
+/* Audio Effects in Volume Subview */
+.desktop-panel-right .audio-fx-section {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius) !important;
+  padding: 10px 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin-top: 8px !important;
+}
+
+.desktop-panel-right .audio-fx-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.desktop-panel-right .audio-fx-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  text-transform: uppercase !important;
+}
+
+.desktop-panel-right .btn-add-audio-fx {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  height: 24px !important;
+  padding: 0 8px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+}
+
+.desktop-panel-right .btn-add-audio-fx:hover {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .btn-add-audio-fx:hover svg {
+  fill: var(--bg-canvas) !important;
+}
+
+/* Speed Mode Selector in Speed Subview */
+.desktop-panel-right .speed-type-modes {
+  display: flex !important;
+  height: 30px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 2px !important;
+  gap: 3px !important;
+  box-sizing: border-box !important;
+  margin-bottom: 12px !important;
+}
+
+.desktop-panel-right .speed-type-btn {
+  flex: 1 !important;
+  height: 100% !important;
+  border: none !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+}
+
+.desktop-panel-right .speed-type-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .speed-type-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+/* --- 4. Interactive Resizable Splitters --- */
+.desktop-split-handle {
+  background-color: var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+.desktop-split-handle:hover,
+.desktop-split-handle.is-dragging {
+  background-color: var(--color-primary);
+}
+
+/* Prevent embedded iframes from capturing mouse events during splitter drag */
+.desktop-viewport.is-resizing iframe {
+  pointer-events: none !important;
+}
+
+/* Vertical Split Handles */
+.desktop-split-v {
+  width: 5px;
+  cursor: col-resize;
+  height: 100%;
+}
+
+.desktop-split-v .split-handle-pill {
+  width: 2px;
+  height: 20px;
+  background-color: var(--text-muted);
+  border-radius: 1px;
+}
+
+.desktop-split-handle:hover .split-handle-pill,
+.desktop-split-handle.is-dragging .split-handle-pill {
+  background-color: var(--bg-canvas);
+}
+
+/* Horizontal Split Handle */
+.desktop-split-h {
+  height: 5px;
+  width: 100%;
+  cursor: row-resize;
+}
+
+.desktop-split-h .split-handle-pill {
+  width: 24px;
+  height: 2px;
+  background-color: var(--text-muted);
+  border-radius: 1px;
+}
+
+/* --- 5. Lower Row: Full-Width Timeline Panel --- */
+.desktop-panel-bottom {
+  flex: 1;
+  min-height: 160px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-dashboard);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.desktop-timeline-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  background-color: var(--bg-dashboard) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.desktop-timeline-wrapper .editor-timeline {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  background-color: var(--bg-dashboard) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+
+.desktop-timeline-wrapper .timeline-split-handle {
+  display: none !important;
+}
+
+.desktop-timeline-wrapper .timeline-fab-add {
+  position: absolute !important;
+  bottom: 20px !important;
+  right: 24px !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+  z-index: 60 !important;
+  box-shadow: none !important;
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+}
+
+.desktop-timeline-wrapper .timeline-fab-add:hover {
+  background-color: var(--color-primary-hover) !important;
+  transform: scale(1.08) !important;
+}
+
+.desktop-timeline-wrapper .timeline-fab-add .svg-icon {
+  width: 18px !important;
+  height: 18px !important;
+  background-color: var(--bg-canvas) !important;
+}
+
+/* Desktop Timeline Toolbar: 36px Height (consistent with headers) */
+.desktop-timeline-toolbar {
+  position: relative;
+  height: 36px;
+  min-height: 36px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  flex-shrink: 0;
+  z-index: 50 !important;
+}
+
+.desktop-timeline-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+}
+
+.desktop-timeline-toolbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.desktop-timeline-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+}
+
+/* Toolbar Divider */
+.desktop-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background-color: var(--border-subtle);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Button Groups inside Toolbar */
+.desktop-toolbar-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Control Buttons inside Toolbar: Consistent 28px x 28px, 3px radius */
+.desktop-timeline-toolbar .ctrl-btn {
+  width: var(--desktop-btn-h-sm) !important;
+  min-width: var(--desktop-btn-h-sm) !important;
+  height: var(--desktop-btn-h-sm) !important;
+  min-height: var(--desktop-btn-h-sm) !important;
+  max-height: var(--desktop-btn-h-sm) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn .svg-icon,
+.desktop-timeline-toolbar .ctrl-btn svg,
+.desktop-timeline-toolbar .ctrl-btn img {
+  width: 15px !important;
+  height: 15px !important;
+  pointer-events: none !important;
+}
+
+/* Play / Pause Toggle State: strictly one icon visible at a time */
+.desktop-timeline-toolbar .ctrl-btn .icon-pause {
+  display: none !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn.is-playing .icon-play {
+  display: none !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn.is-playing .icon-pause {
+  display: block !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled) {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled) svg,
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled) .svg-icon {
+  fill: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+  background-color: var(--bg-canvas) !important;
+}
+
+/* Toolbar Control Buttons Active State (Draft mode, Grid, Motion Blur, FishTools, etc.) */
+.desktop-timeline-toolbar .ctrl-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn.is-active svg,
+.desktop-timeline-toolbar .ctrl-btn.is-active .svg-icon {
+  fill: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+  background-color: var(--bg-canvas) !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn.is-active:hover {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  color: var(--bg-canvas) !important;
+}
+
+/* Toolbar SVG Mask Definitions for Desktop Extensions */
+.svg-icon-beatmark { -webkit-mask-image: url('../assets/beatmark.svg'); mask-image: url('../assets/beatmark.svg'); }
+.svg-icon-lightning { -webkit-mask-image: url('../assets/lightning.svg'); mask-image: url('../assets/lightning.svg'); }
+.svg-icon-grid { -webkit-mask-image: url('../assets/icon-grid.svg'); mask-image: url('../assets/icon-grid.svg'); }
+.svg-icon-motion-blur { -webkit-mask-image: url('../assets/icon-motion-blur.svg'); mask-image: url('../assets/icon-motion-blur.svg'); }
+
+/* Desktop Zoom Stepper in Timeline Toolbar */
+.desktop-zoom-stepper {
+  display: inline-flex;
+  align-items: center;
+  height: var(--desktop-btn-h-sm) !important;
+  min-height: var(--desktop-btn-h-sm) !important;
+  max-height: var(--desktop-btn-h-sm) !important;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--desktop-radius-sm);
+  overflow: hidden;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.desktop-zoom-stepper .stepper-btn {
+  width: 22px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.desktop-zoom-stepper .stepper-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.desktop-zoom-stepper .stepper-btn:active {
+  background-color: var(--bg-panel-active);
+}
+
+.desktop-zoom-stepper .stepper-val {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  padding: 0 5px;
+  min-width: 38px;
+  text-align: center;
+  cursor: pointer;
+  letter-spacing: -0.02em;
+  line-height: var(--desktop-btn-h-sm);
+  transition: color 0.12s ease;
+}
+
+.desktop-zoom-stepper .stepper-val:hover {
+  color: var(--color-primary);
+}
+
+.desktop-timeline-toolbar .ctrl-btn:disabled,
+.desktop-timeline-toolbar .ctrl-btn.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* Center Play Hero Button: Prominent 42px x 28px */
+.desktop-timeline-toolbar .ctrl-btn.ctrl-btn-play,
+.desktop-timeline-toolbar #editor-btn-play {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: var(--desktop-btn-h-sm) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border: 1px solid var(--color-primary) !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn.ctrl-btn-play:hover,
+.desktop-timeline-toolbar #editor-btn-play:hover {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn.ctrl-btn-play .svg-icon,
+.desktop-timeline-toolbar #editor-btn-play .svg-icon {
+  width: 16px !important;
+  height: 16px !important;
+  background-color: var(--bg-canvas) !important;
+}
+
+/* Cut Bar Relocated into Timeline Toolbar: Flat, 28px, zero skirt, strictly layer-state reactive */
+.desktop-timeline-toolbar .layer-cut-bar-row {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  height: var(--desktop-btn-h-sm) !important;
+  max-height: var(--desktop-btn-h-sm) !important;
+}
+
+/* Standalone buttons: Speed & Volume */
+.desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn {
+  height: var(--desktop-btn-h-sm) !important;
+  width: var(--desktop-btn-h-sm) !important;
+  min-height: var(--desktop-btn-h-sm) !important;
+  max-height: var(--desktop-btn-h-sm) !important;
+  min-width: var(--desktop-btn-h-sm) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  border: 1px solid var(--border-subtle) !important;
+  background-color: var(--bg-panel-inner) !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn .svg-icon,
+.desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn svg {
+  width: 15px !important;
+  height: 15px !important;
+  display: block !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn:hover:not(:disabled) {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn:disabled,
+.desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* Cut Button Groups (Connected Segmented Control: 28px height, zero skirt) */
+.desktop-timeline-toolbar .layer-cut-group {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  height: var(--desktop-btn-h-sm) !important;
+  min-height: var(--desktop-btn-h-sm) !important;
+  max-height: var(--desktop-btn-h-sm) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  border: 1px solid var(--border-subtle) !important;
+  background-color: var(--bg-panel-inner) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* CRITICAL: Respect inline display: none toggled by editor.js */
+.desktop-timeline-toolbar .layer-cut-group[style*="display: none"] {
+  display: none !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button {
+  height: 100% !important;
+  width: var(--desktop-btn-h-sm) !important;
+  min-width: var(--desktop-btn-h-sm) !important;
+  max-height: 100% !important;
+  border: none !important;
+  border-right: 1px solid var(--border-subtle) !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button:last-child {
+  border-right: none !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button .svg-icon,
+.desktop-timeline-toolbar .layer-cut-group .segmented-button svg {
+  width: 15px !important;
+  height: 15px !important;
+  display: block !important;
+  fill: currentColor !important;
+  color: currentColor !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button:hover:not(:disabled) {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button:hover:not(:disabled) svg {
+  fill: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button:hover:not(:disabled) .svg-icon {
+  background-color: var(--bg-canvas) !important;
+}
+
+.desktop-timeline-toolbar .layer-cut-group .segmented-button:disabled,
+.desktop-timeline-toolbar .layer-cut-group .segmented-button.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+/* Digital Desktop Timecode Display Badge: Distinctive Professional Desktop Theme */
+.desktop-timeline-wrapper .timeline-current-time-badge {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  height: var(--desktop-btn-h-sm) !important;
+  min-height: var(--desktop-btn-h-sm) !important;
+  max-height: var(--desktop-btn-h-sm) !important;
+  background-color: var(--bg-dashboard) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-panel) !important;
+  padding: 0 8px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  text-align: center !important;
+  z-index: 20 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  font-variant-numeric: tabular-nums !important;
+  letter-spacing: 0.6px !important;
+  cursor: default !important;
+}
+
+.desktop-timeline-wrapper .timeline-current-time-badge:hover {
+  border-color: var(--border-panel) !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-dashboard) !important;
+}
+
+.desktop-timeline-wrapper .timeline-current-time-badge.has-beatmark {
+  border-color: var(--color-accent) !important;
+  background-color: var(--bg-panel) !important;
+  color: var(--color-primary-hover) !important;
+}
+
+/* Time Ruler Bar across full width */
+.desktop-timeline-wrapper .timeline-header-ruler {
+  height: 30px;
+  min-height: 30px;
+  background-color: var(--bg-panel-inner);
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 15;
+}
+
+/* Timeline Layers Viewport across full width */
+.desktop-timeline-wrapper .timeline-layers-viewport {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--bg-canvas);
+}
+
+/* Timeline Lane Separator Lines & Clips */
+.desktop-timeline-wrapper .timeline-layer-bar {
+  border-radius: var(--desktop-radius) !important;
+}
+
+.desktop-timeline-wrapper .timeline-lane-heads-overlay .timeline-lane-head {
+  border-radius: var(--desktop-radius) !important;
+}
+
+/* timeline-center-needle unified in AE-Style section below */
+
+/* ==========================================================================
+   DESKTOP NLE — COMPACT TIMELINE + AE-STYLE LEFT LAYER PANEL
+   All overrides scoped to .desktop-timeline-wrapper
+   Targets: After Effects / Premiere Pro compact desktop NLE look
+   ========================================================================== */
+
+/* --- Compact Ruler (22px) with Flex Row for Gutter --- */
+.desktop-timeline-wrapper .timeline-header-ruler {
+  height: 22px !important;
+  min-height: 22px !important;
+  display: flex !important;
+  overflow: visible !important;
+}
+
+/* Ruler left gutter — aligns with layer name panel */
+.desktop-ruler-gutter {
+  width: var(--desktop-layer-panel-w);
+  min-width: var(--desktop-layer-panel-w);
+  flex-shrink: 0;
+  background-color: var(--bg-panel-inner);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+.desktop-ruler-gutter-label {
+  font-family: var(--font-brand);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+/* Ruler viewport takes remaining space */
+.desktop-timeline-wrapper .timeline-ruler-viewport {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* --- Timeline Viewport — left padding creates space for AE label panel --- */
+.desktop-timeline-wrapper .timeline-layers-viewport,
+.desktop-timeline-wrapper .timeline-layers-viewport.has-drawer-open,
+.desktop-timeline-wrapper .editor-timeline.has-drawer-open .timeline-layers-viewport,
+.desktop-timeline-wrapper .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
+.desktop-timeline-wrapper .editor-timeline:has(.drawer-container.is-active) .timeline-layers-viewport,
+.desktop-timeline-wrapper .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport,
+.desktop-timeline-wrapper .editor-timeline:has(#timeline-add-drawer.is-active) .timeline-layers-viewport {
+  padding-left: var(--desktop-layer-panel-w) !important;
+  padding-top: 2px !important;
+  padding-bottom: 0px !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+/* --- AE-Style Lane Heads Overlay — widened into left label panel --- */
+.desktop-timeline-wrapper .timeline-lane-heads-overlay {
+  width: var(--desktop-layer-panel-w) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border-right: 1px solid var(--border-subtle) !important;
+  gap: 0 !important;
+  z-index: 25 !important;
+  top: 2px !important;
+}
+
+/* --- Compact Lane Heights (34px — Desktop NLE standard) --- */
+.desktop-timeline-wrapper .timeline-track-lane {
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+.desktop-timeline-wrapper .timeline-lane-pill-slot {
+  height: 34px !important;
+  min-height: 34px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.desktop-timeline-wrapper .timeline-lane-reorder-slot {
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+/* --- Compact Track Gap: 0px (separator via border) --- */
+.desktop-timeline-wrapper .timeline-layers-track {
+  gap: 0 !important;
+}
+
+.desktop-timeline-wrapper .timeline-lane-heads-overlay {
+  gap: 0 !important;
+}
+
+/* --- Compact Clip Block (28px, 11px font) --- */
+.desktop-timeline-wrapper .timeline-clip-block {
+  height: 28px !important;
+  top: 3px !important;
+  font-size: 11px !important;
+  padding: 0 6px !important;
+  border-radius: 3px !important;
+  cursor: grab !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-block:active,
+.desktop-timeline-wrapper .timeline-clip-block.is-sliding {
+  cursor: grabbing !important;
+  z-index: 60 !important;
+}
+
+/* Track lane separator lines */
+.desktop-timeline-wrapper .timeline-track-lane {
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+/* --- AE-Style Ctrl Pill (full width of panel, flat, no pill shape) --- */
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill {
+  width: 100% !important;
+  height: 34px !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 8px !important;
+  gap: 6px !important;
+  background-color: transparent !important;
+  cursor: grab !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.1s ease !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill:active {
+  cursor: grabbing !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+  border-left: 2px solid var(--color-primary) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .desktop-layer-name-text,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-name-text {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Compact eye button: high contrast in all states */
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn {
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
+  opacity: 0.8 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:hover,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn:hover,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn:hover {
+  opacity: 1 !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn .svg-icon,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn .svg-icon,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn .svg-icon {
+  width: 13px !important;
+  height: 13px !important;
+  background-color: var(--text-primary) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:hover .svg-icon,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn:hover .svg-icon,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn:hover .svg-icon {
+  background-color: var(--color-primary) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn svg,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn svg,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn svg {
+  width: 13px !important;
+  height: 13px !important;
+  fill: var(--text-primary) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:hover svg,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn:hover svg,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn:hover svg {
+  fill: var(--color-primary) !important;
+}
+
+/* Eye off (hidden layer) contrast */
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected.is-hidden .timeline-layer-eye-btn {
+  opacity: 0.35 !important;
+  color: var(--text-muted) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn .svg-icon,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected.is-hidden .timeline-layer-eye-btn .svg-icon {
+  background-color: var(--text-muted) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn svg,
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected.is-hidden .timeline-layer-eye-btn svg {
+  fill: var(--text-muted) !important;
+}
+
+/* Checkbox button: on desktop hide checkbox, keep clean AE eye icon */
+.desktop-timeline-wrapper .timeline-lane-heads-overlay .timeline-layer-checkbox {
+  display: none !important;
+}
+
+.desktop-timeline-wrapper .timeline-lane-heads-overlay.is-selector-mode .timeline-layer-eye-btn {
+  display: flex !important;
+}
+
+/* Injected layer name text (by desktop.js) */
+.desktop-layer-name-text {
+  flex: 1;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Injected layer type color indicator */
+.desktop-layer-type-dot {
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background-color: var(--color-primary);
+}
+
+.desktop-layer-type-dot.type-video { background-color: var(--color-primary); }
+.desktop-layer-type-dot.type-audio { background-color: var(--color-accent); }
+.desktop-layer-type-dot.type-image { background-color: var(--color-primary-hover); }
+.desktop-layer-type-dot.type-text  { background-color: var(--text-secondary); }
+.desktop-layer-type-dot.type-shape { background-color: var(--color-accent); }
+
+/* Drag ghost row for reorder */
+.desktop-drag-ghost-row {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--color-primary);
+  border-radius: 2px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  color: var(--text-primary);
+  opacity: 0.9;
+  min-width: 160px;
+}
+
+/* Reorder drop indicator line */
+.desktop-reorder-indicator {
+  position: absolute;
+  left: 0;
+  width: var(--desktop-layer-panel-w);
+  height: 2px;
+  background-color: var(--color-primary);
+  pointer-events: none;
+  z-index: 30;
+  display: none;
+}
+
+/* Hide original mobile reorder overlay (replaced by direct drag-on-pill in left panel) */
+.desktop-timeline-wrapper .timeline-lane-reorder-overlay {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide mobile checkbox */
+.desktop-timeline-wrapper .timeline-layer-checkbox {
+  display: none !important;
+}
+
+/* Tactile Desktop Clip Trim / Lengthen Handles */
+.desktop-timeline-wrapper .timeline-clip-handle {
+  width: 18px !important;
+  top: -2px !important;
+  bottom: -2px !important;
+  height: auto !important;
+  display: none;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  cursor: ew-resize !important;
+  z-index: 30 !important;
+  border: none !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.12s ease, filter 0.12s ease !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-block.is-selected .timeline-clip-handle {
+  display: flex !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-handle.handle-left {
+  left: -1px !important;
+  right: auto !important;
+  border-radius: 4px 0 0 4px !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-handle.handle-right {
+  right: -1px !important;
+  left: auto !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-handle:hover {
+  background-color: var(--color-primary-hover) !important;
+  filter: brightness(1.1) !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-handle:active {
+  filter: brightness(0.9) !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-handle svg,
+.desktop-timeline-wrapper .timeline-clip-handle .svg-icon {
+  display: block !important;
+  width: 11px !important;
+  height: 11px !important;
+  color: var(--bg-canvas) !important;
+  background-color: var(--bg-canvas) !important;
+  pointer-events: none !important;
+}
+
+/* Ensure inner label & tag have comfortable padding when handles are visible */
+.desktop-timeline-wrapper .timeline-clip-block.is-selected {
+  padding-left: 22px !important;
+  padding-right: 22px !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-block .timeline-clip-tag {
+  display: inline-flex !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  font-size: 9px !important;
+  padding: 0 4px !important;
+  margin-right: 5px !important;
+  border-radius: 2px !important;
+}
+
+.desktop-timeline-wrapper .timeline-clip-block .clip-label {
+  font-size: 11px !important;
+  line-height: 28px !important;
+}
+
+/* --- AE-Style Left-Anchored Timeline & Moving Playhead --- */
+.desktop-timeline-wrapper .timeline-layers-track,
+.desktop-timeline-wrapper .timeline-ruler-track {
+  left: 0 !important;
+  will-change: transform;
+}
+
+.desktop-timeline-wrapper .timeline-center-needle {
+  position: absolute;
+  left: 0 !important;
+  top: 36px !important;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-primary);
+  pointer-events: auto !important;
+  cursor: ew-resize;
+  z-index: 45;
+  will-change: transform;
+  transform: translate3d(var(--desktop-layer-panel-w, 160px), 0, 0);
+  transition: none !important;
+}
+
+/* Playhead Top Scrubber Cap (AE-style pentagon / flag needle head on ruler) */
+.desktop-timeline-wrapper .timeline-center-needle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 12px;
+  height: 14px;
+  background-color: var(--color-primary);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 65%, 50% 100%, 0% 65%);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+/* --- Marquee Selection Box (Multi-select on empty timeline drag) --- */
+.desktop-timeline-wrapper .timeline-layers-viewport {
+  cursor: default !important;
+}
+
+.desktop-timeline-wrapper .timeline-layers-viewport:active,
+.desktop-timeline-wrapper .timeline-layers-viewport.is-dragging {
+  cursor: default !important;
+}
+
+.desktop-timeline-marquee-box {
+  position: absolute;
+  display: none;
+  border: 1px solid var(--color-primary);
+  background-color: var(--bg-panel-hover);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 50;
+  border-radius: 1px;
+}
+
+/* ==========================================================================
+   DESKTOP BEATMARK / MARKER ENGINE (Interactive Drag, Name Tag & Popover)
+   ========================================================================== */
+
+/* Timeline Beatmark Item on Ruler */
+.timeline-beatmark-item {
+  cursor: grab !important;
+  user-select: none !important;
+  touch-action: none;
+}
+
+.timeline-beatmark-item:hover {
+  color: var(--color-primary-hover) !important;
+  transform: scale(1.15) !important;
+}
+
+.timeline-beatmark-item.is-dragging {
+  cursor: grabbing !important;
+  color: var(--color-primary) !important;
+  transform: scale(1.2) !important;
+  z-index: 40 !important;
+  transition: none !important;
+}
+
+/* Name Tag / Label next to Beatmark pin on ruler */
+.timeline-beatmark-label {
+  position: absolute;
+  top: 1px;
+  left: 8px;
+  font-family: var(--font-brand);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  white-space: nowrap;
+  color: var(--text-primary);
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  padding: 0 4px;
+  border-radius: 2px;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.2px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 10;
+}
+
+/* Modular Beatmark / Marker Popover (.is-beatmark-popover) */
+.popover-card.is-beatmark-popover {
+  padding: 4px !important;
+  min-width: 180px;
+  max-width: 240px;
+  box-sizing: border-box;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--color-primary) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.beatmark-popover-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.beatmark-popover-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 8px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+}
+
+.beatmark-popover-input:focus {
+  border-color: var(--color-primary);
+}
+
+.beatmark-popover-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.beatmark-popover-delete-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.beatmark-popover-delete-btn:hover {
+  background-color: var(--color-danger);
+  color: var(--bg-canvas);
+}
+
+.beatmark-popover-delete-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+
+
+

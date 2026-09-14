@@ -283,7 +283,14 @@
     }
 
     _bindEvents() {
-      // 1. Sidebar Tab Switching
+      // 1. Sidebar Tab Switching & Eyedropper
+      this.el.querySelectorAll('[data-tab="eyedropper"], .color-picker-eyedropper-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.pickFromScreen();
+        });
+      });
+
       this.tabBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -423,16 +430,21 @@
         b.classList.toggle('is-active', b.dataset.tab === tab);
       });
 
+      const hasPreviewDot = !!this.el.querySelector('.color-picker-preview-dot');
+
       if (tab === 'palette') {
         if (this.header) this.header.style.display = 'flex';
         if (this.paletteView) this.paletteView.style.display = 'flex';
         if (this.spectrumView) this.spectrumView.style.display = 'none';
         this._updateUI();
       } else if (tab === 'spectrum') {
-        if (this.header) this.header.style.display = 'none';
+        if (this.header) this.header.style.display = hasPreviewDot ? 'flex' : 'none';
         if (this.paletteView) this.paletteView.style.display = 'none';
         if (this.spectrumView) this.spectrumView.style.display = 'flex';
         this._updateUI();
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => this._updateUI());
+        }
       }
     }
 
@@ -496,10 +508,27 @@
       const textColor = getContrastingTextColor(hex);
 
       // 1. Header Bar: guaranteed contrast
-      this.header.style.backgroundColor = hex;
-      this.headerLabel.textContent = labelText;
-      this.headerLabel.style.color = textColor;
-      this.addBtn.style.color = textColor;
+      const previewDot = this.el.querySelector('.color-picker-preview-dot');
+      if (previewDot) {
+        previewDot.style.backgroundColor = hex;
+        this.header.style.backgroundColor = '';
+        if (this.headerLabel) {
+          const alphaEl = this.el.querySelector('.color-picker-header-alpha');
+          if (alphaEl) {
+            this.headerLabel.textContent = hex;
+            alphaEl.textContent = `${pct}%`;
+          } else {
+            this.headerLabel.textContent = labelText;
+          }
+          this.headerLabel.style.color = '';
+        }
+        if (this.addBtn) this.addBtn.style.color = '';
+      } else {
+        this.header.style.backgroundColor = hex;
+        this.headerLabel.textContent = labelText;
+        this.headerLabel.style.color = textColor;
+        this.addBtn.style.color = textColor;
+      }
 
       // 2. Highlight matching swatch
       this.el.querySelectorAll('.color-picker-swatch-item').forEach(s => {

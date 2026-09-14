@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>OpenFishTools Studio - Editor</title>
+  <title>OpenFishTools Studio - Desktop Workstation</title>
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
   
   <!-- CSS: Theme (Colors & Variables, Cal Sans Font), Editor Layout, and Modular Modal / Popover / Drawer / Switch -->
@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/color-picker.css">
   <link rel="stylesheet" href="css/template-editor.css">
   <link rel="stylesheet" href="css/safari.css">
+  <link rel="stylesheet" href="css/desktop.css?v=0.5.13">
   <script src="js/sync-height.js"></script>
   <script>
     if (!window.DEBUG && !new URLSearchParams(window.location.search).has('debug') && localStorage.getItem('FISH_DEBUG') !== 'true') {
@@ -32,10 +33,11 @@
 </head>
 <body oncontextmenu="return false;" onselectstart="return false;">
 
-  <div class="editor-viewport">
+  <div class="editor-viewport desktop-viewport">
     
     <!-- 1. Top Header Bar -->
-    <header class="editor-header" id="editor-header">
+    <!-- 1. Top Header Bar (Desktop Workstation Menu / Topbar) -->
+    <header class="editor-header desktop-header" id="editor-header">
       <!-- Default Navigation (Project Mode) -->
       <div class="editor-header-nav" id="header-nav-project">
         <div class="editor-header-left">
@@ -80,13 +82,6 @@
               <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
             </svg>
           </button>
-          <button type="button" class="editor-settings-btn" id="btn-editor-desktop" title="Desktop View" aria-label="Desktop View" onclick="window.location.href = 'desktop.html' + (window.location.search || '');">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-              <line x1="8" y1="21" x2="16" y2="21"/>
-              <line x1="12" y1="17" x2="12" y2="21"/>
-            </svg>
-          </button>
           <button type="button" class="editor-settings-btn" id="btn-editor-template" title="Template Editor" aria-label="Template Editor" onclick="if(window.FishTemplateEditor) window.FishTemplateEditor.open()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -120,8 +115,37 @@
           </button>
           <!-- Single Select: Editable Layer Name Input -->
           <input type="text" class="editor-title-input editor-layer-name-input" id="editor-layer-name-input" placeholder="Layer Name..." autocomplete="off" spellcheck="false" aria-label="Layer Name">
-          <!-- Batch Select: "(count) Selected" Title -->
+          <!-- Batch Select: "(count) Selected" Title & Action Buttons -->
           <span class="editor-layer-batch-title" id="editor-layer-batch-title" style="display: none;">1 Selected</span>
+          <div class="editor-layer-batch-actions" id="editor-layer-batch-actions" style="display: none;">
+            <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-left-precomp" title="Group Layer(s)" aria-label="Group Layer(s)">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
+              </svg>
+            </button>
+            <button type="button" class="editor-layer-group-mask-btn" id="btn-layer-header-left-group-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <defs>
+                  <clipPath id="header-left-mask-group-clip">
+                    <polygon points="10,7.5 5.5,16.5 14.5,16.5"/>
+                  </clipPath>
+                </defs>
+                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" opacity="0.45"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor" clip-path="url(#header-left-mask-group-clip)"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </button>
+            <button type="button" class="editor-layer-group-exclude-btn" id="btn-layer-header-left-group-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Right Action Buttons (Precompose, Delete, Link/Parent & Layer Options) -->
@@ -194,169 +218,19 @@
     </header>
 
 
-
-    <!-- Main Workspace Body -->
-    <div class="editor-main-body">
-      <!-- Left Pane: Preview & Controller -->
-      <div class="editor-left-pane">
-        <!-- 2. Preview Canvas (Black Box Viewport) -->
-        <main class="editor-preview" id="editor-preview-container">
-          <!-- Split Dual Dropzone Overlay for Preview Canvas -->
-          <div class="media-dropzone-split" id="canvas-dropzone-split" aria-hidden="true">
-            <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
-              <div class="media-dropzone-content">
-                <div class="media-dropzone-icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                  </svg>
-                </div>
-                <div class="media-dropzone-title">Convert to MP3</div>
-                <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
-                <span class="media-dropzone-badge">MP3</span>
-              </div>
-            </div>
-            <div class="media-dropzone-divider"></div>
-            <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
-              <div class="media-dropzone-content">
-                <div class="media-dropzone-icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                  </svg>
-                </div>
-                <div class="media-dropzone-title">Import Media</div>
-                <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
-                <span class="media-dropzone-badge">Media</span>
-              </div>
-            </div>
+    <!-- Main Workspace Body: Desktop 3-Box + Bottom Timeline -->
+    <div class="desktop-workstation">
+      <!-- Upper Workstation: 3 Columns (Media, Preview, Inspector) -->
+      <div class="desktop-upper-row">
+        <!-- 1. Left Panel: Project Assets & Add Layer -->
+        <aside class="desktop-panel desktop-panel-left" id="desktop-panel-media">
+          <div class="desktop-panel-header">
+            <span class="desktop-panel-title">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
+              Project Assets
+            </span>
           </div>
-          <div class="preview-canvas-box" id="editor-preview-canvas" role="region" aria-label="Video Preview Canvas">
-            <div id="editor-video-mount-pool" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 0;"></div>
-            <canvas id="editor-active-canvas" class="editor-active-canvas" style="position: relative; z-index: 1;"></canvas>
-          </div>
-        </main>
-
-        <!-- 3. Controller Bar -->
-        <section class="editor-controller">
-          <!-- Horizontal Pill Splitter Handle (Active on Mobile <= 600px, anchored on top border line) -->
-          <div class="preview-split-handle" id="preview-split-handle" role="separator" aria-orientation="horizontal" aria-label="Resize Preview Height" tabindex="0">
-            <div class="split-handle-pill"></div>
-          </div>
-
-          <div class="ctrl-buttons-row">
-            <!-- 1. Undo -->
-            <button type="button" class="ctrl-btn is-disabled" id="editor-btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-              <span class="svg-icon svg-icon-undo"></span>
-            </button>
-
-            <!-- 2. Redo -->
-            <button type="button" class="ctrl-btn is-disabled" id="editor-btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
-              <span class="svg-icon svg-icon-redo"></span>
-            </button>
-
-            <!-- 3. Previous -->
-            <button type="button" class="ctrl-btn" id="editor-btn-prev" title="Previous Keyframe / Beatmark (B)" aria-label="Previous (B)">
-              <span class="svg-icon svg-icon-prev"></span>
-            </button>
-
-            <!-- 4. Play / Pause Button (Pure Vector SVG) -->
-            <button type="button" class="ctrl-btn" id="editor-btn-play" title="Play (Space)" aria-label="Play (Space)">
-              <span class="svg-icon svg-icon-play icon-play"></span>
-              <span class="svg-icon svg-icon-pause icon-pause"></span>
-            </button>
-
-            <!-- 5. Next -->
-            <button type="button" class="ctrl-btn" id="editor-btn-next" title="Next Keyframe / Beatmark (N)" aria-label="Next (N)">
-              <span class="svg-icon svg-icon-next"></span>
-            </button>
-
-            <!-- 6. More Settings (Copy with spaced + on top-right corner) -->
-            <button type="button" class="ctrl-btn" id="editor-more-settings-btn" data-popover-target="popover-editor-more-settings" title="More Settings" aria-label="More Settings">
-              <span class="svg-icon svg-icon-more"></span>
-            </button>
-
-            <!-- 7. Fish Icon (OpenFishTools Lazy-Loaded Popover) -->
-            <button type="button" class="ctrl-btn ctrl-btn-fish" id="editor-btn-fishtool-trigger" title="OpenFishTools Panel" aria-label="OpenFishTools Panel">
-              <img src="assets/icon.svg" alt="FishTool" width="22" height="22">
-            </button>
-          </div>
-        </section>
-      </div>
-
-      <!-- Right Pane: Timeline (Below Header) -->
-      <div class="editor-timeline-wrapper">
-        <!-- Vertical Pill Splitter Handle (Active on Tablet & Desktop >= 601px) -->
-        <div class="timeline-split-handle" id="timeline-split-handle" role="separator" aria-orientation="vertical" aria-label="Resize Timeline Width" tabindex="0">
-          <div class="split-handle-pill"></div>
-        </div>
-
-        <section class="editor-timeline" id="main-editor-timeline">
-          <!-- Component A: Center-Fixed Current Time Badge (Floating Time Indicator) -->
-          <div class="timeline-current-time-badge" id="timeline-time-badge" role="button" tabindex="0" aria-label="Current Timecode" title="Click to add/remove Beatmark">
-            <span class="current-time-text" id="playhead-current-time">00:00:00:00</span>
-          </div>
-
-          <!-- Component B: Center-Fixed Timeline Needle Line -->
-          <div class="timeline-center-needle" id="timeline-center-needle" aria-hidden="true"></div>
-
-          <!-- 2. Sticky Top Header: Time Ruler (Always on top, zero vertical scroll) -->
-          <header class="timeline-header-ruler">
-            <div class="timeline-ruler-viewport" id="timeline-ruler-viewport">
-              <div class="timeline-ruler-track" id="timeline-ruler-track">
-                <canvas id="timeline-cache-ruler-bar" class="timeline-cache-ruler-bar"></canvas>
-                <div class="timeline-ruler-marks" id="timeline-ruler-marks">
-                  <!-- Dynamically populated with second marks and ticks -->
-                </div>
-                <div class="timeline-ruler-beatmarks" id="timeline-ruler-beatmarks"></div>
-              </div>
-            </div>
-          </header>
-
-          <!-- 3. Bottom Layers Viewport (Isian layer-layer, scrolls vertically) -->
-          <div class="timeline-layers-viewport" id="timeline-layers-viewport">
-            <!-- Split Dual Dropzone Overlay for Timeline -->
-            <div class="media-dropzone-split" id="timeline-dropzone-split" aria-hidden="true">
-              <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
-                <div class="media-dropzone-content">
-                  <div class="media-dropzone-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                    </svg>
-                  </div>
-                  <div class="media-dropzone-title">Convert to MP3</div>
-                  <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
-                  <span class="media-dropzone-badge">MP3</span>
-                </div>
-              </div>
-              <div class="media-dropzone-divider"></div>
-              <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
-                <div class="media-dropzone-content">
-                  <div class="media-dropzone-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                    </svg>
-                  </div>
-                  <div class="media-dropzone-title">Import Media</div>
-                  <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
-                  <span class="media-dropzone-badge">Media</span>
-                </div>
-              </div>
-            </div>
-            <div class="timeline-layers-track" id="timeline-layers-track">
-              <div class="timeline-layers-beatmarks" id="timeline-layers-beatmarks"></div>
-              <!-- Empty Layers Track (Clean container for dynamic layer addition) -->
-            </div>
-            <!-- Floating Left Lane Heads (Eye Hide/Show Overlay) -->
-            <div class="timeline-lane-heads-overlay" id="timeline-lane-heads-overlay"></div>
-            <!-- Floating Right Reorder Pill (Single Floating Handle anchored to Selected Layer) -->
-            <div class="timeline-lane-reorder-overlay" id="timeline-lane-reorder-overlay"></div>
-          </div>
-
-          <!-- 4. Floating Round Action Button (Add Track / Layer) -->
-          <button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Add Track / Layer" aria-label="Add Track or Layer">
-            <span class="svg-icon svg-icon-plus" aria-hidden="true"></span>
-          </button>
-
-          <!-- 5. Modular Drawer Component (Matches Timeline Width, Adapts to Content Height) -->
+          <div class="desktop-panel-body">
           <div class="drawer-container" id="timeline-add-drawer" role="dialog" aria-modal="true" aria-hidden="true">
             <div class="drawer-backdrop" data-drawer-close></div>
             <div class="drawer-card">
@@ -399,7 +273,7 @@
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="text" title="Text Layer" aria-label="Text">
                       <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M3 4h9.5v3H6v3.5h5.5v3H6V20H3V4zm12 3.5h3v3h2.5v2.8H18v4.2c0 .9.5 1.5 1.4 1.5.5 0 .9-.1 1.2-.2v2.7c-.7.3-1.6.4-2.4.4-2.3 0-3.2-1.3-3.2-3.4v-5.2h-2v-2.8h2v-3z"/>
+                        <path d="M5 4v3h5.5v12h3V7H19V4z"/>
                       </svg>
                       <span class="category-label">Text</span>
                     </button>
@@ -544,8 +418,103 @@
               </div>
             </div>
           </div>
+          </div>
+        </aside>
 
-          <!-- 6. Selected Layer Action Drawer (No Backdrop) -->
+        <!-- Vertical Splitter 1: Left vs Center -->
+        <div class="desktop-split-handle desktop-split-v desktop-split-left" id="desktop-split-left" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize panel">
+          <div class="split-handle-pill"></div>
+        </div>
+
+        <!-- 2. Center Panel: Preview Canvas -->
+        <main class="desktop-panel desktop-panel-center" id="desktop-panel-preview">
+          <div class="editor-preview" id="editor-preview-container">
+            <!-- Split Dual Dropzone Overlay for Preview Canvas -->
+            <div class="media-dropzone-split" id="canvas-dropzone-split" aria-hidden="true">
+              <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">Convert to MP3</div>
+                  <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
+                  <span class="media-dropzone-badge">MP3</span>
+                </div>
+              </div>
+              <div class="media-dropzone-divider"></div>
+              <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">Import Media</div>
+                  <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
+                  <span class="media-dropzone-badge">Media</span>
+                </div>
+              </div>
+            </div>
+            <div class="preview-canvas-box" id="editor-preview-canvas" role="region" aria-label="Video Preview Canvas">
+              <div id="editor-video-mount-pool" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 0;"></div>
+              <canvas id="editor-active-canvas" class="editor-active-canvas" style="position: relative; z-index: 1;"></canvas>
+            </div>
+          </div>
+        </main>
+
+        <!-- Vertical Splitter: Center Preview vs FishTools Extension -->
+        <div class="desktop-split-handle desktop-split-v desktop-split-extension" id="desktop-split-extension" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize extension panel" style="display: none;">
+          <div class="split-handle-pill"></div>
+        </div>
+
+        <!-- Extension Panel: FishTools (After Effects CEP Extension Docked Panel) -->
+        <aside class="desktop-panel desktop-panel-extension" id="desktop-panel-fishtool" style="display: none;">
+          <div class="desktop-panel-header">
+            <div class="desktop-panel-header-left">
+              <img src="assets/icon.svg" alt="" width="14" height="14" style="border-radius: 2px; flex-shrink: 0;">
+              <span class="desktop-panel-title">FishTools</span>
+            </div>
+            <div class="desktop-panel-header-actions">
+              <button type="button" class="desktop-panel-header-btn" id="desktop-fishtool-btn-reload" title="Reload FishTools" aria-label="Reload FishTools">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                  <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+              </button>
+              <button type="button" class="desktop-panel-header-btn" id="desktop-fishtool-btn-close" title="Close Extension" aria-label="Close Extension">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="desktop-panel-body desktop-extension-body" id="desktop-fishtools-body">
+            <div class="popover-loader-box" id="desktop-fishtools-loader">
+              <div class="popover-flat-spinner"></div>
+              <span>Loading FishTools Extension...</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Vertical Splitter 2: Center/Extension vs Right (Inspector) -->
+        <div class="desktop-split-handle desktop-split-v desktop-split-right" id="desktop-split-right" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize inspector panel">
+          <div class="split-handle-pill"></div>
+        </div>
+
+        <!-- 3. Right Panel: Inspector -->
+        <aside class="desktop-panel desktop-panel-right" id="desktop-panel-inspector">
+          <div class="desktop-panel-header">
+            <span class="desktop-panel-title" id="desktop-inspector-title">Inspector</span>
+          </div>
+          <div class="desktop-panel-body" id="desktop-inspector-body">
+            <!-- Empty State when no layer selected -->
+            <div class="desktop-inspector-empty" id="desktop-inspector-empty">
+              <svg class="desktop-inspector-empty-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+              <span class="desktop-inspector-empty-title">No Layer Selected</span>
+              <span class="desktop-inspector-empty-desc">Select a layer on the timeline to inspect and edit its properties.</span>
+            </div>
+            <!-- Selected Layer Drawer docked into Inspector -->
           <div class="drawer-container" id="timeline-layer-drawer" role="dialog" aria-modal="true" aria-label="Selected Layer Actions" aria-hidden="true">
             <div class="drawer-card">
               <div class="drawer-drag-handle" title="Drag to Resize" aria-label="Resize Drawer">
@@ -555,48 +524,6 @@
                 <!-- Subview 1: Default Layer Action Grid (Cut bar & Action buttons) -->
                 <div class="drawer-subview is-active" id="layer-drawer-main-view">
                   <div class="layer-action-grid">
-
-                    <!-- ROW 1: Quick Actions & Cut Operations Bar (Speed, Cut 3-way, Volume) -->
-                    <div class="layer-cut-bar-row" role="group" aria-label="Cut Operations">
-                      <button type="button" class="segmented-button layer-tile-btn is-disabled" id="btn-layer-speed" title="Speed" aria-label="Speed" disabled>
-                        <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
-                      </button>
-                      <!-- Mode 1: Playhead INSIDE selected layer (Normal 3-way cut) -->
-                      <div class="segmented-button-group layer-cut-group" id="layer-cut-group-normal" role="group" aria-label="Cut Options">
-                        <button type="button" class="segmented-button" id="btn-cut-left" title="Cut Left — trim start of layer to playhead" aria-label="Cut Left">
-                          <span class="svg-icon svg-icon-cut-left" aria-hidden="true"></span>
-                        </button>
-                        <button type="button" class="segmented-button" id="btn-cut-mid" title="Split — cut at playhead position" aria-label="Split">
-                          <span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span>
-                        </button>
-                        <button type="button" class="segmented-button" id="btn-cut-right" title="Cut Right — trim end of layer to playhead" aria-label="Cut Right">
-                          <span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span>
-                        </button>
-                      </div>
-
-                      <!-- Mode 2: Playhead is AFTER selected layer (Expand Right, Move Right) -->
-                      <div class="segmented-button-group layer-cut-group" id="layer-cut-group-after" role="group" aria-label="Layer Out-of-Bounds (After)" style="display: none;">
-                        <button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand to current frame" aria-label="Expand to Current Frame">
-                          <span class="svg-icon svg-icon-layer-expand-right" aria-hidden="true"></span>
-                        </button>
-                        <button type="button" class="segmented-button" id="btn-layer-move-right" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
-                          <span class="svg-icon svg-icon-layer-move-right" aria-hidden="true"></span>
-                        </button>
-                      </div>
-
-                      <!-- Mode 3: Playhead is BEFORE selected layer (Move Left, Expand Left) -->
-                      <div class="segmented-button-group layer-cut-group" id="layer-cut-group-before" role="group" aria-label="Layer Out-of-Bounds (Before)" style="display: none;">
-                        <button type="button" class="segmented-button" id="btn-layer-move-left" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
-                          <span class="svg-icon svg-icon-layer-move-left" aria-hidden="true"></span>
-                        </button>
-                        <button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand to current frame" aria-label="Expand to Current Frame">
-                          <span class="svg-icon svg-icon-layer-expand-left" aria-hidden="true"></span>
-                        </button>
-                      </div>
-                      <button type="button" class="segmented-button layer-tile-btn is-disabled" id="btn-layer-volume" title="Volume" aria-label="Volume" disabled>
-                        <span class="svg-icon svg-icon-volume-mute" aria-hidden="true"></span>
-                      </button>
-                    </div>
 
                     <!-- ROW 2: Action Button Grid (auto 3-col, flexible count) -->
                     <div class="layer-action-btn-grid" id="layer-action-btn-grid">
@@ -649,6 +576,14 @@
                           <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
                         </svg>
                         <span class="layer-action-label">Effects</span>
+                      </button>
+                      <button type="button" class="layer-action-btn" id="btn-layer-speed" title="Speed" style="display: none;">
+                        <span class="svg-icon svg-icon-speed layer-action-icon" aria-hidden="true"></span>
+                        <span class="layer-action-label">Speed</span>
+                      </button>
+                      <button type="button" class="layer-action-btn" id="btn-layer-volume" title="Volume" style="display: none;">
+                        <span class="svg-icon svg-icon-volume layer-action-icon" aria-hidden="true"></span>
+                        <span class="layer-action-label">Volume</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-beatmark" title="Beatmark" style="display: none;">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
@@ -1212,7 +1147,7 @@
                 <!-- Subview 5: Effects Rack UI -->
                 <div class="drawer-subview" id="layer-drawer-effects-view">
                   <div class="effects-rack-layout" id="effects-rack">
-                    <!-- Left Navigation Column -->
+                    <!-- Left Navigation Column (Universal Subview Top Bar in Desktop Inspector) -->
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-effects-back" title="Back to Layer Actions" aria-label="Back">
@@ -1229,6 +1164,11 @@
                             <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
                           </svg>
                         </button>
+                        <button type="button" class="transform-nav-btn btn-add-effect-nav" id="btn-add-effect" title="Add Effects" aria-label="Add Effects">
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/>
+                          </svg>
+                        </button>
                         <button type="button" class="transform-nav-btn" id="btn-effects-more" title="More Options" aria-label="More Options">
                           <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -1239,18 +1179,6 @@
 
                     <!-- Main Rack Area -->
                     <div class="effects-rack-main">
-                      <header class="effects-rack-header">
-                        <span class="effects-rack-title">Effects</span>
-                        <div class="effects-rack-header-right">
-                          <button type="button" class="btn-add-effect" id="btn-add-effect" title="Add Effects" aria-label="Add Effects">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/>
-                            </svg>
-                            <span class="btn-add-effect-label">Add Effects</span>
-                          </button>
-                        </div>
-                      </header>
-
                       <!-- Rack Body: Stack of effects / Empty State -->
                       <main class="effects-rack-body" id="effects-rack-body">
                         <div class="effects-rack-empty" id="effects-rack-empty">
@@ -1260,7 +1188,7 @@
                             </svg>
                           </div>
                           <h4 class="effects-empty-title">No Effects Applied</h4>
-                          <p class="effects-empty-desc">Tap &ldquo;Add Effects&rdquo; to add visual filters, blurs, color grades, and distortions.</p>
+                          <p class="effects-empty-desc">Click &ldquo;+&rdquo; above to add visual filters, blurs, color grades, and distortions.</p>
                         </div>
 
                         <!-- Active Effects List (Dynamically Rendered & Modular) -->
@@ -1814,61 +1742,100 @@
                       </div>
                     </div>
 
-                    <!-- 1. No Fill Panel (Image 2) -->
+                    <!-- 1. No Fill Panel -->
                     <div class="fill-panel-view is-active" id="fill-view-none">
                       <div class="fill-none-card" id="btn-apply-no-fill" title="No Fill (Transparent)">
                         <svg class="fill-none-watermark-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                           <circle cx="12" cy="12" r="9"/>
                           <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
                         </svg>
+                        <span class="fill-none-title">No Fill</span>
+                        <span class="fill-none-desc">Shape interior will be transparent</span>
                       </div>
                     </div>
 
-                    <!-- 2. Solid Color Panel (11/12 Popover Color Picker Integration) -->
+                    <!-- 2. Solid Color Panel (Rebuilt Desktop UI) -->
                     <div class="fill-panel-view" id="fill-view-color">
                       <div class="color-picker-inner" id="fill-color-picker-inner">
-                        <div class="color-picker-main">
-                          <!-- Header Bar: Dynamic Contrast Bound -->
-                          <div class="color-picker-header" id="fill-color-picker-header">
-                            <span class="color-picker-preview-dot" id="fill-color-picker-preview-dot" style="background-color: #3D4CF5;"></span>
-                            <span class="color-picker-header-label" id="fill-color-picker-label">#3D4CF5 (100%)</span>
-                            <button type="button" class="color-picker-add-btn" id="fill-color-picker-add-btn" title="Save color to palette" aria-label="Save color">+</button>
+                        <!-- 2A. Header Bar: Swatch Preview + Hex + Alpha + Quick Actions -->
+                        <div class="color-picker-header" id="fill-color-picker-header">
+                          <span class="color-picker-preview-dot" id="fill-color-picker-preview-dot" style="background-color: #3D4CF5;"></span>
+                          <div class="color-picker-header-info">
+                            <span class="color-picker-header-label" id="fill-color-picker-label">#3D4CF5</span>
+                            <span class="color-picker-header-alpha" id="fill-color-picker-alpha">100%</span>
+                          </div>
+                          <div class="color-picker-header-actions">
+                            <button type="button" class="color-picker-header-action-btn" id="fill-btn-eyedropper" data-tab="eyedropper" title="Sample color from screen" aria-label="Eyedropper">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12.5 8.5 L16 5a2.12 2.12 0 0 1 3 3L15.5 11.5"/>
+                                <path d="M10.5 6.5 L17.5 13.5"/>
+                                <path d="M12.5 8.5 L6.5 14.5 C5.8 15.2 5.3 16.1 5 17.1 L4 20 L6.9 19 C7.9 18.7 8.8 18.2 9.5 17.5 L15.5 11.5"/>
+                              </svg>
+                            </button>
+                            <button type="button" class="color-picker-header-action-btn color-picker-add-btn" id="fill-color-picker-add-btn" title="Save color to custom palette" aria-label="Save color">+</button>
+                          </div>
+                        </div>
+
+                        <!-- 2B. Mode Selector Bar (Full-Width Segmented Pill: Palette / Mixer) -->
+                        <nav class="color-picker-sidebar" id="fill-color-picker-sidebar" role="tablist">
+                          <button type="button" class="color-picker-tab-btn is-active" data-tab="palette" title="Preset Color Palette" aria-label="Palette">
+                            <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+                              <circle cx="13.5" cy="6.5" r="1" fill="currentColor" />
+                              <circle cx="17.5" cy="10.5" r="1" fill="currentColor" />
+                              <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
+                              <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
+                            </svg>
+                            <span>Palette</span>
+                          </button>
+                          <button type="button" class="color-picker-tab-btn" data-tab="spectrum" title="Color Spectrum Mixer" aria-label="Mixer">
+                            <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
+                              <circle cx="15.5" cy="8.5" r="1.5" />
+                            </svg>
+                            <span>Mixer</span>
+                          </button>
+                        </nav>
+
+                        <!-- 2C. Main Views Body -->
+                        <div class="color-picker-body">
+                          <!-- View 1: Palette Grid View -->
+                          <div class="color-picker-view-palette" id="fill-color-view-palette">
+                            <div class="color-picker-swatch-grid" id="fill-color-swatch-grid">
+                              <button type="button" class="color-picker-swatch-item" data-hex="#FF3B30" style="background-color: #FF3B30;" title="#FF3B30"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#FF9500" style="background-color: #FF9500;" title="#FF9500"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#FFCC00" style="background-color: #FFCC00;" title="#FFCC00"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#34C759" style="background-color: #34C759;" title="#34C759"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#00C7BE" style="background-color: #00C7BE;" title="#00C7BE"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#3051FF" style="background-color: #3051FF;" title="#3051FF"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#AF52DE" style="background-color: #AF52DE;" title="#AF52DE"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#FFFFFF" style="background-color: #FFFFFF;" title="#FFFFFF"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#C7C7CC" style="background-color: #C7C7CC;" title="#C7C7CC"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#8E8E93" style="background-color: #8E8E93;" title="#8E8E93"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#48484A" style="background-color: #48484A;" title="#48484A"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#000000" style="background-color: #000000;" title="#000000"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#5AC8FA" style="background-color: #5AC8FA;" title="#5AC8FA"></button>
+                              <button type="button" class="color-picker-swatch-item" data-hex="#98CE7B" style="background-color: #98CE7B;" title="#98CE7B"></button>
+                            </div>
+                            <div class="color-picker-saved-section" id="fill-color-saved-section" style="display: none;">
+                              <div class="color-picker-saved-header">
+                                <span class="color-picker-saved-title">Custom Palette</span>
+                              </div>
+                              <div class="color-picker-saved-grid" id="fill-color-saved-grid"></div>
+                            </div>
                           </div>
 
-                          <!-- Body Views -->
-                          <div class="color-picker-body">
-                            <!-- 1. Palette Grid View -->
-                            <div class="color-picker-view-palette" id="fill-color-view-palette">
-                              <div class="color-picker-swatch-grid" id="fill-color-swatch-grid">
-                                <button type="button" class="color-picker-swatch-item" data-hex="#FF3B30" style="background-color: #FF3B30;" title="#FF3B30"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#FF9500" style="background-color: #FF9500;" title="#FF9500"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#FFCC00" style="background-color: #FFCC00;" title="#FFCC00"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#34C759" style="background-color: #34C759;" title="#34C759"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#00C7BE" style="background-color: #00C7BE;" title="#00C7BE"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#3051FF" style="background-color: #3051FF;" title="#3051FF"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#AF52DE" style="background-color: #AF52DE;" title="#AF52DE"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#FFFFFF" style="background-color: #FFFFFF;" title="#FFFFFF"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#C7C7CC" style="background-color: #C7C7CC;" title="#C7C7CC"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#8E8E93" style="background-color: #8E8E93;" title="#8E8E93"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#48484A" style="background-color: #48484A;" title="#48484A"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#000000" style="background-color: #000000;" title="#000000"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#5AC8FA" style="background-color: #5AC8FA;" title="#5AC8FA"></button>
-                                <button type="button" class="color-picker-swatch-item" data-hex="#98CE7B" style="background-color: #98CE7B;" title="#98CE7B"></button>
-                              </div>
-                              <div class="color-picker-saved-section" id="fill-color-saved-section" style="display: none;">
-                                <span class="color-picker-saved-title">Custom</span>
-                                <div class="color-picker-saved-grid" id="fill-color-saved-grid"></div>
-                              </div>
+                          <!-- View 2: Spectrum Mixer View -->
+                          <div class="color-picker-view-spectrum" id="fill-color-view-spectrum" style="display: none;">
+                            <!-- 2D SV Saturation/Brightness Card -->
+                            <div class="color-picker-sv-box" title="Drag to adjust Saturation / Brightness">
+                              <div class="color-picker-sv-white"></div>
+                              <div class="color-picker-sv-black"></div>
+                              <div class="color-picker-sv-cursor"></div>
                             </div>
 
-                            <!-- 2. Spectrum Wheel View -->
-                            <div class="color-picker-view-spectrum" id="fill-color-view-spectrum" style="display: none;">
-                              <div class="color-picker-sv-box" title="Saturation / Value">
-                                <div class="color-picker-sv-white"></div>
-                                <div class="color-picker-sv-black"></div>
-                                <div class="color-picker-sv-cursor"></div>
-                              </div>
-
+                            <!-- Hue Ring & Alpha Row -->
+                            <div class="color-picker-mixer-row">
                               <div class="color-picker-wheel-box">
                                 <div class="color-picker-wheel-ring">
                                   <div class="color-picker-wheel-ring-mask"></div>
@@ -1881,45 +1848,13 @@
                                 <div class="color-picker-wheel-arrow"></div>
                               </div>
 
-                              <div class="color-picker-alpha-box" title="Opacity">
+                              <div class="color-picker-alpha-box" title="Drag to adjust Opacity">
                                 <div class="color-picker-alpha-fill"></div>
                                 <div class="color-picker-alpha-cursor"></div>
                               </div>
                             </div>
                           </div>
                         </div>
-
-                        <!-- Right Tool Sidebar -->
-                        <nav class="color-picker-sidebar" id="fill-color-picker-sidebar">
-                          <button type="button" class="color-picker-tab-btn" data-tab="eyedropper" title="Eyedropper" aria-label="Eyedropper">
-                            <span class="color-picker-tab-icon-wrap">
-                              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12.5 8.5 L16 5a2.12 2.12 0 0 1 3 3L15.5 11.5" />
-                                <path d="M10.5 6.5 L17.5 13.5" />
-                                <path d="M12.5 8.5 L6.5 14.5 C5.8 15.2 5.3 16.1 5 17.1 L4 20 L6.9 19 C7.9 18.7 8.8 18.2 9.5 17.5 L15.5 11.5" />
-                              </svg>
-                            </span>
-                          </button>
-                          <button type="button" class="color-picker-tab-btn" data-tab="spectrum" title="Color Wheel & Sliders" aria-label="Color Wheel">
-                            <span class="color-picker-tab-icon-wrap">
-                              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
-                                <circle cx="15.5" cy="8.5" r="1.5" />
-                              </svg>
-                            </span>
-                          </button>
-                          <button type="button" class="color-picker-tab-btn is-active" data-tab="palette" title="Color Palette" aria-label="Color Palette">
-                            <span class="color-picker-tab-icon-wrap">
-                              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
-                                <circle cx="13.5" cy="6.5" r="1" fill="currentColor" />
-                                <circle cx="17.5" cy="10.5" r="1" fill="currentColor" />
-                                <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
-                                <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
-                              </svg>
-                            </span>
-                          </button>
-                        </nav>
                       </div>
                     </div>
 
@@ -2276,7 +2211,7 @@
                     </aside>
 
                     <!-- Work Area: Text Parameters -->
-                    <main class="shape-work-area" style="overflow-y: auto; max-height: 290px; padding-bottom: 150px;">
+                    <main class="shape-work-area">
                       <!-- Header Bar: Title & Preset Badge -->
                       <div class="shape-header-bar">
                         <span class="shape-section-title">Edit Text</span>
@@ -2459,13 +2394,192 @@
               </div>
             </div>
           </div>
+          </div>
+        </aside>
+      </div> <!-- /desktop-upper-row -->
 
-        </section>
+      <!-- Horizontal Splitter: Upper Row vs Timeline -->
+      <div class="desktop-split-handle desktop-split-h" id="desktop-split-horizontal" role="separator" aria-orientation="horizontal" tabindex="0" title="Drag to resize timeline height">
+        <div class="split-handle-pill"></div>
       </div>
-    </div>
 
-  </div>
+      <!-- Lower Row: Full-Width Timeline Panel -->
+      <div class="desktop-panel-bottom desktop-timeline-area">
+        <div class="editor-timeline-wrapper desktop-timeline-wrapper">
+          <section class="editor-timeline" id="main-editor-timeline">
+            <!-- Desktop Timeline Toolbar -->
+            <div class="desktop-timeline-toolbar">
+              <div class="desktop-timeline-toolbar-left">
+                <!-- 1. Cut Operations -->
+                <div class="layer-cut-bar-row" role="group" aria-label="Cut Operations">
+                  <!-- Mode 1: Playhead INSIDE selected layer (Normal 3-way cut) -->
+                  <div class="segmented-button-group layer-cut-group" id="layer-cut-group-normal" role="group" aria-label="Cut Options">
+                    <button type="button" class="segmented-button" id="btn-cut-left" title="Cut Left — trim start of layer to playhead" aria-label="Cut Left">
+                      <span class="svg-icon svg-icon-cut-left" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="segmented-button" id="btn-cut-mid" title="Split — cut at playhead position" aria-label="Split">
+                      <span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="segmented-button" id="btn-cut-right" title="Cut Right — trim end of layer to playhead" aria-label="Cut Right">
+                      <span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                  <!-- Mode 2: Playhead is AFTER selected layer (Expand Right, Move Right) -->
+                  <div class="segmented-button-group layer-cut-group" id="layer-cut-group-after" role="group" aria-label="Layer Out-of-Bounds (After)" style="display: none;">
+                    <button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand to current frame" aria-label="Expand to Current Frame">
+                      <span class="svg-icon svg-icon-layer-expand-right" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="segmented-button" id="btn-layer-move-right" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
+                      <span class="svg-icon svg-icon-layer-move-right" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                  <!-- Mode 3: Playhead is BEFORE selected layer (Move Left, Expand Left) -->
+                  <div class="segmented-button-group layer-cut-group" id="layer-cut-group-before" role="group" aria-label="Layer Out-of-Bounds (Before)" style="display: none;">
+                    <button type="button" class="segmented-button" id="btn-layer-move-left" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
+                      <span class="svg-icon svg-icon-layer-move-left" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand to current frame" aria-label="Expand to Current Frame">
+                      <span class="svg-icon svg-icon-layer-expand-left" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                </div>
 
+                <div class="desktop-toolbar-divider" aria-hidden="true"></div>
+
+                <!-- 2. History Controls (Undo / Redo) -->
+                <div class="desktop-toolbar-btn-group" role="group" aria-label="History">
+                  <button type="button" class="ctrl-btn is-disabled" id="editor-btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+                    <span class="svg-icon svg-icon-undo"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn is-disabled" id="editor-btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
+                    <span class="svg-icon svg-icon-redo"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Center Transport Controls: Prev, Play/Pause, Next -->
+              <div class="desktop-timeline-toolbar-center">
+                <div class="desktop-toolbar-btn-group transport-group" role="group" aria-label="Playback Transport">
+                  <button type="button" class="ctrl-btn" id="editor-btn-prev" title="Previous Keyframe / Beatmark (B)" aria-label="Previous (B)">
+                    <span class="svg-icon svg-icon-prev"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn ctrl-btn-play" id="editor-btn-play" title="Play (Space)" aria-label="Play (Space)">
+                    <span class="svg-icon svg-icon-play icon-play"></span>
+                    <span class="svg-icon svg-icon-pause icon-pause"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn" id="editor-btn-next" title="Next Keyframe / Beatmark (N)" aria-label="Next (N)">
+                    <span class="svg-icon svg-icon-next"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Right Toolbar: Preview Settings, Zoom, Timecode Badge, FishTool -->
+              <div class="desktop-timeline-toolbar-right">
+                <!-- Preview Settings: Beatmark, Draft Mode, Grid, Motion Blur -->
+                <div class="desktop-toolbar-btn-group" role="group" aria-label="Preview Settings">
+                  <button type="button" class="ctrl-btn" id="editor-btn-add-beatmark" title="Add Beatmark / Marker (M)" aria-label="Add Beatmark">
+                    <span class="svg-icon svg-icon-beatmark" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn" id="editor-icon-low-quality" title="Speed Draft Mode (Fast Playback)" aria-label="Toggle Speed Draft Mode">
+                    <span class="svg-icon svg-icon-lightning" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn" id="editor-icon-grid" title="Grid Overlay" aria-label="Toggle Grid Overlay">
+                    <span class="svg-icon svg-icon-grid" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn" id="editor-icon-motion-blur" title="Global Motion Blur" aria-label="Toggle Global Motion Blur">
+                    <span class="svg-icon svg-icon-motion-blur" aria-hidden="true"></span>
+                  </button>
+                </div>
+
+                <!-- Preview Zoom Stepper -->
+                <div class="desktop-zoom-stepper" id="editor-zoom-stepper" role="group" aria-label="Preview Zoom">
+                  <button type="button" class="stepper-btn" id="editor-zoom-minus" title="Zoom Out" aria-label="Zoom Out">-</button>
+                  <span class="stepper-val" id="editor-zoom-val" title="Click to Reset (100%)">100%</span>
+                  <button type="button" class="stepper-btn" id="editor-zoom-plus" title="Zoom In" aria-label="Zoom In">+</button>
+                </div>
+
+                <div class="desktop-toolbar-divider" aria-hidden="true"></div>
+
+                <!-- Timeline Time Badge -->
+                <div class="timeline-current-time-badge" id="timeline-time-badge" role="status" aria-label="Current Timecode" title="Current Timecode">
+                  <span class="current-time-text" id="playhead-current-time">00:00:00:00</span>
+                </div>
+
+                <div class="desktop-toolbar-divider" aria-hidden="true"></div>
+
+                <div class="desktop-toolbar-btn-group" role="group" aria-label="Extra Tools">
+                  <button type="button" class="ctrl-btn ctrl-btn-fish" id="editor-btn-fishtool-trigger" title="OpenFishTools Panel" aria-label="OpenFishTools Panel">
+                    <img src="assets/icon.svg" alt="FishTool" width="16" height="16">
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          <div class="timeline-center-needle" id="timeline-center-needle" aria-hidden="true"></div>
+
+          <header class="timeline-header-ruler">
+            <div class="desktop-ruler-gutter">
+              <span class="desktop-ruler-gutter-label">Layers</span>
+            </div>
+            <div class="timeline-ruler-viewport" id="timeline-ruler-viewport">
+              <div class="timeline-ruler-track" id="timeline-ruler-track">
+                <canvas id="timeline-cache-ruler-bar" class="timeline-cache-ruler-bar"></canvas>
+                <div class="timeline-ruler-marks" id="timeline-ruler-marks">
+                  <!-- Dynamically populated with second marks and ticks -->
+                </div>
+                <div class="timeline-ruler-beatmarks" id="timeline-ruler-beatmarks"></div>
+              </div>
+            </div>
+          </header>
+
+          <div class="timeline-layers-viewport" id="timeline-layers-viewport">
+            <!-- Split Dual Dropzone Overlay for Timeline -->
+            <div class="media-dropzone-split" id="timeline-dropzone-split" aria-hidden="true">
+              <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">Convert to MP3</div>
+                  <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
+                  <span class="media-dropzone-badge">MP3</span>
+                </div>
+              </div>
+              <div class="media-dropzone-divider"></div>
+              <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">Import Media</div>
+                  <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
+                  <span class="media-dropzone-badge">Media</span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-layers-track" id="timeline-layers-track">
+              <div class="timeline-layers-beatmarks" id="timeline-layers-beatmarks"></div>
+              <!-- Empty Layers Track (Clean container for dynamic layer addition) -->
+            </div>
+            <!-- Floating Left Lane Heads (Eye Hide/Show Overlay) -->
+            <div class="timeline-lane-heads-overlay" id="timeline-lane-heads-overlay"></div>
+            <!-- Floating Right Reorder Pill (Single Floating Handle anchored to Selected Layer) -->
+            <div class="timeline-lane-reorder-overlay" id="timeline-lane-reorder-overlay"></div>
+          </div>
+
+            <!-- Floating Add Track / Layer Button -->
+            <button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Add Track / Layer" aria-label="Add Track or Layer">
+              <span class="svg-icon svg-icon-plus" aria-hidden="true"></span>
+            </button>
+          </section>
+        </div>
+      </div> <!-- /desktop-panel-bottom -->
+    </div> <!-- /desktop-workstation -->
+  </div> <!-- /editor-viewport -->
 
   <!-- ==========================================================================
        MODULAR POP-UP: PROJECT SETTINGS MODAL
@@ -2754,46 +2868,7 @@
     </div>
   </div>
 
-  <!-- ==========================================================================
-       MODULAR MORE SETTINGS POPOVER (VERTICAL ICON DOCK)
-       ========================================================================== -->
-  <div class="popover-card is-icon-dock" id="popover-editor-more-settings" role="dialog" aria-hidden="true">
-    <div class="popover-tail" aria-hidden="true"></div>
-    
-    <!-- 1. Low quality preview toggle icon button (Speed / Draft Playback) -->
-    <button type="button" class="popover-icon-btn" id="editor-icon-low-quality" title="Speed Draft Mode (Fast Playback)" aria-label="Toggle Speed Draft Mode">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z"/>
-      </svg>
-    </button>
 
-    <!-- 2. Grid overlay toggle icon button (default disabled) -->
-    <button type="button" class="popover-icon-btn" id="editor-icon-grid" title="Grid Overlay" aria-label="Toggle Grid Overlay">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/>
-      </svg>
-    </button>
-
-    <!-- 3. Global Motion Blur toggle icon button (default disabled) -->
-    <button type="button" class="popover-icon-btn" id="editor-icon-motion-blur" title="Global Motion Blur" aria-label="Toggle Global Motion Blur">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="16.5" cy="12" r="4.5"/>
-        <circle cx="11.5" cy="12" r="4.5" fill-opacity="0.55"/>
-        <circle cx="6.5" cy="12" r="4.5" fill-opacity="0.25"/>
-      </svg>
-    </button>
-
-
-    <!-- Separator Divider -->
-    <div class="popover-icon-divider"></div>
-
-    <!-- 5. Vertical Zoom Stepper Container (+ on top, 100% in middle, - on bottom) -->
-    <div class="popover-v-stepper" id="editor-zoom-v-stepper">
-      <button type="button" class="stepper-btn-v" id="editor-zoom-plus" title="Zoom In" aria-label="Zoom In">+</button>
-      <span class="stepper-val-v" id="editor-zoom-val" title="Click to Reset (100%)">100%</span>
-      <button type="button" class="stepper-btn-v" id="editor-zoom-minus" title="Zoom Out" aria-label="Zoom Out">-</button>
-    </div>
-  </div>
 
   <!-- ==========================================================================
        LAYER ACTIONS / CONTEXT MENU POPOVER (.is-menu-popover)
@@ -2822,6 +2897,11 @@
         <span id="popover-label-precompose">Group</span>
       </button>
 
+      <!-- 5. Select All (Text Only, No Icon) -->
+      <button type="button" class="popover-menu-item" id="popover-btn-select-all" title="Select All Layers (Ctrl+A)">
+        <span id="popover-label-select-all">Select All</span>
+      </button>
+
       <!-- Audio Divider -->
       <div class="popover-menu-divider" id="popover-layer-audio-divider"></div>
 
@@ -2846,20 +2926,6 @@
     </div>
   </div>
 
-  <!-- ==========================================================================
-       MODULAR OPENFISHTOOLS EMBEDDED POPOVER (.is-embed-panel)
-       ========================================================================== -->
-  <div class="popover-card is-embed-panel" id="popover-editor-fishtools" role="dialog" aria-hidden="true">
-    <div class="popover-tail" aria-hidden="true"></div>
-    
-    <div class="popover-embed-body" id="editor-fishtools-body">
-      <!-- Minimalist Flat Loading State -->
-      <div class="popover-loader-box" id="editor-fishtools-loader">
-        <div class="popover-flat-spinner"></div>
-        <span>Loading OpenFishTools...</span>
-      </div>
-    </div>
-  </div>
 
   <!-- ==========================================================================
        MODULAR EXPORT POPOVER (.is-menu-popover)
@@ -3155,6 +3221,22 @@
     <div class="popover-tail" aria-hidden="true"></div>
     <form class="popover-value-form" id="popover-value-input-form" onsubmit="return false;">
       <input type="number" step="any" class="popover-value-field" id="popover-value-input-field" autocomplete="off" spellcheck="false">
+    </form>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR BEATMARK / MARKER POPOVER (.is-beatmark-popover)
+       Minimalist: 1 textbox for marker name + 1 delete icon button
+       ========================================================================== -->
+  <div class="popover-card is-beatmark-popover" id="popover-beatmark-details" role="dialog" aria-hidden="true" data-popover-placement="bottom">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <form class="beatmark-popover-form" id="beatmark-popover-form" onsubmit="return false;">
+      <input type="text" class="beatmark-popover-input" id="beatmark-popover-name" placeholder="Marker Name" autocomplete="off" spellcheck="false" maxlength="40">
+      <button type="button" class="beatmark-popover-delete-btn" id="beatmark-popover-delete" title="Delete Marker" aria-label="Delete Marker">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        </svg>
+      </button>
     </form>
   </div>
 
@@ -3982,5 +4064,6 @@
   <script src="js/editor.js?v=0.5.13"></script>
   <script src="js/openfishtools-generators3d.js"></script>
   <script src="js/openfishtools-controller.js"></script>
+  <script src="js/desktop.js"></script>
 </body>
 </html>

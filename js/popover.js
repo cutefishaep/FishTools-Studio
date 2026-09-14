@@ -83,7 +83,7 @@ const Popover = (function () {
 
     let placement = 'top';
     const isMobile = vw <= 600;
-    const isControllerTrigger = activeTrigger && typeof activeTrigger.closest === 'function' && !!activeTrigger.closest('.editor-controller');
+    const isControllerTrigger = activeTrigger && typeof activeTrigger.closest === 'function' && !!(activeTrigger.closest('.editor-controller') || activeTrigger.closest('.desktop-timeline-toolbar'));
     const isEmbedPanel = activePopover && activePopover.classList.contains('is-embed-panel');
     const explicitPlacement = (activeTrigger && activeTrigger.dataset ? activeTrigger.dataset.popoverPlacement : null) || activePopover.dataset.popoverPlacement;
 

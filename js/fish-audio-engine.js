@@ -33,11 +33,6 @@
     _ensureContext(e) {
       if (this.ctx) return true;
 
-      // Autoplay policy guard: never instantiate AudioContext before confirmed user interaction
-      if (!this._hasUserActivation(e)) {
-        return false;
-      }
-
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return false;
 
@@ -79,7 +74,7 @@
       };
 
       const opts = { passive: true, capture: true };
-      ['click', 'touchend', 'keydown'].forEach(evt => {
+      ['click', 'touchend', 'keydown', 'pointerdown', 'mousedown'].forEach(evt => {
         window.addEventListener(evt, this._gestureHandler, opts);
       });
     }
@@ -87,7 +82,7 @@
     _removeGestureListeners() {
       if (!this._gestureHandler) return;
       const opts = { passive: true, capture: true };
-      ['click', 'touchend', 'keydown'].forEach(evt => {
+      ['click', 'touchend', 'keydown', 'pointerdown', 'mousedown'].forEach(evt => {
         window.removeEventListener(evt, this._gestureHandler, opts);
       });
       this._gestureHandler = null;

@@ -102,6 +102,10 @@ window.FishDatabase = (function () {
           var db = e.target.result;
           db.onversionchange = function () {
             try { db.close(); } catch (_) {}
+            dbPromise = null;
+          };
+          db.onclose = function () {
+            dbPromise = null;
           };
           done(db);
         };
@@ -1223,7 +1227,7 @@ window.FishDatabase = (function () {
           console.warn('[FishDatabase] saveMedia transaction timeout, resolving optimistic');
           saveToLocalFull(mediaItem);
           resolve(mediaItem);
-        }, 2500);
+        }, 30000);
 
         function finish(item) {
           if (isDone) return;
@@ -1261,6 +1265,7 @@ window.FishDatabase = (function () {
           store.put(itemToStore);
 
           tx.oncomplete = function () {
+            _invalidateProjectMediaCache(mediaItem.projectId);
             // Also keep light metadata in local fallback
             saveMetaToLocal(mediaItem);
             finish(mediaItem);
@@ -1321,8 +1326,20 @@ window.FishDatabase = (function () {
     }
   }
 
+  var _inFlightProjectMedia = new Map();
+
+  function _invalidateProjectMediaCache(projectId) {
+    if (projectId) {
+      _inFlightProjectMedia.delete(projectId + '_1');
+      _inFlightProjectMedia.delete(projectId + '_0');
+    } else {
+      _inFlightProjectMedia.clear();
+    }
+  }
+
   /**
    * Retrieves all media items for a specific project
+   * Includes in-flight request deduplication to prevent saturated I/O on parallel loads.
    * @param {string} projectId
    * @param {boolean} [hydrateBlobs=true]
    * @returns {Promise<Array>}
@@ -1330,64 +1347,84 @@ window.FishDatabase = (function () {
   async function getProjectMedia(projectId, hydrateBlobs) {
     if (hydrateBlobs === undefined) hydrateBlobs = true;
     if (!projectId) return [];
-    var db = await openDB();
-    if (db && db.objectStoreNames.contains('media')) {
-      return new Promise(function (resolve) {
-        var isDone = false;
-        var timer = setTimeout(function () {
-          if (isDone) return;
-          isDone = true;
-          console.warn('[FishDatabase] getProjectMedia transaction timeout, returning fallback');
-          var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-          resolve(local);
-        }, 2500);
 
-        function finish(items) {
-          if (isDone) return;
-          isDone = true;
-          clearTimeout(timer);
-          resolve(items);
-        }
-
-        try {
-          var tx = db.transaction('media', 'readonly');
-          var store = tx.objectStore('media');
-          var req;
-          if (store.indexNames && store.indexNames.contains('projectId')) {
-            var index = store.index('projectId');
-            req = index.getAll(projectId);
-          } else {
-            req = store.getAll();
-          }
-          req.onsuccess = function () {
-            var items = req.result || [];
-            if (!store.indexNames || !store.indexNames.contains('projectId')) {
-              items = items.filter(function (m) { return m && m.projectId === projectId; });
-            }
-            if (hydrateBlobs) {
-              items.forEach(hydrateMediaItemBlobs);
-            }
-            finish(items);
-          };
-          req.onerror = function () {
-            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-            finish(local);
-          };
-          tx.onerror = function () {
-            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-            finish(local);
-          };
-          tx.onabort = function () {
-            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-            finish(local);
-          };
-        } catch (e) {
-          var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
-          finish(local);
-        }
-      });
+    var cacheKey = projectId + '_' + (hydrateBlobs ? '1' : '0');
+    if (_inFlightProjectMedia.has(cacheKey)) {
+      return _inFlightProjectMedia.get(cacheKey);
     }
-    return getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+
+    var queryPromise = (async function () {
+      var db = await openDB();
+      if (db && db.objectStoreNames.contains('media')) {
+        return new Promise(function (resolve) {
+          var isDone = false;
+          var timer = setTimeout(function () {
+            if (isDone) return;
+            isDone = true;
+            console.warn('[FishDatabase] getProjectMedia transaction timeout, returning fallback');
+            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+            resolve(local);
+          }, 25000);
+
+          function finish(items) {
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timer);
+            resolve(items);
+          }
+
+          try {
+            var tx = db.transaction('media', 'readonly');
+            var store = tx.objectStore('media');
+            var req;
+            if (store.indexNames && store.indexNames.contains('projectId')) {
+              var index = store.index('projectId');
+              req = index.getAll(projectId);
+            } else {
+              req = store.getAll();
+            }
+            req.onsuccess = function () {
+              var items = req.result || [];
+              if (!store.indexNames || !store.indexNames.contains('projectId')) {
+                items = items.filter(function (m) { return m && m.projectId === projectId; });
+              }
+              if (hydrateBlobs) {
+                items.forEach(hydrateMediaItemBlobs);
+              }
+              finish(items);
+            };
+            req.onerror = function () {
+              var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+              finish(local);
+            };
+            tx.onerror = function () {
+              var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+              finish(local);
+            };
+            tx.onabort = function () {
+              var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+              finish(local);
+            };
+          } catch (e) {
+            var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+            finish(local);
+          }
+        });
+      }
+      return getLocalMedia().filter(function (m) { return m.projectId === projectId; });
+    })();
+
+    _inFlightProjectMedia.set(cacheKey, queryPromise);
+
+    try {
+      return await queryPromise;
+    } finally {
+      setTimeout(function () {
+        if (_inFlightProjectMedia.get(cacheKey) === queryPromise) {
+          _inFlightProjectMedia.delete(cacheKey);
+        }
+      }, 500);
+    }
   }
 
   /**
@@ -1477,6 +1514,7 @@ window.FishDatabase = (function () {
           var store = tx.objectStore('media');
           store.delete(id);
           tx.oncomplete = function () {
+            _invalidateProjectMediaCache();
             resolve(true);
           };
           tx.onerror = function () {

@@ -1546,6 +1546,11 @@ html, body {
   color: var(--color-primary);
 }
 
+.timeline-layers-viewport:has(.media-dropzone-split.is-active) .timeline-empty-state,
+.timeline-layers-viewport.has-dropzone-active .timeline-empty-state {
+  display: none !important;
+}
+
 .timeline-layers-track {
   display: flex;
   flex-direction: column;

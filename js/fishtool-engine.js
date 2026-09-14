@@ -512,6 +512,9 @@
      * Compute exact local 2D contour points for any Shape geometry
      */
     getShapeLocalContour(shapeType, shapeProps = {}, w = 300, h = 300) {
+      if (typeof window !== 'undefined' && window.FishShapesRegistry && typeof window.FishShapesRegistry.getContour === 'function') {
+        return window.FishShapesRegistry.getContour(shapeType, shapeProps, w, h);
+      }
       const sx = Math.max(1, w);
       const sy = Math.max(1, h);
       const rx = sx / 2;

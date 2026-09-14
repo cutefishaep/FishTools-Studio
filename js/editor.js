@@ -1130,20 +1130,36 @@
 
       // Fallback async hydration if layer.dataUrl is missing or dead blob URL
       const isDeadBlob = layer.dataUrl && typeof layer.dataUrl === 'string' && layer.dataUrl.startsWith('blob:') && !(window._activeMediaMap && window._activeMediaMap.has(layer.mediaId));
-      if ((!layer.dataUrl || isDeadBlob) && layer.mediaId && window.FishDatabase && currentProjectState.id) {
+      if ((!layer.dataUrl || isDeadBlob) && (layer.mediaId || layer.type === 'video' || layer.type === 'audio') && window.FishDatabase && currentProjectState.id) {
         window.FishDatabase.getProjectMedia(currentProjectState.id).then(medias => {
-          const m = (medias || []).find(item => item.id === layer.mediaId);
-          if (m && m.dataUrl) {
-            layer.dataUrl = m.dataUrl;
-            if (entry.el && entry.el.src !== m.dataUrl) {
-              entry.el.src = m.dataUrl;
-              if (typeof entry.el.load === 'function') entry.el.load();
+          let m = (medias || []).find(item => item.id === layer.mediaId);
+          if (!m && (layer.type === 'video' || layer.type === 'audio')) {
+            m = (medias || []).find(item => item.id === layer.id || item.name === layer.name);
+            if (m) layer.mediaId = m.id;
+          }
+          if (m) {
+            if (!m.dataUrl && m.buffer) {
+              try {
+                m.blob = new Blob([m.buffer], { type: m.mimeType || '' });
+                m.dataUrl = URL.createObjectURL(m.blob);
+              } catch (_) {}
+            } else if (!m.dataUrl && m.blob) {
+              try { m.dataUrl = URL.createObjectURL(m.blob); } catch (_) {}
             }
-            if (window.VideoFrameExtractor && layer.type === 'video') {
-              window.VideoFrameExtractor.extractLayerRange(layer);
-            }
-            if (typeof redrawComposition === 'function') {
-              redrawComposition('mediaHydrated');
+            if (m.dataUrl) {
+              layer.dataUrl = m.dataUrl;
+              window._activeMediaMap = window._activeMediaMap || new Map();
+              window._activeMediaMap.set(m.id, m);
+              if (entry.el && entry.el.src !== m.dataUrl) {
+                entry.el.src = m.dataUrl;
+                if (typeof entry.el.load === 'function') entry.el.load();
+              }
+              if (window.VideoFrameExtractor && layer.type === 'video') {
+                window.VideoFrameExtractor.extractLayerRange(layer);
+              }
+              if (typeof redrawComposition === 'function') {
+                redrawComposition('mediaHydrated');
+              }
             }
           }
         }).catch(() => {});
@@ -1432,13 +1448,13 @@
         fctx.fillStyle = grad;
         fctx.fillRect(0, 0, targetW, targetH);
       } else if (fillType === 'media') {
-        const mediaUrl = layer.fillMediaUrl || layer.dataUrl || layer.thumbUrl;
+        const mediaUrl = layer.fillMediaUrl || layer.thumbUrl || (layer.dataUrl && !layer.dataUrl.startsWith('data:video') ? layer.dataUrl : '');
         const cachedEntry = window.layerMediaCache ? (window.layerMediaCache.get(layer.id) || (layer.mediaId ? window.layerMediaCache.get(layer.mediaId) : null)) : null;
-        if (cachedEntry && cachedEntry.el && cachedEntry.isReady) {
+        if (cachedEntry && cachedEntry.el && cachedEntry.isReady && cachedEntry.el.tagName === 'IMG') {
           fctx.drawImage(cachedEntry.el, 0, 0, targetW, targetH);
         } else if (layer._fillMediaImg && layer._fillMediaImg.complete && layer._fillMediaImg.naturalWidth > 0 && layer._fillMediaImg.src === mediaUrl) {
           fctx.drawImage(layer._fillMediaImg, 0, 0, targetW, targetH);
-        } else if (mediaUrl) {
+        } else if (mediaUrl && !mediaUrl.startsWith('data:video')) {
           if (!layer._fillMediaImg || layer._fillMediaImg.src !== mediaUrl) {
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -2128,6 +2144,27 @@
       }
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
       const frameIndex = Math.round(currentSec * fps);
+
+      // ─── EARLY-EXIT CACHE FAST-PATH ──────────────────────────────────────────
+      // During playback: if frame is cached, blit directly and skip the entire
+      // render pipeline (layer filter, camera transform, effects, etc.).
+      // Only active during playback — scrub/idle-cache/export/transform-drag still
+      // go through the full pipeline so they stay live & accurate.
+      if (
+        window.isTimelinePlaying &&
+        !isExport && !isIdleCache &&
+        !window.isTransformInteracting &&
+        window.PreviewCacheManager &&
+        window.isPreviewCacheEnabled !== false
+      ) {
+        const earlyBitmap = window.PreviewCacheManager.getFrame(frameIndex, w, h);
+        if (earlyBitmap) {
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(earlyBitmap, 0, 0, w, h);
+          return; // skip full pipeline — ~0.1ms vs ~10ms
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
@@ -10539,13 +10576,19 @@
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
-      const shapeProps = {
+      let shapeProps = {
         sizeX: 300,
         sizeY: 300
       };
 
-      let defaultName = 'Kotak';
-      if (shapeType === 'circle') {
+      const shapeDef = (typeof window !== 'undefined' && window.FishShapesRegistry)
+        ? window.FishShapesRegistry.get(shapeType)
+        : null;
+
+      let defaultName = shapeDef ? shapeDef.name : 'Kotak';
+      if (shapeDef && typeof window.FishShapesRegistry.createDefaultProps === 'function') {
+        shapeProps = window.FishShapesRegistry.createDefaultProps(shapeType);
+      } else if (shapeType === 'circle') {
         defaultName = 'Lingkaran';
         shapeProps.sizeX = 300;
         shapeProps.sizeY = 300;
@@ -10662,7 +10705,10 @@
       sctx.save();
       sctx.beginPath();
 
-      switch (shapeType) {
+      if (typeof window !== 'undefined' && window.FishShapesRegistry && typeof window.FishShapesRegistry.drawPath === 'function') {
+        window.FishShapesRegistry.drawPath(sctx, shapeType, shapeProps, cx, cy, sx, sy);
+      } else {
+        switch (shapeType) {
         case 'circle': {
           sctx.ellipse(cx, cy, Math.max(0.1, rx), Math.max(0.1, ry), 0, 0, Math.PI * 2);
           break;
@@ -10784,6 +10830,7 @@
           sctx.rect(cx - rx, cy - ry, sx, sy);
           break;
         }
+        }
       }
 
       // Apply Fill
@@ -10830,18 +10877,13 @@
       const shapeType = layer.shapeType || 'rectangle';
       const shapeProps = layer.shapeProps;
 
+      const shapeDef = (typeof window !== 'undefined' && window.FishShapesRegistry)
+        ? window.FishShapesRegistry.get(shapeType)
+        : null;
+
       const titleEl = document.getElementById('lbl-shape-title');
       if (titleEl) {
-        const names = {
-          circle: 'Lingkaran',
-          rectangle: 'Kotak',
-          triangle: 'Segitiga',
-          star: 'Bintang',
-          polygon: 'Poligon',
-          capsule: 'Kapsul',
-          heart: 'Hati'
-        };
-        titleEl.textContent = names[shapeType] || 'Shape';
+        titleEl.textContent = shapeDef ? shapeDef.name : (shapeType.charAt(0).toUpperCase() + shapeType.slice(1));
       }
 
       // 1. Size values
@@ -10866,7 +10908,9 @@
 
       // 2. Roundness section
       const secRound = document.getElementById('shape-section-roundness');
-      const hasRound = (shapeType === 'rectangle' || shapeType === 'triangle' || shapeType === 'polygon');
+      const hasRound = shapeDef
+        ? !!shapeDef.controls.roundness
+        : (shapeType === 'rectangle' || shapeType === 'triangle' || shapeType === 'polygon');
       if (secRound) {
         secRound.style.display = hasRound ? '' : 'none';
         const valRound = document.getElementById('val-shape-roundness');
@@ -10875,11 +10919,16 @@
 
       // 3. Step section
       const secStep = document.getElementById('shape-section-step');
-      const hasStep = (shapeType === 'triangle' || shapeType === 'polygon');
+      const hasStep = shapeDef
+        ? !!shapeDef.controls.step
+        : (shapeType === 'triangle' || shapeType === 'polygon');
       if (secStep) {
         secStep.style.display = hasStep ? '' : 'none';
+        const stepLabel = (shapeDef && shapeDef.controls && shapeDef.controls.step && shapeDef.controls.step.label)
+          ? shapeDef.controls.step.label
+          : ((shapeType === 'polygon') ? 'Sides' : 'Step');
         const lblStep = document.getElementById('lbl-shape-step');
-        if (lblStep) lblStep.textContent = (shapeType === 'polygon') ? 'Sides' : 'Step';
+        if (lblStep) lblStep.textContent = stepLabel;
         const valStep = document.getElementById('val-shape-step');
         const curStep = (shapeType === 'polygon') ? (shapeProps.sides || 6) : (shapeProps.step || 3);
         if (valStep) valStep.textContent = curStep;
@@ -10887,7 +10936,9 @@
 
       // 4. Star section
       const secStar = document.getElementById('shape-section-star');
-      const isStar = (shapeType === 'star');
+      const isStar = shapeDef
+        ? !!shapeDef.controls.star
+        : (shapeType === 'star');
       if (secStar) {
         secStar.style.display = isStar ? '' : 'none';
         const valPts = document.getElementById('val-shape-points');
@@ -11503,7 +11554,8 @@
       ];
       shapeButtons.forEach(item => {
         const btn = document.getElementById(item.id);
-        if (btn) {
+        if (btn && !btn._shapeWired) {
+          btn._shapeWired = true;
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -11511,6 +11563,21 @@
           });
         }
       });
+      if (typeof window !== 'undefined' && window.FishShapesRegistry) {
+        const allShapes = window.FishShapesRegistry.getAll();
+        allShapes.forEach(s => {
+          const alias = (s.aliases && s.aliases[0]) ? s.aliases[0] : s.id;
+          const btn = document.getElementById('btn-add-shape-' + alias) || document.getElementById('btn-add-shape-' + s.id);
+          if (btn && !btn._shapeWired) {
+            btn._shapeWired = true;
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addShapeLayer(s.id);
+            });
+          }
+        });
+      }
 
       // 5e. Edit Shape Button & Back Button in Timeline Layer Drawer
       const btnEditShape = document.getElementById('btn-layer-edit-shape');
@@ -12344,7 +12411,7 @@
         if (targetL.mediaId) window.layerMediaCache.delete(targetL.mediaId);
       }
 
-      const isShape = (targetL.type === 'shape');
+      const isShape = (targetL.type === 'shape') || !!targetL.shapeType || !!targetL.shapeProps || (targetL.id && targetL.id.startsWith('layer_shape_')) || (targetL.fillType !== undefined);
       const isAudio = item.type === 'audio' ||
         (item.dataUrl && (item.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(item.dataUrl))) ||
         (item.name && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(item.name));
@@ -12366,9 +12433,12 @@
           targetL.dataUrl = item.dataUrl || '';
           delete targetL._precompBufferCanvas;
           if (isFinite(item.duration) && item.duration > 0) {
-            targetL.durationSec = item.duration;
-            const pps = window.currentPixelsPerSecond || 80;
-            targetL.widthPx = Math.max(80, Math.round(item.duration * pps));
+            targetL.mediaDuration = item.duration;
+            if (!targetL.isDurationExplicit) {
+              targetL.durationSec = item.duration;
+              const pps = window.currentPixelsPerSecond || 80;
+              targetL.widthPx = Math.max(80, Math.round(item.duration * pps));
+            }
           }
           if (item.width && item.height) {
             targetL.mediaWidth = item.width;
@@ -12444,16 +12514,37 @@
           }
         }
       } else {
-        // Shape layer filled with media (e.g. Star, Circle, Rect masked with photo/video)
+        // Shape layer filled with media (strictly static thumbnail fill — NEVER play video)
+        targetL.type = 'shape';
         targetL.fillType = 'media';
         targetL.fillMediaId = item.id;
-        targetL.fillMediaUrl = item.dataUrl || item.thumbUrl || '';
-        targetL.mediaId = item.id;
-        targetL.dataUrl = item.dataUrl || '';
-        targetL.thumbUrl = item.thumbUrl || item.dataUrl || '';
+        delete targetL.mediaId; // Strict: do not assign mediaId so playback engine never plays it
         delete targetL._fillBufferCanvas;
         delete targetL._fillMediaImg;
         delete targetL._shapeBufferCanvas;
+
+        const thumbSrc = (item.thumbUrl && !item.thumbUrl.startsWith('data:video')) ? item.thumbUrl : '';
+        if (isVideo) {
+          targetL.fillMediaUrl = thumbSrc;
+          targetL.thumbUrl = thumbSrc;
+          targetL.dataUrl = thumbSrc;
+          if (!thumbSrc && item.dataUrl && typeof captureVideoThumbnail === 'function') {
+            captureVideoThumbnail(null, item.dataUrl).then(thumb => {
+              if (thumb) {
+                item.thumbUrl = thumb;
+                targetL.fillMediaUrl = thumb;
+                targetL.thumbUrl = thumb;
+                targetL._fillDirty = true;
+                if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(targetL);
+                if (typeof redrawComposition === 'function') redrawComposition('fill-media-loaded');
+              }
+            });
+          }
+        } else {
+          targetL.fillMediaUrl = item.thumbUrl || item.dataUrl || '';
+          targetL.dataUrl = item.dataUrl || '';
+          targetL.thumbUrl = item.thumbUrl || item.dataUrl || '';
+        }
       }
 
       // Update Edit Group button visibility if precomp
@@ -12531,21 +12622,59 @@
         const isAudioItem = item.type === 'audio' ||
           (item.dataUrl && item.dataUrl.startsWith('data:audio')) ||
           (item.name && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(item.name));
-        const thumbUrl = item.thumbUrl || item.dataUrl || '';
+        const isVideoItem = item.type === 'video' ||
+          (item.dataUrl && (item.dataUrl.startsWith('data:video') || /\.(mp4|webm|mov|mkv)(\?.*)?$/i.test(item.dataUrl))) ||
+          (item.name && /\.(mp4|webm|mov|mkv)$/i.test(item.name));
+
         let innerHtml = '';
         if (isAudioItem) {
           innerHtml = `<div class="fill-media-fallback fill-media-audio-fallback" title="${item.name || 'Audio'}">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
             </svg>
             <span style="font-size: 8px; margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name ? item.name.slice(0, 6) : 'AUD'}</span>
           </div>`;
-        } else if (thumbUrl) {
-          innerHtml = `<img src="${thumbUrl}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
+        } else if (isVideoItem) {
+          const thumbSrc = item.thumbUrl || '';
+          if (thumbSrc && !thumbSrc.startsWith('data:video')) {
+            innerHtml = `<img src="${thumbSrc}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
+          } else {
+            innerHtml = `
+              <div class="fill-media-fallback fill-media-vid-fallback" title="${item.name || 'Video'}">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                </svg>
+              </div>
+            `;
+            if (item.dataUrl && typeof captureVideoThumbnail === 'function') {
+              captureVideoThumbnail(null, item.dataUrl).then(thumb => {
+                if (thumb) {
+                  item.thumbUrl = thumb;
+                  if (window.FishDatabase && typeof window.FishDatabase.saveMedia === 'function') {
+                    window.FishDatabase.saveMedia(item).catch(() => {});
+                  }
+                  const fallback = tile.querySelector('.fill-media-vid-fallback');
+                  if (fallback) {
+                    const img = document.createElement('img');
+                    img.className = 'fill-media-thumb';
+                    img.src = thumb;
+                    img.alt = item.name || '';
+                    fallback.replaceWith(img);
+                  }
+                }
+              });
+            }
+          }
         } else {
-          innerHtml = `<div class="fill-media-fallback">${item.name ? item.name.slice(0, 4) : 'MED'}</div>`;
+          // image or precomp
+          const thumbUrl = item.thumbUrl || item.dataUrl || '';
+          if (thumbUrl && !thumbUrl.startsWith('data:video')) {
+            innerHtml = `<img src="${thumbUrl}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
+          } else {
+            innerHtml = `<div class="fill-media-fallback">${item.name ? item.name.slice(0, 4) : 'MED'}</div>`;
+          }
         }
-        const badge = item.type === 'video' ? 'VID' : (item.type === 'precomp' ? 'COMP' : (isAudioItem ? 'AUD' : 'IMG'));
+        const badge = isVideoItem ? 'VID' : (item.type === 'precomp' ? 'COMP' : (isAudioItem ? 'AUD' : 'IMG'));
         innerHtml += `<span class="fill-media-badge">${badge}</span>`;
         tile.innerHTML = innerHtml;
 
@@ -13089,12 +13218,12 @@
 
             const isVideo = file.type.startsWith('video') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
             const isAudio = file.type.startsWith('audio') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
-            let thumbUrl = dataUrl;
+            let thumbUrl = isVideo ? '' : dataUrl;
             let vidDims = null;
             let audioDur = null;
             if (isVideo && typeof captureVideoThumbnail === 'function') {
               try {
-                thumbUrl = (await captureVideoThumbnail(file, dataUrl)) || dataUrl;
+                thumbUrl = (await captureVideoThumbnail(file, dataUrl)) || '';
                 if (window.lastCapturedVideoDims) vidDims = window.lastCapturedVideoDims;
               } catch (_) {}
             } else if (isAudio) {
@@ -16278,7 +16407,7 @@
       async function deleteMediaItem(item) {
         if (!item || !item.id) return;
 
-        // 1. Instant optimistic DOM removal (0ms visual latency)
+        // 1. Instant optimistic DOM & timeline removal (0ms visual latency)
         document.querySelectorAll(`.media-item-tile[data-media-id="${item.id}"]`).forEach(t => t.remove());
         document.querySelectorAll(`.fill-media-tile[data-media-id="${item.id}"]`).forEach(t => t.remove());
 
@@ -16289,30 +16418,24 @@
           }
         }
 
-        // 2. Background database & cache cleanup
+        if (window._activeMediaMap && window._activeMediaMap.has(item.id)) {
+          window._activeMediaMap.delete(item.id);
+        }
+
+        // Immediately purge any timeline layers referencing this media
+        if (typeof window.removeTimelineLayersForMedia === 'function') {
+          window.removeTimelineLayersForMedia(item.id, item.dataUrl, item);
+        }
+
+        // 2. Background database & frame cache cleanup
         try {
           if (window.FishDatabase) {
             await window.FishDatabase.deleteMedia(item.id);
-          }
-          if (typeof window.removeTimelineLayersForMedia === 'function') {
-            window.removeTimelineLayersForMedia(item.id, item.dataUrl);
           }
           if (window.VideoFrameExtractor) {
             window.VideoFrameExtractor.clearSource(item.id).catch(() => {});
             if (item.dataUrl) window.VideoFrameExtractor.clearSource(item.dataUrl).catch(() => {});
             if (item.name) window.VideoFrameExtractor.clearSource(item.name).catch(() => {});
-          }
-          if (item.type === 'precomp' && item.precompId) {
-            currentProjectState.layers = (currentProjectState.layers || []).filter(l => l.id !== item.precompId && l.mediaId !== item.id);
-            if (selectedLayerId === item.precompId) {
-              selectedLayerId = null;
-              window.selectedLayerId = null;
-            }
-            if (selectedLayerIds) selectedLayerIds.delete(item.precompId);
-            renderTimelineLayers();
-            updateEditorHeaderMode();
-            redrawComposition('deleteMedia');
-            saveCurrentProjectLayers();
           }
         } catch (err) {
           console.warn('[MediaPool] Error during media deletion:', err);
@@ -17076,31 +17199,37 @@
         if (!filesArr || filesArr.length === 0) return;
         const projectId = currentProjectState.id || 'default_project';
 
+        // When action is convert-mp3, strictly isolate video files for audio extraction
+        // Images and pure audio files MUST NEVER be converted to MP3!
         if (action === 'convert-mp3') {
+          const videoFiles = filesArr.filter(f => isVideoFile(f));
+          const nonVideoFiles = filesArr.filter(f => !isVideoFile(f));
+
           const addedItems = [];
-          for (const file of filesArr) {
-            if (isVideoFile(file)) {
-              const audioItem = await convertVideoFileToAudioItem(file, projectId);
-              if (audioItem) {
-                addedItems.push(audioItem);
-              } else {
-                const imported = await handleFiles([file], false);
-                if (imported && imported.length > 0) addedItems.push(...imported);
-              }
+          for (const file of videoFiles) {
+            const audioItem = await convertVideoFileToAudioItem(file, projectId);
+            if (audioItem) {
+              addedItems.push(audioItem);
             } else {
               const imported = await handleFiles([file], false);
               if (imported && imported.length > 0) addedItems.push(...imported);
             }
           }
 
+          // Import photos or audio directly without audio conversion
+          if (nonVideoFiles.length > 0) {
+            const imported = await handleFiles(nonVideoFiles, autoAddToTimeline);
+            if (imported && imported.length > 0) addedItems.push(...imported);
+          }
+
           await renderMediaGrid();
           if (autoAddToTimeline && addedItems.length > 0 && typeof window.addOrSelectMediaLayer === 'function') {
-            addedItems.forEach(item => window.addOrSelectMediaLayer(item));
+            addedItems.filter(item => item.type === 'audio' && item.name.includes('(Audio)')).forEach(item => window.addOrSelectMediaLayer(item));
           }
           return;
         }
 
-        // action === 'import-video' or default
+        // action === 'import-video', 'import-image', 'import-audio', 'import-media', or default
         await handleFiles(filesArr, autoAddToTimeline);
       }
 
@@ -17109,11 +17238,113 @@
 
         let dragDepth = 0;
         let activeHoverCol = null;
+        let currentMode = null;
+        const initialOverlayHtml = overlayEl.innerHTML;
+        overlayEl._renderOverlayMode = renderOverlayMode;
 
-        const cols = overlayEl.querySelectorAll('.media-dropzone-col');
+        function detectDraggedMediaType(dataTransfer) {
+          if (!dataTransfer) return 'split';
+
+          if (dataTransfer.items && dataTransfer.items.length > 0) {
+            let hasImage = false;
+            let hasVideo = false;
+            let hasAudio = false;
+            let count = 0;
+
+            for (let i = 0; i < dataTransfer.items.length; i++) {
+              const item = dataTransfer.items[i];
+              if (item.kind === 'file') {
+                const mime = (item.type || '').toLowerCase();
+                if (mime.startsWith('image/')) {
+                  hasImage = true;
+                  count++;
+                } else if (mime.startsWith('video/')) {
+                  hasVideo = true;
+                  count++;
+                } else if (mime.startsWith('audio/') || mime.includes('mpeg') || mime.includes('mp3') || mime.includes('wav')) {
+                  hasAudio = true;
+                  count++;
+                }
+              }
+            }
+
+            if (count > 0) {
+              if (hasImage && !hasVideo && !hasAudio) return 'image';
+              if (hasAudio && !hasVideo && !hasImage) return 'audio';
+              if (hasVideo) return 'video';
+            }
+          }
+
+          if (dataTransfer.files && dataTransfer.files.length > 0) {
+            let hasImage = false;
+            let hasVideo = false;
+            let hasAudio = false;
+
+            for (let i = 0; i < dataTransfer.files.length; i++) {
+              const f = dataTransfer.files[i];
+              const ext = (f.name.split('.').pop() || '').toLowerCase();
+              const mime = (f.type || '').toLowerCase();
+              if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'avif', 'jfif'].includes(ext) || mime.startsWith('image/')) {
+                hasImage = true;
+              } else if (['mp4', 'mov', 'webm', 'mkv'].includes(ext) || mime.startsWith('video/')) {
+                hasVideo = true;
+              } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext) || mime.startsWith('audio/')) {
+                hasAudio = true;
+              }
+            }
+
+            if (hasImage && !hasVideo && !hasAudio) return 'image';
+            if (hasAudio && !hasVideo && !hasImage) return 'audio';
+            if (hasVideo) return 'video';
+          }
+
+          return 'split';
+        }
+
+        function renderOverlayMode(mode) {
+          if (currentMode === mode) return;
+          currentMode = mode;
+
+          if (mode === 'image') {
+            overlayEl.innerHTML = `
+              <div class="media-dropzone-col media-dropzone-image" data-drop-action="import-image">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14z"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polygon points="6,17.5 10.5,12 13.5,15.5 15.5,13.5 18,17.5"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">${autoAddToTimeline ? 'Import Photo to Timeline' : 'Import Photo to Project'}</div>
+                  <div class="media-dropzone-desc">${autoAddToTimeline ? 'Add photo layer to composition' : 'Add photo to media pool'}</div>
+                  <span class="media-dropzone-badge">Photo</span>
+                </div>
+              </div>
+            `;
+          } else if (mode === 'audio') {
+            overlayEl.innerHTML = `
+              <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="import-audio">
+                <div class="media-dropzone-content">
+                  <div class="media-dropzone-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    </svg>
+                  </div>
+                  <div class="media-dropzone-title">${autoAddToTimeline ? 'Import Audio to Timeline' : 'Import Audio to Project'}</div>
+                  <div class="media-dropzone-desc">${autoAddToTimeline ? 'Add audio track to composition' : 'Add audio to media pool'}</div>
+                  <span class="media-dropzone-badge">Audio</span>
+                </div>
+              </div>
+            `;
+          } else {
+            overlayEl.innerHTML = initialOverlayHtml;
+          }
+        }
 
         function updateHoverState(clientX, clientY) {
-          cols.forEach(col => {
+          const currentCols = overlayEl.querySelectorAll('.media-dropzone-col');
+          currentCols.forEach(col => {
             const rect = col.getBoundingClientRect();
             if (
               clientX >= rect.left &&
@@ -17130,7 +17361,8 @@
         }
 
         function clearHoverState() {
-          cols.forEach(col => col.classList.remove('is-hover'));
+          const currentCols = overlayEl.querySelectorAll('.media-dropzone-col');
+          currentCols.forEach(col => col.classList.remove('is-hover'));
           activeHoverCol = null;
         }
 
@@ -17138,13 +17370,18 @@
           dragDepth = 0;
           clearHoverState();
           overlayEl.classList.remove('is-active');
+          containerEl.classList.remove('has-dropzone-active');
+          renderOverlayMode('split');
         }
 
         containerEl.addEventListener('dragenter', (e) => {
           e.preventDefault();
           e.stopPropagation();
           dragDepth++;
+          const detected = detectDraggedMediaType(e.dataTransfer);
+          renderOverlayMode(detected);
           overlayEl.classList.add('is-active');
+          containerEl.classList.add('has-dropzone-active');
           updateHoverState(e.clientX, e.clientY);
         });
 
@@ -17154,7 +17391,10 @@
           if (e.dataTransfer) {
             e.dataTransfer.dropEffect = 'copy';
           }
+          const detected = detectDraggedMediaType(e.dataTransfer);
+          renderOverlayMode(detected);
           overlayEl.classList.add('is-active');
+          containerEl.classList.add('has-dropzone-active');
           updateHoverState(e.clientX, e.clientY);
         });
 
@@ -17172,7 +17412,7 @@
           e.stopPropagation();
 
           const targetCol = activeHoverCol || e.target.closest('.media-dropzone-col');
-          const chosenAction = targetCol ? (targetCol.getAttribute('data-drop-action') || 'import-video') : 'import-video';
+          const chosenAction = targetCol ? (targetCol.getAttribute('data-drop-action') || 'import-media') : 'import-media';
 
           hideOverlay();
 
@@ -18008,9 +18248,14 @@
         window.currentPlaybackSec = curSec;
         window.currentSec = curSec;
 
-        const panStr = `translate3d(${panX.toFixed(2)}px, 0, 0)`;
-        rulerTrack.style.transform = panStr;
-        layersTrack.style.transform = panStr;
+        const isDesktop = Boolean(document.querySelector('.desktop-workstation, .desktop-viewport'));
+        if (!isDesktop) {
+          const panStr = `translate3d(${panX.toFixed(2)}px, 0, 0)`;
+          rulerTrack.style.transform = panStr;
+          layersTrack.style.transform = panStr;
+        } else if (typeof window.syncDesktopPlayhead === 'function') {
+          window.syncDesktopPlayhead();
+        }
 
         // Calculate current timecode in exact milliseconds
         const currentMs = Math.round((Math.max(0, -panX) / pixelsPerSecond) * 1000);
@@ -18651,9 +18896,10 @@
         playBtn.setAttribute('aria-label', isPlaying ? 'Pause (Space)' : 'Play (Space)');
       }
 
-      function pausePlayback() {
+      function pausePlayback(returnToStart = true) {
         if (!isPlaying) return;
         const curSecAtPause = Math.max(0, -panX / pixelsPerSecond);
+        window.lastPausePlaybackSec = curSecAtPause;
         isPlaying = false;
         window.isTimelinePlaying = false;
         updatePlayButtonUI();
@@ -18723,6 +18969,14 @@
         if (typeof updateTimeBadgeBeatmarkState === 'function') {
           updateTimeBadgeBeatmarkState();
         }
+
+        // AE-style Play From: If mode is 'last_pause', return playhead to the frame where play was clicked
+        if (returnToStart && window.playbackPlayFromMode === 'last_pause' && typeof window.playbackPlayStartSec === 'number' && !isNaN(window.playbackPlayStartSec)) {
+          if (typeof seekTimelineToTime === 'function') {
+            seekTimelineToTime(window.playbackPlayStartSec, true);
+          }
+        }
+
         redrawComposition('playbackPause');
       }
 
@@ -18815,6 +19069,8 @@
       let hasTimelineEmptyLpFired = false;
 
       function onPanStart(e) {
+        // On desktop workstation, timeline scrubbing is handled by ruler seek / playhead drag and marquee
+        if (document.querySelector('.desktop-workstation, .desktop-viewport')) return;
         if (isPlaying) {
           pausePlayback();
         }
@@ -19060,6 +19316,7 @@
       // Wheel on Ruler Viewport: Zoom In / Out Timeline Scale
       if (rulerViewport) {
         rulerViewport.addEventListener('wheel', (e) => {
+          if (document.querySelector('.desktop-workstation, .desktop-viewport')) return;
           e.preventDefault();
           const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
           if (delta === 0) return;
@@ -19204,11 +19461,13 @@
               window.FishAudioEngine.syncPlayback(layers, nextSec, pixelsPerSecond, playbackSpeed);
             }
           } else {
-            pausePlayback();
-            updateTimelinePosition(bounds.min, true);
-            const canvas = document.getElementById('editor-active-canvas');
-            if (canvas) {
-              renderCanvasFrame(canvas, currentProjectState.bgColor, canvas.width, canvas.height, 'playbackStep', Math.abs(bounds.min) / pixelsPerSecond);
+            pausePlayback(true);
+            if (window.playbackPlayFromMode !== 'last_pause') {
+              updateTimelinePosition(bounds.min, true);
+              const canvas = document.getElementById('editor-active-canvas');
+              if (canvas) {
+                renderCanvasFrame(canvas, currentProjectState.bgColor, canvas.width, canvas.height, 'playbackStep', Math.abs(bounds.min) / pixelsPerSecond);
+              }
             }
             return;
           }
@@ -19289,15 +19548,19 @@
             return;
           }
           if (window.FishAudioEngine && !window.FishAudioEngine.isUnlocked) {
-            window.FishAudioEngine.unlock();
+            window.FishAudioEngine.unlock(e);
           }
           if (isPlaying) {
-            pausePlayback();
+            pausePlayback(true);
           } else {
             const bounds = getTimelineBounds();
             if (panX <= bounds.min + 0.5) {
               updateTimelinePosition(bounds.max, true);
             }
+            // Record starting timestamp where user clicked play
+            const startSec = Math.max(0, -panX / pixelsPerSecond);
+            window.playbackPlayStartSec = startSec;
+
             isPlaying = true;
             window.isTimelinePlaying = true;
             updatePlayButtonUI();
@@ -19316,7 +19579,6 @@
             lastTime = 0;
             _playTickCount = 0;
             // Synchronously prime audio playback inside direct user activation gesture
-            const startSec = Math.max(0, -panX / pixelsPerSecond);
             const initialPlaybackSpeed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
               ? window.timelinePlaybackSpeed
               : 1.0;
@@ -19357,6 +19619,13 @@
         const cacheBtns = pop.querySelectorAll('#play-settings-cache-group .effects-segmented-btn');
         cacheBtns.forEach(btn => {
           btn.classList.toggle('is-active', (btn.dataset.val === 'on' && isCache) || (btn.dataset.val === 'off' && !isCache));
+        });
+
+        // 4. Play From (Current Time vs Last Pause)
+        const playFromMode = window.playbackPlayFromMode || 'current';
+        const playFromBtns = pop.querySelectorAll('#play-settings-playfrom-group .effects-segmented-btn');
+        playFromBtns.forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.val === playFromMode);
         });
       }
 
@@ -19410,6 +19679,15 @@
           });
         });
 
+        // Play From buttons
+        const playFromBtns = playSettingsPop.querySelectorAll('#play-settings-playfrom-group .effects-segmented-btn');
+        playFromBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            window.playbackPlayFromMode = btn.dataset.val || 'current';
+            syncPlaySettingsUI();
+          });
+        });
+
         syncPlaySettingsUI();
       }
 
@@ -19448,9 +19726,11 @@
                      document.querySelector(`.timeline-track-lane[data-layer-id="${layerId}"]`) ||
                      document.querySelector(`.timeline-clip-block[data-layer-id="${layerId}"]`);
 
+        const isDesktop = Boolean(document.querySelector('.desktop-workstation, .desktop-viewport'));
         const drawerContainer = document.getElementById('timeline-layer-drawer');
         const drawerCard = document.querySelector('#timeline-layer-drawer .drawer-card');
-        const isDrawerOpen = Boolean(
+        // On desktop, layer drawer is docked inside the right inspector panel and NEVER overlays timeline
+        const isDrawerOpen = !isDesktop && Boolean(
           (window.Drawer && typeof window.Drawer.isOpen === 'function' && window.Drawer.isOpen('timeline-layer-drawer')) ||
           (drawerContainer && drawerContainer.classList.contains('is-active'))
         );
@@ -19483,18 +19763,23 @@
         const targetCenterY = visibleTop + (visibleHeight / 2);
 
         let targetScrollTop = 0;
+        const maxScrollY = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
         if (slot) {
           const slotRect = slot.getBoundingClientRect();
+          // On desktop, if slot is already fully visible in viewport, do NOT shift/scroll timeline
+          if (isDesktop && slotRect.top >= vpRect.top && slotRect.bottom <= vpRect.bottom) {
+            return;
+          }
           const slotCenterY = slotRect.top + (slotRect.height / 2);
           const deltaY = slotCenterY - targetCenterY;
-          targetScrollTop = Math.max(0, Math.round(viewport.scrollTop + deltaY));
+          targetScrollTop = Math.max(0, Math.min(maxScrollY, Math.round(viewport.scrollTop + deltaY)));
         } else {
           const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
           const idx = layers.findIndex(l => l.id === layerId);
           if (idx < 0) return;
           const layerCenterInContent = 12 + (idx * 54) + 22;
           const targetCenterInVp = targetCenterY - visibleTop;
-          targetScrollTop = Math.max(0, Math.round(layerCenterInContent - targetCenterInVp));
+          targetScrollTop = Math.max(0, Math.min(maxScrollY, Math.round(layerCenterInContent - targetCenterInVp)));
         }
 
         if (viewport._centerScrollTimer) {
@@ -24362,30 +24647,125 @@
       window.selectTimelineLayer = selectTimelineLayer;
       window.deselectTimelineLayer = deselectTimelineLayer;
       window.toggleSelectTimelineLayer = toggleSelectTimelineLayer;
-      window.removeTimelineLayersForMedia = function(mediaId, dataUrl) {
-        if (!currentProjectState.layers) return;
-        const matches = l => (mediaId && l.mediaId === mediaId) || (dataUrl && l.dataUrl === dataUrl);
+      window.removeTimelineLayersForMedia = function(mediaId, dataUrl, item) {
+        if (!currentProjectState.layers || !Array.isArray(currentProjectState.layers)) return;
+
+        const targetMediaId = (typeof mediaId === 'object' && mediaId !== null && mediaId.id)
+          ? mediaId.id
+          : (typeof mediaId === 'string' ? mediaId : (item && item.id ? item.id : null));
+
+        const targetDataUrl = (typeof dataUrl === 'string' && dataUrl)
+          ? dataUrl
+          : (item && item.dataUrl ? item.dataUrl : null);
+
+        const targetItem = (typeof mediaId === 'object' && mediaId !== null)
+          ? mediaId
+          : (item || null);
+
+        const targetName = targetItem && targetItem.name ? targetItem.name : null;
+        const targetType = targetItem && targetItem.type ? targetItem.type : null;
+
+        const matches = (l) => {
+          if (!l) return false;
+          // 1. Direct mediaId / id / fillMediaId / sourceVideoId match
+          if (targetMediaId && (l.mediaId === targetMediaId || l.id === targetMediaId || l.fillMediaId === targetMediaId || l.sourceVideoId === targetMediaId)) {
+            return true;
+          }
+          // 2. Exact dataUrl match
+          if (targetDataUrl && l.dataUrl === targetDataUrl) {
+            return true;
+          }
+          // 3. Precomp match
+          if (targetItem && targetItem.type === 'precomp' && (l.id === targetItem.precompId || l.mediaId === targetItem.id)) {
+            return true;
+          }
+          // 4. Name & Type match (handles cases where mediaId was unassigned or stripped)
+          if (targetName && l.name === targetName && (l.type === 'video' || l.type === 'audio' || l.type === 'image')) {
+            if (!targetType || l.type === targetType) {
+              return true;
+            }
+          }
+          // 5. Audio extracted from video match (e.g. video.mp4 (Audio))
+          if (targetName && targetType === 'video' && l.type === 'audio' && l.name && l.name.startsWith(targetName)) {
+            return true;
+          }
+          return false;
+        };
+
         const removedLayers = currentProjectState.layers.filter(matches);
+        if (removedLayers.length === 0) return;
+
+        const removedIds = new Set(removedLayers.map(l => l.id));
+
         removedLayers.forEach(l => {
           invalidatePreviewCacheForLayer(l);
           const media = layerMediaCache.get(l.mediaId || l.id);
-          if (media && media.el && typeof media.el.pause === 'function') {
-            try { media.el.pause(); } catch (_) {}
+          if (media && media.el) {
+            if (typeof media.el.pause === 'function') {
+              try { media.el.pause(); } catch (_) {}
+            }
+            try { media.el.src = ''; } catch (_) {}
+            if (window.FishAudioEngine) {
+              try { window.FishAudioEngine.detachMediaElement(media.el); } catch (_) {}
+            }
           }
           layerMediaCache.delete(l.id);
-          layerMediaCache.delete(l.mediaId);
+          if (l.mediaId) layerMediaCache.delete(l.mediaId);
+          if (window.VideoFrameExtractor) {
+            try { window.VideoFrameExtractor.clearLayer(l); } catch (_) {}
+          }
         });
+
         if (window.VideoFrameExtractor) {
-          window.VideoFrameExtractor.clearSource(mediaId || dataUrl);
+          try { window.VideoFrameExtractor.clearSource(targetMediaId || targetDataUrl); } catch (_) {}
+          if (targetName) {
+            try { window.VideoFrameExtractor.clearSource(targetName); } catch (_) {}
+          }
         }
+
+        // Clean up nested precomp layers if any child matches
+        currentProjectState.layers.forEach(l => {
+          if (l.type === 'precomp' && Array.isArray(l.layers)) {
+            l.layers = l.layers.filter(child => !matches(child));
+          }
+          if (removedIds.has(l.parentId)) {
+            l.parentId = null;
+            delete l.parentBind;
+          }
+        });
+
+        // Filter out from active project layers
         currentProjectState.layers = currentProjectState.layers.filter(l => !matches(l));
-        if (selectedLayerId && !currentProjectState.layers.some(l => l.id === selectedLayerId)) {
+
+        // Reset selection if removed layer was active
+        let selectionChanged = false;
+        if (selectedLayerId && removedIds.has(selectedLayerId)) {
           selectedLayerId = null;
           window.selectedLayerId = null;
+          selectionChanged = true;
         }
+        if (selectedLayerIds) {
+          removedIds.forEach(id => {
+            if (selectedLayerIds.has(id)) {
+              selectedLayerIds.delete(id);
+              selectionChanged = true;
+            }
+          });
+        }
+
+        if (selectionChanged) {
+          if (typeof window.deselectAllDesktopLayers === 'function') {
+            try { window.deselectAllDesktopLayers(); } catch (_) {}
+          }
+          if (window.Drawer && window.Drawer.isOpen('timeline-layer-drawer')) {
+            try { window.Drawer.close(false); } catch (_) {}
+          }
+        }
+
         renderTimelineLayers();
+        updateEditorHeaderMode();
         saveCurrentProjectLayers();
-        redrawComposition();
+        redrawComposition('deleteMediaLayers');
       };
 
       // ======================================================================

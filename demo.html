@@ -1100,16 +1100,16 @@
                   </div>
                 </div>
                 <div class="media-dropzone-divider"></div>
-                <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-video">
+                <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
                   <div class="media-dropzone-content">
                     <div class="media-dropzone-icon">
                       <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
                         <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
                       </svg>
                     </div>
-                    <div class="media-dropzone-title">Import Video</div>
-                    <div class="media-dropzone-desc">Add full video to timeline</div>
-                    <span class="media-dropzone-badge">Video</span>
+                    <div class="media-dropzone-title">Import Media</div>
+                    <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
+                    <span class="media-dropzone-badge">Media</span>
                   </div>
                 </div>
               </div>
@@ -6034,6 +6034,13 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
         <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="RAM Cache Off">Off</button>
       </div>
     </div>
+    <div class="play-settings-row">
+      <span class="play-settings-label">Play From</span>
+      <div class="effects-segmented-group play-settings-segmented">
+        <button type="button" class="effects-segmented-btn is-active" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="Pause keeps current playhead position">Current Time</button>
+        <button type="button" class="effects-segmented-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('is-active')); this.classList.add('is-active');" title="Pause returns playhead to where playback started">Last Pause</button>
+      </div>
+    </div>
   </div>
 
   <!-- Popover 9: Color Picker Popover (.color-picker-popover-card) -->
@@ -6144,6 +6151,14 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="js/switch.js"></script>
   <script src="js/context-menu.js"></script>
   <script src="js/wireframe.js?v=3"></script>
+  <script src="js/shapes.js"></script>
+  <script src="shapes/rectangle.js"></script>
+  <script src="shapes/triangle.js"></script>
+  <script src="shapes/circle.js"></script>
+  <script src="shapes/star.js"></script>
+  <script src="shapes/polygon.js"></script>
+  <script src="shapes/capsule.js"></script>
+  <script src="shapes/heart.js"></script>
   <script src="js/effects.js?v=4"></script>
   <script src="effects/brightness_contrast.js"></script>
   <script src="effects/color_balance.js"></script>

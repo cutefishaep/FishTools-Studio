@@ -228,7 +228,7 @@
 .media-dropzone-split {
   position: absolute;
   inset: 0;
-  z-index: 80;
+  z-index: 100;
   display: flex;
   align-items: stretch;
   gap: 8px;

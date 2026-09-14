@@ -1,0 +1,2379 @@
+/**
+ * DESKTOP.JS - Desktop NLE Workstation Controller
+ * Manages 3-column top + full-width bottom timeline layout,
+ * multi-axis splitter resizers, docked inspector, and media browser.
+ */
+(function initDesktopWorkstation() {
+  'use strict';
+
+  // --- 1. Load Saved Layout Dimensions ---
+  const viewport = document.querySelector('.desktop-viewport');
+  if (!viewport) return;
+
+  try {
+    const savedUpperH = localStorage.getItem('oft_desktop_upper_height');
+    if (savedUpperH) viewport.style.setProperty('--desktop-upper-height', savedUpperH);
+
+    const savedLeftW = localStorage.getItem('oft_desktop_left_width');
+    if (savedLeftW) viewport.style.setProperty('--desktop-left-width', savedLeftW);
+
+    const savedRightW = localStorage.getItem('oft_desktop_right_width');
+    if (savedRightW) viewport.style.setProperty('--desktop-right-width', savedRightW);
+
+    const savedExtW = localStorage.getItem('oft_desktop_extension_width');
+    if (savedExtW) viewport.style.setProperty('--desktop-extension-width', savedExtW);
+  } catch (_) {}
+
+  // Helper to sync preview canvas & timeline after layout changes
+  function syncLayout() {
+    if (typeof window.fitPreviewCanvasBox === 'function') {
+      window.fitPreviewCanvasBox();
+    }
+    const layersVp = document.getElementById('timeline-layers-viewport');
+    const layersTrk = document.getElementById('timeline-layers-track');
+    if (layersVp) {
+      if (layersVp.scrollLeft !== 0) layersVp.scrollLeft = 0;
+      const maxScrollY = Math.max(0, (layersTrk ? layersTrk.scrollHeight : 0) - layersVp.clientHeight);
+      if (layersVp.scrollTop > maxScrollY) {
+        layersVp.scrollTop = maxScrollY;
+      }
+    }
+    if (typeof window.updateTimelinePosition === 'function') {
+      window.updateTimelinePosition(window.timelinePanX || 0, true);
+    }
+    if (window.PreviewCacheManager && typeof window.PreviewCacheManager.updateRulerUI === 'function') {
+      window.PreviewCacheManager.updateRulerUI();
+    }
+  }
+  window.syncDesktopLayout = syncLayout;
+
+  // --- 2. Multi-Axis Split Resizers ---
+
+  // A. Horizontal Splitter (Upper Row vs Timeline)
+  const splitH = document.getElementById('desktop-split-horizontal');
+  if (splitH) {
+    let isDraggingH = false;
+
+    splitH.addEventListener('pointerdown', (e) => {
+      isDraggingH = true;
+      splitH.classList.add('is-dragging');
+      viewport.classList.add('is-resizing');
+      splitH.setPointerCapture(e.pointerId);
+      document.body.style.cursor = 'row-resize';
+      e.preventDefault();
+    });
+
+    splitH.addEventListener('pointermove', (e) => {
+      if (!isDraggingH) return;
+      const rect = viewport.getBoundingClientRect();
+      const headerH = 36;
+      const splitterH = 5;
+      const minTimelineH = 160; // Timeline must always have at least 160px visible
+      const minUpperH = 200;    // Upper panels need at least 200px
+      const totalH = rect.height - headerH;
+      const topOffset = e.clientY - rect.top - headerH;
+
+      // Clamp strictly in pixels so timeline never collapes or gets pushed off screen
+      const maxUpperH = Math.max(minUpperH, totalH - minTimelineH - splitterH);
+      const clampedTopOffset = Math.max(minUpperH, Math.min(maxUpperH, topOffset));
+      const percent = ((clampedTopOffset / totalH) * 100).toFixed(2) + '%';
+
+      viewport.style.setProperty('--desktop-upper-height', percent);
+      try {
+        localStorage.setItem('oft_desktop_upper_height', percent);
+      } catch (_) {}
+      syncLayout();
+    });
+
+    function stopH(e) {
+      if (!isDraggingH) return;
+      isDraggingH = false;
+      splitH.classList.remove('is-dragging');
+      viewport.classList.remove('is-resizing');
+      try { splitH.releasePointerCapture(e.pointerId); } catch (_) {}
+      document.body.style.cursor = '';
+      syncLayout();
+    }
+
+    splitH.addEventListener('pointerup', stopH);
+    splitH.addEventListener('pointercancel', stopH);
+  }
+
+  // B. Left Vertical Splitter (Left Media Panel vs Preview)
+  const splitLeft = document.getElementById('desktop-split-left');
+  if (splitLeft) {
+    let isDraggingLeft = false;
+
+    splitLeft.addEventListener('pointerdown', (e) => {
+      isDraggingLeft = true;
+      splitLeft.classList.add('is-dragging');
+      viewport.classList.add('is-resizing');
+      splitLeft.setPointerCapture(e.pointerId);
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    splitLeft.addEventListener('pointermove', (e) => {
+      if (!isDraggingLeft) return;
+      const rect = viewport.getBoundingClientRect();
+      let px = e.clientX - rect.left;
+
+      // Clamp between 220px and 460px
+      px = Math.max(220, Math.min(460, px));
+      const val = Math.round(px) + 'px';
+      viewport.style.setProperty('--desktop-left-width', val);
+      try {
+        localStorage.setItem('oft_desktop_left_width', val);
+      } catch (_) {}
+      syncLayout();
+    });
+
+    function stopLeft(e) {
+      if (!isDraggingLeft) return;
+      isDraggingLeft = false;
+      splitLeft.classList.remove('is-dragging');
+      viewport.classList.remove('is-resizing');
+      try { splitLeft.releasePointerCapture(e.pointerId); } catch (_) {}
+      document.body.style.cursor = '';
+      syncLayout();
+    }
+
+    splitLeft.addEventListener('pointerup', stopLeft);
+    splitLeft.addEventListener('pointercancel', stopLeft);
+  }
+
+  // C. Extension Vertical Splitter (Preview vs FishTools CEP Extension Panel)
+  const splitExt = document.getElementById('desktop-split-extension');
+  if (splitExt) {
+    let isDraggingExt = false;
+
+    splitExt.addEventListener('pointerdown', (e) => {
+      isDraggingExt = true;
+      splitExt.classList.add('is-dragging');
+      viewport.classList.add('is-resizing');
+      splitExt.setPointerCapture(e.pointerId);
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    splitExt.addEventListener('pointermove', (e) => {
+      if (!isDraggingExt) return;
+      const rect = viewport.getBoundingClientRect();
+      const inspectorEl = document.getElementById('desktop-panel-inspector');
+      const inspectorW = inspectorEl ? inspectorEl.getBoundingClientRect().width : 320;
+      let px = (rect.right - e.clientX) - inspectorW - 5;
+
+      // Clamp between 220px and 600px
+      px = Math.max(220, Math.min(600, px));
+      const val = Math.round(px) + 'px';
+      viewport.style.setProperty('--desktop-extension-width', val);
+      try {
+        localStorage.setItem('oft_desktop_extension_width', val);
+      } catch (_) {}
+      syncLayout();
+    });
+
+    function stopExt(e) {
+      if (!isDraggingExt) return;
+      isDraggingExt = false;
+      splitExt.classList.remove('is-dragging');
+      viewport.classList.remove('is-resizing');
+      try { splitExt.releasePointerCapture(e.pointerId); } catch (_) {}
+      document.body.style.cursor = '';
+      syncLayout();
+    }
+
+    splitExt.addEventListener('pointerup', stopExt);
+    splitExt.addEventListener('pointercancel', stopExt);
+  }
+
+  // D. Right Vertical Splitter (Preview/Extension vs Right Inspector Panel)
+  const splitRight = document.getElementById('desktop-split-right');
+  if (splitRight) {
+    let isDraggingRight = false;
+
+    splitRight.addEventListener('pointerdown', (e) => {
+      isDraggingRight = true;
+      splitRight.classList.add('is-dragging');
+      viewport.classList.add('is-resizing');
+      splitRight.setPointerCapture(e.pointerId);
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    splitRight.addEventListener('pointermove', (e) => {
+      if (!isDraggingRight) return;
+      const rect = viewport.getBoundingClientRect();
+      let px = rect.right - e.clientX;
+
+      // Clamp between 260px and 500px
+      px = Math.max(260, Math.min(500, px));
+      const val = Math.round(px) + 'px';
+      viewport.style.setProperty('--desktop-right-width', val);
+      try {
+        localStorage.setItem('oft_desktop_right_width', val);
+      } catch (_) {}
+      syncLayout();
+    });
+
+    function stopRight(e) {
+      if (!isDraggingRight) return;
+      isDraggingRight = false;
+      splitRight.classList.remove('is-dragging');
+      viewport.classList.remove('is-resizing');
+      try { splitRight.releasePointerCapture(e.pointerId); } catch (_) {}
+      document.body.style.cursor = '';
+      syncLayout();
+    }
+
+    splitRight.addEventListener('pointerup', stopRight);
+    splitRight.addEventListener('pointercancel', stopRight);
+  }
+
+  // Window resize handler — debounced (100ms) to prevent per-pixel layout thrash during window drag
+  let _resizeDebounceTimer = null;
+  window.addEventListener('resize', () => {
+    if (_resizeDebounceTimer) return;
+    _resizeDebounceTimer = setTimeout(() => {
+      _resizeDebounceTimer = null;
+      syncLayout();
+    }, 100);
+  }, { passive: true });
+
+  // --- 3. Left Panel Category Tab Controller ---
+  function initLeftPanelTabs() {
+    const catSwitch = document.querySelector('.add-layer-categories-switch');
+    if (!catSwitch) return;
+
+    const mediaPool = document.getElementById('add-layer-media-pool');
+    const controlPanel = document.getElementById('add-layer-control-panel');
+    const shapePanel = document.getElementById('add-layer-shape-panel');
+    const textPanel = document.getElementById('add-layer-text-panel');
+
+    function switchCategory(category) {
+      catSwitch.querySelectorAll('.segmented-switch-item').forEach((item) => {
+        const cat = item.dataset.category || item.dataset.value;
+        const isMatch = (cat === category);
+        item.classList.toggle('is-active', isMatch);
+        item.classList.toggle('is-selected', isMatch);
+        item.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+      });
+
+      if (mediaPool) mediaPool.style.display = (category === 'media') ? '' : 'none';
+      if (controlPanel) controlPanel.style.display = (category === 'control') ? '' : 'none';
+      if (shapePanel) shapePanel.style.display = (category === 'shape') ? '' : 'none';
+      if (textPanel) textPanel.style.display = (category === 'text') ? '' : 'none';
+
+      if (category === 'media' && typeof window.renderProjectMediaGrid === 'function') {
+        window.renderProjectMediaGrid();
+      }
+      if (category === 'text' && typeof window.renderTextPresetsGrid === 'function') {
+        window.renderTextPresetsGrid();
+      }
+    }
+
+    catSwitch.addEventListener('click', (e) => {
+      const item = e.target.closest('.segmented-switch-item');
+      if (item) {
+        const cat = item.dataset.category || item.dataset.value || 'media';
+        switchCategory(cat);
+      }
+    });
+
+    // Default to shape or media
+    switchCategory('media');
+  }
+
+  // --- 4. Inspector State Synchronization ---
+  const headerNavLayer = document.getElementById('header-nav-layer');
+  const inspectorEmpty = document.getElementById('desktop-inspector-empty');
+  const layerDrawer = document.getElementById('timeline-layer-drawer');
+  const inspectorTitle = document.getElementById('desktop-inspector-title');
+  const inspectorPanel = document.getElementById('desktop-panel-inspector');
+
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('testInspector')) {
+      window.mockInspectorActive = true;
+    }
+  } catch (_) {}
+
+  function setDesktopSelectedLayers(idSet, primaryId) {
+    const ids = Array.from(idSet || []);
+    if (ids.length === 0) {
+      deselectAllDesktopLayers();
+      return;
+    }
+
+    const firstId = (primaryId && ids.includes(primaryId)) ? primaryId : ids[0];
+
+    // Sync with editor.js's internal selection state
+    if (typeof window.selectTimelineLayer === 'function') {
+      window.selectTimelineLayer(firstId, false);
+      for (let i = 0; i < ids.length; i++) {
+        if (ids[i] !== firstId) {
+          window.selectTimelineLayer(ids[i], true);
+        }
+      }
+    }
+
+    window.selectedLayerId = firstId;
+    window.lastSelectedLayerId = firstId;
+    if (!window.selectedLayerIds) window.selectedLayerIds = new Set();
+    window.selectedLayerIds.clear();
+    ids.forEach(id => window.selectedLayerIds.add(id));
+    window.isSelectorMode = (ids.length > 1);
+
+    if (typeof window.updateEditorHeaderMode === 'function') {
+      window.updateEditorHeaderMode();
+    }
+    if (typeof window.syncSelectionClassesInPlace === 'function') {
+      window.syncSelectionClassesInPlace();
+    }
+    syncInspectorState();
+    if (typeof window.redrawComposition === 'function') {
+      window.redrawComposition();
+    }
+  }
+  window.setDesktopSelectedLayers = setDesktopSelectedLayers;
+
+  function deselectAllDesktopLayers() {
+    // 1. Call editor.js deselect first while selectedLayerId is still known
+    if (typeof window.deselectTimelineLayer === 'function') {
+      try { window.deselectTimelineLayer(); } catch (_) {}
+    }
+
+    // 2. Explicitly ensure all global desktop flags and states are reset
+    window.mockInspectorActive = false;
+    window._mockInspectorDismissed = true;
+    window.isSelectorMode = false;
+    window.selectedLayerId = null;
+    if (window.selectedLayerIds) {
+      window.selectedLayerIds.clear();
+    } else {
+      window.selectedLayerIds = new Set();
+    }
+    window.lastSelectedLayerId = null;
+    window.selectedMediaId = null;
+    window.activeKeyframeProperty = null;
+
+    if (typeof window.clearSelectedKeyframes === 'function') {
+      try { window.clearSelectedKeyframes(); } catch (_) {}
+    }
+
+    if (window.Drawer && window.Drawer.isOpen('timeline-layer-drawer')) {
+      try { window.Drawer.close(false); } catch (_) {}
+    }
+
+    if (window.Popover && typeof window.Popover.close === 'function') {
+      try { window.Popover.close(); } catch (_) {}
+    }
+
+    const projectNav = document.getElementById('header-nav-project');
+    const layerNav = document.getElementById('header-nav-layer');
+    const leftBatchActions = document.getElementById('editor-layer-batch-actions');
+    if (leftBatchActions) leftBatchActions.style.display = 'none';
+    if (layerNav) layerNav.style.display = 'none';
+    if (projectNav) projectNav.style.display = 'flex';
+
+    document.querySelectorAll('.timeline-lane-pill-slot.is-focused, .timeline-lane-pill-slot.is-selected').forEach(s => {
+      s.classList.remove('is-focused', 'is-selected');
+    });
+    document.querySelectorAll('.timeline-layer-ctrl-pill.is-selected, .timeline-layer-ctrl-pill.is-focused').forEach(p => {
+      p.classList.remove('is-selected', 'is-focused');
+    });
+    document.querySelectorAll('.timeline-clip-block.is-selected').forEach(c => {
+      c.classList.remove('is-selected');
+    });
+
+    const overlay = document.getElementById('timeline-lane-heads-overlay');
+    if (overlay) overlay.classList.remove('is-selector-mode');
+    const vp = document.getElementById('timeline-layers-viewport');
+    if (vp) vp.classList.remove('is-selector-mode', 'has-drawer-open');
+    const tl = document.getElementById('main-editor-timeline');
+    if (tl) tl.classList.remove('has-layer-drawer-open');
+
+    if (typeof window.syncSelectionClassesInPlace === 'function') {
+      try { window.syncSelectionClassesInPlace(); } catch (_) {}
+    }
+    if (typeof window.updateEditorHeaderMode === 'function') {
+      try { window.updateEditorHeaderMode(); } catch (_) {}
+    }
+    syncInspectorState();
+    if (typeof window.redrawComposition === 'function') {
+      try { window.redrawComposition(); } catch (_) {}
+    }
+  }
+  window.deselectAllDesktopLayers = deselectAllDesktopLayers;
+
+  function syncInspectorState() {
+    const hasActiveLayer = !!(
+      (!window._mockInspectorDismissed && window.mockInspectorActive) ||
+      (window.selectedLayerId && window.selectedLayerId !== '') ||
+      (window.selectedLayerIds && window.selectedLayerIds.size > 0)
+    );
+
+    if (inspectorPanel) {
+      inspectorPanel.classList.toggle('has-active-layer', hasActiveLayer);
+    }
+
+    if (hasActiveLayer) {
+      if (inspectorEmpty) inspectorEmpty.style.display = 'none';
+      if (layerDrawer) layerDrawer.style.display = 'flex';
+
+      if (window.mockInspectorActive) {
+        const mainView = document.getElementById('layer-drawer-main-view');
+        const transformView = document.getElementById('layer-drawer-transform-view');
+        const blendView = document.getElementById('layer-drawer-blend-view');
+        const graphView = document.getElementById('layer-drawer-graph-view');
+
+        const testMode = new URLSearchParams(window.location.search).get('testInspector');
+        if (testMode === 'blend') {
+          if (mainView) mainView.classList.remove('is-active');
+          if (blendView) blendView.classList.add('is-active');
+        } else if (testMode === 'graph') {
+          if (mainView) mainView.classList.remove('is-active');
+          if (graphView) graphView.classList.add('is-active');
+        } else if (testMode === 'transform') {
+          if (mainView) {
+            mainView.classList.remove('is-active');
+            mainView.style.display = 'none';
+          }
+          if (transformView) {
+            transformView.classList.add('is-active');
+            transformView.style.display = 'flex';
+          }
+        } else if (testMode === 'scale') {
+          if (mainView) {
+            mainView.classList.remove('is-active');
+            mainView.style.display = 'none';
+          }
+          if (transformView) {
+            transformView.classList.add('is-active');
+            transformView.style.display = 'flex';
+            const scaleBtn = transformView.querySelector('.transform-tool-btn[data-tool="scale"]');
+            if (scaleBtn) scaleBtn.click();
+          }
+        } else if (testMode === 'scale-unlinked') {
+          if (mainView) {
+            mainView.classList.remove('is-active');
+            mainView.style.display = 'none';
+          }
+          if (transformView) {
+            transformView.classList.add('is-active');
+            transformView.style.display = 'flex';
+            const scaleBtn = transformView.querySelector('.transform-tool-btn[data-tool="scale"]');
+            if (scaleBtn) scaleBtn.click();
+            const linkBtn = document.getElementById('btn-scale-link');
+            if (linkBtn) linkBtn.click();
+          }
+        }
+      }
+
+      // Sync Speed & Volume buttons in Inspector
+      const currentLayer = window.selectedLayerId
+        ? (window.currentProjectState && window.currentProjectState.layers || []).find(l => l.id === window.selectedLayerId)
+        : null;
+      const supportsSpeedVolume = !!(window.mockInspectorActive || (currentLayer && (currentLayer.type === 'video' || currentLayer.type === 'audio' || currentLayer.type === 'precomp')));
+      const btnSpeed = document.getElementById('btn-layer-speed');
+      const btnVolume = document.getElementById('btn-layer-volume');
+      if (btnSpeed) btnSpeed.style.display = supportsSpeedVolume ? 'inline-flex' : 'none';
+      if (btnVolume) btnVolume.style.display = supportsSpeedVolume ? 'inline-flex' : 'none';
+      if (typeof window.updateVolumeAndSpeedBtnState === 'function') {
+        window.updateVolumeAndSpeedBtnState(currentLayer);
+      }
+
+      const layerNameInput = document.getElementById('editor-layer-name-input');
+      const batchTitle = document.getElementById('editor-layer-batch-title');
+      let name = 'Selected';
+      if (batchTitle && batchTitle.style.display !== 'none' && batchTitle.textContent) {
+        name = batchTitle.textContent;
+      } else if (layerNameInput && layerNameInput.value) {
+        name = layerNameInput.value;
+      }
+      if (inspectorTitle) inspectorTitle.textContent = 'Inspector';
+    } else {
+      if (inspectorEmpty) {
+        inspectorEmpty.style.display = 'flex';
+      }
+      if (layerDrawer) layerDrawer.style.display = 'none';
+      if (inspectorTitle) inspectorTitle.textContent = 'Inspector';
+    }
+  }
+
+  // Observe headerNavLayer style changes (which toggles when a layer is selected/deselected)
+  if (headerNavLayer) {
+    const observer = new MutationObserver(() => {
+      syncInspectorState();
+    });
+    observer.observe(headerNavLayer, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+
+  // Also hook into deselect button
+  const deselectBtn = document.getElementById('btn-layer-header-back');
+  if (deselectBtn) {
+    deselectBtn.addEventListener('click', () => {
+      setTimeout(syncInspectorState, 50);
+    });
+  }
+
+  // Periodic safety check for selectedLayerId state changes (200ms polling, early-exit if unchanged)
+  let _lastInspectorHasLayer = null;
+  setInterval(() => {
+    const hasActiveLayer = !!(
+      (!window._mockInspectorDismissed && window.mockInspectorActive) ||
+      (window.selectedLayerId && window.selectedLayerId !== '') ||
+      (window.selectedLayerIds && window.selectedLayerIds.size > 0)
+    );
+    // Early-exit: skip DOM class check when state didn't change
+    if (hasActiveLayer === _lastInspectorHasLayer) return;
+    _lastInspectorHasLayer = hasActiveLayer;
+    if (inspectorPanel && inspectorPanel.classList.contains('has-active-layer') !== hasActiveLayer) {
+      syncInspectorState();
+    }
+  }, 200);
+
+  // --- 5. FishTools CEP Extension Panel Controller ---
+  let isExtensionInited = false;
+  function initDesktopFishToolsExtension() {
+    if (isExtensionInited) return;
+    const triggerBtn = document.getElementById('editor-btn-fishtool-trigger');
+    const extensionPanel = document.getElementById('desktop-panel-fishtool');
+    const extensionSplitter = document.getElementById('desktop-split-extension');
+    const bodyEl = document.getElementById('desktop-fishtools-body');
+    const loaderEl = document.getElementById('desktop-fishtools-loader');
+    const closeBtn = document.getElementById('desktop-fishtool-btn-close');
+    const reloadBtn = document.getElementById('desktop-fishtool-btn-reload');
+
+    if (!triggerBtn || !extensionPanel || !bodyEl) return;
+    isExtensionInited = true;
+
+    let isLoaded = false;
+    let iframe = null;
+
+    function openExtension() {
+      extensionPanel.style.display = 'flex';
+      if (extensionSplitter) extensionSplitter.style.display = 'flex';
+      triggerBtn.classList.add('is-active');
+      triggerBtn.setAttribute('aria-expanded', 'true');
+
+      if (!isLoaded) {
+        isLoaded = true;
+        loadIframe();
+      }
+
+      syncLayout();
+    }
+
+    function closeExtension() {
+      extensionPanel.style.display = 'none';
+      if (extensionSplitter) extensionSplitter.style.display = 'none';
+      triggerBtn.classList.remove('is-active');
+      triggerBtn.setAttribute('aria-expanded', 'false');
+      syncLayout();
+    }
+
+    function toggleExtension() {
+      const isOpen = extensionPanel.style.display !== 'none' && extensionPanel.style.display !== '';
+      if (isOpen) {
+        closeExtension();
+      } else {
+        openExtension();
+      }
+    }
+    window.toggleDesktopFishTools = toggleExtension;
+
+    function loadIframe() {
+      if (loaderEl) loaderEl.style.display = 'flex';
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.className = 'desktop-extension-frame';
+        iframe.id = 'desktop-fishtools-frame';
+        iframe.title = 'FishTools Extension';
+        bodyEl.appendChild(iframe);
+      }
+
+      function mount() {
+        if (window.FishToolsAdapter && typeof window.FishToolsAdapter.loadIntoIframe === 'function') {
+          window.FishToolsAdapter.loadIntoIframe(iframe, loaderEl);
+        }
+      }
+
+      if (window.FishToolsAdapter) {
+        mount();
+      } else {
+        const checkAdapter = setInterval(() => {
+          if (window.FishToolsAdapter) {
+            clearInterval(checkAdapter);
+            mount();
+          }
+        }, 100);
+        setTimeout(() => clearInterval(checkAdapter), 5000);
+      }
+    }
+
+    // Intercept click on FishTool trigger button in timeline toolbar
+    triggerBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleExtension();
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeExtension();
+      });
+    }
+
+    if (reloadBtn) {
+      reloadBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (iframe && window.FishToolsAdapter) {
+          if (loaderEl) loaderEl.style.display = 'flex';
+          window.FishToolsAdapter.loadIntoIframe(iframe, loaderEl);
+        }
+      });
+    }
+
+    // Auto-open if query param ?fishtools=open is provided
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('fishtools') === 'open') {
+        openExtension();
+      }
+    } catch (_) {}
+  }
+
+  // --- 6. Desktop Pro NLE Timeline Controller ---
+  function initDesktopTimeline() {
+    const layersViewport = document.getElementById('timeline-layers-viewport');
+    const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
+    if (!layersViewport || !overlayContainer) return;
+
+    // Reorder indicator line
+    let indicator = layersViewport.querySelector('.desktop-reorder-indicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'desktop-reorder-indicator';
+      layersViewport.appendChild(indicator);
+    }
+
+    function enhanceLaneHeads() {
+      const slots = Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot'));
+      const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+
+      slots.forEach((slot, slotIdx) => {
+        const pill = slot.querySelector('.timeline-layer-ctrl-pill');
+        if (!pill) return;
+
+        const layerId = slot.dataset.layerId || pill.dataset.layerId;
+        const layer = layers.find(l => l.id === layerId) || layers[slotIdx];
+
+        const layerType = layer ? layer.type : 'video';
+        const layerName = layer ? layer.name : (pill.title ? pill.title.split(' - ')[0] : 'Layer');
+
+        // Layer type indicator bar
+        let dot = pill.querySelector('.desktop-layer-type-dot');
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = `desktop-layer-type-dot type-${layerType}`;
+          const eyeBtn = pill.querySelector('.timeline-layer-eye-btn');
+          if (eyeBtn) {
+            pill.insertBefore(dot, eyeBtn);
+          } else {
+            pill.prepend(dot);
+          }
+        } else {
+          dot.className = `desktop-layer-type-dot type-${layerType}`;
+        }
+
+        // Layer Name Label
+        let nameEl = pill.querySelector('.desktop-layer-name-text');
+        if (!nameEl) {
+          nameEl = document.createElement('span');
+          nameEl.className = 'desktop-layer-name-text';
+          nameEl.textContent = layerName;
+          nameEl.title = layerName;
+          pill.appendChild(nameEl);
+        } else if (nameEl.textContent !== layerName) {
+          nameEl.textContent = layerName;
+          nameEl.title = layerName;
+        }
+
+        // Attach desktop drag reorder to pill if not attached
+        if (!pill._desktopDragBound) {
+          pill._desktopDragBound = true;
+
+          let startX = 0;
+          let startY = 0;
+          let isDragging = false;
+          let dragGhost = null;
+          let fromIdx = -1;
+          let targetDropIdx = -1;
+
+          let _layerDragRafPending = false;
+          let _layerDragLastE = null;
+          function onPointerMove(e) {
+            const distY = e.clientY - startY;
+            if (!isDragging && Math.abs(distY) > 4) {
+              isDragging = true;
+              pill.classList.add('is-dragging');
+
+              dragGhost = document.createElement('div');
+              dragGhost.className = 'desktop-drag-ghost-row';
+              dragGhost.textContent = layerName;
+              document.body.appendChild(dragGhost);
+
+              fromIdx = (window.currentProjectState && window.currentProjectState.layers)
+                ? window.currentProjectState.layers.findIndex(l => l.id === layerId)
+                : slotIdx;
+
+              indicator.style.display = 'block';
+            }
+
+            if (isDragging && dragGhost) {
+              // rAF-throttle: cap DOM reads/writes at display refresh rate (not every raw pointer event)
+              _layerDragLastE = e;
+              if (_layerDragRafPending) return;
+              _layerDragRafPending = true;
+              requestAnimationFrame(() => {
+                _layerDragRafPending = false;
+                const ev = _layerDragLastE;
+                if (!ev || !isDragging || !dragGhost) return;
+
+                dragGhost.style.left = (ev.clientX + 10) + 'px';
+                dragGhost.style.top = (ev.clientY - 17) + 'px';
+
+                const curSlots = Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot'));
+                let dropIdx = curSlots.length;
+
+                for (let i = 0; i < curSlots.length; i++) {
+                  const rect = curSlots[i].getBoundingClientRect();
+                  const mid = rect.top + rect.height / 2;
+                  if (ev.clientY < mid) {
+                    dropIdx = i;
+                    break;
+                  }
+                }
+
+                targetDropIdx = dropIdx;
+
+                const vpRect = layersViewport.getBoundingClientRect();
+                if (dropIdx < curSlots.length) {
+                  const targetSlotRect = curSlots[dropIdx].getBoundingClientRect();
+                  indicator.style.top = (targetSlotRect.top - vpRect.top + layersViewport.scrollTop) + 'px';
+                } else if (curSlots.length > 0) {
+                  const lastSlotRect = curSlots[curSlots.length - 1].getBoundingClientRect();
+                  indicator.style.top = (lastSlotRect.bottom - vpRect.top + layersViewport.scrollTop) + 'px';
+                }
+              });
+            }
+          }
+
+          function onPointerUp(e) {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+
+            try { pill.releasePointerCapture(e.pointerId); } catch (_) {}
+
+            pill.classList.remove('is-dragging');
+            indicator.style.display = 'none';
+
+            if (dragGhost) {
+              dragGhost.remove();
+              dragGhost = null;
+            }
+
+            if (isDragging) {
+              isDragging = false;
+              e.stopPropagation();
+              e.preventDefault();
+
+              if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
+                let actualFrom = fromIdx;
+                let actualTo = targetDropIdx;
+                if (actualFrom >= 0 && actualTo >= 0 && actualFrom !== actualTo) {
+                  if (actualFrom < actualTo) actualTo--;
+                  if (actualFrom !== actualTo) {
+                    const moved = window.currentProjectState.layers.splice(actualFrom, 1)[0];
+                    window.currentProjectState.layers.splice(actualTo, 0, moved);
+                    if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+                      window.invalidatePreviewCacheForLayer(moved);
+                    }
+                    if (typeof window.saveCurrentProjectLayers === 'function') {
+                      window.saveCurrentProjectLayers();
+                    }
+                    if (typeof window.renderTimelineLayers === 'function') {
+                      window.renderTimelineLayers();
+                    }
+                    if (typeof window.redrawComposition === 'function') {
+                      window.redrawComposition();
+                    }
+                  }
+                }
+              }
+            } else {
+              // Click / Tap on layer row without vertical reorder: Desktop AE Selection!
+              e.stopPropagation();
+              e.preventDefault();
+
+              const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+              const targetId = layerId;
+
+              if (e.shiftKey) {
+                // Shift-click: Range select
+                const anchorId = window.lastSelectedLayerId || window.selectedLayerId || targetId;
+                const idx1 = currentLayers.findIndex(l => l.id === anchorId);
+                const idx2 = currentLayers.findIndex(l => l.id === targetId);
+                const newSet = new Set(window.selectedLayerIds || []);
+                if (idx1 !== -1 && idx2 !== -1) {
+                  const minI = Math.min(idx1, idx2);
+                  const maxI = Math.max(idx1, idx2);
+                  for (let i = minI; i <= maxI; i++) {
+                    newSet.add(currentLayers[i].id);
+                  }
+                } else {
+                  newSet.add(targetId);
+                }
+                setDesktopSelectedLayers(newSet, targetId);
+              } else if (e.ctrlKey || e.metaKey) {
+                // Ctrl / Cmd-click: Toggle select
+                const newSet = new Set(window.selectedLayerIds || []);
+                if (newSet.has(targetId)) {
+                  newSet.delete(targetId);
+                  const nextActive = newSet.size > 0 ? Array.from(newSet)[newSet.size - 1] : null;
+                  setDesktopSelectedLayers(newSet, nextActive);
+                } else {
+                  newSet.add(targetId);
+                  setDesktopSelectedLayers(newSet, targetId);
+                }
+              } else {
+                // Plain click: Single select
+                setDesktopSelectedLayers(new Set([targetId]), targetId);
+              }
+            }
+          }
+
+          pill.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.timeline-layer-eye-btn')) {
+              return;
+            }
+            // Stop editor.js mobile hold timer from starting!
+            e.stopImmediatePropagation();
+
+            if (e.button !== undefined && e.button !== 0) return;
+            startY = e.clientY;
+            startX = e.clientX;
+            isDragging = false;
+            try { pill.setPointerCapture(e.pointerId); } catch (_) {}
+            window.addEventListener('pointermove', onPointerMove, { passive: false });
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerUp);
+          }, true);
+        }
+      });
+    }
+
+    let _enhanceRaf = null;
+    const observer = new MutationObserver(() => {
+      if (_enhanceRaf) return;
+      _enhanceRaf = requestAnimationFrame(() => {
+        _enhanceRaf = null;
+        enhanceLaneHeads();
+      });
+    });
+    observer.observe(overlayContainer, { childList: true, subtree: true });
+
+
+    enhanceLaneHeads();
+  }
+
+  // --- 7. AE-Style Left-Anchored Timeline Engine ---
+  let isLeftTimelineInited = false;
+  function patchDesktopLeftTimeline() {
+    if (isLeftTimelineInited) return;
+    const rulerTrack = document.getElementById('timeline-ruler-track');
+    const layersTrack = document.getElementById('timeline-layers-track');
+    const rulerViewport = document.getElementById('timeline-ruler-viewport');
+    const layersViewport = document.getElementById('timeline-layers-viewport');
+    const needle = document.getElementById('timeline-center-needle');
+    if (!rulerTrack || !layersTrack || !needle) return;
+    isLeftTimelineInited = true;
+
+    let desktopScrollX = 0;
+    const panelW = 160;
+
+    // Cache ruler viewport width to eliminate forced synchronous layout (layout thrashing) per frame
+    let _cachedViewW = rulerViewport ? rulerViewport.clientWidth : 800;
+    window.addEventListener('resize', () => {
+      if (rulerViewport) _cachedViewW = rulerViewport.clientWidth;
+    }, { passive: true });
+
+    let _lastSyncSec = -1;
+    let _lastSyncScrollX = -1;
+    function syncDesktopPlayhead() {
+      const pps = window.currentPixelsPerSecond || 80;
+      const curSec = (typeof window.getCurrentPlayheadTime === 'function')
+        ? window.getCurrentPlayheadTime()
+        : (window.currentPlaybackSec !== undefined ? window.currentPlaybackSec : (window.currentSec || 0));
+      const playheadX = curSec * pps;
+
+      // Auto-follow playhead during playback using cached viewport width (zero layout reads)
+      if (_cachedViewW > 0) {
+        if (playheadX - desktopScrollX > _cachedViewW - 30) {
+          desktopScrollX = Math.max(0, playheadX - 60);
+        } else if (playheadX < desktopScrollX) {
+          desktopScrollX = Math.max(0, playheadX - 30);
+        }
+      }
+
+      const scrollChanged = (desktopScrollX !== _lastSyncScrollX);
+      const playheadChanged = (Math.abs(curSec - _lastSyncSec) >= 0.0001);
+
+      if (!scrollChanged && !playheadChanged) return;
+      _lastSyncSec = curSec;
+      _lastSyncScrollX = desktopScrollX;
+
+      // 1. Direct GPU transform on playhead needle (ZERO :root recalc, ZERO full-page style thrashing)
+      needle.style.transform = `translate3d(${(panelW + playheadX - desktopScrollX).toFixed(2)}px, 0, 0)`;
+
+      // 2. Only update track transforms when horizontal scroll actually changed
+      if (scrollChanged) {
+        const scrollTransform = `translate3d(${(-desktopScrollX).toFixed(2)}px, 0, 0)`;
+        layersTrack.style.transform = scrollTransform;
+        rulerTrack.style.transform = scrollTransform;
+      }
+    }
+    window.syncDesktopPlayhead = syncDesktopPlayhead;
+
+    // Dedicated AE-style playhead playback loop (runs smoothly at 60fps on GPU without style recalc)
+    function loopDesktopPlayback() {
+      if (window.isTimelinePlaying) {
+        syncDesktopPlayhead();
+      }
+      requestAnimationFrame(loopDesktopPlayback);
+    }
+    requestAnimationFrame(loopDesktopPlayback);
+
+    const originalUpdatePos = window.updateTimelinePosition;
+    if (typeof originalUpdatePos === 'function' && !window._desktopUpdatePosPatched) {
+      window._desktopUpdatePosPatched = true;
+      window.updateTimelinePosition = function(newPanX, immediate) {
+        originalUpdatePos(newPanX, immediate);
+        syncDesktopPlayhead();
+      };
+    }
+
+    // Initial position sync
+    syncDesktopPlayhead();
+
+    function handleRulerSeek(clientX) {
+      if (!rulerViewport) return;
+      const rect = rulerViewport.getBoundingClientRect();
+      const clickX = clientX - rect.left;
+      const pps = window.currentPixelsPerSecond || 80;
+      const targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
+      const targetPanX = -targetSec * pps;
+      if (typeof window.updateTimelinePosition === 'function') {
+        window.updateTimelinePosition(targetPanX, true);
+      }
+      syncDesktopPlayhead();
+    }
+
+    if (rulerViewport) {
+      let isRulerSeeking = false;
+
+      rulerViewport.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        isRulerSeeking = true;
+        try { rulerViewport.setPointerCapture(e.pointerId); } catch (_) {}
+        handleRulerSeek(e.clientX);
+        e.stopPropagation();
+      }, true);
+
+      rulerViewport.addEventListener('pointermove', (e) => {
+        if (!isRulerSeeking) return;
+        handleRulerSeek(e.clientX);
+        e.stopPropagation();
+      }, true);
+
+      function stopRulerSeek(e) {
+        if (!isRulerSeeking) return;
+        isRulerSeeking = false;
+        try { rulerViewport.releasePointerCapture(e.pointerId); } catch (_) {}
+        e.stopPropagation();
+      }
+
+      rulerViewport.addEventListener('pointerup', stopRulerSeek, true);
+      rulerViewport.addEventListener('pointercancel', stopRulerSeek, true);
+
+      const handleWheelScroll = (e) => {
+        if (e.ctrlKey) return;
+        const dx = e.deltaX !== 0 ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+        if (dx !== 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          const pps = window.currentPixelsPerSecond || 80;
+          const durSec = (window.currentProjectState && window.currentProjectState.duration) || 30;
+          const totalContentW = durSec * pps;
+          const viewW = rulerViewport ? rulerViewport.clientWidth : 800;
+          const maxScrollX = Math.max(0, totalContentW - viewW + 160);
+          desktopScrollX = Math.max(0, Math.min(maxScrollX, desktopScrollX + dx));
+          syncDesktopPlayhead();
+        }
+      };
+
+      rulerViewport.addEventListener('wheel', handleWheelScroll, { passive: false, capture: true });
+
+      if (layersViewport) {
+        layersViewport.addEventListener('wheel', (e) => {
+          if (e.ctrlKey) return;
+
+          // 1. Horizontal trackpad scroll or Shift+Wheel: AE horizontal timeline panning
+          if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+            handleWheelScroll(e);
+            return;
+          }
+
+          // 2. Vertical Wheel: Strictly bounded to track content (NEVER penetrate down or disappear)
+          const maxScrollY = Math.max(0, layersTrack.scrollHeight - layersViewport.clientHeight);
+          if (maxScrollY <= 0) {
+            // All layers fit in viewport: strictly lock vertical scroll at 0 (zero penetration)
+            e.preventDefault();
+            if (layersViewport.scrollTop !== 0) layersViewport.scrollTop = 0;
+            return;
+          }
+
+          const targetTop = layersViewport.scrollTop + e.deltaY;
+          if (targetTop <= 0 || targetTop >= maxScrollY) {
+            e.preventDefault();
+            layersViewport.scrollTop = Math.max(0, Math.min(maxScrollY, targetTop));
+          }
+        }, { passive: false, capture: true });
+
+        layersViewport.addEventListener('scroll', () => {
+          const maxScrollY = Math.max(0, layersTrack.scrollHeight - layersViewport.clientHeight);
+          if (layersViewport.scrollTop > maxScrollY) {
+            layersViewport.scrollTop = maxScrollY;
+          }
+          if (layersViewport.scrollLeft !== 0) {
+            layersViewport.scrollLeft = 0;
+          }
+        }, { passive: false });
+      }
+    }
+
+    let isNeedleDragging = false;
+    needle.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      isNeedleDragging = true;
+      try { needle.setPointerCapture(e.pointerId); } catch (_) {}
+      e.stopPropagation();
+    });
+
+    needle.addEventListener('pointermove', (e) => {
+      if (!isNeedleDragging) return;
+      handleRulerSeek(e.clientX);
+      e.stopPropagation();
+    });
+
+    function stopNeedleDrag(e) {
+      if (!isNeedleDragging) return;
+      isNeedleDragging = false;
+      try { needle.releasePointerCapture(e.pointerId); } catch (_) {}
+      e.stopPropagation();
+    }
+
+    needle.addEventListener('pointerup', stopNeedleDrag);
+    needle.addEventListener('pointercancel', stopNeedleDrag);
+  }
+
+  // --- 8. Desktop AE-Style Clip Drag & Move Engine ---
+  let isClipDragInited = false;
+  function initDesktopClipDragEngine() {
+    if (isClipDragInited) return;
+    const layersViewport = document.getElementById('timeline-layers-viewport');
+    if (!layersViewport) return;
+    isClipDragInited = true;
+
+    layersViewport.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+
+      if (window.Popover && typeof window.Popover.close === 'function') {
+        const activePop = document.querySelector('.popover-card.is-open');
+        if (activePop && !activePop.contains(e.target)) {
+          window.Popover.close();
+        }
+      }
+
+      const clipEl = e.target.closest('.timeline-clip-block');
+      if (!clipEl) return;
+
+      // DO NOT intercept trim handles or keyframe markers
+      if (
+        e.target.closest('.timeline-clip-handle') ||
+        e.target.closest('.timeline-keyframe-marker') ||
+        e.target.closest('.text-anim-marker')
+      ) {
+        return;
+      }
+
+      // CRITICAL: Stop editor.js onClipPointerDown so it NEVER triggers mobile timeline panning!
+      e.stopImmediatePropagation();
+
+      const layerId = clipEl.dataset.layerId;
+      const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+      const primaryLayer = currentLayers.find(l => l.id === layerId);
+      if (!primaryLayer) return;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const pointerId = e.pointerId;
+      let isDragging = false;
+
+      // Determine moving layers: if clicked layer is already part of multi-selection, move all together
+      const isSelected = (window.selectedLayerIds && window.selectedLayerIds.has(layerId)) || (window.selectedLayerId === layerId);
+      let movingLayers = [];
+
+      if (isSelected && window.selectedLayerIds && window.selectedLayerIds.size > 1) {
+        movingLayers = currentLayers.filter(l => window.selectedLayerIds.has(l.id));
+      } else {
+        movingLayers = [primaryLayer];
+      }
+
+      const pps = window.currentPixelsPerSecond || 80;
+
+      // Record initial state for each moving layer
+      const layerSnapshots = movingLayers.map(l => {
+        const initPx = l.startPx || 0;
+        const initSec = l.startSec !== undefined ? l.startSec : (initPx / pps);
+        const durSec = l.durationSec !== undefined ? l.durationSec : ((l.widthPx || 320) / pps);
+        const el = document.querySelector(`.timeline-clip-block[data-layer-id="${l.id}"]`);
+        return {
+          layer: l,
+          clipEl: el,
+          initialStartPx: initPx,
+          initialStartSec: initSec,
+          durationSec: durSec,
+          initialKeyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : null
+        };
+      });
+
+      let _clipDragRafPending = false;
+      let _clipDragLastEvent = null;
+      let _clipDragLastDx = 0;
+      function onPointerMove(moveEvent) {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        const dist = Math.hypot(dx, dy);
+
+        if (!isDragging && dist > 3) {
+          isDragging = true;
+          window.isTransformInteracting = true;
+          try { clipEl.setPointerCapture(pointerId); } catch (_) {}
+          layerSnapshots.forEach(s => {
+            if (s.clipEl) {
+              s.clipEl.classList.add('is-sliding');
+            }
+          });
+        }
+
+        if (isDragging) {
+          moveEvent.preventDefault();
+          // rAF-throttle: snap calculation + style writes capped at display refresh rate
+          _clipDragLastDx = dx;
+          _clipDragLastEvent = moveEvent;
+          if (_clipDragRafPending) return;
+          _clipDragRafPending = true;
+          requestAnimationFrame(() => {
+            _clipDragRafPending = false;
+            if (!isDragging) return;
+            const curDx = _clipDragLastDx;
+
+            // Calculate proposed delta
+            const minInitialPx = Math.min(...layerSnapshots.map(s => s.initialStartPx));
+            const clampedDeltaX = Math.max(-minInitialPx, curDx);
+
+            const primarySnapshot = layerSnapshots.find(s => s.layer.id === primaryLayer.id);
+            const primaryInitPx = primarySnapshot ? primarySnapshot.initialStartPx : 0;
+            let targetPrimaryPx = Math.max(0, primaryInitPx + clampedDeltaX);
+            const primaryDurPx = primaryLayer.widthPx || Math.round((primaryLayer.durationSec || 5) * pps);
+            const primaryEndPx = targetPrimaryPx + primaryDurPx;
+
+            // Snapping
+            let finalDeltaPx = clampedDeltaX;
+            if (typeof window.getTimelineSnapTargets === 'function' && typeof window.findTimelineSnap === 'function') {
+              const movingIds = new Set(movingLayers.map(l => l.id));
+              const snapTargets = window.getTimelineSnapTargets(primaryLayer.id, true).filter(st => !movingIds.has(st.layerId));
+
+              const startSnap = window.findTimelineSnap(targetPrimaryPx, snapTargets, 10);
+              const endSnap = window.findTimelineSnap(primaryEndPx, snapTargets, 10);
+
+              let activeSnap = null;
+              if (startSnap && endSnap) {
+                activeSnap = Math.abs(targetPrimaryPx - startSnap.px) <= Math.abs(primaryEndPx - endSnap.px)
+                  ? { ...startSnap, snapEnd: false }
+                  : { ...endSnap, snapEnd: true };
+              } else if (startSnap) {
+                activeSnap = { ...startSnap, snapEnd: false };
+              } else if (endSnap) {
+                activeSnap = { ...endSnap, snapEnd: true };
+              }
+
+              if (activeSnap) {
+                const snapPos = activeSnap.snapEnd ? (activeSnap.px - primaryDurPx) : activeSnap.px;
+                targetPrimaryPx = Math.max(0, snapPos);
+                finalDeltaPx = targetPrimaryPx - primaryInitPx;
+                if (typeof window.showTimelineSnapGuide === 'function') {
+                  window.showTimelineSnapGuide(activeSnap.px);
+                }
+              } else {
+                if (typeof window.hideTimelineSnapGuide === 'function') {
+                  window.hideTimelineSnapGuide();
+                }
+              }
+            }
+
+            // Live visual update on all moving clip elements
+            layerSnapshots.forEach(s => {
+              const newPx = Math.max(0, Math.round(s.initialStartPx + finalDeltaPx));
+              s.layer.startPx = newPx;
+              s.layer.startSec = newPx / pps;
+              if (s.clipEl) {
+                s.clipEl.style.left = `${newPx}px`;
+              }
+            });
+          });
+        }
+      }
+
+      function onPointerUp(upEvent) {
+        window.removeEventListener('pointermove', onPointerMove, true);
+        window.removeEventListener('pointerup', onPointerUp, true);
+        window.removeEventListener('pointercancel', onPointerUp, true);
+
+        try { clipEl.releasePointerCapture(pointerId); } catch (_) {}
+
+        if (typeof window.hideTimelineSnapGuide === 'function') {
+          window.hideTimelineSnapGuide();
+        }
+
+        if (isDragging) {
+          isDragging = false;
+          window.isTransformInteracting = false;
+
+          layerSnapshots.forEach(s => {
+            if (s.clipEl) s.clipEl.classList.remove('is-sliding');
+          });
+
+          // Quantize to frame rate
+          const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+          layerSnapshots.forEach(s => {
+            s.layer.startSec = Math.round(s.layer.startSec * fps) / fps;
+            s.layer.startPx = Math.round(s.layer.startSec * pps);
+
+            // Shift keyframes if any
+            if (s.initialKeyframes && s.layer.keyframes) {
+              const deltaSec = s.layer.startSec - s.initialStartSec;
+              for (const [prop, kfs] of Object.entries(s.initialKeyframes)) {
+                if (Array.isArray(kfs) && Array.isArray(s.layer.keyframes[prop])) {
+                  kfs.forEach((initKf, idx) => {
+                    const curKf = s.layer.keyframes[prop][idx];
+                    if (curKf) {
+                      curKf.time = Number(Math.max(0, initKf.time + deltaSec).toFixed(4));
+                    }
+                  });
+                }
+              }
+            }
+
+            if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+              window.invalidatePreviewCacheForLayer(s.layer);
+            }
+          });
+
+          // Select primary layer if it wasn't selected
+          if (!isSelected) {
+            window.selectedLayerId = primaryLayer.id;
+            window.selectedLayerIds = new Set([primaryLayer.id]);
+            window.isSelectorMode = false;
+          }
+
+          if (typeof window.renderTimelineLayers === 'function') {
+            window.renderTimelineLayers();
+          }
+          if (typeof window.redrawComposition === 'function') {
+            window.redrawComposition();
+          }
+          if (typeof window.saveCurrentProjectLayers === 'function') {
+            window.saveCurrentProjectLayers();
+          }
+          if (typeof window.updateTimelineDuration === 'function') {
+            window.updateTimelineDuration(true);
+          }
+          syncInspectorState();
+        } else {
+          // Click/tap without drag: Desktop AE selection!
+          if (upEvent.shiftKey) {
+            const anchorId = window.lastSelectedLayerId || window.selectedLayerId || layerId;
+            const idx1 = currentLayers.findIndex(l => l.id === anchorId);
+            const idx2 = currentLayers.findIndex(l => l.id === layerId);
+            if (idx1 !== -1 && idx2 !== -1) {
+              const minI = Math.min(idx1, idx2);
+              const maxI = Math.max(idx1, idx2);
+              const newSet = new Set(window.selectedLayerIds || []);
+              for (let i = minI; i <= maxI; i++) newSet.add(currentLayers[i].id);
+              window.selectedLayerIds = newSet;
+              window.selectedLayerId = layerId;
+            } else {
+              window.selectedLayerIds = new Set([layerId]);
+              window.selectedLayerId = layerId;
+            }
+          } else if (upEvent.ctrlKey || upEvent.metaKey) {
+            if (!window.selectedLayerIds) window.selectedLayerIds = new Set();
+            if (window.selectedLayerIds.has(layerId)) {
+              window.selectedLayerIds.delete(layerId);
+              window.selectedLayerId = window.selectedLayerIds.size > 0 ? Array.from(window.selectedLayerIds)[window.selectedLayerIds.size - 1] : null;
+            } else {
+              window.selectedLayerIds.add(layerId);
+              window.selectedLayerId = layerId;
+            }
+          } else {
+            // Single select
+            if (typeof window.selectTimelineLayer === 'function') {
+              window.selectTimelineLayer(layerId, false);
+            } else {
+              window.selectedLayerIds = new Set([layerId]);
+              window.selectedLayerId = layerId;
+            }
+            window.lastSelectedLayerId = layerId;
+          }
+
+          const selCount = (window.selectedLayerIds && window.selectedLayerIds.size) || (window.selectedLayerId ? 1 : 0);
+          window.isSelectorMode = (selCount > 1);
+
+          if (typeof window.syncSelectionClassesInPlace === 'function') {
+            window.syncSelectionClassesInPlace();
+          }
+          if (typeof window.updateEditorHeaderMode === 'function') {
+            window.updateEditorHeaderMode();
+          }
+          syncInspectorState();
+          if (typeof window.redrawComposition === 'function') {
+            window.redrawComposition();
+          }
+        }
+      }
+
+      window.addEventListener('pointermove', onPointerMove, { passive: false, capture: true });
+      window.addEventListener('pointerup', onPointerUp, { capture: true });
+      window.addEventListener('pointercancel', onPointerUp, { capture: true });
+    }, true);
+
+    layersViewport.addEventListener('dblclick', (e) => {
+      const clipEl = e.target.closest('.timeline-clip-block');
+      if (!clipEl) return;
+      const layerId = clipEl.dataset.layerId;
+      const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+      const layer = currentLayers.find(l => l.id === layerId);
+      if (layer && layer.type === 'precomp' && typeof window.enterPrecompose === 'function') {
+        e.stopPropagation();
+        e.preventDefault();
+        window.enterPrecompose(layerId);
+      }
+    }, true);
+  }
+
+  // --- 9. Desktop Marquee Selection Engine (Drag empty space to multi-select) ---
+  let isMarqueeInited = false;
+  function initDesktopMarqueeSelection() {
+    if (isMarqueeInited) return;
+    const layersViewport = document.getElementById('timeline-layers-viewport');
+    if (!layersViewport) return;
+    isMarqueeInited = true;
+
+    let marqueeBox = layersViewport.querySelector('.desktop-timeline-marquee-box');
+    if (!marqueeBox) {
+      marqueeBox = document.createElement('div');
+      marqueeBox.className = 'desktop-timeline-marquee-box';
+      layersViewport.appendChild(marqueeBox);
+    }
+
+    let isMarquee = false;
+    let startClientX = 0;
+    let startClientY = 0;
+
+    layersViewport.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+
+      if (window.Popover && typeof window.Popover.close === 'function') {
+        const activePop = document.querySelector('.popover-card.is-open');
+        if (activePop && !activePop.contains(e.target)) {
+          window.Popover.close();
+        }
+      }
+
+      // Do NOT intercept if clicking on a clip, layer pill button, needle, or active dropzone
+      if (
+        e.target.closest('.timeline-clip-block') ||
+        e.target.closest('.timeline-layer-ctrl-pill') ||
+        e.target.closest('.timeline-center-needle') ||
+        (e.target.closest('.media-dropzone-split') && e.target.closest('.media-dropzone-split').classList.contains('is-active'))
+      ) {
+        return;
+      }
+
+      // Intercept so editor.js onPanStart does NOT pan the timeline!
+      e.stopImmediatePropagation();
+
+      startClientX = e.clientX;
+      startClientY = e.clientY;
+      isMarquee = false;
+
+      const vpRect = layersViewport.getBoundingClientRect();
+      const startBoxX = startClientX - vpRect.left + layersViewport.scrollLeft;
+      const startBoxY = startClientY - vpRect.top + layersViewport.scrollTop;
+
+      let _marqueeRafPending = false;
+      let _marqueeLastEvent = null;
+      function onPointerMove(moveEvent) {
+        const dx = moveEvent.clientX - startClientX;
+        const dy = moveEvent.clientY - startClientY;
+        const dist = Math.hypot(dx, dy);
+
+        if (!isMarquee && dist > 4) {
+          isMarquee = true;
+          marqueeBox.style.display = 'block';
+        }
+
+        if (isMarquee) {
+          // rAF-throttle: querySelectorAll + getBCR per clip is O(n) layout thrash — cap at display rate
+          _marqueeLastEvent = moveEvent;
+          if (_marqueeRafPending) return;
+          _marqueeRafPending = true;
+          requestAnimationFrame(() => {
+            _marqueeRafPending = false;
+            const ev = _marqueeLastEvent;
+            if (!ev || !isMarquee) return;
+
+            const curVpRect = layersViewport.getBoundingClientRect();
+            const curBoxX = ev.clientX - curVpRect.left + layersViewport.scrollLeft;
+            const curBoxY = ev.clientY - curVpRect.top + layersViewport.scrollTop;
+
+            const boxL = Math.min(startBoxX, curBoxX);
+            const boxT = Math.min(startBoxY, curBoxY);
+            const boxW = Math.abs(curBoxX - startBoxX);
+            const boxH = Math.abs(curBoxY - startBoxY);
+
+            marqueeBox.style.left = `${boxL}px`;
+            marqueeBox.style.top = `${boxT}px`;
+            marqueeBox.style.width = `${boxW}px`;
+            marqueeBox.style.height = `${boxH}px`;
+
+            // Live highlight candidate clips
+            const marqueeRect = {
+              left: Math.min(startClientX, ev.clientX),
+              top: Math.min(startClientY, ev.clientY),
+              right: Math.max(startClientX, ev.clientX),
+              bottom: Math.max(startClientY, ev.clientY)
+            };
+
+            const clips = layersViewport.querySelectorAll('.timeline-clip-block');
+            clips.forEach(clip => {
+              const cr = clip.getBoundingClientRect();
+              const intersects = !(
+                cr.right < marqueeRect.left ||
+                cr.left > marqueeRect.right ||
+                cr.bottom < marqueeRect.top ||
+                cr.top > marqueeRect.bottom
+              );
+              clip.classList.toggle('is-marquee-candidate', intersects);
+            });
+          });
+        }
+      }
+
+      function onPointerUp(upEvent) {
+        window.removeEventListener('pointermove', onPointerMove, true);
+        window.removeEventListener('pointerup', onPointerUp, true);
+        window.removeEventListener('pointercancel', onPointerUp, true);
+
+        if (isMarquee) {
+          isMarquee = false;
+          marqueeBox.style.display = 'none';
+
+          const marqueeRect = {
+            left: Math.min(startClientX, upEvent.clientX),
+            top: Math.min(startClientY, upEvent.clientY),
+            right: Math.max(startClientX, upEvent.clientX),
+            bottom: Math.max(startClientY, upEvent.clientY)
+          };
+
+          const matchedIds = new Set();
+          const clips = layersViewport.querySelectorAll('.timeline-clip-block');
+          clips.forEach(clip => {
+            clip.classList.remove('is-marquee-candidate');
+            const cr = clip.getBoundingClientRect();
+            const intersects = !(
+              cr.right < marqueeRect.left ||
+              cr.left > marqueeRect.right ||
+              cr.bottom < marqueeRect.top ||
+              cr.top > marqueeRect.bottom
+            );
+            if (intersects && clip.dataset.layerId) {
+              matchedIds.add(clip.dataset.layerId);
+            }
+          });
+
+          if (matchedIds.size > 0) {
+            setDesktopSelectedLayers(matchedIds, Array.from(matchedIds)[0]);
+          } else {
+            deselectAllDesktopLayers();
+          }
+        } else {
+          // Simple click without drag on canvas: do NOT deselect layers.
+          // Deselection is strictly scoped to empty space inside the timeline.
+        }
+      }
+
+      window.addEventListener('pointermove', onPointerMove, true);
+      window.addEventListener('pointerup', onPointerUp, true);
+      window.addEventListener('pointercancel', onPointerUp, true);
+    }, true);
+
+  }
+
+  // --- 9. Universal Desktop Empty Click & Escape Key Deselect ---
+  let isUniversalDeselectInited = false;
+  function initDesktopUniversalDeselect() {
+    if (isUniversalDeselectInited) return;
+    isUniversalDeselectInited = true;
+
+    let emptyClickStart = null;
+
+    // Universal capture-phase dismissal for Popovers when clicking anywhere outside
+    document.addEventListener('pointerdown', (e) => {
+      if (window.Popover && typeof window.Popover.close === 'function') {
+        const activePop = document.querySelector('.popover-card.is-open');
+        if (activePop && !activePop.contains(e.target)) {
+          const isTrigger = e.target.closest && e.target.closest('[data-popover-target]');
+          if (!isTrigger) {
+            window.Popover.close();
+          }
+        }
+      }
+    }, true);
+
+    document.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+
+      // Empty click deselect must strictly happen ONLY when clicking empty space inside the timeline layers viewport
+      const timelineViewport = document.getElementById('timeline-layers-viewport') || document.querySelector('.desktop-timeline-viewport');
+      const isInsideTimeline = timelineViewport && (timelineViewport === e.target || timelineViewport.contains(e.target));
+      if (!isInsideTimeline) {
+        emptyClickStart = null;
+        return;
+      }
+
+      const interactive = e.target.closest(
+        '.timeline-clip-block, ' +
+        '.timeline-layer-ctrl-pill, ' +
+        '.timeline-layer-eye-btn, ' +
+        '.timeline-layer-lock-btn, ' +
+        '.timeline-center-needle, ' +
+        '.timeline-needle-head, ' +
+        '.timeline-ruler-track, ' +
+        '.timeline-clip-handle, ' +
+        '.timeline-split-handle, ' +
+        '.desktop-split-handle, ' +
+        'button, ' +
+        'input, ' +
+        'select, ' +
+        'textarea, ' +
+        '[role="button"], ' +
+        '[role="slider"]'
+      );
+
+      if (!interactive) {
+        emptyClickStart = { x: e.clientX, y: e.clientY, time: Date.now() };
+      } else {
+        emptyClickStart = null;
+      }
+    }, true);
+
+    document.addEventListener('pointerup', (e) => {
+      if (!emptyClickStart) return;
+      const dx = Math.abs(e.clientX - emptyClickStart.x);
+      const dy = Math.abs(e.clientY - emptyClickStart.y);
+      const dt = Date.now() - emptyClickStart.time;
+      const wasClick = dx < 6 && dy < 6 && dt < 600;
+      emptyClickStart = null;
+
+      if (wasClick) {
+        const hasSelection = !!(
+          (window.selectedLayerId && window.selectedLayerId !== '') ||
+          (window.selectedLayerIds && window.selectedLayerIds.size > 0) ||
+          window.isSelectorMode ||
+          window.mockInspectorActive
+        );
+        if (hasSelection) {
+          deselectAllDesktopLayers();
+        }
+      }
+    }, true);
+
+    // Keyboard Shortcuts: Escape (Deselect) & Cmd+A / Ctrl+A (Select All)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const openModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop[style*="display: flex"], .modal-backdrop[style*="display: block"]');
+        if (openModal) return;
+
+        const hasSelection = !!(
+          (window.selectedLayerId && window.selectedLayerId !== '') ||
+          (window.selectedLayerIds && window.selectedLayerIds.size > 0) ||
+          window.isSelectorMode ||
+          window.mockInspectorActive
+        );
+        if (hasSelection) {
+          e.preventDefault();
+          deselectAllDesktopLayers();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        if (e.target && typeof e.target.closest === 'function' && e.target.closest('input, textarea, select, [contenteditable="true"]')) {
+          return;
+        }
+        const openModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop[style*="display: flex"], .modal-backdrop[style*="display: block"]');
+        if (openModal) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.selectAllTimelineLayers === 'function') {
+          window.selectAllTimelineLayers();
+        } else {
+          const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+          if (currentLayers.length > 0) {
+            setDesktopSelectedLayers(new Set(currentLayers.map(l => l.id)), currentLayers[0].id);
+          }
+        }
+      }
+    }, true);
+  }
+
+  function checkUrlTestParams() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('testInspector')) {
+        window.mockInspectorActive = true;
+        syncInspectorState();
+      }
+      if (urlParams.get('testDrop')) {
+        const type = urlParams.get('testDrop');
+        const overlay = document.getElementById('timeline-dropzone-split');
+        if (overlay) {
+          if (typeof overlay._renderOverlayMode === 'function') {
+            overlay._renderOverlayMode(type);
+          }
+          overlay.classList.add('is-active');
+          if (overlay.parentElement) {
+            overlay.parentElement.classList.add('has-dropzone-active');
+          }
+          if (urlParams.get('testHover')) {
+            const col = overlay.querySelector('.media-dropzone-col');
+            if (col) col.classList.add('is-hover');
+          }
+        }
+      }
+      if (urlParams.get('testMockLayers')) {
+        const applyMocks = () => {
+          if (window.currentProjectState && typeof window.renderTimelineLayers === 'function') {
+            window.currentProjectState.layers = [
+              {
+                id: 'layer_mock_1',
+                name: 'Rectangle 1',
+                type: 'shape',
+                shapeType: 'rectangle',
+                startPx: 0,
+                startSec: 0,
+                durationSec: 5,
+                widthPx: 400,
+                fillType: 'color',
+                fillColor: '#98ce7b'
+              },
+              {
+                id: 'layer_mock_2',
+                name: 'Title Text',
+                type: 'text',
+                startPx: 80,
+                startSec: 1,
+                durationSec: 3.5,
+                widthPx: 280,
+                textProps: { text: 'Hello World' }
+              },
+              {
+                id: 'layer_mock_3',
+                name: 'Background Solid',
+                type: 'color',
+                startPx: 0,
+                startSec: 0,
+                durationSec: 5,
+                widthPx: 400,
+                color: '#1d2415'
+              }
+            ];
+            if (urlParams.get('testWithEffect')) {
+              window.currentProjectState.layers[0].effects = [
+                {
+                  id: 'fx_gaussian_blur',
+                  name: 'Gaussian Blur',
+                  category: 'blur',
+                  enabled: true,
+                  params: { strength: 15 }
+                }
+              ];
+            }
+            window.renderTimelineLayers();
+            if (typeof window.redrawComposition === 'function') window.redrawComposition();
+            if (urlParams.get('testBeatmarks')) {
+              window.currentProjectState.beatmarks = [1.0, 2.5, 4.0];
+              window.currentProjectState.markerNames = { '1': 'Intro', '2.5': 'Drop', '4': 'Chorus' };
+              if (typeof window.renderTimelineBeatmarks === 'function') {
+                window.renderTimelineBeatmarks();
+              }
+              if (typeof syncDesktopMarkerLabels === 'function') {
+                syncDesktopMarkerLabels();
+              }
+              if (urlParams.get('testClickBeatmark')) {
+                const bmItem = document.querySelector('.timeline-beatmark-item');
+                if (bmItem) {
+                  const time = parseFloat(bmItem.dataset.time);
+                  openBeatmarkPopover(bmItem, time);
+                  const pop = document.getElementById('popover-beatmark-details');
+                  if (pop) {
+                    pop.style.transition = 'none';
+                    pop.style.opacity = '1';
+                    pop.style.transform = 'scale(1)';
+                    pop.classList.add('is-open');
+                    pop.setAttribute('aria-hidden', 'false');
+                  }
+                }
+              }
+            }
+            if (urlParams.get('testClickCanvas') && !window._testCanvasClicked) {
+              window._testCanvasClicked = true;
+              setTimeout(() => {
+                const canvas = document.getElementById('editor-active-canvas') || document.querySelector('.editor-canvas-container');
+                if (canvas) {
+                  canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 300, clientY: 300, button: 0 }));
+                  canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: 300, clientY: 300, button: 0 }));
+                }
+              }, 600);
+            }
+            if (urlParams.get('testClickEmptyTimeline') && !window._testEmptyTimelineClicked) {
+              window._testEmptyTimelineClicked = true;
+              setTimeout(() => {
+                const vp = document.getElementById('timeline-layers-viewport');
+                if (vp) {
+                  vp.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 800, clientY: 800, button: 0 }));
+                  vp.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: 800, clientY: 800, button: 0 }));
+                }
+              }, 600);
+            }
+            if (urlParams.get('testSelectLayer') && !window._testLayerSelectedOnce) {
+              window._testLayerSelectedOnce = true;
+              const lid = urlParams.get('testSelectLayer');
+              const pill = document.querySelector(`.timeline-layer-ctrl-pill[data-layer-id="${lid}"]`);
+              if (pill) {
+                pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }));
+                pill.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }));
+              } else if (typeof window.selectTimelineLayer === 'function') {
+                window.selectTimelineLayer(lid, false);
+              }
+              syncInspectorState();
+              if (urlParams.get('testHoverBtn')) {
+                const btnId = urlParams.get('testHoverBtn');
+                const btn = document.getElementById(btnId);
+                if (btn) btn.classList.add('is-hover-simulated');
+              }
+              if (urlParams.get('testOpenEffects')) {
+                const btnEffects = document.getElementById('btn-layer-effects');
+                if (btnEffects) btnEffects.click();
+              }
+              if (urlParams.get('testClickAddEffect')) {
+                const btnAdd = document.getElementById('btn-add-effect');
+                if (btnAdd) btnAdd.click();
+              }
+            }
+            if (urlParams.get('testSelectAll')) {
+              if (typeof window.selectAllTimelineLayers === 'function') {
+                window.selectAllTimelineLayers();
+              }
+            }
+            if (urlParams.get('testRightClickPopover')) {
+              const vp = document.getElementById('timeline-layers-viewport');
+              if (vp) {
+                vp.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 400, clientY: 500 }));
+                if (urlParams.get('testDismissPopover')) {
+                  const canvas = document.getElementById('editor-active-canvas') || document.body;
+                  canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 200, clientY: 200, button: 0 }));
+                  canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: 200, clientY: 200, button: 0 }));
+                }
+              }
+            }
+          }
+        };
+        applyMocks();
+        setTimeout(applyMocks, 100);
+        setTimeout(applyMocks, 300);
+        setTimeout(applyMocks, 800);
+      }
+      if (urlParams.get('testSelectLayer') && !window._testLayerSelectedOnce) {
+        const lid = urlParams.get('testSelectLayer');
+        const runSelect = () => {
+          const pill = document.querySelector(`.timeline-layer-ctrl-pill[data-layer-id="${lid}"]`);
+          if (pill) {
+            pill.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }));
+            pill.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }));
+          } else if (typeof window.selectTimelineLayer === 'function') {
+            window.selectTimelineLayer(lid, false);
+          }
+          syncInspectorState();
+          if (urlParams.get('testHoverBtn')) {
+            const btnId = urlParams.get('testHoverBtn');
+            const btn = document.getElementById(btnId);
+            if (btn) btn.classList.add('is-hover-simulated');
+          }
+          if (urlParams.get('testDeselectAfter')) {
+            setTimeout(() => {
+              if (typeof window.deselectAllDesktopLayers === 'function') {
+                window.deselectAllDesktopLayers();
+              }
+            }, 1000);
+          }
+        };
+        setTimeout(runSelect, 1200);
+      }
+      if (urlParams.get('testSelectAll')) {
+        setTimeout(() => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true }));
+          console.log('TEST_SELECT_ALL_FIRED', {
+            windowSelectedLayerIds: Array.from(window.selectedLayerIds || []),
+            windowSelectedLayerId: window.selectedLayerId,
+            isSelectorMode: window.isSelectorMode,
+            batchTitle: document.getElementById('editor-layer-batch-title')?.textContent,
+            batchDisplay: document.getElementById('editor-layer-batch-title')?.style.display
+          });
+        }, 1200);
+      }
+    } catch (_) {}
+  }
+
+  function ensureHeaderModePatched() {
+    if (typeof window.updateEditorHeaderMode === 'function' && !window._desktopHeaderPatched) {
+      window._desktopHeaderPatched = true;
+      const origUpdateHeader = window.updateEditorHeaderMode;
+      window.updateEditorHeaderMode = function() {
+        const selCount = (window.selectedLayerIds && window.selectedLayerIds.size) || (window.selectedLayerId ? 1 : 0);
+        window.isSelectorMode = (selCount > 1);
+        const res = origUpdateHeader.apply(this, arguments);
+
+        const projectNav = document.getElementById('header-nav-project');
+        const layerNav = document.getElementById('header-nav-layer');
+        const layerNameInput = document.getElementById('editor-layer-name-input');
+        const batchTitle = document.getElementById('editor-layer-batch-title');
+        const leftBatchActions = document.getElementById('editor-layer-batch-actions');
+        const btnPrecomp = document.getElementById('btn-layer-header-precomp');
+        const btnGroupMask = document.getElementById('btn-layer-header-group-mask');
+        const btnGroupExclude = document.getElementById('btn-layer-header-group-exclude');
+        const btnLink = document.getElementById('btn-layer-header-link');
+
+        if (selCount > 1) {
+          if (projectNav) projectNav.style.display = 'none';
+          if (layerNav) layerNav.style.display = 'flex';
+          if (layerNameInput) layerNameInput.style.display = 'none';
+          if (btnLink) btnLink.style.display = 'none';
+          if (batchTitle) {
+            batchTitle.textContent = `${selCount} Selected`;
+            batchTitle.style.display = 'block';
+          }
+          if (leftBatchActions) leftBatchActions.style.display = 'inline-flex';
+          if (btnPrecomp) btnPrecomp.style.display = 'inline-flex';
+          if (btnGroupMask) btnGroupMask.style.display = 'inline-flex';
+          if (btnGroupExclude) btnGroupExclude.style.display = 'inline-flex';
+        } else if (selCount === 1) {
+          if (leftBatchActions) leftBatchActions.style.display = 'none';
+          if (btnPrecomp) btnPrecomp.style.display = 'none';
+          if (btnGroupMask) btnGroupMask.style.display = 'none';
+          if (btnGroupExclude) btnGroupExclude.style.display = 'none';
+          if (batchTitle) batchTitle.style.display = 'none';
+          if (layerNameInput) layerNameInput.style.display = 'block';
+        } else {
+          if (leftBatchActions) leftBatchActions.style.display = 'none';
+        }
+
+        const overlay = document.getElementById('timeline-lane-heads-overlay');
+        if (overlay) {
+          overlay.classList.toggle('is-selector-mode', selCount > 1);
+        }
+        return res;
+      };
+    }
+
+    if (typeof window.selectAllTimelineLayers === 'function' && !window._desktopSelectAllPatched) {
+      window._desktopSelectAllPatched = true;
+      const origSelectAll = window.selectAllTimelineLayers;
+      window.selectAllTimelineLayers = function() {
+        const res = origSelectAll.apply(this, arguments);
+        const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+        window.isSelectorMode = (layers.length > 1);
+        if (typeof window.updateEditorHeaderMode === 'function') {
+          window.updateEditorHeaderMode();
+        }
+        syncInspectorState();
+        return res;
+      };
+    }
+
+    if (typeof window.selectTimelineLayer === 'function' && !window._desktopSelectPatched) {
+      window._desktopSelectPatched = true;
+      const origSelect = window.selectTimelineLayer;
+      window.selectTimelineLayer = function(layerId, isMulti) {
+        window._mockInspectorDismissed = false;
+        const res = origSelect.apply(this, arguments);
+        const selCount = (window.selectedLayerIds && window.selectedLayerIds.size) || (window.selectedLayerId ? 1 : 0);
+        window.isSelectorMode = (selCount > 1);
+        syncInspectorState();
+        return res;
+      };
+    }
+
+    if (typeof window.deselectTimelineLayer === 'function' && !window._desktopDeselectPatched) {
+      window._desktopDeselectPatched = true;
+      const origDeselect = window.deselectTimelineLayer;
+      window.deselectTimelineLayer = function() {
+        const res = origDeselect.apply(this, arguments);
+        window.mockInspectorActive = false;
+        window._mockInspectorDismissed = true;
+        window.isSelectorMode = false;
+        const leftBatchActions = document.getElementById('editor-layer-batch-actions');
+        if (leftBatchActions) leftBatchActions.style.display = 'none';
+        syncInspectorState();
+        return res;
+      };
+    }
+  }
+
+  function initDesktopHeaderBatchActions() {
+    const leftPrecomp = document.getElementById('btn-layer-header-left-precomp');
+    if (leftPrecomp && !leftPrecomp._bound) {
+      leftPrecomp._bound = true;
+      leftPrecomp.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('btn-layer-header-precomp')?.click();
+      });
+    }
+    const leftMask = document.getElementById('btn-layer-header-left-group-mask');
+    if (leftMask && !leftMask._bound) {
+      leftMask._bound = true;
+      leftMask.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('btn-layer-header-group-mask')?.click();
+      });
+    }
+    const leftExclude = document.getElementById('btn-layer-header-left-group-exclude');
+    if (leftExclude && !leftExclude._bound) {
+      leftExclude._bound = true;
+      leftExclude.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('btn-layer-header-group-exclude')?.click();
+      });
+    }
+
+    const popoverSelectAll = document.getElementById('popover-btn-select-all');
+    if (popoverSelectAll && !popoverSelectAll._bound) {
+      popoverSelectAll._bound = true;
+      popoverSelectAll.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.Popover) window.Popover.close();
+        if (typeof window.selectAllTimelineLayers === 'function') {
+          window.selectAllTimelineLayers();
+        } else {
+          const allLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+          if (allLayers.length > 0) {
+            setDesktopSelectedLayers(new Set(allLayers.map(l => l.id)), allLayers[0].id);
+          }
+        }
+      });
+    }
+  }
+
+  /* ==========================================================================
+     DESKTOP BEATMARK / MARKER ENGINE
+     - Dedicated Toolbar Beatmark Button (#editor-btn-add-beatmark) to left of Draft
+     - Disables beatmark toggle on timecode badge click
+     - Click Beatmark Item -> Seeks & opens minimalist Popover (#popover-beatmark-details)
+     - Drag Beatmark Item -> Moves marker along ruler & layers track, saves new time
+     - Marker Name editing in Popover -> Updates DOM label tag & project state
+     - Delete Marker button in Popover -> Deletes marker & closes popover
+     ========================================================================== */
+  let activeEditingBeatmarkTime = null;
+
+  function saveDesktopMarkerNames() {
+    if (!window.FishDatabase || !window.currentProjectState || !window.currentProjectState.id) return;
+    try {
+      window.FishDatabase.getProject(window.currentProjectState.id).then(prj => {
+        if (prj) {
+          prj.markerNames = Object.assign({}, window.currentProjectState.markerNames || {});
+          window.FishDatabase.saveProject(prj).catch(() => {});
+        }
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  function syncDesktopMarkerLabels() {
+    const markerNames = (window.currentProjectState && window.currentProjectState.markerNames) || {};
+    const items = document.querySelectorAll('.timeline-beatmark-item');
+    items.forEach(item => {
+      const timeVal = parseFloat(item.dataset.time);
+      if (isNaN(timeVal)) return;
+
+      let name = '';
+      if (markerNames[timeVal] !== undefined) {
+        name = markerNames[timeVal];
+      } else if (markerNames[String(timeVal)] !== undefined) {
+        name = markerNames[String(timeVal)];
+      } else {
+        const key = Object.keys(markerNames).find(k => Math.abs(parseFloat(k) - timeVal) <= 0.05);
+        if (key) name = markerNames[key];
+      }
+
+      let labelEl = item.querySelector('.timeline-beatmark-label');
+      if (name) {
+        if (!labelEl) {
+          labelEl = document.createElement('span');
+          labelEl.className = 'timeline-beatmark-label';
+          item.appendChild(labelEl);
+        }
+        labelEl.textContent = name;
+        item.title = `Marker: ${name} (${timeVal.toFixed(2)}s) — Click to edit, drag to move`;
+      } else {
+        if (labelEl) labelEl.remove();
+        item.title = `Beatmark: ${timeVal.toFixed(2)}s — Click to edit, drag to move`;
+      }
+    });
+    updateDesktopBeatmarkBtnState();
+  }
+
+  function updateDesktopBeatmarkBtnState() {
+    const btnAddBm = document.getElementById('editor-btn-add-beatmark');
+    if (!btnAddBm) return;
+    const pps = window.currentPixelsPerSecond || window.pixelsPerSecond || 80;
+    const panX = typeof window.panX === 'number' ? window.panX : 0;
+    const currentSec = Math.max(0, -panX / pps);
+    const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
+    const isNear = beatmarks.some(b => Math.abs(b - currentSec) <= 0.05);
+    btnAddBm.classList.toggle('is-active', isNear);
+    btnAddBm.setAttribute('title', isNear ? 'Playhead on Beatmark (Click to remove, M)' : 'Add Beatmark / Marker at Playhead (M)');
+  }
+
+  function openBeatmarkPopover(item, time) {
+    const popover = document.getElementById('popover-beatmark-details');
+    const input = document.getElementById('beatmark-popover-name');
+    if (!popover || !input) return;
+
+    activeEditingBeatmarkTime = time;
+    const markerNames = (window.currentProjectState && window.currentProjectState.markerNames) || {};
+    let existingName = markerNames[time] || markerNames[String(time)] || '';
+    if (!existingName) {
+      const key = Object.keys(markerNames).find(k => Math.abs(parseFloat(k) - time) <= 0.05);
+      if (key) existingName = markerNames[key];
+    }
+
+    input.value = existingName;
+
+    if (window.Popover && typeof window.Popover.open === 'function') {
+      window.Popover.open(item, popover);
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 60);
+    }
+  }
+
+  function initDesktopBeatmarkEngine() {
+    // 1. Wire Dedicated Toolbar Beatmark Button
+    const btnAddBm = document.getElementById('editor-btn-add-beatmark');
+    if (btnAddBm && !btnAddBm._bound) {
+      btnAddBm._bound = true;
+      btnAddBm.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
+          window.toggleBeatmarkAtCurrentTime();
+        }
+        syncDesktopMarkerLabels();
+      });
+    }
+
+    // 2. Disable beatmark toggle on timecode badge click
+    const timeBadge = document.getElementById('timeline-time-badge');
+    if (timeBadge && !timeBadge._boundNoBeatmark) {
+      timeBadge._boundNoBeatmark = true;
+      timeBadge.addEventListener('click', (e) => {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+      }, true);
+    }
+
+    // 3. Global keyboard shortcut 'M' for beatmark toggle
+    if (!window._desktopBeatmarkKeyBound) {
+      window._desktopBeatmarkKeyBound = true;
+      document.addEventListener('keydown', (e) => {
+        const active = document.activeElement;
+        const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+        if (isInput) return;
+        if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
+            window.toggleBeatmarkAtCurrentTime();
+          }
+          syncDesktopMarkerLabels();
+        }
+      });
+    }
+
+    // 4. Popover inputs and delete button wiring
+    const popoverInput = document.getElementById('beatmark-popover-name');
+    const popoverDelete = document.getElementById('beatmark-popover-delete');
+    const popoverForm = document.getElementById('beatmark-popover-form');
+
+    if (popoverForm && !popoverForm._bound) {
+      popoverForm._bound = true;
+      popoverForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (window.Popover) window.Popover.close();
+      });
+    }
+
+    if (popoverInput && !popoverInput._bound) {
+      popoverInput._bound = true;
+      popoverInput.addEventListener('input', () => {
+        if (activeEditingBeatmarkTime === null) return;
+        window.currentProjectState = window.currentProjectState || {};
+        window.currentProjectState.markerNames = window.currentProjectState.markerNames || {};
+        const val = popoverInput.value.trim();
+        if (val) {
+          window.currentProjectState.markerNames[activeEditingBeatmarkTime] = val;
+        } else {
+          delete window.currentProjectState.markerNames[activeEditingBeatmarkTime];
+        }
+        syncDesktopMarkerLabels();
+        saveDesktopMarkerNames();
+      });
+
+      popoverInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (window.Popover) window.Popover.close();
+        } else if (e.key === 'Escape') {
+          if (window.Popover) window.Popover.close();
+        }
+      });
+    }
+
+    if (popoverDelete && !popoverDelete._bound) {
+      popoverDelete._bound = true;
+      popoverDelete.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (activeEditingBeatmarkTime !== null) {
+          if (typeof window.deleteBeatmark === 'function') {
+            window.deleteBeatmark(activeEditingBeatmarkTime);
+          }
+          if (window.currentProjectState && window.currentProjectState.markerNames) {
+            delete window.currentProjectState.markerNames[activeEditingBeatmarkTime];
+            delete window.currentProjectState.markerNames[String(activeEditingBeatmarkTime)];
+          }
+          saveDesktopMarkerNames();
+          syncDesktopMarkerLabels();
+        }
+        if (window.Popover) window.Popover.close();
+      });
+    }
+
+    // 5. Intercept Beatmark Dragging and Clicking on Timeline Ruler
+    if (!window._desktopBeatmarkDragBound) {
+      window._desktopBeatmarkDragBound = true;
+
+      // Capture click to prevent editor.js from running its own click handler
+      document.addEventListener('click', (e) => {
+        const item = e.target.closest('.timeline-beatmark-item');
+        if (item) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+        }
+      }, true);
+
+      document.addEventListener('pointerdown', (e) => {
+        const item = e.target.closest('.timeline-beatmark-item');
+        if (!item || e.button !== 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const initialTime = parseFloat(item.dataset.time);
+        if (isNaN(initialTime)) return;
+
+        let hasMoved = false;
+        let currentTime = initialTime;
+        const pps = window.currentPixelsPerSecond || window.pixelsPerSecond || 80;
+
+        try {
+          item.setPointerCapture(e.pointerId);
+        } catch (_) {}
+
+        const onMove = (me) => {
+          const dx = me.clientX - startX;
+          // Use safe 6px drag threshold so normal clicks NEVER accidentally shift the marker
+          if (!hasMoved && Math.abs(dx) > 6) {
+            hasMoved = true;
+            item.classList.add('is-dragging');
+          }
+          if (hasMoved) {
+            let newSec = Math.max(0, initialTime + dx / pps);
+            // Snap to playhead if within 5px
+            const panX = typeof window.panX === 'number' ? window.panX : 0;
+            const playheadSec = Math.max(0, -panX / pps);
+            if (Math.abs(newSec - playheadSec) * pps < 5) {
+              newSec = playheadSec;
+            }
+            currentTime = Math.round(newSec * 1000) / 1000;
+            const newLeftPx = Math.round(currentTime * pps);
+            item.style.left = `${newLeftPx}px`;
+
+            const layerLine = document.querySelector(`.timeline-layers-beatmark-line[data-time="${initialTime}"]`);
+            if (layerLine) {
+              layerLine.style.left = `${newLeftPx}px`;
+            }
+          }
+        };
+
+        const onUp = (ue) => {
+          item.removeEventListener('pointermove', onMove);
+          item.removeEventListener('pointerup', onUp);
+          item.removeEventListener('pointercancel', onUp);
+          try {
+            item.releasePointerCapture(ue.pointerId);
+          } catch (_) {}
+
+          if (hasMoved) {
+            item.classList.remove('is-dragging');
+            const finalTime = currentTime;
+
+            // Update currentProjectState.beatmarks
+            if (window.currentProjectState && Array.isArray(window.currentProjectState.beatmarks)) {
+              const idx = window.currentProjectState.beatmarks.findIndex(b => Math.abs(b - initialTime) <= 0.05);
+              if (idx !== -1) {
+                window.currentProjectState.beatmarks[idx] = finalTime;
+                window.currentProjectState.beatmarks.sort((a, b) => a - b);
+              }
+            }
+
+            // Move markerNames entry if any
+            if (window.currentProjectState && window.currentProjectState.markerNames) {
+              const oldName = window.currentProjectState.markerNames[initialTime] ||
+                              window.currentProjectState.markerNames[String(initialTime)];
+              if (oldName) {
+                delete window.currentProjectState.markerNames[initialTime];
+                delete window.currentProjectState.markerNames[String(initialTime)];
+                window.currentProjectState.markerNames[finalTime] = oldName;
+              }
+            }
+
+            item.dataset.time = String(finalTime);
+            const layerLine = document.querySelector(`.timeline-layers-beatmark-line[data-time="${initialTime}"]`);
+            if (layerLine) {
+              layerLine.dataset.time = String(finalTime);
+            }
+
+            if (typeof window.saveCurrentProjectBeatmarks === 'function') {
+              window.saveCurrentProjectBeatmarks(true);
+            }
+            saveDesktopMarkerNames();
+            syncDesktopMarkerLabels();
+          } else {
+            // Clean Click: ONLY open Popover. DO NOT seek or change playhead / current time!
+            openBeatmarkPopover(item, initialTime);
+          }
+        };
+
+        item.addEventListener('pointermove', onMove);
+        item.addEventListener('pointerup', onUp);
+        item.addEventListener('pointercancel', onUp);
+      }, true);
+    }
+
+    // 6. Hook renderTimelineBeatmarks to keep labels in sync
+    if (window.renderTimelineBeatmarks && !window.renderTimelineBeatmarks._desktopPatched) {
+      const origRender = window.renderTimelineBeatmarks;
+      window.renderTimelineBeatmarks = function () {
+        origRender.apply(this, arguments);
+        syncDesktopMarkerLabels();
+      };
+      window.renderTimelineBeatmarks._desktopPatched = true;
+    }
+
+    // 7. Hook updateTimeBadgeBeatmarkState to update toolbar button active state
+    if (window.updateTimeBadgeBeatmarkState && !window.updateTimeBadgeBeatmarkState._desktopPatched) {
+      const origBadgeState = window.updateTimeBadgeBeatmarkState;
+      window.updateTimeBadgeBeatmarkState = function () {
+        origBadgeState.apply(this, arguments);
+        updateDesktopBeatmarkBtnState();
+      };
+      window.updateTimeBadgeBeatmarkState._desktopPatched = true;
+    }
+
+    syncDesktopMarkerLabels();
+  }
+
+  // Initial sync after DOM and engines load
+  window.addEventListener('DOMContentLoaded', () => {
+    initLeftPanelTabs();
+    syncInspectorState();
+    initDesktopFishToolsExtension();
+    initDesktopTimeline();
+    patchDesktopLeftTimeline();
+    initDesktopClipDragEngine();
+    initDesktopMarqueeSelection();
+    initDesktopUniversalDeselect();
+    ensureHeaderModePatched();
+    initDesktopHeaderBatchActions();
+    initDesktopBeatmarkEngine();
+    syncLayout();
+    checkUrlTestParams();
+  });
+
+  checkUrlTestParams();
+
+  setTimeout(() => {
+    initLeftPanelTabs();
+    syncInspectorState();
+    initDesktopFishToolsExtension();
+    initDesktopTimeline();
+    patchDesktopLeftTimeline();
+    initDesktopClipDragEngine();
+    initDesktopMarqueeSelection();
+    initDesktopUniversalDeselect();
+    ensureHeaderModePatched();
+    initDesktopHeaderBatchActions();
+    initDesktopBeatmarkEngine();
+    syncLayout();
+    checkUrlTestParams();
+  }, 350);
+
+})();

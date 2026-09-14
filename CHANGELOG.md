@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.14] - 2026-09-14
+
+### Added
+- **Smart Look-Ahead Playback Caching (`js/preview-cache.js`)**: Introduced `startLookaheadWorker(fromSec, fps)` — during playback, a background worker pre-renders frames **ahead** of the current playhead into the RAM preview cache (default 1.5 s window, configurable via `window.cacheLookaheadSec`). Uses `MessageChannel` macro-tasks to fire reliably between `requestAnimationFrame` ticks without blocking the main render thread. The lookahead window slides forward with the playhead and auto-restarts only when the playhead advances past the worker's range. Worker stops cleanly on pause, scrub, or export.
+
+### Fixed
+- **Look-Ahead Worker Cancel Bug**: Previous implementation called `stopLookaheadWorker()` on every 3rd tick, cancelling the worker before it could render a single frame. Fixed: worker now persists until the playhead advances past its pre-baked range.
+- **Canvas Corrupt Mid-Encode Bug**: Worker now `await`s `setFrameFromCanvas` (bitmap encode) **before** scheduling the next step, preventing the offscreen canvas from being overwritten while `createImageBitmap` is still running.
+- **O(1) Queue Tail Tracking**: Replaced `Math.max(...queue)` spread (O(n), stack risk on large queues) with a `_lookaheadQueueTail` pointer for O(1) queue extension as the lookahead window slides.
+
+### Improved
+- **Canvas 2D Context Caching (`js/editor.js`)**: `renderCanvasFrame` now caches the `2d` context on the canvas element (`canvas._cachedCtx`) instead of calling `getContext()` on every frame. Context is only re-created when `alpha` mode changes (normal → export path). Eliminates redundant browser context lookup overhead per tick.
+- **`imageSmoothingQuality` Per-Frame Write Eliminated**: Safari smoothing quality (`'high'`) is now set once per canvas context creation instead of being written every frame, removing a GPU state write per render tick.
+- **Look-Ahead Cache Write Guard (`js/editor.js`)**: `renderCanvasFrame` now excludes `triggerSource === 'lookahead-cache'` from the main live-frame cache write path — the lookahead worker writes directly via `setFrameFromCanvas`, preventing double-encode of the same frame.
+
+---
+
 ## [0.5.13] - 2026-09-12
 
 ### Added

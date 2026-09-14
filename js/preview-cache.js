@@ -921,6 +921,145 @@
         }
       });
     }
+
+    /**
+     * Look-Ahead Playback Caching
+     * Pre-renders frames AHEAD of the current playhead into the cache during playback.
+     * Triggered from stepPlay after each rendered frame.
+     * @param {number} fromSec  - current playhead position in seconds
+     * @param {number} fps      - project fps
+     */
+    startLookaheadWorker(fromSec, fps) {
+      if (!window.isTimelinePlaying) return;
+
+      const lookaheadSec = (typeof window.cacheLookaheadSec === 'number' && window.cacheLookaheadSec > 0)
+        ? window.cacheLookaheadSec : 1.5;
+
+      if (this._lookaheadRunning) {
+        const workerEndSec = (this._lookaheadFromSec || 0) + lookaheadSec;
+        if (fromSec < workerEndSec) {
+          // Slide the lookahead window forward with the playhead
+          this._lookaheadExtendTo = Math.round((fromSec + lookaheadSec) * fps);
+          return;
+        }
+        this.stopLookaheadWorker();
+      }
+
+      const targetComp = this.activeCompId || 'root';
+      const startFrame = Math.round(fromSec * fps) + 1;
+      const endFrame   = startFrame + Math.round(lookaheadSec * fps);
+
+      const queue = [];
+      for (let f = startFrame; f < endFrame; f++) {
+        const k = `${targetComp}:${f}`;
+        if (!this.frames.has(f) && !(this._inFlightFrames && this._inFlightFrames.has(k))) {
+          queue.push(f);
+        }
+      }
+      if (queue.length === 0) return;
+
+      this._lookaheadRunning   = true;
+      this._lookaheadCancelled = false;
+      this._lookaheadFromSec   = fromSec;
+      this._lookaheadExtendTo  = endFrame;
+      this._lookaheadQueueTail = queue[queue.length - 1]; // O(1) tail tracking
+
+      if (!this._lookaheadCanvas) {
+        this._lookaheadCanvas = document.createElement('canvas');
+      }
+      const activeCanvas = document.getElementById('editor-active-canvas');
+      if (!activeCanvas) { this._lookaheadRunning = false; return; }
+      this._lookaheadCanvas.width  = activeCanvas.width;
+      this._lookaheadCanvas.height = activeCanvas.height;
+
+      // MessageChannel: fires as macro-task between rAF ticks (reliable during active playback)
+      const mc = new MessageChannel();
+      this._lookaheadPort = mc.port2;
+
+      const scheduleNext = () => {
+        // Use _lookaheadCancelled (not mc reference) so stopLookaheadWorker truly kills the loop
+        if (!this._lookaheadCancelled) mc.port2.postMessage(null);
+      };
+
+      mc.port1.onmessage = async () => {
+        if (this._lookaheadCancelled || !window.isTimelinePlaying ||
+            window.isTransformInteracting || window.isExporting) {
+          this._lookaheadRunning = false;
+          return;
+        }
+
+        // Back off if GPU encode pipeline saturated
+        if (this._inFlightFrames && this._inFlightFrames.size >= 5) {
+          scheduleNext();
+          return;
+        }
+
+        // Extend queue O(1) tail — no Math.max spread
+        if (this._lookaheadExtendTo > (this._lookaheadQueueTail || 0) + 1) {
+          const tail = this._lookaheadQueueTail || startFrame;
+          for (let f = tail + 1; f < this._lookaheadExtendTo; f++) {
+            const k = `${targetComp}:${f}`;
+            if (!this.frames.has(f) && !(this._inFlightFrames && this._inFlightFrames.has(k))) {
+              queue.push(f);
+            }
+          }
+          this._lookaheadQueueTail = this._lookaheadExtendTo - 1;
+        }
+
+        const targetFrame = queue.shift();
+        if (targetFrame === undefined) {
+          this._lookaheadRunning = false;
+          return;
+        }
+
+        // Skip already-cached
+        const k = `${targetComp}:${targetFrame}`;
+        if (this.frames.has(targetFrame) || (this._inFlightFrames && this._inFlightFrames.has(k))) {
+          scheduleNext();
+          return;
+        }
+
+        const targetSec = targetFrame / fps;
+        if (typeof window.renderCanvasFrame === 'function') {
+          const res = window.renderCanvasFrame(
+            this._lookaheadCanvas,
+            window.currentProjectState ? window.currentProjectState.bgColor : 'transparent',
+            this._lookaheadCanvas.width,
+            this._lookaheadCanvas.height,
+            'lookahead-cache',
+            targetSec
+          );
+          if (res !== false) {
+            // CRITICAL: await bitmap encode BEFORE scheduling next step.
+            // Canvas must not be redrawn until createImageBitmap completes.
+            await this.setFrameFromCanvas(targetFrame, this._lookaheadCanvas, this.isDraftMode);
+          }
+        }
+
+        // Schedule next frame AFTER await — canvas is safe to reuse now
+        if (queue.length > 0 || this._lookaheadExtendTo > targetFrame + 1) {
+          scheduleNext();
+        } else {
+          this._lookaheadRunning = false;
+        }
+      };
+
+      // Kick off on next macro-task
+      setTimeout(scheduleNext, 0);
+    }
+
+    stopLookaheadWorker() {
+      this._lookaheadCancelled = true;
+      this._lookaheadRunning   = false;
+      if (this._lookaheadPort) {
+        this._lookaheadPort.onmessage = null;
+        this._lookaheadPort = null;
+      }
+      if (this._lookaheadTimer) {
+        clearTimeout(this._lookaheadTimer);
+        this._lookaheadTimer = null;
+      }
+    }
   }
 
   window.PreviewCacheManager = new PreviewCacheManager();

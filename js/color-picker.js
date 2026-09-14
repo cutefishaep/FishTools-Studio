@@ -280,6 +280,10 @@
 
       this._renderSavedSwatches();
       this.switchTab(this.activeTab);
+
+      // Cache chip elements (inline mode: present in HTML; popover mode: absent)
+      this.previewDot = root.querySelector('.color-picker-preview-dot');
+      this.alphaEl    = root.querySelector('.color-picker-header-alpha');
     }
 
     _bindEvents() {
@@ -322,6 +326,37 @@
           e.stopPropagation();
           this.setColor(swatch.dataset.hex, true);
         }
+      });
+
+      // 3b. Hold-to-delete on saved (custom) swatches — 600ms longpress
+      this.el.addEventListener('pointerdown', (e) => {
+        const swatch = e.target.closest('[data-is-saved="true"]');
+        if (!swatch) return;
+        e.stopPropagation();
+        let moved = false;
+        swatch.classList.add('is-hold-pending');
+
+        const holdTimer = setTimeout(() => {
+          if (moved) return;
+          const hex = swatch.dataset.hex;
+          this.savedSwatches = this.savedSwatches.filter(h => h !== hex);
+          this._saveSwatches();
+          this._renderSavedSwatches();
+          cleanup();
+        }, 600);
+
+        const onMove = () => { moved = true; cleanup(); };
+        const onUp = () => { cleanup(); };
+
+        const cleanup = () => {
+          clearTimeout(holdTimer);
+          swatch.classList && swatch.classList.remove('is-hold-pending');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+        };
+
+        window.addEventListener('pointermove', onMove, { once: false });
+        window.addEventListener('pointerup', onUp, { once: true });
       });
 
       // 4. Spectrum Drag Interactions
@@ -497,7 +532,7 @@
       }
       this.savedSection.style.display = 'flex';
       this.savedGrid.innerHTML = this.savedSwatches.map(hex => `
-        <button type="button" class="color-picker-swatch-item" data-hex="${hex}" style="background-color: ${hex};" title="${hex}"></button>
+        <button type="button" class="color-picker-swatch-item color-picker-swatch-saved" data-hex="${hex}" data-is-saved="true" style="background-color: ${hex};" title="${hex} — hold to delete"></button>
       `).join('');
     }
 
@@ -507,16 +542,15 @@
       const labelText = `${hex} (${pct}%)`;
       const textColor = getContrastingTextColor(hex);
 
-      // 1. Header Bar: guaranteed contrast
-      const previewDot = this.el.querySelector('.color-picker-preview-dot');
-      if (previewDot) {
-        previewDot.style.backgroundColor = hex;
-        this.header.style.backgroundColor = '';
+      // 1. Header Bar: chip mode (inline) vs full-bg mode (popover)
+      if (this.previewDot) {
+        // Inline chip mode — only dot changes color, header stays neutral
+        this.previewDot.style.backgroundColor = hex;
+        if (this.header) this.header.style.backgroundColor = '';
         if (this.headerLabel) {
-          const alphaEl = this.el.querySelector('.color-picker-header-alpha');
-          if (alphaEl) {
+          if (this.alphaEl) {
             this.headerLabel.textContent = hex;
-            alphaEl.textContent = `${pct}%`;
+            this.alphaEl.textContent = `${pct}%`;
           } else {
             this.headerLabel.textContent = labelText;
           }
@@ -524,10 +558,13 @@
         }
         if (this.addBtn) this.addBtn.style.color = '';
       } else {
-        this.header.style.backgroundColor = hex;
-        this.headerLabel.textContent = labelText;
-        this.headerLabel.style.color = textColor;
-        this.addBtn.style.color = textColor;
+        // Popover mode — full header changes to current color
+        if (this.header) this.header.style.backgroundColor = hex;
+        if (this.headerLabel) {
+          this.headerLabel.textContent = labelText;
+          this.headerLabel.style.color = textColor;
+        }
+        if (this.addBtn) this.addBtn.style.color = textColor;
       }
 
       // 2. Highlight matching swatch

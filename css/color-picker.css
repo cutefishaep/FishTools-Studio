@@ -136,6 +136,13 @@
   border: 2px solid var(--color-primary);
 }
 
+.color-picker-swatch-saved.is-hold-pending {
+  transform: scale(0.82);
+  border: 2px solid #ff3b30;
+  opacity: 0.6;
+  transition: transform 0.1s ease, opacity 0.1s ease, border-color 0.1s ease;
+}
+
 .color-picker-saved-section {
   display: flex;
   flex-direction: column;

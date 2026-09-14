@@ -2124,13 +2124,20 @@
       const isExport = !!window.isExporting || ((typeof triggerSource === 'string') && triggerSource.startsWith('export'));
       const isIdleCache = triggerSource === 'idle-cache';
       const needsAlpha = isExport && triggerSource !== 'export-video' && (!bg || bg === 'transparent');
-      const ctx = canvas.getContext('2d', { alpha: needsAlpha }) || canvas.getContext('2d');
-      if (!ctx) return;
-      // Safari defaults imageSmoothingQuality to 'low' — force 'high' for premium rendering
-      if (ctx.imageSmoothingEnabled !== false) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+      const needsAlphaCanvas = needsAlpha;
+      // Cache context on canvas element — avoid repeated getContext overhead per frame
+      if (!canvas._cachedCtx || canvas._cachedCtxAlpha !== needsAlphaCanvas) {
+        canvas._cachedCtx = canvas.getContext('2d', { alpha: needsAlphaCanvas }) || canvas.getContext('2d');
+        canvas._cachedCtxAlpha = needsAlphaCanvas;
+        // Set smoothing quality once on new context — guard prevents per-frame GPU state write
+        if (canvas._cachedCtx) {
+          canvas._cachedCtx.imageSmoothingEnabled = true;
+          canvas._cachedCtx.imageSmoothingQuality = 'high';
+          canvas._cachedCtx._smoothingSet = true;
+        }
       }
+      const ctx = canvas._cachedCtx;
+      if (!ctx) return;
 
       const t0 = performance.now();
 
@@ -3335,7 +3342,10 @@
         // LIVE FRAME CACHING (After Effects RAM Preview Style)
         // STRICT RULE: only cache when the exact video frame is available (hasExtractingVideo = false).
         // Caching during playback, scrubbing, and frame park ensures subsequent scrubbing is instant 60fps.
-        if (!hasExtractingVideo && !isExport && !window.isExporting && !isIdleCache && !isTransformDragging && window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
+        // Skip lookahead-cache writes here — the lookahead worker writes directly via setFrameFromCanvas.
+        if (!hasExtractingVideo && !isExport && !window.isExporting && !isIdleCache && !isTransformDragging &&
+            triggerSource !== 'lookahead-cache' &&
+            window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
           window.PreviewCacheManager.setFrameFromCanvas(frameIndex, canvas);
           // NEVER delete cached frames during extraction — was causing patchy cache bar!
         }
@@ -18908,6 +18918,9 @@
           playAnimationId = null;
         }
         lastTime = 0;
+        if (window.PreviewCacheManager && typeof window.PreviewCacheManager.stopLookaheadWorker === 'function') {
+          window.PreviewCacheManager.stopLookaheadWorker();
+        }
         if (window.FishAudioEngine) {
           window.FishAudioEngine.pauseAll();
         }
@@ -19481,6 +19494,12 @@
         }
 
         _playTickCount++;
+
+        // Smart look-ahead caching: update lookahead window every tick (cheap — returns early if worker already running)
+        if (window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
+          window.PreviewCacheManager.startLookaheadWorker(nextSec, fps);
+        }
+
         playAnimationId = requestAnimationFrame(stepPlay);
       }
 

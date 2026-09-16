@@ -247,6 +247,7 @@
     category: 'warp',
     icon: 'assets/FXPH.svg',
     description: 'After Effects style wave distortion with true 360° arbitrary direction and continuous sine/triangle/square warping',
+    isExpanding: true,
     params: [
       { id: 'waveType', label: 'Wave Type', type: 'select', default: 'sine', options: ['sine', 'triangle', 'square', 'sawtooth', 'circle', 'semicircle', 'noise', 'smooth-noise'] },
       { id: 'waveHeight', label: 'Wave Height', type: 'number', min: 0, max: 1000, default: 25, unit: 'px' },

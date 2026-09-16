@@ -5559,7 +5559,7 @@
       const currentSec = Number((Math.abs(window.timelinePanX || 0) / pps).toFixed(3));
       const currentVal = getLayerPropertyValue(layer, prop);
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
-      const frameTol = 0.5 / fps;
+      const frameTol = Math.max(0.04, 0.5 / fps);
 
       let kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, prop, currentSec, frameTol) : null;
       if (kf) {
@@ -14396,9 +14396,11 @@
       const isHue = (paramName && paramName.toLowerCase().includes('hue')) || isAngle || (defParam && defParam.unlimited);
 
       let currentVal = 0;
+      let startVal = 0;
       let startPointerX = 0;
       let startPointerY = 0;
       let hasDragged = false;
+      let isBadgeClick = false;
       const propKey = `${fx.id}:${paramName}`;
 
       bindJogWheel(container, {
@@ -14406,10 +14408,13 @@
           startPointerX = e ? e.clientX : 0;
           startPointerY = e ? e.clientY : 0;
           hasDragged = false;
+          isBadgeClick = !!(e && e.target && e.target.closest('.effects-param-pill-val'));
           window.activeKeyframeProperty = propKey;
+          window.isTransformInteracting = true;
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
 
-          currentVal = fx[paramName] !== undefined ? Number(fx[paramName]) : (defParam && defParam.default !== undefined ? Number(defParam.default) : 0);
+          startVal = fx[paramName] !== undefined ? Number(fx[paramName]) : (defParam && defParam.default !== undefined ? Number(defParam.default) : 0);
+          currentVal = startVal;
 
           const rackList = document.getElementById('effects-rack-list');
           if (rackList) {
@@ -14420,6 +14425,51 @@
             });
           }
           if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
+
+          // If user clicked directly on the slider track (not the badge), immediately position slider
+          if (!isBadgeClick && !isAngle && !isHue && e) {
+            const rect = container.getBoundingClientRect();
+            const pillW = Math.max(10, rect.width);
+            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : 0);
+            const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : 100);
+            const span = max - min;
+            if (span > 0) {
+              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / pillW));
+              const unit = fx.unit !== undefined ? fx.unit : (defParam && defParam.unit ? defParam.unit : '');
+              const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x' || unit.includes('.');
+              const rawNext = min + ratio * span;
+              const stepVal = (defParam && defParam.step) ? defParam.step : (isDecimal ? 0.05 : 1);
+              const displayVal = isDecimal
+                ? Number((Math.round(rawNext / stepVal) * stepVal).toFixed(2))
+                : Math.round(rawNext);
+              currentVal = Math.max(min, Math.min(max, displayVal));
+              fx[paramName] = currentVal;
+              container.setAttribute('aria-valuenow', currentVal);
+
+              const formatted = isDecimal ? currentVal.toFixed(2) : currentVal;
+              const badgeText = (currentVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
+              const track = card.querySelector(`.fx-track-${paramName}`);
+              if (track) {
+                const trackRatio = Math.max(0, Math.min(1, (currentVal - min) / span));
+                track.style.width = (trackRatio * 100).toFixed(1) + '%';
+              }
+              const badge = card.querySelector(`.fx-badge-${paramName}`);
+              if (badge) badge.textContent = badgeText;
+
+              if (!layer.effects || fx === layer.effects[0]) {
+                layer[paramName] = fx[paramName];
+              }
+              if (typeof recordLayerPropertyChange === 'function') {
+                recordLayerPropertyChange(layer, propKey);
+              }
+              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+              if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+              if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
+              if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
+                updateTimelineKeyframeMarkersHighlight();
+              }
+            }
+          }
         },
 
         onMove: (rawDelta, e, step) => {
@@ -14430,9 +14480,8 @@
           let badgeText = '';
 
           if (isHue || isAngle) {
-            // UNLIMITED MODE (e.g. HUE Shift, Angle rotation: continuous rotation with turns)
-            // Gentle speed: 0.35x default, 0.1x with Shift (precision), 1.5x with Alt (fast)
-            const speed = (e && e.shiftKey) ? 0.1 : ((e && e.altKey) ? 1.5 : 0.35);
+            // UNLIMITED ANGLE MODE (Continuous 360° rotation with turns)
+            const speed = (e && e.shiftKey) ? 0.1 : ((e && e.altKey) ? 2.5 : 1.0);
             currentVal += step * speed;
             consumedStep = step;
 
@@ -14443,6 +14492,7 @@
               ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°`
               : `${rem >= 0 ? '+' : ''}${rem}°`;
             fx[paramName] = val;
+            container.setAttribute('aria-valuenow', val);
 
             const track = card.querySelector(`.fx-track-${paramName}`);
             if (track) {
@@ -14450,55 +14500,42 @@
               track.style.width = ((normAngle / 360) * 100).toFixed(1) + '%';
             }
           } else {
-            // STRICT BOUNDED MODE (e.g. Brightness, Contrast, Scale, Blur, Wave Height, Wave Width, Wave Speed)
-            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : -100);
+            // STRICT BOUNDED MODE (Wave Height, Wave Width, Blur, Size, Scale, etc.)
+            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : 0);
             const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : 100);
             const span = max - min;
             const unit = fx.unit !== undefined ? fx.unit : (defParam && defParam.unit ? defParam.unit : '');
             const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x' || unit.includes('.');
+            const stepVal = (defParam && defParam.step) ? defParam.step : (isDecimal ? 0.05 : 1);
 
-            // Stable, dampened sensitivity curve (smooth, controlled, no jumping)
-            let baseSpeed = 0.25;
-            if (isDecimal) {
-              const paramStep = (defParam && defParam.step) ? defParam.step : 0.05;
-              baseSpeed = paramStep * 0.4;
-            } else if (span <= 10) baseSpeed = 0.02;
-            else if (span <= 50) baseSpeed = 0.08;
-            else if (span <= 200) baseSpeed = 0.2;
-            else if (span <= 600) baseSpeed = 0.35;
-            else baseSpeed = Math.min(0.8, span / 2200);
+            const rect = container.getBoundingClientRect();
+            const pillW = Math.max(10, rect.width);
 
-            const modifier = (e && e.shiftKey) ? 0.2 : ((e && e.altKey) ? 2.5 : 1.0);
-            const speed = baseSpeed * modifier;
-
-            const prevVal = currentVal;
-            const rawNext = currentVal + step * speed;
-            const clampedNext = Math.max(min, Math.min(max, rawNext));
-
-            // Strictly consume only movement that produced real value changes within [min, max]
-            if (clampedNext !== prevVal) {
-              consumedStep = speed !== 0 ? ((clampedNext - prevVal) / speed) : 0;
-              currentVal = clampedNext;
+            if (e && e.shiftKey) {
+              // Shift mode: Fine-tuning precision scrubber (10x precision)
+              const fineSpeed = isDecimal ? (stepVal * 0.2) : Math.max(0.05, span / (pillW * 10));
+              currentVal = Math.max(min, Math.min(max, currentVal + step * fineSpeed));
             } else {
-              consumedStep = 0; // Boundary reached: stop visual ticks, zero phantom dead zone
+              // Direct Track Slider: Follows cursor along pill width from 0% (min) to 100% (max)
+              const clientX = e ? e.clientX : startPointerX;
+              const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / pillW));
+              const rawNext = min + ratio * span;
+              currentVal = isDecimal
+                ? Number((Math.round(rawNext / stepVal) * stepVal).toFixed(2))
+                : Math.round(rawNext);
+              currentVal = Math.max(min, Math.min(max, currentVal));
             }
 
-            let displayVal = currentVal;
-            if (isDecimal) {
-              displayVal = Number(displayVal.toFixed(2));
-            } else {
-              displayVal = Math.round(displayVal);
-            }
-            displayVal = Math.max(min, Math.min(max, displayVal));
-            currentVal = displayVal;
-            fx[paramName] = displayVal;
+            consumedStep = step;
+            fx[paramName] = currentVal;
+            container.setAttribute('aria-valuenow', currentVal);
 
-            const formatted = isDecimal ? displayVal.toFixed(2) : displayVal;
-            badgeText = (displayVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
+            const formatted = isDecimal ? currentVal.toFixed(2) : currentVal;
+            badgeText = (currentVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
 
             const track = card.querySelector(`.fx-track-${paramName}`);
-            if (track && max > min) {
-              const ratio = Math.max(0, Math.min(1, (displayVal - min) / (max - min)));
+            if (track && span > 0) {
+              const ratio = Math.max(0, Math.min(1, (currentVal - min) / span));
               track.style.width = (ratio * 100).toFixed(1) + '%';
             }
           }
@@ -14526,6 +14563,7 @@
         },
 
         onEnd: () => {
+          window.isTransformInteracting = false;
           if (window.PreviewCacheManager && typeof window.PreviewCacheManager.invalidateAll === 'function') {
             window.PreviewCacheManager.invalidateAll();
           }
@@ -14535,7 +14573,7 @@
           if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
             updateTimelineKeyframeMarkersHighlight();
           }
-          if (!hasDragged) {
+          if (!hasDragged && isBadgeClick) {
             const badgeBtn = card.querySelector(`.fx-badge-${paramName}`);
             if (badgeBtn) badgeBtn.click();
           }

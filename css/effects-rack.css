@@ -671,7 +671,8 @@
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Paired Inputs (Offset X & Offset Y, Point X & Point Y) */

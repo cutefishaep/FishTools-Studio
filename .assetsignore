@@ -1,0 +1,14 @@
+node_modules
+.git
+.github
+.vercel
+.gemini
+.system_generated
+vercelgate
+scratch
+server.js
+run.*
+*.log
+*.bat
+*.command
+*.tools

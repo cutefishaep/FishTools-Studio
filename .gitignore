@@ -8,3 +8,5 @@ dist/
 scratch/
 .env
 .env.*
+.vercel
+vercelgate

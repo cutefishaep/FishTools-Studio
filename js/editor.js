@@ -6183,6 +6183,16 @@
         });
       }
 
+      if (presetsCol) {
+        presetsCol.addEventListener('wheel', (e) => {
+          const isRow = (typeof window !== 'undefined' && window.getComputedStyle(presetsCol).flexDirection === 'row');
+          if (isRow && Math.abs(e.deltaY) > Math.abs(e.deltaX) && presetsCol.scrollWidth > presetsCol.clientWidth) {
+            presetsCol.scrollLeft += e.deltaY;
+            e.preventDefault();
+          }
+        }, { passive: false });
+      }
+
       const presetBtns = {
         'linear': document.getElementById('btn-graph-preset-linear'),
         'ease-in': document.getElementById('btn-graph-preset-ease-in'),
@@ -6428,6 +6438,14 @@
           dashedRect.setAttribute('stroke-width', dashedWidth);
         }
 
+        const gridClipRect = document.getElementById('graph-grid-clip-rect');
+        if (gridClipRect) {
+          gridClipRect.setAttribute('x', minX);
+          gridClipRect.setAttribute('y', isGraphOvershootEnabled ? viewY : yEnd);
+          gridClipRect.setAttribute('width', maxX - minX);
+          gridClipRect.setAttribute('height', isGraphOvershootEnabled ? viewH : (yStart - yEnd));
+        }
+
         if (anchorStart) {
           anchorStart.setAttribute('cx', minX);
           anchorStart.setAttribute('cy', yStart);
@@ -6611,10 +6629,11 @@
           if (!item || !Array.isArray(item.easing) || item.easing.length !== 4) return;
           const [p1x, p1y, p2x, p2y] = item.easing;
 
-          const c1x = 4 + Math.max(0, Math.min(1, p1x)) * 28;
-          const c1y = 32 - Math.max(-0.3, Math.min(1.3, p1y)) * 28;
-          const c2x = 4 + Math.max(0, Math.min(1, p2x)) * 28;
-          const c2y = 32 - Math.max(-0.3, Math.min(1.3, p2y)) * 28;
+          const clamp01 = (v) => Math.max(0, Math.min(1, v));
+          const c1x = 4 + clamp01(p1x) * 28;
+          const c1y = 32 - clamp01(p1y) * 28;
+          const c2x = 4 + clamp01(p2x) * 28;
+          const c2y = 32 - clamp01(p2y) * 28;
 
           const btn = document.createElement('button');
           btn.type = 'button';
@@ -6788,7 +6807,12 @@
           updateGraphUI();
           if (presetsCol) {
             setTimeout(() => {
-              presetsCol.scrollTo({ top: presetsCol.scrollHeight, behavior: 'smooth' });
+              const isRow = (typeof window !== 'undefined' && window.getComputedStyle(presetsCol).flexDirection === 'row');
+              if (isRow) {
+                presetsCol.scrollTo({ left: presetsCol.scrollWidth, behavior: 'smooth' });
+              } else {
+                presetsCol.scrollTo({ top: presetsCol.scrollHeight, behavior: 'smooth' });
+              }
             }, 40);
           }
         });
@@ -17195,9 +17219,10 @@
         }
       });
 
-      // 3. File ingestion logic (Strictly MP4, MP3, PNG, JPG/JPEG with Auto-Thumbnailing)
+      // 3. File ingestion logic (Strictly MP4, MP3, PNG, JPG/JPEG with Instant Optimistic Rendering)
       async function handleFiles(files, autoAddToTimeline = false) {
         if (!files || files.length === 0) return [];
+        console.log(`[MediaPool] 🚀 Ingesting ${files.length} file(s)...`);
         const addedItems = [];
         let projectId = currentProjectState.id;
         if (!projectId && window.FishDatabase) {
@@ -17221,7 +17246,9 @@
         }
 
         const defaultDur = currentProjectState.defaultDuration || 5;
+        const validFilePairs = [];
 
+        // Phase 1: Instant synchronous registration (< 1ms per file)
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           const ext = (file.name.split('.').pop() || '').toLowerCase();
@@ -17236,80 +17263,13 @@
             mediaType = 'image';
           }
 
-          // Strict format enforcement: only mp4, mp3, png, jpg/jpeg
           if (!mediaType) {
-            console.warn('Skipping unsupported file format:', file.name, ext, mime);
+            console.warn('[MediaPool] Skipping unsupported file format:', file.name, ext, mime);
             continue;
           }
 
           try {
-            let dataUrl = '';
-            let blob = file;
-            if (mediaType === 'video' || mediaType === 'audio') {
-              blob = file;
-              dataUrl = URL.createObjectURL(file);
-            } else if (file.size > 8 * 1024 * 1024) {
-              blob = file;
-              dataUrl = URL.createObjectURL(file);
-            } else {
-              dataUrl = await readFileAsDataUrl(file);
-            }
-            let thumbUrl = '';
-            let dur = defaultDur;
-            let mediaWidth = 0;
-            let mediaHeight = 0;
-
-            let detectedFps = null;
-            if (mediaType === 'video') {
-              try {
-                window.lastCapturedVideoDims = null;
-                const meta = await inspectVideoMetadata(file, dataUrl);
-                if (meta) {
-                  thumbUrl = meta.thumbUrl || '';
-                  if (meta.width > 0) mediaWidth = meta.width;
-                  if (meta.height > 0) mediaHeight = meta.height;
-                  if (meta.duration && meta.duration > 0) dur = meta.duration;
-                  if (meta.fps && meta.fps > 0) detectedFps = meta.fps;
-                }
-              } catch (_) {}
-            } else if (mediaType === 'image') {
-              try {
-                const img = new Image();
-                img.src = dataUrl;
-                await new Promise(r => {
-                  img.onload = r;
-                  img.onerror = r;
-                  setTimeout(r, 600);
-                });
-                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                  mediaWidth = img.naturalWidth;
-                  mediaHeight = img.naturalHeight;
-                }
-              } catch (_) {}
-            } else if (mediaType === 'audio') {
-              try {
-                const a = new Audio();
-                a.preload = 'metadata';
-                a.src = dataUrl;
-                await new Promise(r => {
-                  a.onloadedmetadata = () => r();
-                  a.onerror = () => r();
-                  setTimeout(r, 1200);
-                });
-                if (isFinite(a.duration) && a.duration > 0) {
-                  dur = a.duration;
-                }
-                // Do not clear a.src = '' as it causes WebKitBlobResource error 1 in Safari
-              } catch (_) {}
-            }
-
-            let arrayBuffer = null;
-            try {
-              if (file && typeof file.arrayBuffer === 'function') {
-                arrayBuffer = await file.arrayBuffer();
-              }
-            } catch (_) {}
-
+            const blobUrl = URL.createObjectURL(file);
             const mediaItem = {
               id: 'med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + i,
               projectId: projectId,
@@ -17317,39 +17277,163 @@
               type: mediaType,
               mimeType: file.type || (mediaType === 'video' ? 'video/mp4' : (mediaType === 'audio' ? 'audio/mpeg' : 'image/' + (ext === 'png' ? 'png' : 'jpeg'))),
               size: file.size,
-              dataUrl: dataUrl,
-              blob: blob || file,
-              buffer: arrayBuffer,
-              thumbUrl: thumbUrl,
-              duration: dur,
-              fps: detectedFps || null,
-              width: mediaWidth || null,
-              height: mediaHeight || null,
+              dataUrl: blobUrl,
+              blob: file,
+              buffer: null,
+              thumbUrl: (mediaType === 'image' ? blobUrl : ''),
+              duration: defaultDur,
+              fps: null,
+              width: null,
+              height: null,
               createdAt: new Date().toISOString()
             };
 
-            if (window.FishDatabase) {
-              try {
-                await window.FishDatabase.saveMedia(mediaItem);
-              } catch (saveErr) {
-                console.warn('[MediaPool] FishDatabase.saveMedia error, using session memory:', saveErr);
-              }
-            }
             window._activeMediaMap = window._activeMediaMap || new Map();
             window._activeMediaMap.set(mediaItem.id, mediaItem);
             addedItems.push(mediaItem);
+            validFilePairs.push({ file, mediaItem });
+            console.log(`[MediaPool] ⚡ Instantly registered: ${file.name} (${mediaType}, ${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
           } catch (err) {
-            console.error('Failed reading media file:', err);
+            console.error('[MediaPool] Failed creating object URL for file:', file.name, err);
           }
         }
 
-        // Render newly imported tiles into media pool grid
+        // Phase 2: Instant Render (< 16ms)
+        // Render newly registered tiles into media pool grid immediately
         await renderMediaGrid();
 
-        // If dropped directly onto Timeline or Canvas, or imported via picker, auto-add layers immediately
+        // If dropped directly onto Timeline/Canvas or auto-add requested, instantiate layers immediately
         if (autoAddToTimeline && addedItems.length > 0 && typeof window.addOrSelectMediaLayer === 'function') {
           addedItems.forEach(item => window.addOrSelectMediaLayer(item));
         }
+
+        // Phase 3: Non-blocking background worker for metadata & persistent database storage
+        validFilePairs.forEach(({ file, mediaItem }) => {
+          (async () => {
+            try {
+              console.log(`[MediaPool] ⏳ Processing background metadata & storage for: ${mediaItem.name}`);
+
+              if (mediaItem.type === 'image') {
+                const img = new Image();
+                img.src = mediaItem.dataUrl;
+                await new Promise(r => {
+                  if (img.complete && img.naturalWidth > 0) return r();
+                  img.onload = () => r();
+                  img.onerror = () => r();
+                  setTimeout(r, 600);
+                });
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  mediaItem.width = img.naturalWidth;
+                  mediaItem.height = img.naturalHeight;
+                  const layers = (currentProjectState && currentProjectState.layers) || [];
+                  layers.forEach(l => {
+                    if (l.mediaId === mediaItem.id && (!l.mediaWidth || !l.mediaHeight)) {
+                      l.mediaWidth = img.naturalWidth;
+                      l.mediaHeight = img.naturalHeight;
+                      if (!l._userResized) {
+                        fitLayerToComposition(l, img.naturalWidth, img.naturalHeight);
+                      }
+                    }
+                  });
+                  if (typeof redrawComposition === 'function') redrawComposition();
+                }
+              } else if (mediaItem.type === 'video') {
+                try {
+                  const meta = await inspectVideoMetadata(file, mediaItem.dataUrl);
+                  if (meta) {
+                    if (meta.thumbUrl) mediaItem.thumbUrl = meta.thumbUrl;
+                    if (meta.width > 0) mediaItem.width = meta.width;
+                    if (meta.height > 0) mediaItem.height = meta.height;
+                    if (meta.fps && meta.fps > 0) mediaItem.fps = meta.fps;
+                    if (meta.duration && meta.duration > 0) {
+                      mediaItem.duration = meta.duration;
+                      const layers = (currentProjectState && currentProjectState.layers) || [];
+                      layers.forEach(l => {
+                        if (l.mediaId === mediaItem.id && !l._userResized) {
+                          l.durationSec = meta.duration;
+                          l.mediaDuration = meta.duration;
+                          l.widthPx = Math.max(80, Math.round(meta.duration * pixelsPerSecond));
+                          if (meta.duration > (currentProjectState.defaultDuration || 5)) {
+                            currentProjectState.defaultDuration = Math.ceil(meta.duration);
+                            if (typeof window.updateTimelineDuration === 'function') {
+                              window.updateTimelineDuration(true);
+                            }
+                          }
+                        }
+                      });
+                      if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+                      if (typeof redrawComposition === 'function') redrawComposition();
+                    }
+                  }
+                } catch (_) {}
+
+                // Update video tile placeholder with generated thumbnail
+                if (mediaItem.thumbUrl) {
+                  const grid = document.getElementById('project-media-grid');
+                  const tile = grid ? grid.querySelector(`.media-item-tile[data-media-id="${mediaItem.id}"]`) : null;
+                  if (tile) {
+                    const ph = tile.querySelector('.media-item-vid-placeholder');
+                    if (ph) {
+                      const thumbImg = document.createElement('img');
+                      thumbImg.className = 'media-item-thumb';
+                      thumbImg.src = mediaItem.thumbUrl;
+                      thumbImg.alt = mediaItem.name;
+                      ph.replaceWith(thumbImg);
+                    }
+                  }
+                }
+              } else if (mediaItem.type === 'audio') {
+                try {
+                  const a = new Audio();
+                  a.preload = 'metadata';
+                  a.src = mediaItem.dataUrl;
+                  await new Promise(r => {
+                    a.onloadedmetadata = () => r();
+                    a.onerror = () => r();
+                    setTimeout(r, 1200);
+                  });
+                  if (isFinite(a.duration) && a.duration > 0) {
+                    mediaItem.duration = a.duration;
+                    const layers = (currentProjectState && currentProjectState.layers) || [];
+                    layers.forEach(l => {
+                      if (l.mediaId === mediaItem.id && !l._userResized) {
+                        l.durationSec = a.duration;
+                        l.mediaDuration = a.duration;
+                        l.widthPx = Math.max(80, Math.round(a.duration * pixelsPerSecond));
+                        if (a.duration > (currentProjectState.defaultDuration || 5)) {
+                          currentProjectState.defaultDuration = Math.ceil(a.duration);
+                          if (typeof window.updateTimelineDuration === 'function') {
+                            window.updateTimelineDuration(true);
+                          }
+                        }
+                      }
+                    });
+                    if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+                  }
+                } catch (_) {}
+              }
+
+              // Background binary extraction & IndexedDB persistence
+              if (file && typeof file.arrayBuffer === 'function') {
+                try {
+                  mediaItem.buffer = await file.arrayBuffer();
+                } catch (_) {}
+              }
+
+              if (window.FishDatabase) {
+                try {
+                  await window.FishDatabase.saveMedia(mediaItem);
+                  console.log(`[MediaPool] 💾 Persisted ${mediaItem.name} to database.`);
+                } catch (saveErr) {
+                  console.warn('[MediaPool] FishDatabase.saveMedia background error:', saveErr);
+                }
+              }
+            } catch (err) {
+              console.warn(`[MediaPool] Background worker warning for ${mediaItem.name}:`, err);
+            }
+          })();
+        });
+
         return addedItems;
       }
 

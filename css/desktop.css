@@ -1777,34 +1777,77 @@
 .desktop-panel-right .graph-presets-col {
   order: 3 !important;
   width: 100% !important;
-  height: 46px !important;
-  min-height: 46px !important;
+  height: 52px !important;
+  min-height: 52px !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  padding: 4px 10px !important;
-  gap: 6px !important;
+  justify-content: flex-start !important;
+  padding: 0 10px !important;
+  gap: 8px !important;
   overflow-x: auto !important;
+  overflow-y: hidden !important;
   background-color: var(--bg-panel) !important;
-  border-top: 1px solid var(--border-subtle) !important;
+  border-top: 1px solid var(--border-panel) !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--border-panel) transparent !important;
+  scroll-behavior: smooth !important;
+}
+
+.desktop-panel-right .graph-presets-col::-webkit-scrollbar {
+  display: block !important;
+  height: 3px !important;
+}
+
+.desktop-panel-right .graph-presets-col::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.desktop-panel-right .graph-presets-col::-webkit-scrollbar-thumb {
+  background: var(--border-panel) !important;
+  border-radius: 2px !important;
+}
+
+.desktop-panel-right .graph-custom-presets-container {
+  display: contents !important;
+}
+
+/* Remove redundant inner dashed cage rectangle */
+.desktop-panel-right .preset-thumb-boundary {
+  display: none !important;
+}
+
+.desktop-panel-right .preset-thumb-svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  overflow: hidden !important;
 }
 
 .desktop-panel-right .graph-preset-btn {
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
-  border-radius: var(--desktop-radius-sm) !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+  border-radius: var(--desktop-radius-sm, 6px) !important;
   background-color: var(--bg-panel-inner) !important;
-  border: 1px solid var(--border-subtle) !important;
+  border: 1px solid var(--border-panel) !important;
   color: var(--text-secondary) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  padding: 0 !important;
+  padding: 3px !important;
   box-sizing: border-box !important;
+  overflow: hidden !important;
+  position: relative !important;
   transition: background-color 0.15s ease, border-color 0.15s ease !important;
 }
 
@@ -1813,28 +1856,108 @@
   border-color: var(--color-primary) !important;
 }
 
+.desktop-panel-right .graph-preset-btn:hover .preset-thumb-curve {
+  stroke: var(--color-primary) !important;
+}
+
+.desktop-panel-right .graph-preset-btn:hover .preset-thumb-dot,
+.desktop-panel-right .graph-preset-btn:hover .preset-thumb-handle {
+  fill: var(--color-primary) !important;
+}
+
+/* Sleek precision active state: primary border & primary curve glow on clean dark card */
 .desktop-panel-right .graph-preset-btn.is-active {
-  background-color: var(--color-primary) !important;
-  border-color: var(--color-primary) !important;
+  background-color: var(--bg-panel-hover) !important;
+  border: 1.5px solid var(--color-primary) !important;
 }
 
 .desktop-panel-right .graph-preset-btn.is-active .preset-thumb-curve {
-  stroke: var(--bg-canvas) !important;
+  stroke: var(--color-primary) !important;
+  stroke-width: 2.4 !important;
 }
 
 .desktop-panel-right .graph-preset-btn.is-active .preset-thumb-dot,
 .desktop-panel-right .graph-preset-btn.is-active .preset-thumb-handle {
-  fill: var(--bg-canvas) !important;
+  fill: var(--color-primary) !important;
 }
 
 .desktop-panel-right .graph-preset-btn.is-active .preset-thumb-tangent {
-  stroke: var(--bg-canvas) !important;
-  opacity: 0.85 !important;
+  stroke: var(--color-primary) !important;
+  opacity: 0.65 !important;
 }
 
-.desktop-panel-right .graph-preset-btn.is-active svg {
+/* Custom Saved Presets styling in Desktop Panel */
+.desktop-panel-right .graph-preset-btn.is-custom {
+  position: relative !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right .graph-preset-delete-btn {
+  position: absolute !important;
+  top: 2px !important;
+  right: 2px !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 2px !important;
+  background-color: var(--bg-panel) !important;
+  color: var(--color-danger) !important;
+  border: 1px solid var(--border-panel) !important;
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  outline: none !important;
+  transition: background-color 0.1s ease, color 0.1s ease !important;
+}
+
+.desktop-panel-right .graph-preset-delete-btn svg {
+  width: 8px !important;
+  height: 8px !important;
+  display: block !important;
+}
+
+.desktop-panel-right .graph-preset-btn.is-custom:hover .graph-preset-delete-btn {
+  display: flex !important;
+}
+
+.desktop-panel-right .graph-preset-delete-btn:hover {
+  background-color: var(--color-danger) !important;
+  border-color: var(--color-danger) !important;
   color: var(--bg-canvas) !important;
-  fill: var(--bg-canvas) !important;
+}
+
+/* Save Graph (+) Button styling in Desktop Panel */
+.desktop-panel-right .graph-preset-save-btn {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+  border-radius: var(--desktop-radius-sm, 6px) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-panel) !important;
+  color: var(--text-secondary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-right .graph-preset-save-btn:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .graph-preset-save-btn:active {
+  transform: scale(0.94) !important;
 }
 
 /* 2. Effects Rack Subview */

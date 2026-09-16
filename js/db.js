@@ -1237,10 +1237,12 @@ window.FishDatabase = (function () {
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
         var isDone = false;
+        console.log('[FishDatabase] 💾 saveMedia starting for:', mediaItem.name, '(' + (mediaItem.type || 'media') + ')');
         // Fast optimistic timeout (2500ms max) avoids 30s UI freeze
         var saveTimer = setTimeout(function () {
           if (isDone) return;
           isDone = true;
+          console.warn('[FishDatabase] ⚠️ saveMedia timeout, saving optimistic fallback for:', mediaItem.name);
           saveToLocalFull(mediaItem);
           resolve(mediaItem);
         }, 2500);
@@ -1289,16 +1291,19 @@ window.FishDatabase = (function () {
 
           // Attach transaction completion handlers BEFORE issuing store request
           tx.oncomplete = function () {
+            console.log('[FishDatabase] ✅ saveMedia complete for:', mediaItem.name);
             _invalidateProjectMediaCache(mediaItem.projectId);
             saveMetaToLocal(mediaItem);
             finish(mediaItem);
           };
           tx.onerror = function (err) {
+            console.warn('[FishDatabase] ⚠️ saveMedia tx.onerror for:', mediaItem.name, err);
             try { if (err && err.preventDefault) err.preventDefault(); } catch (_) {}
             saveToLocalFull(mediaItem);
             finish(mediaItem);
           };
           tx.onabort = function () {
+            console.warn('[FishDatabase] ⚠️ saveMedia tx.onabort for:', mediaItem.name);
             saveToLocalFull(mediaItem);
             finish(mediaItem);
           };
@@ -1306,12 +1311,14 @@ window.FishDatabase = (function () {
           var req = store.put(itemToStore);
           if (req) {
             req.onerror = function (err) {
+              console.warn('[FishDatabase] ⚠️ saveMedia req.onerror for:', mediaItem.name, err);
               try { if (err && err.preventDefault) err.preventDefault(); } catch (_) {}
               saveToLocalFull(mediaItem);
               finish(mediaItem);
             };
           }
         } catch (e) {
+          console.warn('[FishDatabase] ⚠️ saveMedia exception for:', mediaItem.name, e);
           saveToLocalFull(mediaItem);
           finish(mediaItem);
         }

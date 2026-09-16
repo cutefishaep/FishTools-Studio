@@ -12,14 +12,6 @@
   <link rel="stylesheet" href="css/modal.css">
   <link rel="stylesheet" href="css/context-menu.css">
   <link rel="stylesheet" href="css/safari.css">
-  <script>
-    if (!window.DEBUG && !new URLSearchParams(window.location.search).has('debug') && localStorage.getItem('FISH_DEBUG') !== 'true') {
-      window._originalConsole = { log: console.log, debug: console.debug, info: console.info };
-      console.log = () => {};
-      console.debug = () => {};
-      console.info = () => {};
-    }
-  </script>
 </head>
 <body oncontextmenu="return false;" onselectstart="return false;">
 

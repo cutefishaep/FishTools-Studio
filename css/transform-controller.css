@@ -847,22 +847,23 @@
 }
 
 .graph-custom-presets-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  flex-shrink: 0;
+  display: contents;
 }
 
 .graph-preset-btn {
   position: relative;
   width: 36px;
   height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  flex: 0 0 36px;
+  aspect-ratio: 1 / 1;
   flex-shrink: 0;
   border-radius: 6px;
-  background: transparent;
-  border: 1.5px solid transparent;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -870,18 +871,20 @@
   box-sizing: border-box;
   cursor: pointer;
   outline: none;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   margin: 0 auto;
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .graph-preset-btn:hover {
   background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .graph-preset-btn.is-active {
   background-color: var(--bg-panel-hover);
-  border-color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
 }
 
 /* Delete X button on custom presets */
@@ -920,8 +923,37 @@
 }
 
 .graph-preset-save-btn {
-  color: var(--color-primary);
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  flex: 0 0 36px;
+  aspect-ratio: 1 / 1;
   flex-shrink: 0;
+  border-radius: 6px;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0 auto;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.graph-preset-save-btn:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.graph-preset-save-btn:active {
+  transform: scale(0.94);
 }
 
 .preset-thumb-svg {

@@ -113,27 +113,27 @@
           <!-- Batch Select: "(count) Selected" Title & Action Buttons -->
           <span class="editor-layer-batch-title" id="editor-layer-batch-title" style="display: none;">1 Selected</span>
           <div class="editor-layer-batch-actions" id="editor-layer-batch-actions" style="display: none;">
-            <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-left-precomp" title="Pre-compose / Group (Ctrl+Shift+C)" aria-label="Pre-compose / Group (Ctrl+Shift+C)">
+            <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-precomp" title="Pre-compose / Group (Ctrl+Shift+C)" aria-label="Pre-compose / Group (Ctrl+Shift+C)">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
                 <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
                 <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
               </svg>
             </button>
-            <button type="button" class="editor-layer-group-mask-btn" id="btn-layer-header-left-group-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)">
+            <button type="button" class="editor-layer-group-mask-btn" id="btn-layer-header-group-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <defs>
-                  <clipPath id="header-left-mask-group-clip">
+                  <clipPath id="header-mask-group-clip">
                     <polygon points="10,7.5 5.5,16.5 14.5,16.5"/>
                   </clipPath>
                 </defs>
                 <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
                 <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" opacity="0.45"/>
-                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor" clip-path="url(#header-left-mask-group-clip)"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor" clip-path="url(#header-mask-group-clip)"/>
                 <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
               </svg>
             </button>
-            <button type="button" class="editor-layer-group-exclude-btn" id="btn-layer-header-left-group-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)">
+            <button type="button" class="editor-layer-group-exclude-btn" id="btn-layer-header-group-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
                 <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
@@ -145,33 +145,6 @@
 
         <!-- Right Action Buttons (Precompose, Delete, Link/Parent & Layer Options) -->
         <div class="editor-header-right-actions">
-          <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-precomp" title="Pre-compose / Group (Ctrl+Shift+C)" aria-label="Pre-compose / Group (Ctrl+Shift+C)" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-              <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
-              <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
-            </svg>
-          </button>
-          <button type="button" class="editor-layer-group-mask-btn" id="btn-layer-header-group-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <defs>
-                <clipPath id="header-mask-group-clip">
-                  <polygon points="10,7.5 5.5,16.5 14.5,16.5"/>
-                </clipPath>
-              </defs>
-              <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-              <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" opacity="0.45"/>
-              <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor" clip-path="url(#header-mask-group-clip)"/>
-              <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-          </button>
-          <button type="button" class="editor-layer-group-exclude-btn" id="btn-layer-header-group-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-              <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
-              <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-          </button>
           <button type="button" class="editor-layer-delete-btn" id="btn-layer-header-delete" title="Delete Selected Layer" aria-label="Delete Selected Layer">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>

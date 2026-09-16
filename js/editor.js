@@ -20630,6 +20630,7 @@
         const layerNav = document.getElementById('header-nav-layer');
         const layerNameInput = document.getElementById('editor-layer-name-input');
         const batchTitle = document.getElementById('editor-layer-batch-title');
+        const batchActions = document.getElementById('editor-layer-batch-actions');
         const btnLink = document.getElementById('btn-layer-header-link');
         const btnPrecomp = document.getElementById('btn-layer-header-precomp');
         const btnGroupMask = document.getElementById('btn-layer-header-group-mask');
@@ -20653,6 +20654,7 @@
             // Batch select: show "(count) Selected" and Group buttons
             if (layerNameInput) layerNameInput.style.display = 'none';
             if (btnLink) btnLink.style.display = 'none';
+            if (batchActions) batchActions.style.display = 'inline-flex';
             if (btnPrecomp) btnPrecomp.style.display = 'inline-flex';
             if (btnGroupMask) btnGroupMask.style.display = 'inline-flex';
             if (btnGroupExclude) btnGroupExclude.style.display = 'inline-flex';
@@ -20662,6 +20664,7 @@
             }
           } else if (count === 1) {
             // Single select: show layer rename input & link button, hide group buttons
+            if (batchActions) batchActions.style.display = 'none';
             if (btnPrecomp) btnPrecomp.style.display = 'none';
             if (btnGroupMask) btnGroupMask.style.display = 'none';
             if (btnGroupExclude) btnGroupExclude.style.display = 'none';
@@ -20714,6 +20717,7 @@
           if (btnPrecomp) btnPrecomp.style.display = 'none';
           if (btnGroupMask) btnGroupMask.style.display = 'none';
           if (btnGroupExclude) btnGroupExclude.style.display = 'none';
+          if (batchActions) batchActions.style.display = 'none';
           const btnLayerCol = document.getElementById('btn-layer-header-collapse');
           if (btnLayerCol) btnLayerCol.style.display = 'none';
 

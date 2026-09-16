@@ -523,6 +523,13 @@ html, body {
   user-select: none;
 }
 
+.editor-layer-batch-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+
 .editor-layer-precomp-btn {
   background-color: transparent;
   color: var(--color-primary);

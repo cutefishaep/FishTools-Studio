@@ -79,13 +79,23 @@
       } else {
         try { thresh.x.drawImage(el, 0, 0, w, h); } catch (_) {}
         if (threshold > 0.05) {
-          thresh.x.save();
-          thresh.x.globalCompositeOperation = 'multiply';
-          const pCount = Math.min(4, Math.max(1, Math.round(threshold * 4)));
-          for (let p = 0; p < pCount; p++) {
-            try { thresh.x.drawImage(thresh.c, 0, 0); } catch (_) {}
-          }
-          thresh.x.restore();
+          try {
+            const imgData = thresh.x.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const threshVal = threshold * 255;
+            const knee = 30;
+            for (let i = 0; i < data.length; i += 4) {
+              if (data[i + 3] <= 3) continue;
+              const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+              if (luma < threshVal - knee) {
+                data[i + 3] = 0;
+              } else {
+                const factor = Math.min(1.0, Math.max(0.0, (luma - (threshVal - knee)) / (knee * 2)));
+                data[i + 3] = Math.round(data[i + 3] * factor * factor);
+              }
+            }
+            thresh.x.putImageData(imgData, 0, 0);
+          } catch (_) {}
         }
       }
 

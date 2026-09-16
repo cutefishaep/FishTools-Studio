@@ -79,14 +79,24 @@
         bloom.x.restore();
       } else {
         try { bloom.x.drawImage(el, 0, 0, w, h); } catch (_) {}
-        if (highlight > 0.1) {
-          bloom.x.save();
-          bloom.x.globalCompositeOperation = 'multiply';
-          const pCount = Math.min(3, Math.max(1, Math.round(highlight * 3)));
-          for (let p = 0; p < pCount; p++) {
-            try { bloom.x.drawImage(bloom.c, 0, 0); } catch (_) {}
-          }
-          bloom.x.restore();
+        if (highlight > 0.05) {
+          try {
+            const imgData = bloom.x.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const threshVal = highlight * 255;
+            const knee = 35;
+            for (let i = 0; i < data.length; i += 4) {
+              if (data[i + 3] <= 3) continue;
+              const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+              if (luma < threshVal - knee) {
+                data[i + 3] = 0;
+              } else {
+                const factor = Math.min(1.0, Math.max(0.0, (luma - (threshVal - knee)) / (knee * 2)));
+                data[i + 3] = Math.round(data[i + 3] * factor * factor);
+              }
+            }
+            bloom.x.putImageData(imgData, 0, 0);
+          } catch (_) {}
         }
       }
 

@@ -72,20 +72,31 @@
         return;
       }
 
-      // Threshold: multiply pass suppresses shadow & midtones to isolate specular highlights
-      const multPasses = Math.min(3, Math.max(1, Math.round(thresh * 3)));
-      _lumiaCtx.save();
-      _lumiaCtx.globalCompositeOperation = 'multiply';
-      for (let p = 0; p < multPasses; p++) {
-        try { _lumiaCtx.drawImage(_lumiaCanvas, 0, 0); } catch (_) {}
-      }
-      _lumiaCtx.restore();
+      // Threshold: smooth Hermite isolation of specular highlights (no multiply posterization)
+      try {
+        const imgData = _lumiaCtx.getImageData(0, 0, rw, rh);
+        const data = imgData.data;
+        const threshVal = thresh * 255;
+        const knee = Math.max(15, smooth * 60);
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] <= 3) continue;
+          const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          if (luma < threshVal - knee) {
+            data[i + 3] = 0;
+          } else {
+            const factor = Math.min(1.0, Math.max(0.0, (luma - (threshVal - knee)) / (knee * 2)));
+            const s = factor * factor * (3.0 - 2.0 * factor);
+            data[i + 3] = Math.round(data[i + 3] * s);
+          }
+        }
+        _lumiaCtx.putImageData(imgData, 0, 0);
+      } catch (_) {}
 
-      // Render blurred highlights
+      // Render blurred highlights with proper layer offset (x, y)
       if (blurVal > 0 && typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
-        window.FishEffects.drawBlurred(ctx, _lumiaCanvas, rw, rh, blurVal);
+        window.FishEffects.drawBlurred(ctx, _lumiaCanvas, rw, rh, blurVal, x, y);
       } else {
-        try { ctx.drawImage(_lumiaCanvas, x, y, w, h); } catch (_) {}
+        try { ctx.drawImage(_lumiaCanvas, x, y, rw, rh); } catch (_) {}
       }
       ctx.restore();
     }

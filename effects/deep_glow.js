@@ -149,18 +149,34 @@
         if (weight <= 0.005) continue;
 
         glowCtx.save();
-        glowCtx.filter = `blur(${Math.max(blurX, blurY)}px)`;
         glowCtx.globalAlpha = Math.min(1.0, weight);
+        const blurRadius = Math.max(blurX, blurY);
 
-        // Aspect stretch via scale
-        if (Math.abs(aspect) > 0.02) {
-          const centerX = bw / 2;
-          const centerY = bh / 2;
-          glowCtx.translate(centerX, centerY);
-          glowCtx.scale(aspectScaleX, aspectScaleY);
-          glowCtx.drawImage(threshCanvas, -centerX, -centerY);
-        } else {
-          glowCtx.drawImage(threshCanvas, 0, 0);
+        const hasNativeFilter = typeof window !== 'undefined' && window.FishEffects &&
+                                typeof window.FishEffects.isCanvasFilterSupported === 'function' &&
+                                window.FishEffects.isCanvasFilterSupported();
+
+        if (hasNativeFilter) {
+          glowCtx.filter = `blur(${blurRadius}px)`;
+          if (Math.abs(aspect) > 0.02) {
+            const centerX = bw / 2;
+            const centerY = bh / 2;
+            glowCtx.translate(centerX, centerY);
+            glowCtx.scale(aspectScaleX, aspectScaleY);
+            glowCtx.drawImage(threshCanvas, -centerX, -centerY);
+          } else {
+            glowCtx.drawImage(threshCanvas, 0, 0);
+          }
+        } else if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+          if (Math.abs(aspect) > 0.02) {
+            const centerX = bw / 2;
+            const centerY = bh / 2;
+            glowCtx.translate(centerX, centerY);
+            glowCtx.scale(aspectScaleX, aspectScaleY);
+            window.FishEffects.drawBlurred(glowCtx, threshCanvas, bw, bh, blurRadius, -centerX, -centerY);
+          } else {
+            window.FishEffects.drawBlurred(glowCtx, threshCanvas, bw, bh, blurRadius, 0, 0);
+          }
         }
         glowCtx.restore();
       }
@@ -177,7 +193,6 @@
         // Composite Red shifted left
         chromaCtx.save();
         chromaCtx.globalCompositeOperation = 'screen';
-        chromaCtx.filter = 'brightness(1.1)';
         chromaCtx.drawImage(glowCanvas, -chromatic, 0);
         // Composite Blue shifted right
         chromaCtx.drawImage(glowCanvas, chromatic, 0);

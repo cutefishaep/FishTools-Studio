@@ -1626,9 +1626,13 @@
       }
     }, true);
 
-    // Keyboard Shortcuts: Escape (Deselect) & Cmd+A / Ctrl+A (Select All)
+    // Keyboard Shortcuts: Escape / F2 / Cmd+Shift+A / Ctrl+Shift+A (Deselect) & Cmd+A / Ctrl+A (Select All)
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+      const isDeselect = (e.key === 'Escape') || (e.key === 'F2') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a');
+      if (isDeselect) {
+        if (e.target && typeof e.target.closest === 'function' && e.target.closest('input, textarea, select, [contenteditable="true"]')) {
+          if (e.key !== 'Escape') return;
+        }
         const openModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop[style*="display: flex"], .modal-backdrop[style*="display: block"]');
         if (openModal) return;
 
@@ -1642,7 +1646,7 @@
           e.preventDefault();
           deselectAllDesktopLayers();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'a') {
         if (e.target && typeof e.target.closest === 'function' && e.target.closest('input, textarea, select, [contenteditable="true"]')) {
           return;
         }
@@ -1657,6 +1661,45 @@
           const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
           if (currentLayers.length > 0) {
             setDesktopSelectedLayers(new Set(currentLayers.map(l => l.id)), currentLayers[0].id);
+          }
+        }
+      } else {
+        if (e.target && typeof e.target.closest === 'function' && e.target.closest('input, textarea, select, [contenteditable="true"]')) {
+          return;
+        }
+        const openModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop[style*="display: flex"], .modal-backdrop[style*="display: block"]');
+        if (openModal) return;
+
+        const isBracketLeft = (e.code === 'BracketLeft' || e.key === '[' || e.keyCode === 219 || e.key === '“' || e.key === '”');
+        const isBracketRight = (e.code === 'BracketRight' || e.key === ']' || e.keyCode === 221 || e.key === '‘' || e.key === '’');
+
+        if (e.altKey && !e.ctrlKey) {
+          if (isBracketLeft) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.executeTrimIn === 'function') {
+              window.executeTrimIn();
+            }
+          } else if (isBracketRight) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.executeTrimOut === 'function') {
+              window.executeTrimOut();
+            }
+          }
+        } else if (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          if (isBracketLeft) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.executeMoveIn === 'function') {
+              window.executeMoveIn();
+            }
+          } else if (isBracketRight) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.executeMoveOut === 'function') {
+              window.executeMoveOut();
+            }
           }
         }
       }
@@ -2076,7 +2119,7 @@
     const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
     const isNear = beatmarks.some(b => Math.abs(b - currentSec) <= 0.05);
     btnAddBm.classList.toggle('is-active', isNear);
-    btnAddBm.setAttribute('title', isNear ? 'Playhead on Beatmark (Click to remove, M)' : 'Add Beatmark / Marker at Playhead (M)');
+    btnAddBm.setAttribute('title', isNear ? 'Playhead on Marker (Click to remove, * or Ctrl+8)' : 'Add Marker / Beatmark at Playhead (* or Ctrl+8)');
   }
 
   function openBeatmarkPopover(item, time) {
@@ -2128,14 +2171,15 @@
       }, true);
     }
 
-    // 3. Global keyboard shortcut 'M' for beatmark toggle
+    // 3. Global keyboard shortcut for beatmark / marker toggle (AE standard: * or Ctrl+8, with M fallback)
     if (!window._desktopBeatmarkKeyBound) {
       window._desktopBeatmarkKeyBound = true;
       document.addEventListener('keydown', (e) => {
         const active = document.activeElement;
         const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
         if (isInput) return;
-        if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const isMarkerKey = (e.key === '*' || e.code === 'NumpadMultiply' || ((e.ctrlKey || e.metaKey) && (e.key === '8' || e.code === 'Digit8')) || (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm'));
+        if (isMarkerKey) {
           e.preventDefault();
           if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
             window.toggleBeatmarkAtCurrentTime();

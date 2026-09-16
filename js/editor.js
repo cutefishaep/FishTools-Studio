@@ -288,7 +288,7 @@
           if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
             e.preventDefault();
             this.undo();
-          } else if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && (e.key === 'z' || e.key === 'Z')) || (e.key === 'y' || e.key === 'Y'))) {
+          } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
             e.preventDefault();
             this.redo();
           }
@@ -24562,18 +24562,79 @@
           }
           return;
         }
-        if (e.key === 'Escape') {
+        // AE Shortcut: Deselect All (Escape / F2 / Ctrl+Shift+A / Cmd+Shift+A)
+        const isDeselect = (e.key === 'Escape') || (e.key === 'F2') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a');
+        if (isDeselect) {
           if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            e.preventDefault();
             window.clearSelectedKeyframes();
             return;
           }
           if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0) || isSelectorMode) {
+            e.preventDefault();
             deselectTimelineLayer();
+            return;
           }
-        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'a') {
+          // AE Shortcut: Select All (Ctrl+A / Cmd+A)
           e.preventDefault();
           selectAllTimelineLayers();
+        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+          // AE Shortcut: Split Layer at Current Time (Ctrl+Shift+D / Cmd+Shift+D)
+          e.preventDefault();
+          if (typeof executeCutMid === 'function') {
+            executeCutMid();
+          }
+        } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+          // AE Shortcut: Pre-compose / Group Layer(s) (Ctrl+Shift+C / Cmd+Shift+C)
+          e.preventDefault();
+          const btnPrecomp = document.getElementById('btn-layer-header-left-precomp') || document.getElementById('btn-layer-header-precomp') || document.getElementById('popover-btn-precompose');
+          if (btnPrecomp && typeof btnPrecomp.click === 'function') {
+            btnPrecomp.click();
+          }
+        } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'y') {
+          // AE Shortcut: New Solid Layer (Ctrl+Y / Cmd+Y)
+          e.preventDefault();
+          if (typeof addShapeLayer === 'function') {
+            addShapeLayer('rectangle');
+          } else {
+            const btnKotak = document.getElementById('btn-add-shape-kotak');
+            if (btnKotak) btnKotak.click();
+          }
+        } else if (
+          e.altKey && !e.ctrlKey &&
+          (e.code === 'BracketLeft' || e.key === '[' || e.keyCode === 219 || e.key === '“' || e.key === '”')
+        ) {
+          // AE Shortcut: Trim In-Point of layer to Current Time (Alt+[ / Option+[)
+          e.preventDefault();
+          e.stopPropagation();
+          executeTrimIn();
+        } else if (
+          e.altKey && !e.ctrlKey &&
+          (e.code === 'BracketRight' || e.key === ']' || e.keyCode === 221 || e.key === '‘' || e.key === '’')
+        ) {
+          // AE Shortcut: Trim Out-Point of layer to Current Time (Alt+] / Option+])
+          e.preventDefault();
+          e.stopPropagation();
+          executeTrimOut();
+        } else if (
+          !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
+          (e.code === 'BracketLeft' || e.key === '[' || e.keyCode === 219)
+        ) {
+          // AE Shortcut: Move In-Point of layer to Current Time ([)
+          e.preventDefault();
+          e.stopPropagation();
+          executeMoveIn();
+        } else if (
+          !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
+          (e.code === 'BracketRight' || e.key === ']' || e.keyCode === 221)
+        ) {
+          // AE Shortcut: Move Out-Point of layer to Current Time (])
+          e.preventDefault();
+          e.stopPropagation();
+          executeMoveOut();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          // AE Shortcut: Delete (Delete / Backspace)
           if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
             e.preventDefault();
             e.stopPropagation();
@@ -24615,6 +24676,7 @@
             redrawComposition();
           }
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+          // AE Shortcut: Copy (Ctrl+C / Cmd+C)
           if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
             e.preventDefault();
             copySelectedKeyframes();
@@ -24623,6 +24685,7 @@
             copySelectedLayers();
           }
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+          // AE Shortcut: Paste (Ctrl+V / Cmd+V)
           const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
           const hasKeyframeClip = window.internalKeyframeClipboard && Array.isArray(window.internalKeyframeClipboard.items) && window.internalKeyframeClipboard.items.length > 0;
           const shouldPasteKeyframe = (window.lastClipboardType === 'keyframe' && hasKeyframeClip) || (hasKeyframesSelected && hasKeyframeClip);
@@ -24634,28 +24697,67 @@
             e.preventDefault();
             pasteLayers();
           }
-        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'd') {
+          // AE Shortcut: Duplicate Layer(s) (Ctrl+D / Cmd+D)
           if (selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0)) {
             e.preventDefault();
             duplicateSelectedLayers();
           }
-        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'b') {
-          // 'B' shortcut: jump to previous stop (keyframe / beatmark)
+        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'j') {
+          // AE Shortcut: Jump to Previous Keyframe / Marker (J)
           e.preventDefault();
           if (typeof navigateBeatmark === 'function') {
             navigateBeatmark(-1);
           }
-        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'n') {
-          // 'N' shortcut: jump to next stop (keyframe / beatmark)
+        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+          // AE Shortcut: Jump to Next Keyframe / Marker (K)
           e.preventDefault();
           if (typeof navigateBeatmark === 'function') {
             navigateBeatmark(1);
           }
-        } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm') {
-          // 'M' shortcut: toggle / add beatmark at current playhead position
+        } else if (
+          (e.key === '*' || e.code === 'NumpadMultiply') ||
+          ((e.ctrlKey || e.metaKey) && (e.key === '8' || e.code === 'Digit8')) ||
+          (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm')
+        ) {
+          // AE Shortcut: Add Marker at Current Time (* or Ctrl+8, with M fallback)
           e.preventDefault();
           if (typeof toggleBeatmarkAtCurrentTime === 'function') {
             toggleBeatmarkAtCurrentTime();
+          }
+        } else if (e.key === 'PageUp' || ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'ArrowLeft')) {
+          // AE Shortcut: Step 1 Frame Backward (Page Up / Ctrl+Left Arrow)
+          e.preventDefault();
+          const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+          const curSec = Math.max(0, -panX / pps);
+          const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState && currentProjectState.fps, 10) || 60);
+          const frameDur = 1 / fps;
+          if (typeof seekTimelineToTime === 'function') {
+            seekTimelineToTime(Math.max(0, curSec - frameDur));
+          }
+        } else if (e.key === 'PageDown' || ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'ArrowRight')) {
+          // AE Shortcut: Step 1 Frame Forward (Page Down / Ctrl+Right Arrow)
+          e.preventDefault();
+          const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
+          const curSec = Math.max(0, -panX / pps);
+          const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState && currentProjectState.fps, 10) || 60);
+          const frameDur = 1 / fps;
+          if (typeof seekTimelineToTime === 'function') {
+            seekTimelineToTime(curSec + frameDur);
+          }
+        } else if (e.key === 'Home') {
+          // AE Shortcut: Go to Beginning of Composition (Home)
+          e.preventDefault();
+          if (typeof seekTimelineToTime === 'function') {
+            seekTimelineToTime(0);
+          }
+        } else if (e.key === 'End') {
+          // AE Shortcut: Go to End of Composition (End)
+          e.preventDefault();
+          const maxDur = (currentProjectState && currentProjectState.durationSec) ||
+            (currentProjectState && Array.isArray(currentProjectState.layers) && currentProjectState.layers.reduce((m, l) => Math.max(m, (l.startSec || 0) + (l.durationSec || 0)), 5)) || 5;
+          if (typeof seekTimelineToTime === 'function') {
+            seekTimelineToTime(maxDur);
           }
         }
       });
@@ -24792,12 +24894,13 @@
       // Cut Left (Trim Start), Cut Mid (Split at Playhead), Cut Right (Trim End)
       // ======================================================================
       function getSelectedLayerForCut() {
-        if (!selectedLayerId || !currentProjectState.layers) return null;
-        const layer = currentProjectState.layers.find(l => l.id === selectedLayerId);
+        const targetId = (typeof selectedLayerId !== 'undefined' && selectedLayerId) || window.selectedLayerId;
+        if (!targetId || !currentProjectState || !currentProjectState.layers) return null;
+        const layer = currentProjectState.layers.find(l => l.id === targetId);
         if (!layer) return null;
 
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
-        const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : panX;
+        const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : (typeof window.panX === 'number' ? window.panX : (typeof panX === 'number' ? panX : 0));
         const playheadPx = Math.abs(currentPanX || 0);
         const startPx = Math.round((layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps)) * pps);
         const widthPx = Math.max(16, Math.round((layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps)) * pps));
@@ -25308,6 +25411,301 @@
         selectTimelineLayer(layer.id, false);
       }
 
+      function getSelectedLayersForOperation() {
+        const layers = (currentProjectState && currentProjectState.layers) || (window.currentProjectState && window.currentProjectState.layers) || [];
+        const targetIds = new Set();
+
+        if (window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+          window.selectedLayerIds.forEach(id => targetIds.add(id));
+        }
+        if (typeof selectedLayerIds !== 'undefined' && selectedLayerIds && selectedLayerIds.size > 0) {
+          selectedLayerIds.forEach(id => targetIds.add(id));
+        }
+        if (window.selectedLayerId) {
+          targetIds.add(window.selectedLayerId);
+        }
+        if (typeof selectedLayerId !== 'undefined' && selectedLayerId) {
+          targetIds.add(selectedLayerId);
+        }
+
+        const selected = layers.filter(l => targetIds.has(l.id));
+        return selected;
+      }
+      window.getSelectedLayersForOperation = getSelectedLayersForOperation;
+
+      function getPlayheadSecForOperation() {
+        if (typeof window.getCurrentPlayheadTime === 'function') {
+          return window.getCurrentPlayheadTime();
+        }
+        if (typeof getCurrentPlayheadTime === 'function') {
+          return getCurrentPlayheadTime();
+        }
+        if (typeof window.currentPlaybackSec === 'number') {
+          return window.currentPlaybackSec;
+        }
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const curPan = window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0);
+        return Math.max(0, -curPan / pps);
+      }
+      window.getPlayheadSecForOperation = getPlayheadSecForOperation;
+
+      // Universal After Effects Trim In-Point (Alt+[ / Option+[)
+      function executeTrimIn() {
+        const targets = getSelectedLayersForOperation();
+        if (!targets || targets.length === 0) return;
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const currentSec = getPlayheadSecForOperation();
+
+        targets.forEach(layer => {
+          const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+          const endSec = startSec + durSec;
+
+          invalidatePreviewCacheForLayer(layer, startSec, endSec);
+
+          if (currentSec <= startSec) {
+            // Playhead before or at start: expand left towards playhead
+            const extendSec = startSec - currentSec;
+            const totalMediaDur = (layer.type === 'video' || layer.type === 'audio') ? getLayerMediaDuration(layer) : null;
+            let actualStartSec = Math.max(0, currentSec);
+            let actualDurSec = endSec - actualStartSec;
+
+            if (totalMediaDur !== null) {
+              const currentOffset = layer.sourceOffsetSec || 0;
+              const maxExtend = Math.max(0, currentOffset);
+              const actualExtend = Math.min(extendSec, maxExtend);
+              actualStartSec = startSec - actualExtend;
+              actualDurSec = endSec - actualStartSec;
+              layer.sourceOffsetSec = Math.max(0, currentOffset - actualExtend);
+            }
+
+            layer.startSec = actualStartSec;
+            layer.startPx = Math.round(actualStartSec * pps);
+            layer.durationSec = actualDurSec;
+            layer.widthPx = Math.round(actualDurSec * pps);
+            layer.isDurationExplicit = true;
+            layer._cachedStartSec = actualStartSec;
+            layer._cachedEndSec = endSec;
+          } else if (currentSec > startSec && currentSec < endSec) {
+            // Playhead inside layer: trim start
+            const trimmedSec = currentSec - startSec;
+            const remainingDurSec = endSec - currentSec;
+            layer.startSec = currentSec;
+            layer.durationSec = remainingDurSec;
+            layer.startPx = Math.round(currentSec * pps);
+            layer.widthPx = Math.round(remainingDurSec * pps);
+            layer.sourceOffsetSec = (layer.sourceOffsetSec || 0) + trimmedSec;
+            layer.isDurationExplicit = true;
+            layer.sourceLayerId = layer.sourceLayerId || layer.id;
+            layer._cachedStartSec = currentSec;
+            layer._cachedEndSec = endSec;
+          } else {
+            // Playhead at or past end: move start to playhead with minimal duration
+            const minDur = Math.max(0.1, 1 / (window.currentTimelineFps || 60));
+            layer.startSec = currentSec;
+            layer.startPx = Math.round(currentSec * pps);
+            layer.durationSec = minDur;
+            layer.widthPx = Math.round(minDur * pps);
+            layer.isDurationExplicit = true;
+            layer._cachedStartSec = currentSec;
+            layer._cachedEndSec = currentSec + minDur;
+          }
+        });
+
+        renderTimelineLayers();
+        redrawComposition();
+        saveCurrentProjectLayers();
+        updateTimelineDuration(true);
+
+        if (typeof window.syncSelectionClassesInPlace === 'function') {
+          try { window.syncSelectionClassesInPlace(); } catch (_) {}
+        }
+        if (typeof window.syncInspectorState === 'function') {
+          try { window.syncInspectorState(); } catch (_) {}
+        }
+        if (typeof updateCutBarRowState === 'function') {
+          try { updateCutBarRowState(); } catch (_) {}
+        }
+        if (typeof window.syncDesktopPlayhead === 'function') {
+          try { window.syncDesktopPlayhead(); } catch (_) {}
+        }
+      }
+
+      // Universal After Effects Trim Out-Point (Alt+] / Option+])
+      function executeTrimOut() {
+        const targets = getSelectedLayersForOperation();
+        if (!targets || targets.length === 0) return;
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const currentSec = getPlayheadSecForOperation();
+
+        targets.forEach(layer => {
+          const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+          const endSec = startSec + durSec;
+
+          invalidatePreviewCacheForLayer(layer, startSec, endSec);
+
+          if (currentSec >= endSec) {
+            // Playhead after or at end: expand right towards playhead
+            let newDurSec = currentSec - startSec;
+            const totalMediaDur = (layer.type === 'video' || layer.type === 'audio') ? getLayerMediaDuration(layer) : null;
+            if (totalMediaDur !== null) {
+              const maxDurSec = Math.max(0.2, totalMediaDur - (layer.sourceOffsetSec || 0));
+              newDurSec = Math.min(newDurSec, maxDurSec);
+            }
+            layer.durationSec = newDurSec;
+            layer.widthPx = Math.round(newDurSec * pps);
+            layer.isDurationExplicit = true;
+            layer._cachedStartSec = startSec;
+            layer._cachedEndSec = startSec + newDurSec;
+          } else if (currentSec > startSec && currentSec < endSec) {
+            // Playhead inside layer: trim end
+            const remainingDurSec = currentSec - startSec;
+            layer.durationSec = remainingDurSec;
+            layer.widthPx = Math.round(remainingDurSec * pps);
+            layer.isDurationExplicit = true;
+            layer.sourceLayerId = layer.sourceLayerId || layer.id;
+            layer._cachedStartSec = startSec;
+            layer._cachedEndSec = currentSec;
+          } else {
+            // Playhead at or before start: collapse to minimal duration ending at playhead
+            const minDur = Math.max(0.1, 1 / (window.currentTimelineFps || 60));
+            const newStart = Math.max(0, currentSec - minDur);
+            layer.startSec = newStart;
+            layer.startPx = Math.round(newStart * pps);
+            layer.durationSec = minDur;
+            layer.widthPx = Math.round(minDur * pps);
+            layer.isDurationExplicit = true;
+            layer._cachedStartSec = newStart;
+            layer._cachedEndSec = currentSec;
+          }
+        });
+
+        renderTimelineLayers();
+        redrawComposition();
+        saveCurrentProjectLayers();
+        updateTimelineDuration(true);
+
+        if (typeof window.syncSelectionClassesInPlace === 'function') {
+          try { window.syncSelectionClassesInPlace(); } catch (_) {}
+        }
+        if (typeof window.syncInspectorState === 'function') {
+          try { window.syncInspectorState(); } catch (_) {}
+        }
+        if (typeof updateCutBarRowState === 'function') {
+          try { updateCutBarRowState(); } catch (_) {}
+        }
+        if (typeof window.syncDesktopPlayhead === 'function') {
+          try { window.syncDesktopPlayhead(); } catch (_) {}
+        }
+      }
+
+      // Universal After Effects Move In-Point to Playhead ([)
+      function executeMoveIn() {
+        const targets = getSelectedLayersForOperation();
+        if (!targets || targets.length === 0) return;
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const currentSec = getPlayheadSecForOperation();
+
+        targets.forEach(layer => {
+          const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+          const endSec = startSec + durSec;
+
+          const newStartSec = Math.max(0, currentSec);
+          const deltaSec = newStartSec - startSec;
+
+          invalidatePreviewCacheForLayer(layer, startSec, endSec);
+
+          layer.startSec = newStartSec;
+          layer.startPx = Math.round(newStartSec * pps);
+          layer.isDurationExplicit = true;
+          layer._cachedStartSec = newStartSec;
+          layer._cachedEndSec = newStartSec + durSec;
+
+          if (layer.keyframes) {
+            Object.values(layer.keyframes).forEach(list => {
+              if (Array.isArray(list)) {
+                list.forEach(kf => {
+                  kf.time = Number(Math.max(0, kf.time + deltaSec).toFixed(4));
+                });
+              }
+            });
+          }
+        });
+
+        renderTimelineLayers();
+        redrawComposition();
+        saveCurrentProjectLayers();
+        updateTimelineDuration(true);
+
+        if (typeof window.syncSelectionClassesInPlace === 'function') {
+          try { window.syncSelectionClassesInPlace(); } catch (_) {}
+        }
+        if (typeof window.syncInspectorState === 'function') {
+          try { window.syncInspectorState(); } catch (_) {}
+        }
+        if (typeof updateCutBarRowState === 'function') {
+          try { updateCutBarRowState(); } catch (_) {}
+        }
+        if (typeof window.syncDesktopPlayhead === 'function') {
+          try { window.syncDesktopPlayhead(); } catch (_) {}
+        }
+      }
+
+      // Universal After Effects Move Out-Point to Playhead (])
+      function executeMoveOut() {
+        const targets = getSelectedLayersForOperation();
+        if (!targets || targets.length === 0) return;
+        const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+        const currentSec = getPlayheadSecForOperation();
+
+        targets.forEach(layer => {
+          const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+          const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+          const endSec = startSec + durSec;
+
+          const newStartSec = Math.max(0, currentSec - durSec);
+          const deltaSec = newStartSec - startSec;
+
+          invalidatePreviewCacheForLayer(layer, startSec, endSec);
+
+          layer.startSec = newStartSec;
+          layer.startPx = Math.round(newStartSec * pps);
+          layer.isDurationExplicit = true;
+          layer._cachedStartSec = newStartSec;
+          layer._cachedEndSec = newStartSec + durSec;
+
+          if (layer.keyframes) {
+            Object.values(layer.keyframes).forEach(list => {
+              if (Array.isArray(list)) {
+                list.forEach(kf => {
+                  kf.time = Number(Math.max(0, kf.time + deltaSec).toFixed(4));
+                });
+              }
+            });
+          }
+        });
+
+        renderTimelineLayers();
+        redrawComposition();
+        saveCurrentProjectLayers();
+        updateTimelineDuration(true);
+
+        if (typeof window.syncSelectionClassesInPlace === 'function') {
+          try { window.syncSelectionClassesInPlace(); } catch (_) {}
+        }
+        if (typeof window.syncInspectorState === 'function') {
+          try { window.syncInspectorState(); } catch (_) {}
+        }
+        if (typeof updateCutBarRowState === 'function') {
+          try { updateCutBarRowState(); } catch (_) {}
+        }
+        if (typeof window.syncDesktopPlayhead === 'function') {
+          try { window.syncDesktopPlayhead(); } catch (_) {}
+        }
+      }
+
       function updateVolumeAndSpeedBtnState(layer) {
         const btnSpeed = document.getElementById('btn-layer-speed');
         const btnVolume = document.getElementById('btn-layer-volume');
@@ -25412,12 +25810,12 @@
         }
       }
 
-      // Hubungkan tombol Cut ke logic
+      // Hubungkan tombol Cut & Trim ke logic
       const btnCutLeft = document.getElementById('btn-cut-left');
       if (btnCutLeft) {
         btnCutLeft.addEventListener('click', (e) => {
           e.stopPropagation();
-          executeCutLeft();
+          executeTrimIn();
         });
       }
 
@@ -25433,7 +25831,7 @@
       if (btnCutRight) {
         btnCutRight.addEventListener('click', (e) => {
           e.stopPropagation();
-          executeCutRight();
+          executeTrimOut();
         });
       }
 
@@ -25441,7 +25839,7 @@
       if (btnExpandRight) {
         btnExpandRight.addEventListener('click', (e) => {
           e.stopPropagation();
-          executeExpandRight();
+          executeTrimOut();
         });
       }
 
@@ -25449,7 +25847,7 @@
       if (btnMoveRight) {
         btnMoveRight.addEventListener('click', (e) => {
           e.stopPropagation();
-          executeMoveRight();
+          executeMoveOut();
         });
       }
 
@@ -25457,7 +25855,7 @@
       if (btnMoveLeft) {
         btnMoveLeft.addEventListener('click', (e) => {
           e.stopPropagation();
-          executeMoveLeft();
+          executeMoveIn();
         });
       }
 
@@ -25465,7 +25863,7 @@
       if (btnExpandLeft) {
         btnExpandLeft.addEventListener('click', (e) => {
           e.stopPropagation();
-          executeExpandLeft();
+          executeTrimIn();
         });
       }
 
@@ -25476,6 +25874,10 @@
       window.executeMoveRight = executeMoveRight;
       window.executeMoveLeft = executeMoveLeft;
       window.executeExpandLeft = executeExpandLeft;
+      window.executeTrimIn = executeTrimIn;
+      window.executeTrimOut = executeTrimOut;
+      window.executeMoveIn = executeMoveIn;
+      window.executeMoveOut = executeMoveOut;
       window.updateCutBarRowState = updateCutBarRowState;
       window.updateVolumeAndSpeedBtnState = updateVolumeAndSpeedBtnState;
 

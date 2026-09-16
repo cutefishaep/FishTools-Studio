@@ -3275,35 +3275,9 @@
   display: none !important;
 }
 
-.desktop-timeline-wrapper .timeline-fab-add {
-  position: absolute !important;
-  bottom: 20px !important;
-  right: 24px !important;
-  width: 38px !important;
-  height: 38px !important;
-  border-radius: 50% !important;
-  background-color: var(--color-primary) !important;
-  color: var(--bg-canvas) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border: none !important;
-  outline: none !important;
-  cursor: pointer !important;
-  z-index: 60 !important;
-  box-shadow: none !important;
-  transition: transform 0.15s ease, background-color 0.15s ease !important;
-}
-
-.desktop-timeline-wrapper .timeline-fab-add:hover {
-  background-color: var(--color-primary-hover) !important;
-  transform: scale(1.08) !important;
-}
-
-.desktop-timeline-wrapper .timeline-fab-add .svg-icon {
-  width: 18px !important;
-  height: 18px !important;
-  background-color: var(--bg-canvas) !important;
+.desktop-timeline-wrapper .timeline-fab-add,
+.desktop-workstation .timeline-fab-add {
+  display: none !important;
 }
 
 /* Desktop Timeline Toolbar: 36px Height (consistent with headers) */

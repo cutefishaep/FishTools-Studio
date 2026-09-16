@@ -15,6 +15,7 @@
     if (layer && typeof layer._currentSec === 'number' && !isNaN(layer._currentSec)) return layer._currentSec;
     if (layer && typeof layer._timeInClip === 'number' && !isNaN(layer._timeInClip)) return layer._timeInClip;
     if (typeof window !== 'undefined') {
+      if (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)) return window._currentRenderSec;
       if (typeof window.currentPlaybackSec === 'number' && !isNaN(window.currentPlaybackSec)) return window.currentPlaybackSec;
       if (typeof window.currentSec === 'number' && !isNaN(window.currentSec)) return window.currentSec;
       if (typeof window.getCurrentPlayheadTime === 'function') {

@@ -388,6 +388,10 @@
     }
 
     _flattenPlayableLayers(layers, parentOffsetSec = 0, parentSpeed = 1.0, parentMuted = false, parentGain = 1.0, pixelsPerSecond = 80, parentLayer = null) {
+      const isRoot = parentOffsetSec === 0 && parentSpeed === 1.0 && !parentMuted && parentGain === 1.0 && !parentLayer;
+      if (isRoot && this._cachedFlatPlayableLayers && this._cachedLayersRef === layers && this._cachedPps === pixelsPerSecond) {
+        return this._cachedFlatPlayableLayers;
+      }
       const result = [];
       (layers || []).forEach(layer => {
         if (layer.hidden) return;
@@ -422,7 +426,17 @@
           nested.forEach(item => result.push(item));
         }
       });
+      if (isRoot) {
+        this._cachedLayersRef = layers;
+        this._cachedPps = pixelsPerSecond;
+        this._cachedFlatPlayableLayers = result;
+      }
       return result;
+    }
+
+    invalidateLayerCache() {
+      this._cachedLayersRef = null;
+      this._cachedFlatPlayableLayers = null;
     }
 
     getMasterAudioTime(layers, currentSec, pixelsPerSecond = 80) {
@@ -848,6 +862,7 @@
           } catch (_) {}
         }
       });
+      this.invalidateLayerCache();
     }
   }
 

@@ -949,15 +949,12 @@
       }
     }
     window.syncDesktopPlayhead = syncDesktopPlayhead;
+    window.getDesktopScrollX = function() {
+      return desktopScrollX;
+    };
 
-    // Dedicated AE-style playhead playback loop (runs smoothly at 60fps on GPU without style recalc)
-    function loopDesktopPlayback() {
-      if (window.isTimelinePlaying) {
-        syncDesktopPlayhead();
-      }
-      requestAnimationFrame(loopDesktopPlayback);
-    }
-    requestAnimationFrame(loopDesktopPlayback);
+    // Dedicated AE-style playhead position is driven synchronously by updateTimelinePosition
+    // in editor.js. Standalone loopDesktopPlayback rAF is eliminated to prevent double rAF jitter.
 
     const originalUpdatePos = window.updateTimelinePosition;
     if (typeof originalUpdatePos === 'function' && !window._desktopUpdatePosPatched) {

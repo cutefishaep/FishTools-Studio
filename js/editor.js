@@ -2145,6 +2145,7 @@
       const pixelsPerSecond = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? Math.min(0, window.timelinePanX) : 0;
       const currentSec = (overrideSec !== null && overrideSec !== undefined) ? Math.max(0, overrideSec) : (Math.max(0, -currentPanX) / pixelsPerSecond);
+      window._currentRenderSec = currentSec;
       if (overrideSec === null || overrideSec === undefined) {
         window.currentSec = currentSec;
         window.currentPlaybackSec = currentSec;
@@ -2347,10 +2348,10 @@
             const flushStaticBatch = () => {
               if (staticBatch.length === 0) return;
               if (typeof engine.renderScene === 'function') {
-                engine.renderScene(ctx, staticBatch, compositionBufferScale, camEff);
+                engine.renderScene(ctx, staticBatch, compositionBufferScale, camEff, currentSec);
               } else {
                 staticBatch.forEach(item => {
-                  engine.renderLayer(ctx, item.el, item.animLayer || item.layer, compositionBufferScale, camEff);
+                  engine.renderLayer(ctx, item.el, item.animLayer || item.layer, compositionBufferScale, camEff, currentSec);
                 });
               }
               staticBatch = [];
@@ -2729,6 +2730,7 @@
               }
 
               if (engine) {
+                childWorldAnimLayer._currentSec = currentSec;
                 childWorldAnimLayer._canvasBounds = engine.getBounds(childWorldAnimLayer, bufferScale, camEff, w, h);
                 layersToRender.push({ el: childEl, layer: childWorldAnimLayer, animLayer: childWorldAnimLayer });
               } else {
@@ -3098,6 +3100,8 @@
             const engine = window.FishToolEngine || window.LayerTransform;
             if (engine) {
               const animLayer = Object.assign({}, layer, effProps);
+              animLayer._currentSec = currentSec;
+              layer._currentSec = currentSec;
               animLayer._dofBlur = layerDofBlur;
               layer._dofBlur = layerDofBlur;
               if (Array.isArray(effProps.effects)) {
@@ -3253,10 +3257,10 @@
           const flushStaticBatch = () => {
             if (staticBatch.length === 0) return;
             if (typeof engine.renderScene === 'function') {
-              engine.renderScene(ctx, staticBatch, compositionBufferScale, camEff);
+              engine.renderScene(ctx, staticBatch, compositionBufferScale, camEff, currentSec);
             } else {
               staticBatch.forEach(item => {
-                engine.renderLayer(ctx, item.el, item.animLayer || item.layer, compositionBufferScale, camEff);
+                engine.renderLayer(ctx, item.el, item.animLayer || item.layer, compositionBufferScale, camEff, currentSec);
               });
             }
             staticBatch = [];
@@ -9872,10 +9876,11 @@
     // ======================================================================
     // NULL OBJECT LAYER & HIERARCHICAL PARENTING CONTROLLER
     // ======================================================================
-    function addNullLayer(autoLink = false) {
+    function addNullLayer(autoLink = false, options = {}) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+      const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
+      const currentSec = isTargetSec ? Math.max(0, options.targetSec) : (Math.abs(window.timelinePanX || 0) / pps);
       const defaultDur = currentProjectState.defaultDuration || 5;
       const widthPx = Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
@@ -10091,10 +10096,11 @@
     // ======================================================================
     // TEXT LAYER CONTROLLER & FISHTOOL TEXT ENGINE INTEGRATION
     // ======================================================================
-    function addTextLayer(presetId = 'default') {
+    function addTextLayer(presetId = 'default', options = {}) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+      const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
+      const currentSec = isTargetSec ? Math.max(0, options.targetSec) : (Math.abs(window.timelinePanX || 0) / pps);
       const defaultDur = currentProjectState.defaultDuration || 5;
       const widthPx = Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
@@ -10203,10 +10209,34 @@
       }).join('');
 
       grid.querySelectorAll('.text-preset-card').forEach(card => {
+        const pid = card.dataset.presetId || 'default';
+        if (!card._textDraggableWired) {
+          card._textDraggableWired = true;
+          card.draggable = true;
+          card.addEventListener('dragstart', (e) => {
+            window._draggedProjectAsset = { type: 'text', presetId: pid, name: 'Text Preset' };
+            card.classList.add('is-dragging');
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = 'copy';
+              try {
+                e.dataTransfer.setData('application/json', JSON.stringify({ type: 'text', presetId: pid }));
+                e.dataTransfer.setData('text/plain', 'Text Preset');
+              } catch (_) {}
+            }
+          });
+          card.addEventListener('dragend', () => {
+            window._draggedProjectAsset = null;
+            card.classList.remove('is-dragging');
+            if (typeof window.hideTimelineDropIndicator === 'function') {
+              window.hideTimelineDropIndicator();
+            }
+            const previewEl = document.getElementById('editor-preview-container');
+            if (previewEl) previewEl.classList.remove('is-asset-dragover');
+          });
+        }
         card.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          const pid = card.dataset.presetId || 'default';
           addTextLayer(pid);
         });
       });
@@ -10572,10 +10602,11 @@
     // ======================================================================
     window.isShapeSizeLinked = true;
 
-    function addShapeLayer(shapeType = 'rectangle') {
+    function addShapeLayer(shapeType = 'rectangle', options = {}) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+      const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
+      const currentSec = isTargetSec ? Math.max(0, options.targetSec) : (Math.abs(window.timelinePanX || 0) / pps);
       const defaultDur = currentProjectState.defaultDuration || 5;
       const widthPx = Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
@@ -11522,9 +11553,37 @@
         });
       }
 
+      // Helper: Make Project Asset Button Draggable
+      function makeDraggableAsset(btn, assetData) {
+        if (!btn || btn._assetDraggableWired) return;
+        btn._assetDraggableWired = true;
+        btn.draggable = true;
+        btn.addEventListener('dragstart', (e) => {
+          window._draggedProjectAsset = assetData;
+          btn.classList.add('is-dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'copy';
+            try {
+              e.dataTransfer.setData('application/json', JSON.stringify(assetData));
+              e.dataTransfer.setData('text/plain', assetData.name || 'Project Asset');
+            } catch (_) {}
+          }
+        });
+        btn.addEventListener('dragend', () => {
+          window._draggedProjectAsset = null;
+          btn.classList.remove('is-dragging');
+          if (typeof window.hideTimelineDropIndicator === 'function') {
+            window.hideTimelineDropIndicator();
+          }
+          const previewEl = document.getElementById('editor-preview-container');
+          if (previewEl) previewEl.classList.remove('is-asset-dragover');
+        });
+      }
+
       // 5. Add Camera Layer Button in Add Layer Drawer
       const btnAddCamera = document.getElementById('btn-add-camera');
       if (btnAddCamera) {
+        makeDraggableAsset(btnAddCamera, { type: 'control', controlType: 'camera', name: 'Camera' });
         btnAddCamera.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -11535,6 +11594,7 @@
       // 5b. Add Null Layer Button in Add Layer Drawer
       const btnAddNull = document.getElementById('btn-add-null');
       if (btnAddNull) {
+        makeDraggableAsset(btnAddNull, { type: 'control', controlType: 'null', name: 'Null' });
         btnAddNull.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -11545,6 +11605,7 @@
       // 5c. Add Adjustment Layer Button in Add Layer Drawer
       const btnAddAdjustment = document.getElementById('btn-add-adjustment');
       if (btnAddAdjustment) {
+        makeDraggableAsset(btnAddAdjustment, { type: 'control', controlType: 'adjustment', name: 'Adjustment' });
         btnAddAdjustment.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -11566,6 +11627,7 @@
         const btn = document.getElementById(item.id);
         if (btn && !btn._shapeWired) {
           btn._shapeWired = true;
+          makeDraggableAsset(btn, { type: 'shape', shapeType: item.type, name: item.type });
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -11580,6 +11642,7 @@
           const btn = document.getElementById('btn-add-shape-' + alias) || document.getElementById('btn-add-shape-' + s.id);
           if (btn && !btn._shapeWired) {
             btn._shapeWired = true;
+            makeDraggableAsset(btn, { type: 'shape', shapeType: s.id, name: s.name || s.id });
             btn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -13364,7 +13427,10 @@
 
     function syncEffectsKeyframeState(layer) {
       const btnEffectsKeyframe = document.getElementById('btn-effects-keyframe');
-      if (!btnEffectsKeyframe || !layer) return;
+      if (!layer) {
+        if (btnEffectsKeyframe) btnEffectsKeyframe.classList.remove('is-active');
+        return;
+      }
       const pps = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
       const currentSec = Number((Math.abs(currentPanX) / pps).toFixed(3));
@@ -13379,7 +13445,7 @@
         const pName = activeProp.split(':')[1];
         kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, pName, currentSec, tol) : null;
       }
-      btnEffectsKeyframe.classList.toggle('is-active', !!kf);
+      if (btnEffectsKeyframe) btnEffectsKeyframe.classList.toggle('is-active', !!kf);
     }
 
     function duplicateEffect(fx, layer) {
@@ -13561,8 +13627,24 @@
             const paramBtn = card.querySelector(`.fx-param-btn-${pId}`);
 
             if (indicator) indicator.style.left = (ratio * 100) + '%';
-            const formattedVal = isDecimal ? val.toFixed(2) : val;
-            if (badge) badge.textContent = (val >= 0 && min < 0 ? '+' : '') + formattedVal + unit;
+            const track = card.querySelector(`.fx-track-${pId}`);
+            if (track) {
+              if (pType === 'angle') {
+                const normAngle = ((Math.round(val) % 360) + 360) % 360;
+                track.style.width = ((normAngle / 360) * 100).toFixed(1) + '%';
+              } else if (max > min) {
+                const clampedRatio = Math.max(0, Math.min(1, ratio));
+                track.style.width = (clampedRatio * 100).toFixed(1) + '%';
+              }
+            }
+            if (pType === 'angle') {
+              const turns = Math.trunc(val / 360);
+              const rem = Math.round(val % 360);
+              if (badge) badge.textContent = (turns !== 0) ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°` : `${rem >= 0 ? '+' : ''}${rem}°`;
+            } else {
+              const formattedVal = isDecimal ? val.toFixed(2) : val;
+              if (badge) badge.textContent = (val >= 0 && min < 0 ? '+' : '') + formattedVal + unit;
+            }
             if (paramBtn) {
               const isSelected = (window.activeKeyframeProperty === propKey) ||
                 (!window.activeKeyframeProperty && fx === layer.effects[0] && pId === (def && def.params[0] ? def.params[0].id : 'brightness'));
@@ -14096,6 +14178,17 @@
                     const ticksEl = card.querySelector(`.fx-scrubber-${paramName} .jog-wheel-ticks`);
                     if (ticksEl) ticksEl.style.backgroundPosition = '0 0';
 
+                    const track = card.querySelector(`.fx-track-${paramName}`);
+                    if (track) {
+                      if (isAngle) {
+                        const normAngle = ((Math.round(newVal) % 360) + 360) % 360;
+                        track.style.width = ((normAngle / 360) * 100).toFixed(1) + '%';
+                      } else if (max > min) {
+                        const ratio = Math.max(0, Math.min(1, (newVal - min) / (max - min)));
+                        track.style.width = (ratio * 100).toFixed(1) + '%';
+                      }
+                    }
+
                     if (isAngle) {
                       const turns = Math.trunc(newVal / 360);
                       const rem = Math.round(newVal % 360);
@@ -14279,10 +14372,16 @@
       const isHue = (paramName && paramName.toLowerCase().includes('hue')) || isAngle || (defParam && defParam.unlimited);
 
       let currentVal = 0;
+      let startPointerX = 0;
+      let startPointerY = 0;
+      let hasDragged = false;
       const propKey = `${fx.id}:${paramName}`;
 
       bindJogWheel(container, {
-        onStart: () => {
+        onStart: (e) => {
+          startPointerX = e ? e.clientX : 0;
+          startPointerY = e ? e.clientY : 0;
+          hasDragged = false;
           window.activeKeyframeProperty = propKey;
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
 
@@ -14300,6 +14399,9 @@
         },
 
         onMove: (rawDelta, e, step) => {
+          if (e && (Math.abs(e.clientX - startPointerX) > 4 || Math.abs(e.clientY - startPointerY) > 4)) {
+            hasDragged = true;
+          }
           let consumedStep = 0;
           let badgeText = '';
 
@@ -14317,6 +14419,12 @@
               ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°`
               : `${rem >= 0 ? '+' : ''}${rem}°`;
             fx[paramName] = val;
+
+            const track = card.querySelector(`.fx-track-${paramName}`);
+            if (track) {
+              const normAngle = ((val % 360) + 360) % 360;
+              track.style.width = ((normAngle / 360) * 100).toFixed(1) + '%';
+            }
           } else {
             // STRICT BOUNDED MODE (e.g. Brightness, Contrast, Scale, Blur, Wave Height, Wave Width, Wave Speed)
             const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : -100);
@@ -14363,6 +14471,12 @@
 
             const formatted = isDecimal ? displayVal.toFixed(2) : displayVal;
             badgeText = (displayVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
+
+            const track = card.querySelector(`.fx-track-${paramName}`);
+            if (track && max > min) {
+              const ratio = Math.max(0, Math.min(1, (displayVal - min) / (max - min)));
+              track.style.width = (ratio * 100).toFixed(1) + '%';
+            }
           }
 
           if (!layer.effects || fx === layer.effects[0]) {
@@ -14396,6 +14510,10 @@
           if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
           if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
             updateTimelineKeyframeMarkersHighlight();
+          }
+          if (!hasDragged) {
+            const badgeBtn = card.querySelector(`.fx-badge-${paramName}`);
+            if (badgeBtn) badgeBtn.click();
           }
         }
       });
@@ -14590,10 +14708,82 @@
       const btnEffectsGalleryBack = document.getElementById('btn-effects-gallery-back');
       const categoryGrid = document.getElementById('effects-category-grid');
       const itemsView = document.getElementById('effects-items-view');
+      const effectsItemsGrid = document.getElementById('effects-items-grid');
       const searchInput = document.getElementById('effects-search-input');
       const noResultsEl = document.getElementById('effects-gallery-no-results');
 
+      function syncGalleryItemsFromRegistry() {
+        if (!effectsItemsGrid || !window.FishEffectsRegistry || typeof window.FishEffectsRegistry.getAll !== 'function') return;
+        const allRegistered = window.FishEffectsRegistry.getAll();
+        allRegistered.forEach(def => {
+          if (!def || !def.id) return;
+          const selector = `.effects-gallery-item-card[data-effect-id="${def.id}"]`;
+          let card = effectsItemsGrid.querySelector(selector);
+          if (!card) {
+            card = document.createElement('div');
+            card.className = 'effects-gallery-item-card';
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
+            card.dataset.effectId = def.id;
+            card.dataset.category = def.category || 'lightning';
+            card.title = def.name || def.id;
+            card.innerHTML = `
+              <div class="effects-gallery-item-thumb">
+                <img src="${def.icon || 'assets/FXPH.svg'}" alt="${def.name || def.id}" class="effects-gallery-item-img" loading="lazy">
+              </div>
+              <span class="effects-gallery-item-name">${def.name || def.id}</span>
+            `;
+            effectsItemsGrid.appendChild(card);
+          } else {
+            card.dataset.category = def.category || card.dataset.category || 'lightning';
+            card.title = def.name || card.title;
+            const nameEl = card.querySelector('.effects-gallery-item-name');
+            if (nameEl && def.name && nameEl.textContent !== def.name) {
+              nameEl.textContent = def.name;
+            }
+          }
+
+          // Auto-discover and generate missing category cards in grid
+          if (categoryGrid && def.category) {
+            const catLower = def.category.toLowerCase();
+            if (!categoryGrid.querySelector(`.effects-category-card[data-category="${catLower}"]`)) {
+              const catCard = document.createElement('div');
+              catCard.className = 'effects-category-card';
+              catCard.setAttribute('role', 'button');
+              catCard.setAttribute('tabindex', '0');
+              catCard.dataset.category = catLower;
+              const displayName = catLower.charAt(0).toUpperCase() + catLower.slice(1);
+              catCard.title = displayName;
+              catCard.innerHTML = `
+                <div class="effects-category-card-overlay"></div>
+                <span class="effects-category-name">${displayName}</span>
+              `;
+              catCard.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openGalleryCategory(displayName, catLower);
+              });
+              catCard.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  openGalleryCategory(displayName, catLower);
+                }
+              });
+              categoryGrid.appendChild(catCard);
+            }
+          }
+        });
+      }
+
+      // Initial auto-sync of registered effects & listen for runtime registrations
+      syncGalleryItemsFromRegistry();
+      if (typeof window !== 'undefined') {
+        window.addEventListener('fisheffects:registered', () => {
+          syncGalleryItemsFromRegistry();
+        });
+      }
+
       function openGalleryCategory(catName, catId) {
+        syncGalleryItemsFromRegistry();
         const cat = (catId || catName || 'lightning').toLowerCase();
         if (categoryGrid) categoryGrid.style.display = 'none';
         if (itemsView) itemsView.style.display = 'flex';
@@ -14690,7 +14880,6 @@
       window.applyBrightnessContrastToLayer = () => addEffectToLayer('brightness-contrast');
 
       // 8. Add Effect: Universal Gallery Item Click (Stacking / Double supported!)
-      const effectsItemsGrid = document.getElementById('effects-items-grid');
       if (effectsItemsGrid) {
         effectsItemsGrid.addEventListener('click', (e) => {
           const card = e.target.closest('.effects-gallery-item-card');
@@ -14713,6 +14902,7 @@
       // 9. Gallery Search Filter
       if (searchInput) {
         searchInput.addEventListener('input', () => {
+          syncGalleryItemsFromRegistry();
           const q = searchInput.value.trim().toLowerCase();
           const allItemCards = effectsItemsGrid ? Array.from(effectsItemsGrid.querySelectorAll('.effects-gallery-item-card')) : [];
           const allCategoryCards = categoryGrid ? Array.from(categoryGrid.querySelectorAll('.effects-category-card')) : [];
@@ -14846,6 +15036,7 @@
         { id: 'tile', name: 'Tile', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'wave-warp', name: 'Wave Warp', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'warp', name: 'Warp', category: 'warp', icon: 'assets/FXPH.svg' },
+        { id: 'turbulent-displace', name: 'Turbulent Displace', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'optic-compensation', name: 'Optic Compensation', category: 'warp', icon: 'assets/FXPH.svg' },
         { id: 'transform', name: 'Transform', category: 'movement', icon: 'assets/FXPH.svg' },
         { id: 'oscillate', name: 'Oscillate', category: 'movement', icon: 'assets/FXPH.svg' },
@@ -16913,6 +17104,34 @@
           tile.addEventListener('pointerup', cancelLongPress);
           tile.addEventListener('pointercancel', cancelLongPress);
 
+          // 2b. Drag and drop from project asset tile to timeline or canvas
+          tile.draggable = true;
+          tile.addEventListener('dragstart', (e) => {
+            cancelLongPress();
+            window._draggedProjectAsset = { type: 'media', item: item };
+            tile.classList.add('is-dragging');
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = 'copy';
+              try {
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                  source: 'fishtools-project-asset',
+                  assetType: 'media',
+                  id: item.id
+                }));
+                e.dataTransfer.setData('text/plain', item.name || 'Media Asset');
+              } catch (_) {}
+            }
+          });
+          tile.addEventListener('dragend', () => {
+            window._draggedProjectAsset = null;
+            tile.classList.remove('is-dragging');
+            if (typeof window.hideTimelineDropIndicator === 'function') {
+              window.hideTimelineDropIndicator();
+            }
+            const previewEl = document.getElementById('editor-preview-container');
+            if (previewEl) previewEl.classList.remove('is-asset-dragover');
+          });
+
           // 3. Click tile to import/add a new layer instance of this media onto timeline
           tile.addEventListener('click', (e) => {
             if (e.target.closest('.media-item-delete-btn')) return;
@@ -17384,7 +17603,15 @@
           renderOverlayMode('split');
         }
 
+        function isExternalFileDrag(e) {
+          if (window._draggedProjectAsset) return false;
+          if (!e.dataTransfer) return false;
+          const types = Array.from(e.dataTransfer.types || []);
+          return types.includes('Files');
+        }
+
         containerEl.addEventListener('dragenter', (e) => {
+          if (!isExternalFileDrag(e)) return;
           e.preventDefault();
           e.stopPropagation();
           dragDepth++;
@@ -17396,6 +17623,7 @@
         });
 
         containerEl.addEventListener('dragover', (e) => {
+          if (!isExternalFileDrag(e)) return;
           e.preventDefault();
           e.stopPropagation();
           if (e.dataTransfer) {
@@ -17409,6 +17637,7 @@
         });
 
         containerEl.addEventListener('dragleave', (e) => {
+          if (!isExternalFileDrag(e)) return;
           e.preventDefault();
           e.stopPropagation();
           dragDepth--;
@@ -17418,6 +17647,7 @@
         });
 
         containerEl.addEventListener('drop', async (e) => {
+          if (!isExternalFileDrag(e)) return;
           e.preventDefault();
           e.stopPropagation();
 
@@ -17473,6 +17703,155 @@
       if (canvasContainer && canvasOverlay) {
         setupSplitDropzone(canvasContainer, canvasOverlay, true);
       }
+
+      // 4b. Setup Drag & Drop from Project Assets to Timeline & Preview Canvas
+      function setupProjectAssetDropTargets() {
+        const timelineVp = document.getElementById('timeline-layers-viewport');
+        const canvasContainer = document.getElementById('editor-preview-container');
+
+        // Timeline Drop Indicator
+        let dropIndicator = null;
+        let badgeEl = null;
+        if (timelineVp) {
+          dropIndicator = timelineVp.querySelector('.timeline-drag-drop-indicator');
+          if (!dropIndicator) {
+            dropIndicator = document.createElement('div');
+            dropIndicator.className = 'timeline-drag-drop-indicator';
+            dropIndicator.innerHTML = '<span class="timeline-drag-drop-badge">00:00</span>';
+            timelineVp.appendChild(dropIndicator);
+          }
+          badgeEl = dropIndicator.querySelector('.timeline-drag-drop-badge');
+        }
+
+        function getDropSecAtClientX(clientX) {
+          if (!timelineVp) return { sec: 0, x: 0 };
+          const rect = timelineVp.getBoundingClientRect();
+          const mouseXInVp = clientX - rect.left;
+          const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+          const isDesktop = Boolean(document.querySelector('.desktop-workstation, .desktop-viewport'));
+          let sec = 0;
+          if (isDesktop) {
+            const scrollX = typeof window.getDesktopScrollX === 'function' ? window.getDesktopScrollX() : 0;
+            sec = Math.max(0, (mouseXInVp + scrollX) / pps);
+          } else {
+            const curPan = window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0);
+            sec = Math.max(0, (mouseXInVp - curPan) / pps);
+          }
+          return { sec, x: mouseXInVp };
+        }
+
+        function formatDropTime(sec) {
+          const fps = (currentProjectState && currentProjectState.fps) || 30;
+          const totalFrames = Math.round(sec * fps);
+          const m = Math.floor(totalFrames / (fps * 60));
+          const s = Math.floor((totalFrames % (fps * 60)) / fps);
+          const f = totalFrames % fps;
+          return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(f).padStart(2, '0')}`;
+        }
+
+        function instantiateDroppedAsset(asset, opts = {}) {
+          if (!asset) return;
+          if (asset.type === 'media') {
+            if (typeof window.addOrSelectMediaLayer === 'function') {
+              window.addOrSelectMediaLayer(asset.item, opts);
+            }
+          } else if (asset.type === 'shape') {
+            if (typeof addShapeLayer === 'function') {
+              addShapeLayer(asset.shapeType, opts);
+            }
+          } else if (asset.type === 'control') {
+            if (asset.controlType === 'camera') {
+              if (typeof addCameraLayer === 'function') {
+                addCameraLayer(null, opts.targetSec !== undefined ? opts.targetSec : null);
+              }
+            } else if (asset.controlType === 'null') {
+              if (typeof addNullLayer === 'function') {
+                addNullLayer(false, opts);
+              }
+            } else if (asset.controlType === 'adjustment') {
+              if (typeof addAdjustmentLayer === 'function') {
+                addAdjustmentLayer(null, opts.targetSec !== undefined ? opts.targetSec : null);
+              }
+            }
+          } else if (asset.type === 'text') {
+            if (typeof addTextLayer === 'function') {
+              addTextLayer(asset.presetId || 'default', opts);
+            }
+          }
+        }
+
+        if (timelineVp) {
+          timelineVp.addEventListener('dragover', (e) => {
+            if (!window._draggedProjectAsset) return;
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+            const { sec, x } = getDropSecAtClientX(e.clientX);
+            if (dropIndicator) {
+              dropIndicator.style.transform = `translate3d(${x}px, 0, 0)`;
+              dropIndicator.classList.add('is-active');
+            }
+            if (badgeEl) badgeEl.textContent = formatDropTime(sec);
+          });
+
+          timelineVp.addEventListener('dragleave', (e) => {
+            const rect = timelineVp.getBoundingClientRect();
+            if (e.clientX <= rect.left || e.clientX >= rect.right || e.clientY <= rect.top || e.clientY >= rect.bottom) {
+              if (dropIndicator) dropIndicator.classList.remove('is-active');
+            }
+          });
+
+          timelineVp.addEventListener('drop', (e) => {
+            if (!window._draggedProjectAsset) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropIndicator) dropIndicator.classList.remove('is-active');
+            const asset = window._draggedProjectAsset;
+            window._draggedProjectAsset = null;
+            const { sec } = getDropSecAtClientX(e.clientX);
+            instantiateDroppedAsset(asset, { targetSec: sec });
+          });
+        }
+
+        if (canvasContainer) {
+          canvasContainer.addEventListener('dragover', (e) => {
+            if (!window._draggedProjectAsset) return;
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+            canvasContainer.classList.add('is-asset-dragover');
+          });
+
+          canvasContainer.addEventListener('dragleave', (e) => {
+            const rect = canvasContainer.getBoundingClientRect();
+            if (e.clientX <= rect.left || e.clientX >= rect.right || e.clientY <= rect.top || e.clientY >= rect.bottom) {
+              canvasContainer.classList.remove('is-asset-dragover');
+            }
+          });
+
+          canvasContainer.addEventListener('drop', (e) => {
+            if (!window._draggedProjectAsset) return;
+            e.preventDefault();
+            e.stopPropagation();
+            canvasContainer.classList.remove('is-asset-dragover');
+            const asset = window._draggedProjectAsset;
+            window._draggedProjectAsset = null;
+            instantiateDroppedAsset(asset, {});
+          });
+        }
+
+        window.hideTimelineDropIndicator = () => {
+          if (dropIndicator) dropIndicator.classList.remove('is-active');
+          if (canvasContainer) canvasContainer.classList.remove('is-asset-dragover');
+        };
+
+        window.addEventListener('dragend', () => {
+          window._draggedProjectAsset = null;
+          if (dropIndicator) dropIndicator.classList.remove('is-active');
+          if (canvasContainer) canvasContainer.classList.remove('is-asset-dragover');
+        });
+      }
+
+      setupProjectAssetDropTargets();
+
 
       // 5. Re-render media grid when the drawer is opened or tab changes to media
       const addFab = document.getElementById('timeline-btn-add');
@@ -18307,7 +18686,8 @@
             syncSpeedControllerValues();
             if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
           }
-          if (typeof updateCutBarRowState === 'function') {
+          // Only update cut bar row when timeline is paused/scrubbing (prevents DOM mutation thrash at 60fps)
+          if (!isPlaying && typeof updateCutBarRowState === 'function') {
             updateCutBarRowState();
           }
           if (typeof syncBeatmarkDrawerUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'beatmark') {
@@ -18321,7 +18701,8 @@
           updateBeatmarkPlayheadNeedle();
         }
 
-        if (typeof updateReorderHandlesContrast === 'function') {
+        // Only update reorder handles contrast when not playing to eliminate forced synchronous reflow (vp.clientWidth)
+        if (!isPlaying && typeof updateReorderHandlesContrast === 'function') {
           updateReorderHandlesContrast();
         }
 
@@ -18991,6 +19372,8 @@
         }
 
         redrawComposition('playbackPause');
+        if (typeof updateCutBarRowState === 'function') updateCutBarRowState();
+        if (typeof updateReorderHandlesContrast === 'function') updateReorderHandlesContrast();
       }
 
       // Step Forward / Backward by Exactly 1 Frame
@@ -19450,14 +19833,14 @@
             driftVal = drift;
             // Smooth clock slewing: strictly monotonic forward motion.
             // NEVER subtract or pull backwards!
-            if (drift >= 0.035) {
-              // Master audio ahead (> 35ms): catch up smoothly
+            if (drift >= 0.060) {
+              // Master audio ahead (> 60ms): catch up smoothly
               nextSec += Math.min(effectiveDeltaSec * 0.35, drift * 0.25);
-            } else if (drift < -0.045 && drift > -0.80) {
-              // Master audio behind (> 45ms, e.g. startup delay): advance timeline at 85% pace so audio naturally catches up
+            } else if (drift < -0.060 && drift > -0.80) {
+              // Master audio behind (> 60ms, e.g. startup delay): advance timeline at 85% pace so audio naturally catches up
               nextSec = currentSec + (effectiveDeltaSec * 0.85);
             } else {
-              // Tightly synchronized within [-45ms, +35ms] deadband: advance at 100% wall-clock pace (zero judder)
+              // Tightly synchronized within [-60ms, +60ms] deadband: advance at 100% wall-clock pace (zero judder)
               nextSec = currentSec + effectiveDeltaSec;
             }
           }
@@ -19495,9 +19878,11 @@
 
         _playTickCount++;
 
-        // Smart look-ahead caching: update lookahead window every tick (cheap — returns early if worker already running)
+        // Smart look-ahead caching: check lookahead window throttled every 15 frames (~250ms) to avoid event loop spam
         if (window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
-          window.PreviewCacheManager.startLookaheadWorker(nextSec, fps);
+          if (_playTickCount % 15 === 0 || !window.PreviewCacheManager._lookaheadRunning) {
+            window.PreviewCacheManager.startLookaheadWorker(nextSec, fps);
+          }
         }
 
         playAnimationId = requestAnimationFrame(stepPlay);
@@ -24042,6 +24427,7 @@
       }
 
       function updateReorderHandlesContrast() {
+        if (window.isTimelinePlaying) return; // Eliminate forced synchronous reflow during active 60fps playback
         const reorderOverlay = document.getElementById('timeline-lane-reorder-overlay');
         const vp = document.getElementById('timeline-layers-viewport');
         if (!reorderOverlay || !vp) return;
@@ -24319,16 +24705,17 @@
       }
       window.removeTimelineLayer = removeTimelineLayer;
 
-      function addOrSelectMediaLayer(item) {
+      function addOrSelectMediaLayer(item, options = {}) {
         if (!item) return;
         currentProjectState.layers = currentProjectState.layers || [];
 
-        const currentSec = Math.max(0, -(panX || 0) / pixelsPerSecond);
+        const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
+        const currentSec = isTargetSec ? Math.max(0, options.targetSec) : Math.max(0, -(panX || 0) / pixelsPerSecond);
         const defaultDur = currentProjectState.defaultDuration || 5;
 
         if (item.type === 'precomp') {
           const existing = currentProjectState.layers.find(l => l.id === item.precompId || l.mediaId === item.id);
-          if (existing) {
+          if (existing && !isTargetSec) {
             selectTimelineLayer(existing.id);
             return;
           }

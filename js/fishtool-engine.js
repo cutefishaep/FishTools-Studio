@@ -295,7 +295,7 @@
       return 0.0;
     }
 
-    _getEffectProcessedElement(el, layer, bounds) {
+    _getEffectProcessedElement(el, layer, bounds, currentSec = null) {
       if (!el || typeof document === 'undefined') return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
       if (!window.FishEffects || typeof window.FishEffects.renderLayer !== 'function') {
         return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
@@ -324,7 +324,15 @@
       this._fxCtx.clearRect(0, 0, w, h);
 
       const fakeLayer = Object.assign({}, layer, { effects: activeFx });
-      const curSec = (typeof window !== 'undefined' && window.currentPlaybackSec !== undefined) ? window.currentPlaybackSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : 0);
+      const curSec = (typeof currentSec === 'number' && !isNaN(currentSec))
+        ? currentSec
+        : ((layer && typeof layer._currentSec === 'number')
+          ? layer._currentSec
+          : ((typeof window !== 'undefined' && typeof window._currentRenderSec === 'number')
+            ? window._currentRenderSec
+            : ((typeof window !== 'undefined' && typeof window.currentPlaybackSec === 'number')
+              ? window.currentPlaybackSec
+              : 0)));
       window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: 0, y: 0, w, h }, curSec);
       return { el: this._fxCanvas, padX: 0, padY: 0, origW: w, origH: h };
     }
@@ -898,7 +906,7 @@
     /**
      * Render layer onto destination 2D canvas with hardware 3D perspective
      */
-    renderLayer(ctx, el, layer, bufferScale = 1, camera = null) {
+    renderLayer(ctx, el, layer, bufferScale = 1, camera = null, currentSec = null) {
       if (!ctx || !el || !this._hasValidDimensions(el)) return;
 
       const bounds = this.getBounds(layer, bufferScale, camera);
@@ -955,7 +963,15 @@
         try {
           const drawX = -absW / 2 - (bounds.anchorX || 0);
           const drawY = -absH / 2 - (bounds.anchorY || 0);
-          const curSec = (typeof window !== 'undefined' && window.currentPlaybackSec !== undefined) ? window.currentPlaybackSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : 0);
+          const curSec = (typeof currentSec === 'number' && !isNaN(currentSec))
+            ? currentSec
+            : ((layer && typeof layer._currentSec === 'number')
+              ? layer._currentSec
+              : ((typeof window !== 'undefined' && typeof window._currentRenderSec === 'number')
+                ? window._currentRenderSec
+                : ((typeof window !== 'undefined' && typeof window.currentPlaybackSec === 'number')
+                  ? window.currentPlaybackSec
+                  : 0)));
           if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
             window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH }, curSec);
           } else {
@@ -985,8 +1001,9 @@
         return;
       }
 
-      // Pre-process 2D effects (such as Drop Shadow, Fill, Blur) onto local offscreen canvas before 3D perspective projection
-      const processed = this._getEffectProcessedElement(el, layer, bounds);
+      // Pre-process 2D effects onto local offscreen canvas before 3D perspective projection
+      const layerSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((layer && typeof layer._currentSec === 'number') ? layer._currentSec : null);
+      const processed = this._getEffectProcessedElement(el, layer, bounds, layerSec);
       const sourceEl = processed.el;
 
       // Calculate Full 4x4 MVP Matrix
@@ -1200,7 +1217,7 @@
      * @param {Array<{ el: HTMLElement, layer: Object, animLayer?: Object }>} renderList - Layers to draw
      * @param {number} bufferScale - Scale factor relative to composition base size
      */
-    renderScene(ctx, renderList, bufferScale = 1, camera = null) {
+    renderScene(ctx, renderList, bufferScale = 1, camera = null, currentSec = null) {
       if (!ctx || !renderList || renderList.length === 0) return;
 
       const hasCamera3D = !!(camera && (camera.rotX || camera.rotY || camera.posZ || camera.posX || camera.posY || (camera.cameraZoom && camera.cameraZoom !== 100) || (camera.cameraLens && camera.cameraLens !== 50)));
@@ -1213,7 +1230,8 @@
       // Pure 2D fast path: If no 3D layers exist and no camera 3D, render directly with native 2D canvas drawImage
       if (!has3D || !this.isReady) {
         renderList.forEach(item => {
-          this.renderLayer(ctx, item.el, item.animLayer || item.layer, bufferScale, camera);
+          const lSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((item.animLayer && item.animLayer._currentSec) || (item.layer && item.layer._currentSec));
+          this.renderLayer(ctx, item.el, item.animLayer || item.layer, bufferScale, camera, lSec);
         });
         return;
       }
@@ -1239,7 +1257,8 @@
 
         if (hasCustomBlend || hasEffects || hasDofBlur) {
           flushBatch();
-          this.renderLayer(ctx, item.el, layer, bufferScale, camera);
+          const lSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : null);
+          this.renderLayer(ctx, item.el, layer, bufferScale, camera, lSec);
         } else {
           currentBatch.push({ ...item, batchIndex: idx });
         }

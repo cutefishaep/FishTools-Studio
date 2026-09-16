@@ -18,7 +18,7 @@
      */
     register(def) {
       if (!def || !def.id) return;
-      registry.set(def.id, {
+      const registeredDef = {
         id: def.id,
         name: def.name || def.id,
         category: def.category || 'lightning',
@@ -27,8 +27,16 @@
         params: Array.isArray(def.params) ? def.params : [],
         filter: typeof def.filter === 'function' ? def.filter : null,
         render: typeof def.render === 'function' ? def.render : null,
-        renderPost: typeof def.renderPost === 'function' ? def.renderPost : null
-      });
+        renderPost: typeof def.renderPost === 'function' ? def.renderPost : null,
+        isExpanding: !!def.isExpanding
+      };
+      registry.set(def.id, registeredDef);
+
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        try {
+          window.dispatchEvent(new CustomEvent('fisheffects:registered', { detail: registeredDef }));
+        } catch (_) {}
+      }
     },
 
     get(id) {
@@ -291,7 +299,13 @@
 
       const effectiveSec = (typeof currentSec === 'number' && !isNaN(currentSec))
         ? currentSec
-        : (layer && typeof layer._currentSec === 'number' ? layer._currentSec : (typeof window !== 'undefined' ? (window.currentPlaybackSec !== undefined ? window.currentPlaybackSec : window.currentSec) : 0));
+        : (layer && typeof layer._currentSec === 'number'
+          ? layer._currentSec
+          : (typeof window !== 'undefined'
+            ? (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)
+              ? window._currentRenderSec
+              : (window.currentPlaybackSec !== undefined ? window.currentPlaybackSec : window.currentSec))
+            : 0));
 
       const effects = Array.isArray(layer && layer.effects) ? layer.effects.filter(f => f && !f.disabled) : [];
       if (effects.length === 0) {
@@ -329,7 +343,10 @@
       }
 
       // Multi-effect pipeline: chain through offscreen buffers
-      const hasExpandingFx = renderEffects.some(f => f.type === 'transform' || f.type === 'tile' || f.type === 'wave-warp' || f.type === 'fsmb');
+      const hasExpandingFx = renderEffects.some(f => {
+        const d = FishEffectsRegistry.get(f.type);
+        return (d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform' || f.type === 'tile' || f.type === 'fsmb';
+      });
       let pipeW = bw;
       let pipeH = bh;
       let offX = 0;
@@ -459,10 +476,20 @@
 
       const effFx = (eff && Array.isArray(eff.effects)) ? eff.effects.find(f => f.id === fx.id) : null;
 
-      const controlsHTML = (def.params || []).map(p => {
+      const processedParams = new Set();
+      const controlsHTMLArr = [];
+      const paramsList = def.params || [];
+      const sec = (currentSec !== undefined && currentSec !== null) ? currentSec : 0;
+      const tol = 0.04;
+
+      for (let i = 0; i < paramsList.length; i++) {
+        const p = paramsList[i];
+        if (processedParams.has(p.id)) continue;
+
         const type = p.type || 'number';
 
         if (type === 'switch' || type === 'boolean') {
+          processedParams.add(p.id);
           const propKey = `${fx.id}:${p.id}`;
           const hasKf = layer && layer.keyframes && (
             (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
@@ -473,18 +500,24 @@
             : (fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 1));
           const switchVal = (rawVal === 1 || rawVal === true || rawVal === '1' || rawVal === 'true' || rawVal === 'on') ? 1 : 0;
 
-          return `
+          controlsHTMLArr.push(`
             <div class="effects-control-row effects-control-row-switch" data-param="${p.id}">
-              <div class="effects-param-label-static">${p.label || p.id}</div>
-              <div class="effects-segmented-group effects-switch-group" data-param="${p.id}">
-                <button type="button" class="effects-segmented-btn ${switchVal === 0 ? 'is-active' : ''}" data-param="${p.id}" data-val="0" title="Off">Off</button>
-                <button type="button" class="effects-segmented-btn ${switchVal === 1 ? 'is-active' : ''}" data-param="${p.id}" data-val="1" title="On">On</button>
+              <div class="effects-param-label-col">
+                <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+              </div>
+              <div class="effects-param-val-col">
+                <div class="effects-segmented-group effects-switch-group" data-param="${p.id}">
+                  <button type="button" class="effects-segmented-btn ${switchVal === 0 ? 'is-active' : ''}" data-param="${p.id}" data-val="0" title="Off">Off</button>
+                  <button type="button" class="effects-segmented-btn ${switchVal === 1 ? 'is-active' : ''}" data-param="${p.id}" data-val="1" title="On">On</button>
+                </div>
               </div>
             </div>
-          `;
+          `);
+          continue;
         }
 
         if (type === 'select') {
+          processedParams.add(p.id);
           const selectVal = (fx[p.id] !== undefined ? fx[p.id] : (p.default || 'normal')).toLowerCase();
           const opts = Array.isArray(p.options) && p.options.length > 0 ? p.options : ['normal', 'multiply', 'overlay'];
 
@@ -495,14 +528,19 @@
               </button>
             `).join('');
 
-            return `
+            controlsHTMLArr.push(`
               <div class="effects-control-row effects-control-row-select" data-param="${p.id}">
-                <div class="effects-param-label-static">${p.label || p.id}</div>
-                <div class="effects-segmented-group" data-param="${p.id}">
-                  ${btns}
+                <div class="effects-param-label-col">
+                  <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+                </div>
+                <div class="effects-param-val-col">
+                  <div class="effects-segmented-group" data-param="${p.id}">
+                    ${btns}
+                  </div>
                 </div>
               </div>
-            `;
+            `);
+            continue;
           }
 
           const formatLabel = (str) => String(str).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -514,40 +552,52 @@
             return `<div class="custom-dropdown-item ${isSelected ? 'is-selected' : ''}" role="option" data-val="${opt}" title="${labelText}">${labelText}</div>`;
           }).join('');
 
-          return `
+          controlsHTMLArr.push(`
             <div class="effects-control-row effects-control-row-select" data-param="${p.id}">
-              <div class="effects-param-label-static">${p.label || p.id}</div>
-              <div class="custom-dropdown effects-custom-dropdown" data-param="${p.id}" data-value="${currentOpt}">
-                <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select ${p.label || p.id}">
-                  <span class="custom-dropdown-label">${currentLabel}</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
-                </button>
-                <div class="custom-dropdown-menu" role="listbox">
-                  ${items}
+              <div class="effects-param-label-col">
+                <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+              </div>
+              <div class="effects-param-val-col">
+                <div class="custom-dropdown effects-custom-dropdown" data-param="${p.id}" data-value="${currentOpt}">
+                  <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select ${p.label || p.id}">
+                    <span class="custom-dropdown-label">${currentLabel}</span>
+                    <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                  </button>
+                  <div class="custom-dropdown-menu" role="listbox">
+                    ${items}
+                  </div>
                 </div>
               </div>
             </div>
-          `;
+          `);
+          continue;
         }
 
         if (type === 'color') {
+          processedParams.add(p.id);
           const colorVal = (fx[p.id] !== undefined && fx[p.id]) ? fx[p.id] : (p.default || '#000000');
-          return `
+          controlsHTMLArr.push(`
             <div class="effects-control-row effects-control-row-color" data-param="${p.id}">
-              <div class="effects-param-label-static">${p.label || p.id}</div>
-              <div class="effects-color-picker-wrap">
-                <button type="button" class="effects-color-swatch-btn fx-swatch-btn-${p.id}" data-param="${p.id}" title="Pick ${p.label || p.id}">
-                  <span class="effects-color-swatch-preview fx-swatch-preview-${p.id}" style="background-color: ${colorVal};"></span>
-                </button>
-                <input type="text" class="effects-color-hex-input fx-hex-${p.id}" data-param="${p.id}" value="${colorVal}" maxlength="7" spellcheck="false" title="Hex color">
+              <div class="effects-param-label-col">
+                <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+              </div>
+              <div class="effects-param-val-col">
+                <div class="effects-color-picker-wrap">
+                  <button type="button" class="effects-color-swatch-btn fx-swatch-btn-${p.id}" data-param="${p.id}" title="Pick ${p.label || p.id}">
+                    <span class="effects-color-swatch-preview fx-swatch-preview-${p.id}" style="background-color: ${colorVal};"></span>
+                  </button>
+                  <input type="text" class="effects-color-hex-input fx-hex-${p.id}" data-param="${p.id}" value="${colorVal}" maxlength="7" spellcheck="false" title="Hex color">
+                </div>
               </div>
             </div>
-          `;
+          `);
+          continue;
         }
 
         if (type === 'curve') {
+          processedParams.add(p.id);
           const currentChan = fx.channel || 'rgb';
           let rawPts = null;
           if (currentChan === 'r') rawPts = fx.curveR;
@@ -586,7 +636,7 @@
             return `<circle class="effects-curve-point" data-index="${idx}" cx="${cx}" cy="${cy}" r="6" fill="${strokeColor}"></circle>`;
           }).join('');
 
-          return `
+          controlsHTMLArr.push(`
             <div class="effects-control-row effects-control-row-curve" data-param="${p.id}">
               <div class="effects-curve-editor" data-effect-id="${fx.id}" data-param="${p.id}">
                 <div class="effects-curve-header">
@@ -628,82 +678,166 @@
                 </div>
               </div>
             </div>
-          `;
+          `);
+          continue;
         }
 
-        if (type === 'angle') {
-          const propKey = `${fx.id}:${p.id}`;
-          const hasKf = layer && layer.keyframes && (
-            (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
-            (fx === layer.effects[0] && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
-          );
-          const rawVal = (hasKf && effFx && effFx[p.id] !== undefined)
-            ? effFx[p.id]
-            : (fx[p.id] !== undefined ? fx[p.id] : (p.default || 0));
-          const angleVal = Math.round(rawVal);
-          const isParamActive = (selectedProp === propKey) ||
-            (!selectedProp && fx === layer.effects[0] && p.id === def.params[0].id) ||
+        // Coordinate pair detection (e.g. offset_x/offset_y, posX/posY, point_x/point_y, anchorX/anchorY)
+        let pairY = null;
+        if (p.id.endsWith('_x')) {
+          const yId = p.id.slice(0, -2) + '_y';
+          pairY = paramsList.find(o => o.id === yId);
+        } else if (p.id.endsWith('-x')) {
+          const yId = p.id.slice(0, -2) + '-y';
+          pairY = paramsList.find(o => o.id === yId);
+        } else if (p.id.endsWith('X') && p.id.length > 1) {
+          const yId = p.id.slice(0, -1) + 'Y';
+          pairY = paramsList.find(o => o.id === yId);
+        }
+
+        if (pairY && (p.type || 'number') === (pairY.type || 'number')) {
+          processedParams.add(p.id);
+          processedParams.add(pairY.id);
+
+          const propKeyX = `${fx.id}:${p.id}`;
+          const propKeyY = `${fx.id}:${pairY.id}`;
+
+          const isParamActive = (selectedProp === propKeyX) || (selectedProp === propKeyY) ||
+            (!selectedProp && fx === layer.effects[0] && p.id === paramsList[0].id) ||
             (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
+
+          const pairLabel = (p.label || p.id).replace(/\s*([_ -]?[Xx])\b.*$/, '').trim() || (p.label || p.id);
+
+          // Values for X
+          const minX = fx.min !== undefined ? fx.min : (p.min !== undefined ? p.min : -100);
+          const maxX = fx.max !== undefined ? fx.max : (p.max !== undefined ? p.max : 100);
+          const stepX = fx.step !== undefined ? fx.step : (p.step !== undefined ? p.step : 1);
+          const unitX = fx.unit !== undefined ? fx.unit : (p.unit !== undefined ? p.unit : '');
+          const isDecimalX = (stepX < 1) || unitX === 'x' || unitX.includes('.');
+          const rawValX = (effFx && effFx[p.id] !== undefined) ? effFx[p.id] : (fx[p.id] !== undefined ? fx[p.id] : (p.default || 0));
+          const numValX = isDecimalX
+            ? Math.max(minX, Math.min(maxX, Number(parseFloat(rawValX).toFixed(2))))
+            : Math.max(minX, Math.min(maxX, Math.round(rawValX)));
+          const formattedValX = isDecimalX ? numValX.toFixed(2) : numValX;
+          const badgeTextX = (numValX >= 0 && minX < 0 ? '+' : '') + formattedValX + unitX;
+          const trackWidthX = (maxX > minX) ? Math.max(0, Math.min(100, ((numValX - minX) / (maxX - minX)) * 100)).toFixed(1) : 0;
+
+          // Values for Y
+          const minY = fx.min !== undefined ? fx.min : (pairY.min !== undefined ? pairY.min : -100);
+          const maxY = fx.max !== undefined ? fx.max : (pairY.max !== undefined ? pairY.max : 100);
+          const stepY = fx.step !== undefined ? fx.step : (pairY.step !== undefined ? pairY.step : 1);
+          const unitY = fx.unit !== undefined ? fx.unit : (pairY.unit !== undefined ? pairY.unit : '');
+          const isDecimalY = (stepY < 1) || unitY === 'x' || unitY.includes('.');
+          const rawValY = (effFx && effFx[pairY.id] !== undefined) ? effFx[pairY.id] : (fx[pairY.id] !== undefined ? fx[pairY.id] : (pairY.default || 0));
+          const numValY = isDecimalY
+            ? Math.max(minY, Math.min(maxY, Number(parseFloat(rawValY).toFixed(2))))
+            : Math.max(minY, Math.min(maxY, Math.round(rawValY)));
+          const formattedValY = isDecimalY ? numValY.toFixed(2) : numValY;
+          const badgeTextY = (numValY >= 0 && minY < 0 ? '+' : '') + formattedValY + unitY;
+          const trackWidthY = (maxY > minY) ? Math.max(0, Math.min(100, ((numValY - minY) / (maxY - minY)) * 100)).toFixed(1) : 0;
+
+          controlsHTMLArr.push(`
+            <div class="effects-control-row effects-control-row-pair" data-param="${p.id},${pairY.id}">
+              <div class="effects-param-label-col">
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${pairLabel} for keyframing">
+                  ${pairLabel}
+                </button>
+              </div>
+              <div class="effects-param-val-col">
+                <div class="effects-param-pair">
+                  <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unitX}" data-min="${minX}" data-max="${maxX}" ${p.step ? `data-step="${p.step}"` : ''} role="slider" aria-valuemin="${minX}" aria-valuemax="${maxX}" aria-valuenow="${numValX}" aria-label="${p.label || p.id} Scrubber">
+                    <div class="effects-pill-track fx-track-${p.id}" style="width: ${trackWidthX}%;"></div>
+                    <div class="jog-wheel-ticks" style="display:none;"></div>
+                    <div class="jog-wheel-needle" style="display:none;"></div>
+                    <span class="effects-axis-badge">X</span>
+                    <span class="effects-param-pill-val fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">${badgeTextX}</span>
+                  </div>
+                  <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${pairY.id}" data-param="${pairY.id}" data-unit="${unitY}" data-min="${minY}" data-max="${maxY}" ${pairY.step ? `data-step="${pairY.step}"` : ''} role="slider" aria-valuemin="${minY}" aria-valuemax="${maxY}" aria-valuenow="${numValY}" aria-label="${pairY.label || pairY.id} Scrubber">
+                    <div class="effects-pill-track fx-track-${pairY.id}" style="width: ${trackWidthY}%;"></div>
+                    <div class="jog-wheel-ticks" style="display:none;"></div>
+                    <div class="jog-wheel-needle" style="display:none;"></div>
+                    <span class="effects-axis-badge">Y</span>
+                    <span class="effects-param-pill-val fx-badge-${pairY.id}" data-param="${pairY.id}" title="Click to edit ${pairY.label || pairY.id} value">${badgeTextY}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `);
+          continue;
+        }
+
+        // Single number or angle parameter
+        processedParams.add(p.id);
+        const propKey = `${fx.id}:${p.id}`;
+        const isParamActive = (selectedProp === propKey) ||
+          (!selectedProp && fx === layer.effects[0] && p.id === paramsList[0].id) ||
+          (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
+
+        if (type === 'angle') {
+          const rawVal = (effFx && effFx[p.id] !== undefined) ? effFx[p.id] : (fx[p.id] !== undefined ? fx[p.id] : (p.default || 0));
+          const angleVal = Math.round(rawVal);
           const unit = p.unit || '°';
           const turns = Math.trunc(angleVal / 360);
           const rem = Math.round(angleVal % 360);
           const badgeText = (turns !== 0)
             ? `${turns}x ${rem >= 0 ? '+' : ''}${rem}°`
             : `${rem >= 0 ? '+' : ''}${rem}°`;
+          const normAngle = ((angleVal % 360) + 360) % 360;
+          const trackWidth = ((normAngle / 360) * 100).toFixed(1);
 
-          return `
+          controlsHTMLArr.push(`
             <div class="effects-control-row" data-param="${p.id}">
-              <button type="button" class="effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${p.label || p.id} for keyframing">
-                ${p.label || p.id}
-              </button>
-              <div class="jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unit}" data-type="angle" data-is-angle="true" data-unlimited="true" role="slider" aria-valuenow="${angleVal}" aria-label="${p.label || p.id} Angle Scrubber">
-                <div class="jog-wheel-ticks"></div>
-                <div class="jog-wheel-needle"></div>
+              <div class="effects-param-label-col">
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${p.label || p.id} for keyframing">
+                  ${p.label || p.id}
+                </button>
               </div>
-              <button type="button" class="effects-param-value-btn fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">
-                ${badgeText}
-              </button>
+              <div class="effects-param-val-col">
+                <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unit}" data-type="angle" data-is-angle="true" data-unlimited="true" role="slider" aria-valuenow="${angleVal}" aria-label="${p.label || p.id} Angle Scrubber">
+                  <div class="effects-pill-track fx-track-${p.id}" style="width: ${trackWidth}%;"></div>
+                  <div class="jog-wheel-ticks" style="display:none;"></div>
+                  <div class="jog-wheel-needle" style="display:none;"></div>
+                  <span class="effects-param-pill-val fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">${badgeText}</span>
+                </div>
+              </div>
             </div>
-          `;
+          `);
+          continue;
         }
 
+        // Standard number
         const min = fx.min !== undefined ? fx.min : (p.min !== undefined ? p.min : -100);
         const max = fx.max !== undefined ? fx.max : (p.max !== undefined ? p.max : 100);
-        const propKey = `${fx.id}:${p.id}`;
-        const hasKf = layer && layer.keyframes && (
-          (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
-          (fx === layer.effects[0] && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
-        );
-        const rawVal = (hasKf && effFx && effFx[p.id] !== undefined)
-          ? effFx[p.id]
-          : (fx[p.id] !== undefined ? fx[p.id] : (p.default || 0));
         const step = fx.step !== undefined ? fx.step : (p.step !== undefined ? p.step : 1);
         const unit = fx.unit !== undefined ? fx.unit : (p.unit || '%');
         const isDecimal = (step < 1) || unit === 'x' || unit.includes('.');
+        const rawVal = (effFx && effFx[p.id] !== undefined) ? effFx[p.id] : (fx[p.id] !== undefined ? fx[p.id] : (p.default || 0));
         const numVal = isDecimal
           ? Math.max(min, Math.min(max, Number(parseFloat(rawVal).toFixed(2))))
           : Math.max(min, Math.min(max, Math.round(rawVal)));
-        const isParamActive = (selectedProp === propKey) ||
-          (!selectedProp && fx === layer.effects[0] && p.id === def.params[0].id) ||
-          (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
         const formattedVal = isDecimal ? numVal.toFixed(2) : numVal;
         const badgeText = (numVal >= 0 && min < 0 ? '+' : '') + formattedVal + unit;
+        const trackWidth = (max > min) ? Math.max(0, Math.min(100, ((numVal - min) / (max - min)) * 100)).toFixed(1) : 0;
 
-        return `
+        controlsHTMLArr.push(`
           <div class="effects-control-row" data-param="${p.id}">
-            <button type="button" class="effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${p.label || p.id} for keyframing">
-              ${p.label || p.id}
-            </button>
-            <div class="jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unit}" data-min="${min}" data-max="${max}" ${p.step ? `data-step="${p.step}"` : ''} role="slider" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${numVal}" aria-label="${p.label || p.id} Scrubber">
-              <div class="jog-wheel-ticks"></div>
-              <div class="jog-wheel-needle"></div>
+            <div class="effects-param-label-col">
+              <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${p.label || p.id} for keyframing">
+                ${p.label || p.id}
+              </button>
             </div>
-            <button type="button" class="effects-param-value-btn fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">
-              ${badgeText}
-            </button>
+            <div class="effects-param-val-col">
+              <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unit}" data-min="${min}" data-max="${max}" ${p.step ? `data-step="${p.step}"` : ''} role="slider" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${numVal}" aria-label="${p.label || p.id} Scrubber">
+                <div class="effects-pill-track fx-track-${p.id}" style="width: ${trackWidth}%;"></div>
+                <div class="jog-wheel-ticks" style="display:none;"></div>
+                <div class="jog-wheel-needle" style="display:none;"></div>
+                <span class="effects-param-pill-val fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">${badgeText}</span>
+              </div>
+            </div>
           </div>
-        `;
-      }).join('');
+        `);
+      }
+      const controlsHTML = controlsHTMLArr.join('');
 
       return `
         <div class="effects-card ${isExpanded ? 'is-expanded' : ''}" data-effect-id="${fx.id}">

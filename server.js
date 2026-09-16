@@ -60,9 +60,20 @@ function notifyClients() {
 }
 
 let syncVersion = null;
+let syncEffects = null;
 try {
   syncVersion = require('./scripts/sync-version.js').syncVersion;
 } catch (_) {}
+try {
+  syncEffects = require('./scripts/sync-effects.js').syncEffects;
+} catch (_) {}
+
+// Initial sync of effects manifest and loader
+if (typeof syncEffects === 'function') {
+  try {
+    syncEffects();
+  } catch (_) {}
+}
 
 // File watcher for local dev auto-reload
 if (!process.env.VERCEL) {
@@ -81,6 +92,18 @@ if (!process.env.VERCEL) {
         normalized.startsWith('.')
       ) {
         return;
+      }
+
+      // Automatically sync effects/loader.js when files in effects/ change
+      if (normalized.startsWith('effects/') && normalized.endsWith('.js') && !normalized.endsWith('loader.js')) {
+        if (typeof syncEffects === 'function') {
+          try {
+            console.log('[DevServer] effects/ changed -> Auto-syncing effects/loader.js and manifest.json...');
+            syncEffects();
+          } catch (e) {
+            console.error('[DevServer] Auto-sync effects failed:', e);
+          }
+        }
       }
 
       // Automatically sync all files when version.json is modified
@@ -153,6 +176,19 @@ function handleRequest(req, res) {
       googleClientId: process.env.GOOGLE_CLIENT_ID || ''
     }));
     return;
+  }
+
+  // Effects discovery manifest endpoint
+  if (pathname === '/api/effects') {
+    const manifestPath = path.join(ROOT, 'effects', 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(fs.readFileSync(manifestPath, 'utf8'));
+      return;
+    }
   }
 
   // Debug endpoint — local dev only, NEVER exposed in production

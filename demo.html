@@ -1155,6 +1155,44 @@
     &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
+        </article>
+
+        <!-- 5c. Modular Timeline Drag-Drop Indicator (.timeline-drag-drop-indicator) -->
+        <article class="component-showcase-card">
+          <div class="showcase-preview-area">
+            <div class="showcase-header">
+              <span class="showcase-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                5c. Timeline Drag-Drop Time Indicator (.timeline-drag-drop-indicator)
+              </span>
+              <span class="showcase-tag">Live Interactive Widget</span>
+            </div>
+            <p class="showcase-desc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+              Visual insertion feedback when dragging project assets into the timeline track. Live timestamp badge shows the exact drop second mark with zero layout jitter.
+            </p>
+            <div class="showcase-live-widget" style="padding: 16px; height: 110px; position: relative; overflow: hidden; background-color: var(--bg-dashboard); border-radius: 10px;">
+              <div style="position: relative; width: 100%; height: 100%; background: var(--bg-panel); border-radius: 8px; overflow: hidden;">
+                <div class="timeline-drag-drop-indicator is-active" style="left: 120px;">
+                  <span class="timeline-drag-drop-badge">01:15.00</span>
+                </div>
+                <div style="padding: 12px 16px; font-size: 12px; color: var(--text-muted); font-weight: 600;">
+                  Hovering Asset over Timeline Track (120px = 01:15.00)
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="showcase-code-area">
+            <div class="code-snippet-header">
+              <span class="code-lang-label">HTML / CSS Boilerplate</span>
+              <button type="button" class="code-copy-btn" onclick="copySnippet(this, 'code-drag-drop-indicator-example')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                Copy
+              </button>
+            </div>
+            <pre class="code-snippet-body"><code id="code-drag-drop-indicator-example">&lt;!-- Timeline Drop Indicator Element --&gt;
+&lt;div class="timeline-drag-drop-indicator is-active" style="transform: translate3d(120px, 0, 0);"&gt;
+  &lt;span class="timeline-drag-drop-badge"&gt;01:15.00&lt;/span&gt;
+&lt;/div&gt;</code></pre>
           </div>
         </article>
 
@@ -3436,38 +3474,69 @@ CanvasWireframe.mountOverlay(viewportContainer, { x: 40, y: 30, w: 200, h: 130 }
 
                         <div class="effects-card-controls">
                           <div class="effects-control-row">
-                            <button type="button" class="effects-param-select-btn is-active">Brightness</button>
-                            <div class="jog-wheel-container is-horizontal effects-ruler-scrubber">
-                              <div class="jog-wheel-ticks"></div>
-                              <div class="jog-wheel-needle"></div>
+                            <div class="effects-param-label-col">
+                              <button type="button" class="effects-param-label effects-param-select-btn is-active" title="Select Brightness">Brightness</button>
                             </div>
-                            <button type="button" class="effects-param-value-btn">+30%</button>
+                            <div class="effects-param-val-col">
+                              <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber" title="Drag to scrub or click to edit">
+                                <div class="effects-pill-track" style="width: 65%;"></div>
+                                <span class="effects-param-pill-val">+30%</span>
+                              </div>
+                            </div>
                           </div>
 
                           <div class="effects-control-row">
-                            <button type="button" class="effects-param-select-btn">Contrast</button>
-                            <div class="jog-wheel-container is-horizontal effects-ruler-scrubber">
-                              <div class="jog-wheel-ticks"></div>
-                              <div class="jog-wheel-needle"></div>
+                            <div class="effects-param-label-col">
+                              <button type="button" class="effects-param-label effects-param-select-btn" title="Select Contrast">Contrast</button>
                             </div>
-                            <button type="button" class="effects-param-value-btn">+0%</button>
+                            <div class="effects-param-val-col">
+                              <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber" title="Drag to scrub or click to edit">
+                                <div class="effects-pill-track" style="width: 50%;"></div>
+                                <span class="effects-param-pill-val">+0%</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Coordinate Pair Showcase (Offset X & Offset Y) -->
+                          <div class="effects-control-row effects-control-row-pair">
+                            <div class="effects-param-label-col">
+                              <button type="button" class="effects-param-label effects-param-select-btn" title="Select Offset">Offset</button>
+                            </div>
+                            <div class="effects-param-val-col">
+                              <div class="effects-param-pair">
+                                <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber" title="Offset X">
+                                  <div class="effects-pill-track" style="width: 50%;"></div>
+                                  <span class="effects-axis-badge">X</span>
+                                  <span class="effects-param-pill-val">0px</span>
+                                </div>
+                                <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber" title="Offset Y">
+                                  <div class="effects-pill-track" style="width: 50%;"></div>
+                                  <span class="effects-axis-badge">Y</span>
+                                  <span class="effects-param-pill-val">0px</span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
 
                           <div class="effects-control-row effects-control-row-select">
-                            <div class="effects-param-label-static">Wave Type</div>
-                            <div class="custom-dropdown effects-custom-dropdown" data-value="sine">
-                              <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select Wave Type">
-                                <span class="custom-dropdown-label">Sine</span>
-                                <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M7 10l5 5 5-5z"/>
-                                </svg>
-                              </button>
-                              <div class="custom-dropdown-menu" role="listbox">
-                                <div class="custom-dropdown-item is-selected" role="option" data-val="sine">Sine</div>
-                                <div class="custom-dropdown-item" role="option" data-val="triangle">Triangle</div>
-                                <div class="custom-dropdown-item" role="option" data-val="square">Square</div>
-                                <div class="custom-dropdown-item" role="option" data-val="sawtooth">Sawtooth</div>
-                                <div class="custom-dropdown-item" role="option" data-val="smooth-noise">Smooth Noise</div>
+                            <div class="effects-param-label-col">
+                              <span class="effects-param-label" title="Wave Type">Wave Type</span>
+                            </div>
+                            <div class="effects-param-val-col">
+                              <div class="custom-dropdown effects-custom-dropdown" data-value="sine">
+                                <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select Wave Type" onclick="this.parentElement.classList.toggle('is-open')">
+                                  <span class="custom-dropdown-label">Sine</span>
+                                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M7 10l5 5 5-5z"/>
+                                  </svg>
+                                </button>
+                                <div class="custom-dropdown-menu" role="listbox">
+                                  <div class="custom-dropdown-item is-selected" role="option" data-val="sine">Sine</div>
+                                  <div class="custom-dropdown-item" role="option" data-val="triangle">Triangle</div>
+                                  <div class="custom-dropdown-item" role="option" data-val="square">Square</div>
+                                  <div class="custom-dropdown-item" role="option" data-val="sawtooth">Sawtooth</div>
+                                  <div class="custom-dropdown-item" role="option" data-val="smooth-noise">Smooth Noise</div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -6232,6 +6301,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.14-ae1"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>

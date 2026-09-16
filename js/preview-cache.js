@@ -456,8 +456,8 @@
 
       let runStart = -1;
       for (let f = 0; f <= totalFrames; f++) {
-        // Bridge single-frame micro gaps during live playback to maintain solid green bar
-        const isCached = this.frames.has(f) || (f > 0 && f < totalFrames && this.frames.has(f - 1) && this.frames.has(f + 1));
+        // Strict cache check: only paint real cached frames to prevent false-green stutter
+        const isCached = this.frames.has(f);
         if (isCached) {
           if (runStart === -1) runStart = f;
         } else {

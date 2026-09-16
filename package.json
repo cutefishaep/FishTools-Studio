@@ -9,6 +9,7 @@
     "tunnel": "node server.js --tunnel",
     "bump": "node scripts/sync-version.js",
     "version:sync": "node scripts/sync-version.js",
+    "sync:effects": "node scripts/sync-effects.js",
     "serve": "npx serve .",
     "test": "node scratch/test_suite.js"
   },

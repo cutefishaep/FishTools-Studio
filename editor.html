@@ -22,12 +22,7 @@
   <link rel="stylesheet" href="css/safari.css">
   <script src="js/sync-height.js"></script>
   <script>
-    if (!window.DEBUG && !new URLSearchParams(window.location.search).has('debug') && localStorage.getItem('FISH_DEBUG') !== 'true') {
-      window._originalConsole = { log: console.log, debug: console.debug, info: console.info };
-      console.log = () => {};
-      console.debug = () => {};
-      console.info = () => {};
-    }
+    window.DEBUG = true;
   </script>
 </head>
 <body oncontextmenu="return false;" onselectstart="return false;">
@@ -1484,6 +1479,18 @@
                               <img src="assets/FXPH.svg" alt="Warp" class="effects-gallery-item-img" loading="lazy">
                             </div>
                             <span class="effects-gallery-item-name">Warp</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="turbulent-displace" data-category="warp" title="Turbulent Displace">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Turbulent Displace" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Turbulent Displace</span>
+                          </div>
+                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="optic-compensation" data-category="warp" title="Optic Compensation">
+                            <div class="effects-gallery-item-thumb">
+                              <img src="assets/FXPH.svg" alt="Optic Compensation" class="effects-gallery-item-img" loading="lazy">
+                            </div>
+                            <span class="effects-gallery-item-name">Optic Compensation</span>
                           </div>
                           <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="transform" data-category="movement" title="Transform">
                             <div class="effects-gallery-item-thumb">
@@ -3987,6 +3994,7 @@
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.14-ae1"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>

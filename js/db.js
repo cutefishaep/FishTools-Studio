@@ -1209,6 +1209,22 @@ window.FishDatabase = (function () {
         mediaItem.buffer = buffer;
       } catch (_) {}
     }
+    if (!buffer && mediaItem.dataUrl && typeof mediaItem.dataUrl === 'string' && mediaItem.dataUrl.startsWith('data:')) {
+      try {
+        var base64Part = mediaItem.dataUrl.split(',')[1];
+        if (base64Part) {
+          var binaryStr = atob(base64Part);
+          var len = binaryStr.length;
+          var bytes = new Uint8Array(len);
+          for (var i = 0; i < len; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          buffer = bytes.buffer;
+          mediaItem.buffer = buffer;
+        }
+      } catch (_) {}
+    }
+
     var thumbBuffer = mediaItem.thumbBuffer || null;
     if (!thumbBuffer && mediaItem.thumbBlob && typeof mediaItem.thumbBlob.arrayBuffer === 'function') {
       try {
@@ -1221,13 +1237,13 @@ window.FishDatabase = (function () {
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
         var isDone = false;
+        // Fast optimistic timeout (2500ms max) avoids 30s UI freeze
         var saveTimer = setTimeout(function () {
           if (isDone) return;
           isDone = true;
-          console.warn('[FishDatabase] saveMedia transaction timeout, resolving optimistic');
           saveToLocalFull(mediaItem);
           resolve(mediaItem);
-        }, 30000);
+        }, 2500);
 
         function finish(item) {
           if (isDone) return;
@@ -1241,47 +1257,61 @@ window.FishDatabase = (function () {
           var store = tx.objectStore('media');
           var itemToStore = Object.assign({}, mediaItem);
 
+          // Strip non-serializable DOM handles to prevent WebKit structured clone hangs
+          delete itemToStore.blob;
+          delete itemToStore.thumbBlob;
+          delete itemToStore.el;
+          delete itemToStore.video;
+          delete itemToStore.audio;
+          delete itemToStore.img;
+
           if (buffer) {
             itemToStore.buffer = buffer;
-            delete itemToStore.blob;
-          } else if (itemToStore.blob && typeof itemToStore.blob.slice === 'function') {
-            try {
-              itemToStore.blob = itemToStore.blob.slice(0, itemToStore.blob.size, itemToStore.mimeType || itemToStore.blob.type || '');
-            } catch (_) {}
           }
 
           if (thumbBuffer) {
             itemToStore.thumbBuffer = thumbBuffer;
-            delete itemToStore.thumbBlob;
           }
 
-          if (itemToStore.dataUrl && typeof itemToStore.dataUrl === 'string' && itemToStore.dataUrl.startsWith('blob:')) {
+          // Never store massive redundant base64 dataUrls in IndexedDB when ArrayBuffer is present!
+          // WebKit IPC chokes on multi-megabyte base64 strings, causing transactions to stall.
+          if (itemToStore.buffer) {
+            itemToStore.dataUrl = '';
+          } else if (itemToStore.dataUrl && typeof itemToStore.dataUrl === 'string' && itemToStore.dataUrl.startsWith('blob:')) {
             itemToStore.dataUrl = '';
           }
-          if (itemToStore.thumbUrl && typeof itemToStore.thumbUrl === 'string' && itemToStore.thumbUrl.startsWith('blob:')) {
+
+          if (itemToStore.thumbBuffer) {
+            itemToStore.thumbUrl = '';
+          } else if (itemToStore.thumbUrl && typeof itemToStore.thumbUrl === 'string' && itemToStore.thumbUrl.startsWith('blob:')) {
             itemToStore.thumbUrl = '';
           }
 
-          store.put(itemToStore);
-
+          // Attach transaction completion handlers BEFORE issuing store request
           tx.oncomplete = function () {
             _invalidateProjectMediaCache(mediaItem.projectId);
-            // Also keep light metadata in local fallback
             saveMetaToLocal(mediaItem);
             finish(mediaItem);
           };
           tx.onerror = function (err) {
-            console.warn('[FishDatabase] saveMedia tx error:', err);
+            try { if (err && err.preventDefault) err.preventDefault(); } catch (_) {}
             saveToLocalFull(mediaItem);
             finish(mediaItem);
           };
-          tx.onabort = function (err) {
-            console.warn('[FishDatabase] saveMedia tx aborted:', err);
+          tx.onabort = function () {
             saveToLocalFull(mediaItem);
             finish(mediaItem);
           };
+
+          var req = store.put(itemToStore);
+          if (req) {
+            req.onerror = function (err) {
+              try { if (err && err.preventDefault) err.preventDefault(); } catch (_) {}
+              saveToLocalFull(mediaItem);
+              finish(mediaItem);
+            };
+          }
         } catch (e) {
-          console.warn('[FishDatabase] saveMedia store.put error:', e);
           saveToLocalFull(mediaItem);
           finish(mediaItem);
         }
@@ -1439,11 +1469,22 @@ window.FishDatabase = (function () {
     var db = await openDB();
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
+        var isDone = false;
+        var timer = setTimeout(function () {
+          if (isDone) return;
+          isDone = true;
+          var found = getLocalMedia().find(function (item) { return item.id === id; });
+          resolve(found || null);
+        }, 2000);
+
         try {
           var tx = db.transaction('media', 'readonly');
           var store = tx.objectStore('media');
           var req = store.get(id);
           req.onsuccess = function () {
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timer);
             var m = req.result || null;
             if (m && hydrateBlobs) {
               hydrateMediaItemBlobs(m);
@@ -1451,10 +1492,16 @@ window.FishDatabase = (function () {
             resolve(m);
           };
           req.onerror = function () {
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timer);
             var found = getLocalMedia().find(function (item) { return item.id === id; });
             resolve(found || null);
           };
         } catch (_) {
+          if (isDone) return;
+          isDone = true;
+          clearTimeout(timer);
           var found = getLocalMedia().find(function (item) { return item.id === id; });
           resolve(found || null);
         }
@@ -1473,17 +1520,37 @@ window.FishDatabase = (function () {
     var db = await openDB();
     if (db && db.objectStoreNames.contains('media')) {
       return new Promise(function (resolve) {
+        var isDone = false;
+        var timer = setTimeout(function () {
+          if (isDone) return;
+          isDone = true;
+          resolve(getLocalMedia());
+        }, 2500);
+
         try {
           var tx = db.transaction('media', 'readonly');
           var store = tx.objectStore('media');
           var req = store.getAll();
           req.onsuccess = function () {
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timer);
             var items = req.result || [];
             items.forEach(hydrateMediaItemBlobs);
             resolve(items);
           };
-          req.onerror  = function () { resolve(getLocalMedia()); };
-        } catch (_) { resolve(getLocalMedia()); }
+          req.onerror  = function () {
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timer);
+            resolve(getLocalMedia());
+          };
+        } catch (_) {
+          if (isDone) return;
+          isDone = true;
+          clearTimeout(timer);
+          resolve(getLocalMedia());
+        }
       });
     }
     return getLocalMedia();

@@ -562,113 +562,178 @@
 }
 
 /* Controls Box with Scrubber Ruler */
+/* Controls Box - Desktop Ergonomic Inspector Layout */
 .effects-card-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 8px 10px;
 }
 
 .effects-control-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(95px, 36%) 1fr;
   align-items: center;
   gap: 8px;
-  height: 38px;
+  min-height: 28px;
+  box-sizing: border-box;
 }
 
-.effects-param-select-btn {
-  width: 85px;
-  height: 38px;
-  flex-shrink: 0;
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-panel);
-  border-radius: 6px;
-  color: var(--text-muted);
-  font-family: var(--font-brand);
-  font-size: 11.5px;
-  font-weight: 700;
-  display: inline-flex;
+/* Left Column: Clean Parameter Label */
+.effects-param-label-col {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  outline: none;
-  padding: 0 8px;
-  transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  min-width: 0;
   user-select: none;
 }
 
-.effects-param-select-btn:hover {
+.effects-param-label {
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color 0.12s ease;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  line-height: 1;
+  outline: none;
+  user-select: none;
+}
+
+.effects-param-label:hover,
+.effects-control-row:hover .effects-param-label {
+  color: var(--text-primary);
+}
+
+.effects-param-label.is-active {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Right Column: Value Scrub Pill or Control */
+.effects-param-val-col {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.effects-param-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-panel);
+  border-radius: 4px;
+  padding: 0 8px;
+  cursor: ew-resize;
+  user-select: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.effects-param-pill:hover {
+  border-color: var(--color-primary);
   background-color: var(--bg-panel-hover);
+}
+
+.effects-param-pill:active {
+  border-color: var(--color-primary-active, var(--color-primary));
+}
+
+.effects-pill-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background-color: var(--color-primary);
+  opacity: 0.14;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+
+.effects-param-pill-val {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Paired Inputs (Offset X & Offset Y, Point X & Point Y) */
+.effects-param-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+  align-items: center;
+}
+
+.effects-axis-badge {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-brand);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-dim, #556b55);
+  margin-right: auto;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+/* Legacy 3-Box Compatibility Support */
+.effects-param-select-btn {
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  transition: color 0.12s ease;
+  user-select: none;
+  text-align: left;
+}
+
+.effects-param-select-btn:hover {
   color: var(--text-primary);
 }
 
 .effects-param-select-btn.is-active {
-  background-color: var(--color-primary);
-  color: var(--bg-canvas);
-  border-color: var(--color-primary);
-}
-
-/* Ruler Scrubber / Jog Wheel (Matches Scale & Camera Jog Wheels) */
-.effects-ruler-scrubber,
-.effects-control-row .jog-wheel-container {
-  flex: 1;
-  height: 38px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  overflow: hidden;
-  cursor: ew-resize;
-  user-select: none;
-  touch-action: none;
-  margin: 0;
-}
-
-.effects-control-row .jog-wheel-ticks,
-.effects-ruler-scrubber .jog-wheel-ticks {
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: 0;
-  right: 0;
-  background-image: linear-gradient(
-    to right,
-    var(--text-muted) 0px,
-    var(--text-muted) 1px,
-    transparent 1px,
-    transparent 12px
-  );
-  background-size: 12px 100%;
-  background-repeat: repeat-x;
-  opacity: 0.75;
-  pointer-events: none;
-}
-
-.effects-control-row .jog-wheel-needle,
-.effects-ruler-scrubber .jog-wheel-needle {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background-color: var(--color-primary);
-  pointer-events: none;
-  z-index: 2;
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .effects-param-value-btn {
-  width: 58px;
-  height: 38px;
+  height: 26px;
   flex-shrink: 0;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-panel);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--text-primary);
   font-family: var(--font-brand);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -676,6 +741,8 @@
   cursor: pointer;
   outline: none;
   user-select: none;
+  padding: 0 6px;
+  box-sizing: border-box;
   transition: border-color 0.12s ease, background-color 0.12s ease;
 }
 
@@ -685,35 +752,35 @@
 }
 
 .effects-param-label-static {
-  width: 85px;
-  height: 38px;
-  flex-shrink: 0;
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-panel);
-  border-radius: 6px;
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  border: none;
   color: var(--text-muted);
   font-family: var(--font-brand);
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   user-select: none;
-  padding: 0 8px;
+  padding: 0;
   box-sizing: border-box;
+  text-align: left;
 }
 
 /* Segmented Select Group (e.g. Blend Modes) */
 .effects-segmented-group {
   flex: 1;
-  height: 38px;
+  width: 100%;
+  height: 26px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-panel);
-  border-radius: 6px;
-  padding: 3px;
+  border-radius: 4px;
+  padding: 2px;
   box-sizing: border-box;
 }
 
@@ -721,11 +788,11 @@
   flex: 1;
   height: 100%;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   background-color: transparent;
   color: var(--text-muted);
   font-family: var(--font-brand);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
   outline: none;
@@ -759,17 +826,17 @@
 
 .effects-control-row .custom-dropdown-trigger {
   width: 100%;
-  height: 38px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 8px;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-brand);
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
   border: 1px solid var(--border-panel);
   outline: none;
   cursor: pointer;
@@ -845,12 +912,12 @@
 }
 
 .effects-control-row .custom-dropdown-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   font-family: var(--font-brand);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.1s ease, color 0.1s ease;
   text-align: left;
@@ -885,23 +952,23 @@
 /* Color Picker Control Row */
 .effects-color-picker-wrap {
   flex: 1;
-  height: 38px;
+  height: 26px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .effects-color-swatch-btn {
-  width: 38px;
-  height: 38px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--border-panel);
   display: block;
   box-sizing: border-box;
-  padding: 3px;
+  padding: 2px;
   background-color: var(--bg-canvas);
   transition: border-color 0.12s ease;
   outline: none;
@@ -915,16 +982,20 @@
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 4px;
+  border-radius: 2px;
   pointer-events: none;
 }
 
 .effects-color-hex-input {
   flex: 1;
-  height: 38px;
+  height: 26px;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-panel);
-  border-radius: 6px;
+  border-radius: 4px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 6px;
   color: var(--text-primary);
   font-family: var(--font-brand);
   font-size: 12px;
@@ -1296,6 +1367,8 @@
    Pure Flat, 100% Theme Token Binding, Zero Blur, Zero Box-Shadow
    ========================================================================== */
 .effects-control-row-curve {
+  display: block !important;
+  grid-column: 1 / -1 !important;
   flex-direction: column !important;
   align-items: stretch !important;
   padding: 6px 0 !important;

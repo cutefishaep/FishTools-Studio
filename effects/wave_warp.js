@@ -284,7 +284,8 @@
       if (typeof currentSec === 'number' && !isNaN(currentSec)) curSec = currentSec;
       else if (layer && typeof layer._currentSec === 'number') curSec = layer._currentSec;
       else if (typeof window !== 'undefined') {
-        if (typeof window.currentPlaybackSec === 'number') curSec = window.currentPlaybackSec;
+        if (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)) curSec = window._currentRenderSec;
+        else if (typeof window.currentPlaybackSec === 'number') curSec = window.currentPlaybackSec;
         else if (typeof window.currentSec === 'number') curSec = window.currentSec;
         else if (typeof window.getCurrentPlayheadTime === 'function') curSec = window.getCurrentPlayheadTime();
         else if (window.currentFrame !== undefined && window.currentFps) curSec = window.currentFrame / window.currentFps;

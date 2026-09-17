@@ -18968,6 +18968,14 @@
       window.getCurrentPlayheadTime = getCurrentPlayheadTime;
       window.getTimelineCurrentSec = getCurrentPlayheadTime;
 
+      function isAnyPlaybackActive() {
+        return !!(
+          (typeof isPlaying !== 'undefined' && isPlaying) ||
+          window.isTimelinePlaying ||
+          (window.FishTemplateEditor && window.FishTemplateEditor.isPlaying)
+        );
+      }
+
       function renderTimeline(force = false) {
         rafScheduled = false;
         if (!force && panX === lastRenderedPanX) return;
@@ -18996,7 +19004,8 @@
           }
         }
 
-        const syncDrawers = !isPlaying || ((_playTickCount || 0) % 6 === 0);
+        const isActivelyPlaying = isAnyPlaybackActive();
+        const syncDrawers = !isActivelyPlaying || ((_playTickCount || 0) % 6 === 0);
         if (syncDrawers) {
           if (typeof updateTransformKeyframeBtnState === 'function') {
             updateTransformKeyframeBtnState();
@@ -19027,7 +19036,7 @@
             if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
           }
           // Only update cut bar row when timeline is paused/scrubbing (prevents DOM mutation thrash at 60fps)
-          if (!isPlaying && typeof updateCutBarRowState === 'function') {
+          if (!isActivelyPlaying && typeof updateCutBarRowState === 'function') {
             updateCutBarRowState();
           }
           if (typeof syncBeatmarkDrawerUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'beatmark') {
@@ -19042,12 +19051,12 @@
         }
 
         // Only update reorder handles contrast when not playing to eliminate forced synchronous reflow (vp.clientWidth)
-        if (!isPlaying && typeof updateReorderHandlesContrast === 'function') {
+        if (!isActivelyPlaying && typeof updateReorderHandlesContrast === 'function') {
           updateReorderHandlesContrast();
         }
 
         // Live refresh canvas preview to show/hide layers matching playhead timecode
-        if (!isPlaying) {
+        if (!isActivelyPlaying) {
           redrawComposition();
         }
       }
@@ -19061,11 +19070,11 @@
 
       let _parkAudioTimer = null;
       function scheduleParkAudio(sec) {
-        if (isPlaying) return;
+        if (isAnyPlaybackActive()) return;
         if (_parkAudioTimer) clearTimeout(_parkAudioTimer);
         _parkAudioTimer = setTimeout(() => {
           _parkAudioTimer = null;
-          if (isPlaying) return;
+          if (isAnyPlaybackActive()) return;
           if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function') {
             const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
             window.FishAudioEngine.parkPlayback(currentProjectState.layers || [], sec, pps);
@@ -19085,7 +19094,7 @@
         } else {
           scheduleRender();
         }
-        if (!isPlaying) {
+        if (!isAnyPlaybackActive()) {
           scheduleParkAudio(curSec);
         }
         if (typeof updateGraphEditorUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'graph') {
@@ -19139,7 +19148,7 @@
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
         const targetPanX = - (sec * pps);
         updateTimelinePosition(targetPanX, immediate);
-        if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function' && !isPlaying) {
+        if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function' && !isAnyPlaybackActive()) {
           window.FishAudioEngine.parkPlayback(currentProjectState.layers || [], sec, pps);
         }
         if (typeof updateTimeBadgeBeatmarkState === 'function') {
@@ -20064,7 +20073,7 @@
             }
           }
         });
-        if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function' && !isPlaying) {
+        if (window.FishAudioEngine && typeof window.FishAudioEngine.parkPlayback === 'function' && !isAnyPlaybackActive()) {
           window.FishAudioEngine.parkPlayback(layers, curSec, pixelsPerSecond);
         }
         redrawComposition('scrubEnd');

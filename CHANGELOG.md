@@ -5,6 +5,19 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.20] - 2026-09-17
+
+### Fixed
+- **Template Editor Audio Stutter & Chopping ("Audio Patah-Patah di Template Editor") (`js/editor.js`, `js/fish-audio-engine.js`, `js/template-editor.js`)**:
+  - Eliminated 60 FPS destructive audio buffer flushing caused by `seekTimelineToTime` repeatedly invoking `FishAudioEngine.parkPlayback()` while template editor playback was active.
+  - Added global playback active detection (`isAnyPlaybackActive`) in `editor.js` covering `isPlaying`, `window.isTimelinePlaying`, and `FishTemplateEditor.isPlaying`.
+  - Added strict guard inside `FishAudioEngine.parkPlayback()` to reject seeks whenever any playback is active.
+  - Aligned Template Editor playback loop with continuous 60 FPS `syncPlayback()`, pitch preservation, and master audio clock drift synchronization (`FishAudioEngine.getMasterAudioTime()`).
+  - Added clean loop reset handling (`FishAudioEngine.handleLoopReset()`) when reaching the end of the template timeline.
+  - Suppressed redundant background canvas redraws and drawer DOM thrashing while Template Editor is playing.
+
+---
+
 ## [0.5.16] - 2026-09-17
 
 ### Added

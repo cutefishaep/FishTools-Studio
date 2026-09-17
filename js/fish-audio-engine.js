@@ -841,6 +841,9 @@
 
     parkPlayback(layers, currentSec, pixelsPerSecond = 80) {
       if (!layers || !layers.length) return;
+      if (window.isTimelinePlaying || (window.FishTemplateEditor && window.FishTemplateEditor.isPlaying)) {
+        return;
+      }
       const flatItems = this._flattenPlayableLayers(layers, 0, 1.0, false, 1.0, pixelsPerSecond);
 
       flatItems.forEach(item => {

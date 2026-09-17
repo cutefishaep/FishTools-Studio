@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="css/color-picker.css">
   <link rel="stylesheet" href="css/template-editor.css">
   <link rel="stylesheet" href="css/safari.css">
-  <link rel="stylesheet" href="css/desktop.css?v=0.5.17">
+  <link rel="stylesheet" href="css/desktop.css?v=0.5.20">
   <script src="js/sync-height.js"></script>
   <script>
     window.DEBUG = true;
@@ -89,6 +89,7 @@
               <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
               <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
             </svg>
+          </button>
           <button type="button" class="editor-settings-btn" id="btn-desktop-mobile-view" title="Switch to Mobile View" aria-label="Switch to Mobile View" onclick="proceedToMobileView()">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
@@ -3317,7 +3318,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.17</span>
+          <span class="welcome-badge">v0.5.20</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3353,11 +3354,26 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.20 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.20</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 17, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Template Editor Audio Stutter &amp; Chopping ("Audio Patah-Patah di Template Editor") (`js/editor.js`, `js/fish-audio-engine.js`, `js/template-editor.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.16 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.16</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 17, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -4081,6 +4097,8 @@
       </div>
       <button type="button" class="export-cancel-btn" id="btn-export-cancel">Cancel Export</button>
     </div>
+  </div>
+
   <!-- ==========================================================================
        MODULAR POP-UP: OFTS EXPORT PROGRESS MODAL
        ========================================================================== -->
@@ -4140,7 +4158,7 @@
   (function () {
     'use strict';
     var DISMISS_KEY = 'oft_desktop_mobile_dismissed';
-    var SESSION_KEY = 'oft_desktop_mobile_dismissed_session';
+    var dismissedThisSession = false;
 
     function isMobileOrSmallScreen() {
       var ua = navigator.userAgent || navigator.vendor || window.opera || '';
@@ -4157,8 +4175,8 @@
       if (!force) {
         try {
           if (localStorage.getItem(DISMISS_KEY) === 'stay') return;
-          if (sessionStorage.getItem(SESSION_KEY) === 'stay') return;
         } catch (_) {}
+        if (dismissedThisSession) return;
       }
 
       if (isMobileOrSmallScreen()) {
@@ -4184,8 +4202,8 @@
     }
 
     function dismissMobileSwitchModal() {
+      dismissedThisSession = true;
       try {
-        sessionStorage.setItem(SESSION_KEY, 'stay');
         var checkbox = document.getElementById('checkbox-remember-mobile-switch');
         if (checkbox && checkbox.checked) {
           localStorage.setItem(DISMISS_KEY, 'stay');
@@ -4207,9 +4225,15 @@
     // Trigger check immediately right after modal markup is parsed
     checkAndPromptMobileSwitch(false);
 
-    window.addEventListener('resize', function () {
-      checkAndPromptMobileSwitch(false);
-    });
+    var resizeTimer = null;
+    function onViewportChange() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        checkAndPromptMobileSwitch(false);
+      }, 150);
+    }
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
   })();
   </script>
 
@@ -4248,7 +4272,7 @@
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.17"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.20"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>
@@ -4297,10 +4321,10 @@
   <script src="text/default.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.17"></script>
-  <script src="js/editor.js?v=0.5.17"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.20"></script>
+  <script src="js/editor.js?v=0.5.20"></script>
   <script src="js/openfishtools-generators3d.js"></script>
   <script src="js/openfishtools-controller.js"></script>
-  <script src="js/desktop.js?v=0.5.17"></script>
+  <script src="js/desktop.js?v=0.5.20"></script>
 </body>
 </html>

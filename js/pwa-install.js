@@ -43,6 +43,24 @@
     return isMac && isSafari && !isIOS();
   }
 
+  // 2c. Detect Firefox (Desktop & Android)
+  function isFirefox() {
+    return /Firefox|FxiOS/i.test(navigator.userAgent);
+  }
+
+  function isFirefoxDesktop() {
+    return isFirefox() && !isIOS() && !/Android|Mobile/i.test(navigator.userAgent);
+  }
+
+  function isFirefoxAndroid() {
+    return isFirefox() && /Android/i.test(navigator.userAgent);
+  }
+
+  function isMacPlatform() {
+    var ua = navigator.userAgent;
+    return /Macintosh|MacIntel|MacPPC|Mac68K/i.test(navigator.platform || '') || /Macintosh/i.test(ua);
+  }
+
   // 3. Register Service Worker
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
@@ -82,10 +100,12 @@
     var modal = document.getElementById('modal-install-app');
     if (!modal) return;
 
-    // Adapt content for iOS / macOS Safari / Generic Desktop / Native prompt
+    // Adapt content for iOS / macOS Safari / Firefox / Generic Desktop / Native prompt
     var iosCard = document.getElementById('install-ios-instructions');
     var macCard = document.getElementById('install-mac-safari-instructions');
     var desktopCard = document.getElementById('install-desktop-instructions');
+    var firefoxCard = document.getElementById('install-firefox-instructions');
+    var firefoxAndroidCard = document.getElementById('install-firefox-android-instructions');
     var nativeAction = document.getElementById('install-pwa-action-btn');
     var actionText = nativeAction ? nativeAction.querySelector('span') : null;
     var defaultDesc = document.getElementById('install-modal-desc');
@@ -93,6 +113,8 @@
     if (iosCard) iosCard.style.display = 'none';
     if (macCard) macCard.style.display = 'none';
     if (desktopCard) desktopCard.style.display = 'none';
+    if (firefoxCard) firefoxCard.style.display = 'none';
+    if (firefoxAndroidCard) firefoxAndroidCard.style.display = 'none';
 
     // Primary action button is ALWAYS visible!
     if (nativeAction) {
@@ -104,6 +126,23 @@
       if (actionText) actionText.textContent = 'Install as App';
       if (defaultDesc) {
         defaultDesc.textContent = 'Install as a standalone app for faster startup, offline access, and durable local project storage.';
+      }
+    } else if (isFirefoxDesktop()) {
+      // Mozilla Firefox on Desktop (does not natively support standalone PWAs)
+      if (firefoxCard) firefoxCard.style.display = 'block';
+      var isMac = isMacPlatform();
+      var shortcutSpan = document.getElementById('firefox-bookmark-shortcut');
+      if (shortcutSpan) shortcutSpan.textContent = isMac ? 'Cmd + D' : 'Ctrl + D';
+      if (actionText) actionText.textContent = isMac ? 'Got It (Bookmark: ⌘+D)' : 'Got It (Bookmark: Ctrl+D)';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'Firefox on desktop does not natively support standalone PWA apps. You can bookmark this page for fast access, or use Chrome/Edge/Safari to install as an app.';
+      }
+    } else if (isFirefoxAndroid()) {
+      // Firefox for Android
+      if (firefoxAndroidCard) firefoxAndroidCard.style.display = 'block';
+      if (actionText) actionText.textContent = 'Got It (Menu → Install)';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'In Firefox for Android, tap the menu (⋮) to install OpenFishTools Studio directly to your home screen.';
       }
     } else if (isMacSafari()) {
       // macOS Safari (Add to Dock)
@@ -184,7 +223,7 @@
       return;
     }
 
-    // Modal closed for Safari / unsupported browser
+    // Modal closed for Safari / Firefox / unsupported browser
     if (window.Modal && typeof window.Modal.close === 'function') {
       window.Modal.close();
     } else {
@@ -192,7 +231,16 @@
       if (m) m.classList.remove('is-active');
     }
 
-    if (isMacSafari()) {
+    if (isFirefoxDesktop()) {
+      var isMac = isMacPlatform();
+      if (typeof window.showDashboardToast === 'function') {
+        window.showDashboardToast(isMac ? "Press ⌘+D to bookmark OpenFishTools" : "Press Ctrl+D to bookmark OpenFishTools");
+      }
+    } else if (isFirefoxAndroid()) {
+      if (typeof window.showDashboardToast === 'function') {
+        window.showDashboardToast("In Firefox: Tap ⋮ menu → 'Install'");
+      }
+    } else if (isMacSafari()) {
       if (typeof window.showDashboardToast === 'function') {
         window.showDashboardToast("In Safari: Click File → 'Add to Dock...' in your menu bar");
       }

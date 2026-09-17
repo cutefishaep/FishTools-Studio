@@ -556,7 +556,7 @@
           <div class="brand-title">FishTool</div>
           <div class="brand-subtitle-row">
             <span class="brand-subtitle">Studio</span>
-            <span class="badge-pre-alpha" id="studio-version-badge">0.5.17</span>
+            <span class="badge-pre-alpha" id="studio-version-badge">0.5.20</span>
           </div>
           <h2 class="projects-title" style="margin-top: 10px;">Your Project</h2>
         </div>
@@ -564,7 +564,7 @@
         <div class="component-box">
           <span class="component-box-title">Badges & Metadata</span>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <span class="badge-pre-alpha">0.5.17</span>
+            <span class="badge-pre-alpha">0.5.20</span>
             <span class="project-count-badge">5</span>
             <span class="project-count-badge">12</span>
             <span class="project-count-badge">99+</span>
@@ -5208,7 +5208,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.17</span>
+          <span class="welcome-badge">v0.5.20</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -5244,11 +5244,26 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.20 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.20</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 17, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Template Editor Audio Stutter &amp; Chopping ("Audio Patah-Patah di Template Editor") (`js/editor.js`, `js/fish-audio-engine.js`, `js/template-editor.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.16 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.16</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 17, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -6138,6 +6153,37 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
         </ol>
       </div>
 
+      <!-- Firefox Desktop Notice Card -->
+      <div class="install-ios-card" id="install-firefox-instructions" style="display: none;">
+        <div class="install-ios-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+          <span>Firefox Desktop PWA Notice</span>
+        </div>
+        <p style="margin: 0 0 10px 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary);">
+          Mozilla Firefox on desktop does not natively support standalone PWA installation.
+        </p>
+        <ol class="install-ios-steps">
+          <li><strong>Bookmark this page:</strong> Press <strong id="firefox-bookmark-shortcut">Cmd + D</strong> for instant 1-click access. Offline caching &amp; database storage work completely within your browser!</li>
+          <li><strong>Standalone App:</strong> To run as an isolated desktop window app, open OpenFishTools in <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong>, or <strong>Safari</strong> (macOS).</li>
+        </ol>
+      </div>
+
+      <!-- Firefox Android Instructions -->
+      <div class="install-ios-card" id="install-firefox-android-instructions" style="display: none;">
+        <div class="install-ios-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+          <span>Install on Firefox (Android)</span>
+        </div>
+        <ol class="install-ios-steps">
+          <li>Tap the <strong>three dots (⋮)</strong> menu button in Firefox.</li>
+          <li>Select <strong>"Install"</strong> (or <strong>"Add to Home screen"</strong>).</li>
+        </ol>
+      </div>
+
       <!-- Desktop Browser Manual Instructions -->
       <div class="install-ios-card" id="install-desktop-instructions" style="display: none;">
         <div class="install-ios-title">
@@ -6564,7 +6610,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.17"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.20"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>

@@ -321,8 +321,12 @@
 
       await this._collectReplaceableSlots();
       this._syncDuration();
+      if (typeof window.pausePlayback === 'function') {
+        try { window.pausePlayback(); } catch (_) {}
+      }
       this.currentTime = 0;
       this.isPlaying = false;
+      window.isTimelinePlaying = false;
       if (this._rafId) {
         cancelAnimationFrame(this._rafId);
         this._rafId = null;
@@ -1115,8 +1119,9 @@
       if (window.FishAudioEngine && !this.isPlaying) {
         const pps = window.currentPixelsPerSecond || 80;
         const layers = window.currentProjectState ? (window.currentProjectState.layers || []) : [];
-        window.FishAudioEngine.syncPlayback(layers, this.currentTime, pps);
-        window.FishAudioEngine.pauseAll();
+        if (typeof window.FishAudioEngine.parkPlayback === 'function') {
+          window.FishAudioEngine.parkPlayback(layers, this.currentTime, pps);
+        }
       }
       this.renderFrame();
     },
@@ -1164,16 +1169,64 @@
         this.currentTime = 0;
       }
 
+      const layers = window.currentProjectState ? (window.currentProjectState.layers || []) : [];
+      const pps = window.currentPixelsPerSecond || 80;
+      if (window.FishAudioEngine) {
+        window.FishAudioEngine.syncPlayback(layers, this.currentTime, pps, 1.0);
+      }
+
       const loop = (now) => {
         if (!this.isPlaying) return;
         try {
-          const delta = (now - this._lastTime) / 1000;
+          if (document.hidden) {
+            this._lastTime = now;
+            this._rafId = requestAnimationFrame(loop);
+            return;
+          }
+
+          const rawDeltaSec = (now - this._lastTime) / 1000;
           this._lastTime = now;
 
-          this.currentTime += delta;
-          if (this.currentTime >= this.duration) {
-            this.currentTime = 0; // loop
+          if (rawDeltaSec > 1.0) {
+            this._rafId = requestAnimationFrame(loop);
+            return;
           }
+
+          const effectiveDeltaSec = Math.min(0.25, rawDeltaSec);
+          let nextSec = this.currentTime + effectiveDeltaSec;
+
+          const pps = window.currentPixelsPerSecond || 80;
+          const layers = window.currentProjectState ? (window.currentProjectState.layers || []) : [];
+
+          // Master Audio Clock synchronization (smooth slewing matching main timeline)
+          if (window.FishAudioEngine && this._playTickCount > 3) {
+            const masterSec = window.FishAudioEngine.getMasterAudioTime(layers, this.currentTime, pps);
+            if (masterSec !== null && !isNaN(masterSec) && Number.isFinite(masterSec) && masterSec >= 0) {
+              const drift = masterSec - nextSec;
+              if (drift >= 0.060) {
+                nextSec += Math.min(effectiveDeltaSec * 0.35, drift * 0.25);
+              } else if (drift < -0.060 && drift > -0.80) {
+                nextSec = this.currentTime + (effectiveDeltaSec * 0.85);
+              } else {
+                nextSec = this.currentTime + effectiveDeltaSec;
+              }
+            }
+          }
+          // Strict monotonic forward motion
+          nextSec = Math.max(this.currentTime + (effectiveDeltaSec * 0.5), nextSec);
+
+          if (nextSec >= this.duration) {
+            nextSec = 0;
+            this._lastTime = now;
+            this._playTickCount = 0;
+            if (window.FishAudioEngine && typeof window.FishAudioEngine.handleLoopReset === 'function') {
+              window.FishAudioEngine.handleLoopReset(layers, 0, pps, 1.0);
+            } else if (window.FishAudioEngine) {
+              window.FishAudioEngine.syncPlayback(layers, 0, pps, 1.0);
+            }
+          }
+
+          this.currentTime = nextSec;
 
           this._updateScrubberUI();
           if (typeof window.seekTimelineToTime === 'function') {
@@ -1181,10 +1234,8 @@
           }
 
           this._playTickCount++;
-          if (window.FishAudioEngine && (this._playTickCount === 1 || this._playTickCount % 4 === 0)) {
-            const pps = window.currentPixelsPerSecond || 80;
-            const layers = window.currentProjectState ? (window.currentProjectState.layers || []) : [];
-            window.FishAudioEngine.syncPlayback(layers, this.currentTime, pps);
+          if (window.FishAudioEngine) {
+            window.FishAudioEngine.syncPlayback(layers, this.currentTime, pps, 1.0);
           }
 
           this.renderFrame();
@@ -1212,6 +1263,11 @@
 
       if (window.FishAudioEngine) {
         window.FishAudioEngine.pauseAll();
+        const pps = window.currentPixelsPerSecond || 80;
+        const layers = window.currentProjectState ? (window.currentProjectState.layers || []) : [];
+        if (typeof window.FishAudioEngine.parkPlayback === 'function') {
+          window.FishAudioEngine.parkPlayback(layers, this.currentTime, pps);
+        }
       }
 
       const layers = window.currentProjectState ? (window.currentProjectState.layers || []) : [];

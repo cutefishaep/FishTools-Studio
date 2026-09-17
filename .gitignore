@@ -5,6 +5,8 @@ cloudflared.exe
 .system_generated/
 *.log
 dist/
+native/dist/
+native/src-tauri/target/
 scratch/
 .env
 .env.*

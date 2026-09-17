@@ -4,7 +4,8 @@
   "version": "0.5.20",
   "identifier": "com.openfishtools.studio",
   "build": {
-    "frontendDist": "../.."
+    "beforeBuildCommand": "node ../../scripts/build-native-dist.js",
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,

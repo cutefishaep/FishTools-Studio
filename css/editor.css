@@ -1288,6 +1288,31 @@ html, body {
   pointer-events: none;
 }
 
+/* Distinct Music Beatmarks (Neon Accent Circle Pin & Dashed Line) */
+.timeline-beatmark-item.is-beatmark {
+  color: var(--color-accent) !important;
+}
+
+.timeline-beatmark-item.is-beatmark:hover {
+  color: var(--color-accent) !important;
+  transform: scale(1.25) !important;
+}
+
+.timeline-beatmark-item.is-beatmark .timeline-beatmark-pin {
+  border-radius: 50%;
+}
+
+.timeline-beatmark-item.is-beatmark .timeline-beatmark-stem {
+  background-color: var(--color-accent) !important;
+  opacity: 0.9 !important;
+}
+
+.timeline-layers-beatmark-line.is-beatmark {
+  background-color: transparent !important;
+  border-left: 1px dashed var(--color-accent) !important;
+  opacity: 0.5 !important;
+}
+
 /* 2. Component B: Timeline Center Needle Line (Garis Vertikal Tengah, z-index 45) */
 .timeline-center-needle {
   position: absolute;
@@ -1578,7 +1603,9 @@ html, body {
   height: 44px;
   position: relative;
   width: 100%;
-  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-panel);
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .timeline-track-lane.is-dragging {
@@ -1594,7 +1621,9 @@ html, body {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-panel);
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .timeline-lane-pill-slot.is-dragging {

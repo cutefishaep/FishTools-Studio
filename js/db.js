@@ -215,26 +215,18 @@ window.FishDatabase = (function () {
       localStorage.setItem(PROJECTS_KEY, JSON.stringify(sanitized));
       return;
     } catch (e1) {
-      // Stage 2 fallback: If localStorage quota is exceeded, keep full layers on the newest project and strip heavy layers on older projects
+      // Stage 2 fallback: If localStorage quota is exceeded, keep full layers on the newest project and sanitize layers on older projects without wiping shape/transform properties
       try {
         var partialSanitized = list.map(function (p, idx) {
           if (!p) return p;
           if (idx === 0) {
             return sanitizeProject(p);
           }
-          return {
-            id: p.id,
-            name: p.name,
-            aspectRatio: p.aspectRatio,
-            fps: p.fps,
-            width: p.width,
-            height: p.height,
-            duration: p.duration,
-            updatedAt: p.updatedAt,
-            createdAt: p.createdAt,
-            layers: Array.isArray(p.layers) ? p.layers.map(function (l) { return { id: l.id, name: l.name, type: l.type }; }) : [],
-            layerCount: Array.isArray(p.layers) ? p.layers.length : 0
-          };
+          var pCopy = Object.assign({}, p);
+          if (Array.isArray(p.layers)) {
+            pCopy.layers = p.layers.map(sanitizeLayer);
+          }
+          return pCopy;
         });
         localStorage.setItem(PROJECTS_KEY, JSON.stringify(partialSanitized));
         return;
@@ -501,12 +493,26 @@ window.FishDatabase = (function () {
    */
   async function getProject(id) {
     if (!id || _deletedIds.has(id) || _deletedIds.has(String(id).trim())) return null;
+
+    function getLocalBackup(targetId) {
+      var found = getLocalProjects().find(function (p) { return p.id === targetId; });
+      if (!found) {
+        try {
+          var rawBackup = localStorage.getItem('oft_active_project_backup_' + targetId);
+          if (rawBackup) {
+            found = JSON.parse(rawBackup);
+          }
+        } catch (_) {}
+      }
+      return found || null;
+    }
+
     var db = await openDB();
     if (db) {
       return new Promise(function (resolve) {
         var safetyTimer = setTimeout(function () {
-          var found = getLocalProjects().find(function (p) { return p.id === id; });
-          resolve(found || null);
+          var found = getLocalBackup(id);
+          resolve(found ? stripDeadBlobUrls(found) : null);
         }, 1500);
 
         try {
@@ -522,24 +528,24 @@ window.FishDatabase = (function () {
             if (req.result) {
               resolve(stripDeadBlobUrls(req.result));
             } else {
-              var found = getLocalProjects().find(function (p) { return p.id === id; });
-              resolve(stripDeadBlobUrls(found) || null);
+              var found = getLocalBackup(id);
+              resolve(found ? stripDeadBlobUrls(found) : null);
             }
           };
           req.onerror = function () {
             clearTimeout(safetyTimer);
-            var found = getLocalProjects().find(function (p) { return p.id === id; });
-            resolve(stripDeadBlobUrls(found) || null);
+            var found = getLocalBackup(id);
+            resolve(found ? stripDeadBlobUrls(found) : null);
           };
         } catch (e) {
           clearTimeout(safetyTimer);
-          var found = getLocalProjects().find(function (p) { return p.id === id; });
-          resolve(stripDeadBlobUrls(found) || null);
+          var found = getLocalBackup(id);
+          resolve(found ? stripDeadBlobUrls(found) : null);
         }
       });
     }
-    var found = getLocalProjects().find(function (p) { return p.id === id; });
-    return stripDeadBlobUrls(found) || null;
+    var found = getLocalBackup(id);
+    return found ? stripDeadBlobUrls(found) : null;
   }
 
   /**
@@ -623,6 +629,9 @@ window.FishDatabase = (function () {
       list.unshift(storageProject);
     }
     saveLocalProjects(list);
+    try {
+      localStorage.setItem('oft_active_project_backup_' + project.id, JSON.stringify(storageProject));
+    } catch (_) {}
 
     // 2. Sync to IndexedDB with persistence guarantee
     var db = await openDB();

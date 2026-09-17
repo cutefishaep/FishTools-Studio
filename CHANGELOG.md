@@ -5,6 +5,23 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.15] - 2026-09-17
+
+### Added
+- **Dedicated Beatmark Shortcut "M" (`js/editor.js`)**: Assigned the `M` key to toggle markers/beatmarks at the current playhead time across desktop workstations. Updated timeline toolbar button tooltips and labels to `Add Marker / Beatmark (M)`.
+- **Desktop Timeline Layer Row Dividers (`css/desktop.css`, `css/editor.css`)**: Added clean, high-contrast horizontal divider lines (`border-bottom: 1px solid var(--border-panel)`) between all timeline track lanes and lane head pills. Expanded track lanes across the full scrollable width (`width: max(100%, 20000px)`) so divider lines seamlessly span the entire timeline.
+- **Floating Sticky Timeline Zoom Slider (`desktop.html`, `css/desktop.css`, `js/desktop.js`)**: Added a floating zoom control widget (`.desktop-timeline-floating-zoom`) pinned to the bottom-right of the desktop timeline with `-` / `+` steppers, direct slider scrub (20–400px/s), and reset badge.
+- **Dedicated Magnet Snapping Control (`#editor-btn-magnet`, `js/desktop.js`)**: Introduced a dedicated magnet button in the desktop timeline toolbar with keyboard toggle `N`. Playhead scrubbing now snaps directly to nearby beatmarks when magnet mode is enabled.
+
+### Fixed
+- **Shape Layer Persistence ("Shape Ga Ke Save") (`js/editor.js`, `js/db.js`)**: Fixed critical bug where navigating back via `#editor-project-back-btn` unloaded the page before pending IndexedDB transactions committed. Implemented synchronous active project snapshots (`oft_active_project_backup_<id>`), auto-save upsert guards, full shape transform serialization (`transformScaleX`, `transformScaleY`, `isSolid`), and self-healing fallback project recovery.
+- **Instant Marker Style Consistency ("Style Marker Ga Konsisten") (`js/editor.js`, `css/editor.css`)**: Fixed bug where newly added markers initially rendered with the legacy pentagon pin and only updated to the circle neon pin upon scrubbing. `createBeatmarkItemEl` and `createBeatmarkLineEl` now generate the modern circle pin (`<circle cx="5" cy="5" r="4.5"/>`), panel hole, `.is-beatmark` class, and dashed vertical line from element creation.
+- **Duplicate Beatmark Keydown Cancellation (`js/desktop.js`)**: Removed duplicate `keydown` handler in `desktop.js` that triggered a double-toggle on `M` keypress (adding and immediately deleting the marker).
+
+### Improved
+- **Hold-Before-Drag Beatmark Protection (`js/desktop.js`)**: Implemented a 250ms press-and-hold delay with haptic feedback before unlocking marker drag-and-drop, preventing accidental displacement when scrubbing the timeline over markers.
+- **Desktop Workstation Navigation Routing (`js/main.js`)**: Opening or creating projects on desktop viewports (`window.innerWidth >= 900`) now routes automatically to `desktop.html` and persists workstation layout preferences.
+
 ---
 
 ## [0.5.14] - 2026-09-14

@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="css/color-picker.css">
   <link rel="stylesheet" href="css/template-editor.css">
   <link rel="stylesheet" href="css/safari.css">
-  <link rel="stylesheet" href="css/desktop.css?v=0.5.13">
+  <link rel="stylesheet" href="css/desktop.css?v=0.5.15">
   <script src="js/sync-height.js"></script>
   <script>
     window.DEBUG = true;
@@ -2459,11 +2459,14 @@
               <div class="desktop-timeline-toolbar-right">
                 <!-- Preview Settings: Beatmark, Draft Mode, Grid, Motion Blur -->
                 <div class="desktop-toolbar-btn-group" role="group" aria-label="Preview Settings">
-                  <button type="button" class="ctrl-btn" id="editor-btn-add-beatmark" title="Add Marker / Beatmark (* or Ctrl+8)" aria-label="Add Marker (* or Ctrl+8)">
+                  <button type="button" class="ctrl-btn" id="editor-btn-add-beatmark" title="Add Marker / Beatmark (M)" aria-label="Add Marker (M)">
                     <span class="svg-icon svg-icon-beatmark" aria-hidden="true"></span>
                   </button>
                   <button type="button" class="ctrl-btn" id="editor-icon-low-quality" title="Speed Draft Mode (Fast Playback)" aria-label="Toggle Speed Draft Mode">
                     <span class="svg-icon svg-icon-lightning" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="ctrl-btn is-active" id="editor-btn-magnet" title="Snapping (N)" aria-label="Toggle Snapping (N)">
+                    <span class="svg-icon svg-icon-magnet" aria-hidden="true"></span>
                   </button>
                   <button type="button" class="ctrl-btn" id="editor-icon-grid" title="Grid Overlay" aria-label="Toggle Grid Overlay">
                     <span class="svg-icon svg-icon-grid" aria-hidden="true"></span>
@@ -2551,6 +2554,14 @@
             <div class="timeline-lane-heads-overlay" id="timeline-lane-heads-overlay"></div>
             <!-- Floating Right Reorder Pill (Single Floating Handle anchored to Selected Layer) -->
             <div class="timeline-lane-reorder-overlay" id="timeline-lane-reorder-overlay"></div>
+          </div>
+
+          <!-- Floating Sticky Timeline Zoom Slider (Always On Top) -->
+          <div class="desktop-timeline-floating-zoom" id="desktop-timeline-floating-zoom" role="group" aria-label="Timeline Zoom">
+            <button type="button" class="floating-zoom-btn" id="floating-zoom-minus" title="Zoom Out Timeline (-)" aria-label="Zoom Out">-</button>
+            <input type="range" class="floating-zoom-slider" id="floating-zoom-slider" min="20" max="400" step="2" value="80" title="Timeline Scale Zoom" aria-label="Timeline Scale Zoom">
+            <button type="button" class="floating-zoom-btn" id="floating-zoom-plus" title="Zoom In Timeline (+)" aria-label="Zoom In">+</button>
+            <span class="floating-zoom-val" id="floating-zoom-val" title="Click to Reset (80px/s)">100%</span>
           </div>
           </section>
         </div>
@@ -3289,7 +3300,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.13</span>
+          <span class="welcome-badge">v0.5.15</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3325,11 +3336,82 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.15 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.15</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 17, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Dedicated Beatmark Shortcut "M" (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Assigned the `M` key to toggle markers/beatmarks at the current playhead time across desktop workstations. Updated timeline toolbar button tooltips and labels to `Add Marker / Beatmark (M)`.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Desktop Timeline Layer Row Dividers (`css/desktop.css`, `css/editor.css`)</span>
+                  <span class="changelog-item-desc">Added clean, high-contrast horizontal divider lines (`border-bottom: 1px solid var(--border-panel)`) between all timeline track lanes and lane head pills. Expanded track lanes across the full scrollable width (`width: max(100%, 20000px)`) so divider lines seamlessly span the entire timeline.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Floating Sticky Timeline Zoom Slider (`desktop.html`, `css/desktop.css`, `js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Added a floating zoom control widget (`.desktop-timeline-floating-zoom`) pinned to the bottom-right of the desktop timeline with `-` / `+` steppers, direct slider scrub (20–400px/s), and reset badge.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Dedicated Magnet Snapping Control (`#editor-btn-magnet`, `js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Introduced a dedicated magnet button in the desktop timeline toolbar with keyboard toggle `N`. Playhead scrubbing now snaps directly to nearby beatmarks when magnet mode is enabled.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Shape Layer Persistence ("Shape Ga Ke Save") (`js/editor.js`, `js/db.js`)</span>
+                  <span class="changelog-item-desc">Fixed critical bug where navigating back via `#editor-project-back-btn` unloaded the page before pending IndexedDB transactions committed. Implemented synchronous active project snapshots (`oft_active_project_backup_&lt;id&gt;`), auto-save upsert guards, full shape transform serialization (`transformScaleX`, `transformScaleY`, `isSolid`), and self-healing fallback project recovery.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Instant Marker Style Consistency ("Style Marker Ga Konsisten") (`js/editor.js`, `css/editor.css`)</span>
+                  <span class="changelog-item-desc">Fixed bug where newly added markers initially rendered with the legacy pentagon pin and only updated to the circle neon pin upon scrubbing. `createBeatmarkItemEl` and `createBeatmarkLineEl` now generate the modern circle pin (`&lt;circle cx="5" cy="5" r="4.5"/&gt;`), panel hole, `.is-beatmark` class, and dashed vertical line from element creation.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Duplicate Beatmark Keydown Cancellation (`js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Removed duplicate `keydown` handler in `desktop.js` that triggered a double-toggle on `M` keypress (adding and immediately deleting the marker).</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Hold-Before-Drag Beatmark Protection (`js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Implemented a 250ms press-and-hold delay with haptic feedback before unlocking marker drag-and-drop, preventing accidental displacement when scrubbing the timeline over markers.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Desktop Workstation Navigation Routing (`js/main.js`)</span>
+                  <span class="changelog-item-desc">Opening or creating projects on desktop viewports (`window.innerWidth &gt;= 900`) now routes automatically to `desktop.html` and persists workstation layout preferences.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.13 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.13</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 12, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -3990,7 +4072,7 @@
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.14-ae1"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.15"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>
@@ -4039,8 +4121,8 @@
   <script src="text/default.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.13"></script>
-  <script src="js/editor.js?v=0.5.13"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.15"></script>
+  <script src="js/editor.js?v=0.5.15"></script>
   <script src="js/openfishtools-generators3d.js"></script>
   <script src="js/openfishtools-controller.js"></script>
   <script src="js/desktop.js"></script>

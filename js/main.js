@@ -228,7 +228,10 @@ async function initProjectsFetcher() {
     if (!item) return;
     const projectId = item.dataset.id;
     if (projectId) {
-      window.location.href = `editor.html?id=${encodeURIComponent(projectId)}`;
+      const targetPage = (localStorage.getItem('oft_preferred_view') === 'desktop' || window.innerWidth >= 900)
+        ? 'desktop.html'
+        : 'editor.html';
+      window.location.href = `${targetPage}?id=${encodeURIComponent(projectId)}`;
     }
   });
 
@@ -875,7 +878,10 @@ async function createNewProjectAction() {
     bg: selectedBg
   });
 
-  window.location.href = `editor.html?${query.toString()}`;
+  const targetPage = (localStorage.getItem('oft_preferred_view') === 'desktop' || window.innerWidth >= 900)
+    ? 'desktop.html'
+    : 'editor.html';
+  window.location.href = `${targetPage}?${query.toString()}`;
 }
 
 /**
@@ -1067,7 +1073,10 @@ async function handleImportedFiles(files, dropzone, statusEl) {
     if (statusEl) statusEl.textContent = '';
     
     if (importedProject && importedProject.id) {
-      window.location.href = `editor.html?id=${encodeURIComponent(importedProject.id)}&template=1`;
+      const targetPage = (localStorage.getItem('oft_preferred_view') === 'desktop' || window.innerWidth >= 900)
+        ? 'desktop.html'
+        : 'editor.html';
+      window.location.href = `${targetPage}?id=${encodeURIComponent(importedProject.id)}&template=1`;
     } else {
       loadAndRender();
     }

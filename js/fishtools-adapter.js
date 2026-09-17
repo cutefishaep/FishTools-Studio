@@ -1077,7 +1077,7 @@ window.FishToolsAdapter = (function () {
       if (tabGraph) tabGraph.remove();
 
       // 4. Remove Unused Cards by ID or contents
-      const removeCardIds = ['card-tts', 'card-autosave', 'card-aetoam', 'card-project-pool'];
+      const removeCardIds = ['card-tts', 'card-autosave', 'card-aetoam', 'card-project-pool', 'card-cutefish-style'];
       removeCardIds.forEach(id => {
         const el = doc.getElementById(id);
         if (el) el.remove();
@@ -1085,6 +1085,11 @@ window.FishToolsAdapter = (function () {
 
       // Remove specific cards based on content triggers
       doc.querySelectorAll('.card').forEach(card => {
+        const h3 = card.querySelector('h3');
+        if (h3 && h3.textContent.trim().toLowerCase() === 'cutefish style') {
+          card.remove();
+          return;
+        }
         if (
           card.querySelector('#beat-manual-controls') ||
           card.querySelector('#beat-tap-btn') ||

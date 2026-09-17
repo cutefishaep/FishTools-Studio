@@ -11,6 +11,7 @@
   if (!viewport) return;
 
   try {
+    localStorage.setItem('oft_preferred_view', 'desktop');
     const savedUpperH = localStorage.getItem('oft_desktop_upper_height');
     if (savedUpperH) viewport.style.setProperty('--desktop-upper-height', savedUpperH);
 
@@ -799,6 +800,21 @@
                 if (actualFrom >= 0 && actualTo >= 0 && actualFrom !== actualTo) {
                   if (actualFrom < actualTo) actualTo--;
                   if (actualFrom !== actualTo) {
+                    // FLIP Step 1: Record FIRST positions
+                    const track = document.getElementById('timeline-layers-track');
+                    const firstTops = new Map();
+                    if (track) {
+                      track.querySelectorAll('.timeline-track-lane').forEach(lane => {
+                        if (lane.dataset.layerId) firstTops.set(lane.dataset.layerId, lane.getBoundingClientRect().top);
+                      });
+                    }
+                    if (overlayContainer) {
+                      overlayContainer.querySelectorAll('.timeline-lane-pill-slot').forEach(slot => {
+                        const sId = slot.dataset.layerId || (slot.querySelector('.timeline-layer-ctrl-pill') && slot.querySelector('.timeline-layer-ctrl-pill').dataset.layerId);
+                        if (sId) firstTops.set('slot_' + sId, slot.getBoundingClientRect().top);
+                      });
+                    }
+
                     const moved = window.currentProjectState.layers.splice(actualFrom, 1)[0];
                     window.currentProjectState.layers.splice(actualTo, 0, moved);
                     if (typeof window.invalidatePreviewCacheForLayer === 'function') {
@@ -813,6 +829,35 @@
                     if (typeof window.redrawComposition === 'function') {
                       window.redrawComposition();
                     }
+
+                    // FLIP Step 2 & 3: INVERT & PLAY smooth animation
+                    requestAnimationFrame(() => {
+                      const newLanes = track ? Array.from(track.querySelectorAll('.timeline-track-lane')) : [];
+                      const newSlots = overlayContainer ? Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot')) : [];
+                      const animatedEls = [];
+
+                      [...newLanes, ...newSlots].forEach(el => {
+                        const isSlot = el.classList.contains('timeline-lane-pill-slot');
+                        const sId = el.dataset.layerId || (el.querySelector('.timeline-layer-ctrl-pill') && el.querySelector('.timeline-layer-ctrl-pill').dataset.layerId);
+                        const key = isSlot ? ('slot_' + (sId || '')) : (el.dataset.layerId || '');
+                        const oldTop = firstTops.get(key);
+                        if (oldTop !== undefined) {
+                          const deltaY = oldTop - el.getBoundingClientRect().top;
+                          if (Math.abs(deltaY) > 0.5) {
+                            el.style.transform = `translateY(${deltaY}px)`;
+                            el.style.transition = 'none';
+                            animatedEls.push(el);
+                          }
+                        }
+                      });
+
+                      requestAnimationFrame(() => {
+                        animatedEls.forEach(el => {
+                          el.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)';
+                          el.style.transform = '';
+                        });
+                      });
+                    });
                   }
                 }
               }
@@ -973,13 +1018,27 @@
       const rect = rulerViewport.getBoundingClientRect();
       const clickX = clientX - rect.left;
       const pps = window.currentPixelsPerSecond || 80;
-      const targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
+      let targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
+
+      // Magnet snap to beatmarks when enabled
+      if (window.isTimelineSnapEnabled !== false) {
+        const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
+        for (let i = 0; i < beatmarks.length; i++) {
+          const bm = beatmarks[i];
+          if (Math.abs(targetSec - bm) * pps <= 8) {
+            targetSec = bm;
+            break;
+          }
+        }
+      }
+
       const targetPanX = -targetSec * pps;
       if (typeof window.updateTimelinePosition === 'function') {
         window.updateTimelinePosition(targetPanX, true);
       }
       syncDesktopPlayhead();
     }
+    window.handleDesktopRulerSeek = handleRulerSeek;
 
     if (rulerViewport) {
       let isRulerSeeking = false;
@@ -2091,32 +2150,46 @@
       }
 
       let labelEl = item.querySelector('.timeline-beatmark-label');
+      const pinSvg = item.querySelector('.timeline-beatmark-svg');
+      const layerLine = document.querySelector(`.timeline-layers-beatmark-line[data-time="${timeVal}"]`) ||
+                        document.querySelector(`.timeline-layers-beatmark-line[data-time="${item.dataset.time}"]`);
+
       if (name) {
+        item.classList.remove('is-beatmark');
+        if (layerLine) layerLine.classList.remove('is-beatmark');
         if (!labelEl) {
           labelEl = document.createElement('span');
           labelEl.className = 'timeline-beatmark-label';
           item.appendChild(labelEl);
         }
         labelEl.textContent = name;
-        item.title = `Marker: ${name} (${timeVal.toFixed(2)}s) — Click to edit, drag to move`;
+        item.title = `Marker: ${name} (${timeVal.toFixed(2)}s) — Hold to move, tap to edit`;
+        if (pinSvg) {
+          pinSvg.innerHTML = '<path d="M 0 0 L 10 0 L 10 7 L 5 12 L 0 7 Z" fill="currentColor"/>';
+        }
       } else {
+        item.classList.add('is-beatmark');
+        if (layerLine) layerLine.classList.add('is-beatmark');
         if (labelEl) labelEl.remove();
-        item.title = `Beatmark: ${timeVal.toFixed(2)}s — Click to edit, drag to move`;
+        item.title = `Beatmark: ${timeVal.toFixed(2)}s — Hold to move, tap to edit`;
+        if (pinSvg) {
+          pinSvg.innerHTML = '<circle cx="5" cy="5" r="4.5" fill="currentColor"/><circle cx="5" cy="5" r="1.8" fill="var(--bg-panel)"/>';
+        }
       }
     });
     updateDesktopBeatmarkBtnState();
   }
+  window.syncDesktopMarkerLabels = syncDesktopMarkerLabels;
 
   function updateDesktopBeatmarkBtnState() {
     const btnAddBm = document.getElementById('editor-btn-add-beatmark');
     if (!btnAddBm) return;
-    const pps = window.currentPixelsPerSecond || window.pixelsPerSecond || 80;
-    const panX = typeof window.panX === 'number' ? window.panX : 0;
-    const currentSec = Math.max(0, -panX / pps);
+    const currentSec = (typeof window.getCurrentPlayheadTime === 'function')
+      ? window.getCurrentPlayheadTime()
+      : 0;
     const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
     const isNear = beatmarks.some(b => Math.abs(b - currentSec) <= 0.05);
-    btnAddBm.classList.toggle('is-active', isNear);
-    btnAddBm.setAttribute('title', isNear ? 'Playhead on Marker (Click to remove, * or Ctrl+8)' : 'Add Marker / Beatmark at Playhead (* or Ctrl+8)');
+    btnAddBm.setAttribute('title', isNear ? 'Playhead on Marker (M)' : 'Add Marker / Beatmark at Playhead (M)');
   }
 
   function openBeatmarkPopover(item, time) {
@@ -2144,17 +2217,39 @@
   }
 
   function initDesktopBeatmarkEngine() {
-    // 1. Wire Dedicated Toolbar Beatmark Button
+    // 1. Wire Dedicated Toolbar Beatmark Button (Action with momentary press feedback)
     const btnAddBm = document.getElementById('editor-btn-add-beatmark');
     if (btnAddBm && !btnAddBm._bound) {
       btnAddBm._bound = true;
       btnAddBm.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        btnAddBm.blur();
+        btnAddBm.classList.add('is-pressed');
+        setTimeout(() => btnAddBm.classList.remove('is-pressed'), 180);
         if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
           window.toggleBeatmarkAtCurrentTime();
         }
         syncDesktopMarkerLabels();
+      });
+    }
+
+    // 1b. Wire Dedicated Toolbar Magnet Snapping Button
+    const btnMagnet = document.getElementById('editor-btn-magnet');
+    if (btnMagnet && !btnMagnet._bound) {
+      btnMagnet._bound = true;
+      if (window.isTimelineSnapEnabled === undefined) window.isTimelineSnapEnabled = true;
+      btnMagnet.classList.toggle('is-active', window.isTimelineSnapEnabled !== false);
+
+      btnMagnet.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.isTimelineSnapEnabled = !window.isTimelineSnapEnabled;
+        btnMagnet.classList.toggle('is-active', window.isTimelineSnapEnabled);
+        btnMagnet.setAttribute('title', window.isTimelineSnapEnabled ? 'Snapping Enabled (N)' : 'Snapping Disabled (N)');
+        if (!window.isTimelineSnapEnabled && typeof window.hideTimelineSnapGuide === 'function') {
+          window.hideTimelineSnapGuide();
+        }
       });
     }
 
@@ -2168,20 +2263,22 @@
       }, true);
     }
 
-    // 3. Global keyboard shortcut for beatmark / marker toggle (AE standard: * or Ctrl+8, with M fallback)
+    // 3. Global keyboard shortcut for magnet snapping (marker toggle handled cleanly by editor.js)
     if (!window._desktopBeatmarkKeyBound) {
       window._desktopBeatmarkKeyBound = true;
       document.addEventListener('keydown', (e) => {
         const active = document.activeElement;
         const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
         if (isInput) return;
-        const isMarkerKey = (e.key === '*' || e.code === 'NumpadMultiply' || ((e.ctrlKey || e.metaKey) && (e.key === '8' || e.code === 'Digit8')) || (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'm'));
-        if (isMarkerKey) {
-          e.preventDefault();
-          if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
-            window.toggleBeatmarkAtCurrentTime();
+
+        // Snapping toggle hotkey: N
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'n') {
+          const mBtn = document.getElementById('editor-btn-magnet');
+          if (mBtn) {
+            e.preventDefault();
+            mBtn.click();
+            return;
           }
-          syncDesktopMarkerLabels();
         }
       });
     }
@@ -2215,6 +2312,12 @@
         saveDesktopMarkerNames();
       });
 
+      popoverInput.addEventListener('change', () => {
+        if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+          window.UndoRedoManager.recordSnapshot();
+        }
+      });
+
       popoverInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -2245,11 +2348,10 @@
       });
     }
 
-    // 5. Intercept Beatmark Dragging and Clicking on Timeline Ruler
+    // 5. Intercept Beatmark Dragging (250ms Hold Required) and Clean Playhead Scrubbing
     if (!window._desktopBeatmarkDragBound) {
       window._desktopBeatmarkDragBound = true;
 
-      // Capture click to prevent editor.js from running its own click handler
       document.addEventListener('click', (e) => {
         const item = e.target.closest('.timeline-beatmark-item');
         if (item) {
@@ -2263,41 +2365,63 @@
         const item = e.target.closest('.timeline-beatmark-item');
         if (!item || e.button !== 0) return;
 
-        e.preventDefault();
-        e.stopPropagation();
-
         const startX = e.clientX;
+        const startY = e.clientY;
+        const pointerId = e.pointerId;
         const initialTime = parseFloat(item.dataset.time);
         if (isNaN(initialTime)) return;
 
+        let isHoldUnlocked = false;
         let hasMoved = false;
         let currentTime = initialTime;
         const pps = window.currentPixelsPerSecond || window.pixelsPerSecond || 80;
 
-        try {
-          item.setPointerCapture(e.pointerId);
-        } catch (_) {}
+        // 250ms Press & Hold Timer
+        const holdTimer = setTimeout(() => {
+          isHoldUnlocked = true;
+          item.classList.add('is-hold-ready');
+          try { item.setPointerCapture(pointerId); } catch (_) {}
+          if (navigator.vibrate) try { navigator.vibrate(18); } catch (_) {}
+        }, 250);
 
         const onMove = (me) => {
           const dx = me.clientX - startX;
-          // Use safe 6px drag threshold so normal clicks NEVER accidentally shift the marker
-          if (!hasMoved && Math.abs(dx) > 6) {
+          const dy = me.clientY - startY;
+
+          // If pointer moved before 250ms: user is scrubbing playhead!
+          if (!isHoldUnlocked) {
+            if (Math.hypot(dx, dy) > 4) {
+              clearTimeout(holdTimer);
+              // Delegate to ruler seek so playhead scrub is NOT blocked!
+              if (typeof window.handleDesktopRulerSeek === 'function') {
+                window.handleDesktopRulerSeek(me.clientX);
+              }
+            }
+            return;
+          }
+
+          // User held >= 250ms and is now dragging beatmark!
+          if (!hasMoved && Math.abs(dx) > 4) {
             hasMoved = true;
+            item.classList.remove('is-hold-ready');
             item.classList.add('is-dragging');
           }
+
           if (hasMoved) {
             let newSec = Math.max(0, initialTime + dx / pps);
-            // Snap to playhead if within 5px
-            const panX = typeof window.panX === 'number' ? window.panX : 0;
-            const playheadSec = Math.max(0, -panX / pps);
-            if (Math.abs(newSec - playheadSec) * pps < 5) {
-              newSec = playheadSec;
+            // Snap to playhead or other markers if within 6px
+            const curPlayheadSec = (typeof window.getCurrentPlayheadTime === 'function')
+              ? window.getCurrentPlayheadTime()
+              : 0;
+            if (Math.abs(newSec - curPlayheadSec) * pps < 6) {
+              newSec = curPlayheadSec;
             }
             currentTime = Math.round(newSec * 1000) / 1000;
             const newLeftPx = Math.round(currentTime * pps);
             item.style.left = `${newLeftPx}px`;
 
-            const layerLine = document.querySelector(`.timeline-layers-beatmark-line[data-time="${initialTime}"]`);
+            const layerLine = document.querySelector(`.timeline-layers-beatmark-line[data-time="${initialTime}"]`) ||
+                              document.querySelector(`.timeline-layers-beatmark-line[data-time="${item.dataset.time}"]`);
             if (layerLine) {
               layerLine.style.left = `${newLeftPx}px`;
             }
@@ -2305,12 +2429,12 @@
         };
 
         const onUp = (ue) => {
-          item.removeEventListener('pointermove', onMove);
-          item.removeEventListener('pointerup', onUp);
-          item.removeEventListener('pointercancel', onUp);
-          try {
-            item.releasePointerCapture(ue.pointerId);
-          } catch (_) {}
+          clearTimeout(holdTimer);
+          window.removeEventListener('pointermove', onMove, true);
+          window.removeEventListener('pointerup', onUp, true);
+          window.removeEventListener('pointercancel', onUp, true);
+          try { item.releasePointerCapture(ue.pointerId); } catch (_) {}
+          item.classList.remove('is-hold-ready');
 
           if (hasMoved) {
             item.classList.remove('is-dragging');
@@ -2347,15 +2471,20 @@
             }
             saveDesktopMarkerNames();
             syncDesktopMarkerLabels();
-          } else {
-            // Clean Click: ONLY open Popover. DO NOT seek or change playhead / current time!
+
+            // Record snapshot to Undo/Redo history!
+            if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+              window.UndoRedoManager.recordSnapshot();
+            }
+          } else if (isHoldUnlocked || Math.hypot(ue.clientX - startX, ue.clientY - startY) <= 4) {
+            // Stationary hold and release: open Popover!
             openBeatmarkPopover(item, initialTime);
           }
         };
 
-        item.addEventListener('pointermove', onMove);
-        item.addEventListener('pointerup', onUp);
-        item.addEventListener('pointercancel', onUp);
+        window.addEventListener('pointermove', onMove, true);
+        window.addEventListener('pointerup', onUp, true);
+        window.addEventListener('pointercancel', onUp, true);
       }, true);
     }
 
@@ -2369,7 +2498,7 @@
       window.renderTimelineBeatmarks._desktopPatched = true;
     }
 
-    // 7. Hook updateTimeBadgeBeatmarkState to update toolbar button active state
+    // 7. Hook updateTimeBadgeBeatmarkState to update toolbar button state
     if (window.updateTimeBadgeBeatmarkState && !window.updateTimeBadgeBeatmarkState._desktopPatched) {
       const origBadgeState = window.updateTimeBadgeBeatmarkState;
       window.updateTimeBadgeBeatmarkState = function () {
@@ -2380,6 +2509,73 @@
     }
 
     syncDesktopMarkerLabels();
+  }
+
+  // --- 8. Desktop Floating Timeline Zoom Controller ---
+  function initDesktopFloatingZoom() {
+    const container = document.getElementById('desktop-timeline-floating-zoom');
+    const slider = document.getElementById('floating-zoom-slider');
+    const btnMinus = document.getElementById('floating-zoom-minus');
+    const btnPlus = document.getElementById('floating-zoom-plus');
+    const valLabel = document.getElementById('floating-zoom-val');
+    if (!container || !slider) return;
+
+    function updateZoomUI(pps) {
+      slider.value = String(pps);
+      if (valLabel) {
+        valLabel.textContent = `${Math.round((pps / 80) * 100)}%`;
+      }
+    }
+
+    const curPps = window.currentPixelsPerSecond || 80;
+    updateZoomUI(curPps);
+
+    slider.addEventListener('input', () => {
+      const pps = parseInt(slider.value, 10) || 80;
+      if (typeof window.setTimelineZoom === 'function') {
+        window.setTimelineZoom(pps);
+      }
+      updateZoomUI(pps);
+    });
+
+    if (btnMinus) {
+      btnMinus.addEventListener('click', () => {
+        const pps = Math.max(20, (window.currentPixelsPerSecond || 80) - 15);
+        if (typeof window.setTimelineZoom === 'function') {
+          window.setTimelineZoom(pps);
+        }
+        updateZoomUI(pps);
+      });
+    }
+
+    if (btnPlus) {
+      btnPlus.addEventListener('click', () => {
+        const pps = Math.min(400, (window.currentPixelsPerSecond || 80) + 15);
+        if (typeof window.setTimelineZoom === 'function') {
+          window.setTimelineZoom(pps);
+        }
+        updateZoomUI(pps);
+      });
+    }
+
+    if (valLabel) {
+      valLabel.addEventListener('click', () => {
+        if (typeof window.setTimelineZoom === 'function') {
+          window.setTimelineZoom(80);
+        }
+        updateZoomUI(80);
+      });
+    }
+
+    // Sync when timeline zoom changes from elsewhere
+    if (window.setTimelineZoom && !window.setTimelineZoom._zoomSliderPatched) {
+      const origZoom = window.setTimelineZoom;
+      window.setTimelineZoom = function(targetPps, anchorSec) {
+        origZoom.apply(this, arguments);
+        updateZoomUI(window.currentPixelsPerSecond || targetPps);
+      };
+      window.setTimelineZoom._zoomSliderPatched = true;
+    }
   }
 
   // Initial sync after DOM and engines load
@@ -2395,6 +2591,7 @@
     ensureHeaderModePatched();
     initDesktopHeaderBatchActions();
     initDesktopBeatmarkEngine();
+    initDesktopFloatingZoom();
     syncLayout();
     checkUrlTestParams();
   });
@@ -2413,6 +2610,7 @@
     ensureHeaderModePatched();
     initDesktopHeaderBatchActions();
     initDesktopBeatmarkEngine();
+    initDesktopFloatingZoom();
     syncLayout();
     checkUrlTestParams();
   }, 350);

@@ -509,6 +509,34 @@
       return null;
     }
 
+    handleLoopReset(layers, targetSec, pixelsPerSecond = 80, actualSpeedRatio = 1.0) {
+      const allKnownElements = new Set([...this.knownMediaElements, ...this.sources.keys()]);
+      allKnownElements.forEach(el => {
+        el._lastMasterSec = null;
+        el._lastReportedTime = null;
+        el._lastAdvanceWallTime = null;
+        el._lastHardSeekTime = null;
+        el._suppressAudioUntil = 0;
+      });
+
+      const flatItems = this._flattenPlayableLayers(layers, 0, 1.0, false, 1.0, pixelsPerSecond);
+      flatItems.forEach(item => {
+        const { layer, rootStartSec, rootEndSec, sourceOffsetSec, parentOffsetSec, parentSpeed } = item;
+        const media = window.getOrLoadLayerMedia ? window.getOrLoadLayerMedia(layer) : null;
+        if (!media || !media.el) return;
+        const el = media.el;
+        if (targetSec >= rootStartSec && targetSec < rootEndSec) {
+          const clipTime = (targetSec - rootStartSec) * (parentSpeed || 1.0) + (sourceOffsetSec || 0) + (parentOffsetSec || 0);
+          const targetElementSec = Math.max(0, clipTime);
+          try {
+            el.currentTime = targetElementSec;
+          } catch (_) {}
+        }
+      });
+
+      this.syncPlayback(layers, targetSec, pixelsPerSecond, actualSpeedRatio);
+    }
+
     syncPlayback(layers, currentSec, pixelsPerSecond = 80, actualSpeedRatio = 1.0) {
       if (!this.isUnlocked) {
         if (this._hasUserActivation()) {

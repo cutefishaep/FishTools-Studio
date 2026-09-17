@@ -190,7 +190,7 @@ function syncVersion(specifiedVersion) {
 
   // 3. Update HTML files (badges, cachebusters, changelog feed)
   const changelogInfo = parseLatestChangelogSection();
-  const htmlFiles = ['index.html', 'editor.html', 'demo.html'];
+  const htmlFiles = ['index.html', 'editor.html', 'demo.html', 'desktop.html'];
 
   for (const relPath of htmlFiles) {
     const fullPath = path.join(ROOT, relPath);

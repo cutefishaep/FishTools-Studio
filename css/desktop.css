@@ -3537,6 +3537,7 @@
 
 /* Toolbar SVG Mask Definitions for Desktop Extensions */
 .svg-icon-beatmark { -webkit-mask-image: url('../assets/beatmark.svg'); mask-image: url('../assets/beatmark.svg'); }
+.svg-icon-magnet { -webkit-mask-image: url('../assets/magnet.svg'); mask-image: url('../assets/magnet.svg'); }
 .svg-icon-lightning { -webkit-mask-image: url('../assets/lightning.svg'); mask-image: url('../assets/lightning.svg'); }
 .svg-icon-grid { -webkit-mask-image: url('../assets/icon-grid.svg'); mask-image: url('../assets/icon-grid.svg'); }
 .svg-icon-motion-blur { -webkit-mask-image: url('../assets/icon-motion-blur.svg'); mask-image: url('../assets/icon-motion-blur.svg'); }
@@ -3859,8 +3860,8 @@
   min-width: var(--desktop-layer-panel-w);
   flex-shrink: 0;
   background-color: var(--bg-panel-inner);
-  border-right: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-panel);
+  border-bottom: 1px solid var(--border-panel);
   display: flex;
   align-items: center;
   padding: 0 8px;
@@ -3884,6 +3885,7 @@
   min-width: 0 !important;
   overflow: hidden !important;
   position: relative !important;
+  border-bottom: 1px solid var(--border-panel) !important;
 }
 
 /* --- Timeline Viewport — left padding creates space for AE label panel --- */
@@ -3905,36 +3907,52 @@
 .desktop-timeline-wrapper .timeline-lane-heads-overlay {
   width: var(--desktop-layer-panel-w) !important;
   background-color: var(--bg-panel-inner) !important;
-  border-right: 1px solid var(--border-subtle) !important;
+  border-right: 1px solid var(--border-panel) !important;
   gap: 0 !important;
   z-index: 25 !important;
   top: 2px !important;
 }
 
-/* --- Compact Lane Heights (34px — Desktop NLE standard) --- */
+/* --- Compact Lane Heights & Solid Layer Dividers (34px — Desktop NLE standard) --- */
+.desktop-timeline-wrapper .timeline-layers-track {
+  width: max(100%, 20000px) !important;
+  min-width: 100% !important;
+  position: relative !important;
+  gap: 0 !important;
+}
+
 .desktop-timeline-wrapper .timeline-track-lane {
+  width: 100% !important;
+  min-width: 100% !important;
   height: 34px !important;
   min-height: 34px !important;
+  box-sizing: border-box !important;
+  border-bottom: 1px solid var(--border-panel) !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: background-color 0.12s ease, transform 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.desktop-timeline-wrapper .timeline-track-lane .track-content-lane {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
 }
 
 .desktop-timeline-wrapper .timeline-lane-pill-slot {
+  width: 100% !important;
   height: 34px !important;
   min-height: 34px !important;
-  border-bottom: 1px solid var(--border-subtle) !important;
+  box-sizing: border-box !important;
+  border-bottom: 1px solid var(--border-panel) !important;
+  background-color: var(--bg-panel-inner) !important;
+  transition: background-color 0.12s ease, transform 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 .desktop-timeline-wrapper .timeline-lane-reorder-slot {
   height: 34px !important;
   min-height: 34px !important;
-}
-
-/* --- Compact Track Gap: 0px (separator via border) --- */
-.desktop-timeline-wrapper .timeline-layers-track {
-  gap: 0 !important;
-}
-
-.desktop-timeline-wrapper .timeline-lane-heads-overlay {
-  gap: 0 !important;
 }
 
 /* --- Compact Clip Block (28px, 11px font) --- */
@@ -3951,11 +3969,6 @@
 .desktop-timeline-wrapper .timeline-clip-block.is-sliding {
   cursor: grabbing !important;
   z-index: 60 !important;
-}
-
-/* Track lane separator lines */
-.desktop-timeline-wrapper .timeline-track-lane {
-  border-bottom: 1px solid var(--border-subtle) !important;
 }
 
 /* --- AE-Style Ctrl Pill (full width of panel, flat, no pill shape) --- */
@@ -4401,6 +4414,157 @@
   pointer-events: none;
 }
 
+/* ==========================================================================
+   DESKTOP FLOATING TIMELINE ZOOM SLIDER (Always On Top, Bottom-Right)
+   ========================================================================== */
+.desktop-timeline-floating-zoom {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  z-index: 55;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--desktop-radius-pill, 999px);
+  user-select: none;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
 
+.desktop-timeline-floating-zoom:hover {
+  border-color: var(--border-focus);
+}
 
+.desktop-timeline-floating-zoom .floating-zoom-btn {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
 
+.desktop-timeline-floating-zoom .floating-zoom-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-timeline-floating-zoom .floating-zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 88px;
+  height: 4px;
+  background-color: var(--bg-panel-inner);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.desktop-timeline-floating-zoom .floating-zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+}
+
+.desktop-timeline-floating-zoom .floating-zoom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  background-color: var(--color-primary-hover);
+}
+
+.desktop-timeline-floating-zoom .floating-zoom-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  border: none;
+  cursor: pointer;
+}
+
+.desktop-timeline-floating-zoom .floating-zoom-val {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: right;
+  cursor: pointer;
+}
+
+.desktop-timeline-floating-zoom .floating-zoom-val:hover {
+  color: var(--color-primary);
+}
+
+/* ==========================================================================
+   TIMELINE LAYER ROW DIVIDERS & SMOOTH REORDER TRANSITIONS
+   ========================================================================== */
+.desktop-timeline-wrapper .timeline-track-lane,
+.desktop-timeline-wrapper .timeline-lane-pill-slot {
+  box-sizing: border-box !important;
+  border-bottom: 1px solid var(--border-panel) !important;
+  transition: background-color 0.12s ease, transform 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.desktop-timeline-wrapper .timeline-track-lane:hover,
+.desktop-timeline-wrapper .timeline-lane-pill-slot:hover {
+  background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-timeline-wrapper .timeline-track-lane.is-dragging,
+.desktop-timeline-wrapper .timeline-lane-pill-slot.is-dragging {
+  transition: none !important;
+  z-index: 35 !important;
+}
+
+/* ==========================================================================
+   DISTINCT BEATMARK STYLING (Music Beat vs Named Bookmark Marker)
+   ========================================================================== */
+/* Pure Music Beatmarks: Neon Accent Amber/Cyan with Circle Pin & Dashed Line */
+.timeline-beatmark-item.is-beatmark {
+  color: var(--color-accent) !important;
+}
+
+.timeline-beatmark-item.is-beatmark:hover {
+  color: var(--color-accent) !important;
+  transform: scale(1.25) !important;
+}
+
+.timeline-beatmark-item.is-beatmark .timeline-beatmark-pin {
+  border-radius: 50%;
+}
+
+.timeline-beatmark-item.is-beatmark .timeline-beatmark-stem {
+  background-color: var(--color-accent) !important;
+  opacity: 0.9 !important;
+}
+
+.timeline-layers-beatmark-line.is-beatmark {
+  background-color: transparent !important;
+  border-left: 1px dashed var(--color-accent) !important;
+  opacity: 0.5 !important;
+}
+
+/* Hold cue indicator for beatmarks (unlocked for drag) */
+.timeline-beatmark-item.is-hold-ready {
+  transform: scale(1.3) !important;
+  filter: brightness(1.25);
+}

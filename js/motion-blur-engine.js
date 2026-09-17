@@ -126,7 +126,9 @@
 
       if (!hasKeyframes && !parentHasKeyframes && !hasNullParent) return false;
 
-      const eps = 0.001;
+      const epsPos = 0.4;
+      const epsRot = 0.2;
+      const epsScale = 0.005;
 
       // For collapsed precomp children: compare world positions at tStart vs tEnd
       // We need to re-compute world transforms using the parent+child combo
@@ -136,12 +138,12 @@
         const w1 = worldAt(tEnd);
         if (!w0 || !w1) return false;
         return (
-          Math.abs(w0.posX - w1.posX) > eps ||
-          Math.abs(w0.posY - w1.posY) > eps ||
-          Math.abs(w0.posZ - w1.posZ) > eps ||
-          Math.abs(w0.scaleW - w1.scaleW) > eps ||
-          Math.abs(w0.scaleH - w1.scaleH) > eps ||
-          Math.abs(w0.rotZ - w1.rotZ) > eps
+          Math.abs(w0.posX - w1.posX) > epsPos ||
+          Math.abs(w0.posY - w1.posY) > epsPos ||
+          Math.abs(w0.posZ - w1.posZ) > epsPos ||
+          Math.abs(w0.scaleW - w1.scaleW) > epsScale ||
+          Math.abs(w0.scaleH - w1.scaleH) > epsScale ||
+          Math.abs(w0.rotZ - w1.rotZ) > epsRot
         );
       }
 
@@ -208,9 +210,9 @@
       const dax  = Math.abs(def(p0.anchorX, layer.anchorX, 0) - def(p1.anchorX, layer.anchorX, 0));
       const day  = Math.abs(def(p0.anchorY, layer.anchorY, 0) - def(p1.anchorY, layer.anchorY, 0));
 
-      return (dx > eps || dy > eps || dz > eps || dsX > eps || dsY > eps ||
-              drZ > eps || drXpole > eps || drYpole > eps || dskX > eps || dskY > eps ||
-              dax > eps || day > eps);
+      return (dx > epsPos || dy > epsPos || dz > epsPos || dsX > epsScale || dsY > epsScale ||
+              drZ > epsRot || drXpole > epsRot || drYpole > epsRot || dskX > epsRot || dskY > epsRot ||
+              dax > epsPos || day > epsPos);
     }
 
     /**
@@ -306,11 +308,11 @@
       const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
 
       const isExport = (typeof window !== 'undefined' && (window._isExportingVideo === true || window._isExportingSequence === true));
-      // Preview: 8 samples — sufficient for smooth cinematic look, 2x faster than 16
-      const maxPreviewSamples = 8;
       const samples = isExport
-        ? Math.max(2, config.samples || 16)
-        : Math.min(maxPreviewSamples, Math.max(2, config.samples || 8));
+        ? Math.max(4, config.samples || 16)
+        : 3;
+      const previewWeights = [0.25, 0.50, 0.25];
+      const previewOffsets = [0.15, 0.50, 0.85];
 
       const targetW = ctx.canvas.width;
       const targetH = ctx.canvas.height;
@@ -339,29 +341,18 @@
       const sctx = this._sampleCanvas.getContext('2d');
       if (!sctx) return;
 
-      // AE-Accurate Motion Blur Accumulation — Premultiplied Additive Equal-Weight:
-      //
-      // Each sample draws at a FIXED globalAlpha = 1/N using 'lighter' (additive) blend.
-      //   lighter: dst_premult += src_premult * globalAlpha  (clamped to 1.0)
-      //
-      // Result: pixel covered by k of N samples → k/N final opacity.
-      //   k=N (fully overlapping, opaque layer) → 1.0  ✓  (no clipping since k/N ≤ 1)
-      //   k=1 (leading/trailing sparse ghost)   → 1/N  ✓  (correctly faint)
-      //
-      // This fixes the "sharp leading-edge ghost" bug from the old progressive source-over:
-      //   old: sample_0 drawn at alpha=1.0 → sparse areas stayed FULL opacity forever.
-      //   new: sparse areas get 1/N opacity, exactly matching AE behaviour.
-      const sampleAlpha = 1 / samples;
-
-      actx.globalAlpha = sampleAlpha;
+      // AE-Accurate Motion Blur Accumulation — Premultiplied Additive:
       actx.globalCompositeOperation = 'lighter';
 
       for (let i = 0; i < samples; i++) {
-        const subSec = tStart + (i + 0.5) * (exposureTime / samples);
+        const u = (samples === 3) ? previewOffsets[i] : ((i + 0.5) / samples);
+        const weight = (samples === 3) ? previewWeights[i] : (1 / samples);
+        const subSec = tStart + u * exposureTime;
 
         sctx.clearRect(0, 0, targetW, targetH);
         renderSinglePassFn(sctx, el, layer, bufferScale, camera, subSec);
 
+        actx.globalAlpha = weight;
         actx.drawImage(this._sampleCanvas, 0, 0);
       }
 

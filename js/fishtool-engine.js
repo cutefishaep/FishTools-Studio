@@ -1196,20 +1196,7 @@
               ctx.shadowOffsetX = ox + offX;
               ctx.drawImage(this.glCanvas, -offX, 0);
             } else {
-              const pad = Math.ceil(blur * 2 + Math.max(Math.abs(ox), Math.abs(oy)));
-              const rawBx = bounds.x !== undefined ? bounds.x : 0;
-              const rawBy = bounds.y !== undefined ? bounds.y : 0;
-              const rawBw = bounds.aabbW || bounds.w || vw;
-              const rawBh = bounds.aabbH || bounds.h || vh;
-              const sx = Math.max(0, Math.floor(rawBx - pad));
-              const sy = Math.max(0, Math.floor(rawBy - pad));
-              const sw = Math.min(vw - sx, Math.ceil(rawBw + pad * 2));
-              const sh = Math.min(vh - sy, Math.ceil(rawBh + pad * 2));
-              if (sw > 0 && sh > 0 && (sw < vw * 0.95 || sh < vh * 0.95)) {
-                ctx.drawImage(this.glCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
-              } else {
-                ctx.drawImage(this.glCanvas, 0, 0);
-              }
+              ctx.drawImage(this.glCanvas, 0, 0);
             }
             ctx.restore();
           } else if (!rgbSplitFx) {
@@ -1265,9 +1252,9 @@
       const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
 
       const isExport = (typeof window !== 'undefined' && (window._isExportingVideo === true || window._isExportingSequence === true));
-      const samples = isExport
-        ? Math.max(2, config.samples || 16)
-        : Math.min(8, Math.max(2, config.samples || 8));
+      const samples = isExport ? Math.max(4, config.samples || 16) : 3;
+      const previewWeights = [0.25, 0.50, 0.25];
+      const previewOffsets = [0.15, 0.50, 0.85];
 
       const targetCanvas = ctx.canvas;
       const vw = targetCanvas ? targetCanvas.width : (bounds.cx * 2 || 1920);
@@ -1313,7 +1300,7 @@
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.CULL_FACE);
       gl.enable(gl.BLEND);
-      gl.blendFunc(gl.ONE, gl.ONE); // Premultiplied additive accumulation: (1/N) * sample
+      gl.blendFunc(gl.ONE, gl.ONE); // Premultiplied additive accumulation
 
       const tileFx = Array.isArray(layer.effects)
         ? layer.effects.find(f => f.type === 'tile' && !f.disabled)
@@ -1328,7 +1315,8 @@
 
       // Multi-sample accumulation loop with sub-frame shutter interpolation
       for (let s = 0; s < samples; s++) {
-        const u = (s + 0.5) / samples;
+        const u = (samples === 3) ? previewOffsets[s] : ((s + 0.5) / samples);
+        const weight = (samples === 3) ? previewWeights[s] : (1 / samples);
         const subEff = {
           posX: pStart.posX + ((pEnd.posX !== undefined ? pEnd.posX : pStart.posX) - pStart.posX) * u,
           posY: pStart.posY + ((pEnd.posY !== undefined ? pEnd.posY : pStart.posY) - pStart.posY) * u,
@@ -1361,7 +1349,7 @@
 
         const rawOp = (subAnimLayer.opacity !== undefined && subAnimLayer.opacity !== null) ? Number(subAnimLayer.opacity) : 1.0;
         const normOp = (rawOp > 1.0) ? Math.max(0, Math.min(1, rawOp / 100)) : Math.max(0, Math.min(1, rawOp));
-        const sampleOp = normOp / samples;
+        const sampleOp = normOp * weight;
         gl.uniform1f(this.locations.opacity, sampleOp);
 
         this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, subBounds);

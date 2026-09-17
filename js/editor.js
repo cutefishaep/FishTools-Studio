@@ -2423,7 +2423,7 @@
               if (isMbActive) {
                 flushStaticBatch();
                 const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
-                if (engine && bounds && bounds.is3D && typeof engine.render3DMotionBlur === 'function') {
+                if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild) {
                   engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
                 } else {
                   mbEngine.renderLayerWithMotionBlur(
@@ -3344,7 +3344,7 @@
             if (isMbActive) {
               flushStaticBatch();
               const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
-              if (engine && bounds && bounds.is3D && typeof engine.render3DMotionBlur === 'function') {
+              if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild) {
                 engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
               } else {
                 mbEngine.renderLayerWithMotionBlur(

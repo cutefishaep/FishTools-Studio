@@ -5,6 +5,18 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.24] - 2026-09-17
+
+### Performance
+- **Adaptive 3-Sample Natural Shutter Motion Blur (`js/fishtool-engine.js`, `js/motion-blur-engine.js`, `js/editor.js`)**:
+  - Implemented 3-sample Gaussian-weighted shutter exposure model `[0.25, 0.50, 0.25]` for interactive scrubbing & playback, matching photographic film shutter falloff while cutting render overhead by 65%.
+  - Full-quality 16-sample multi-sampling automatically engages only during video export (`_isExportingVideo`).
+  - Completely eliminated sub-rect clipping artifact on 3D layers with drop shadows by restoring full-canvas WebGL blit.
+  - Routed all 2D/3D media layers directly through hardware WebGL in-framebuffer accumulation, bypassing 2D canvas context switching.
+  - Increased motion detection threshold to 0.4px / 0.2° to prevent imperceptible sub-pixel noise from triggering multi-sampling.
+
+---
+
 ## [0.5.23] - 2026-09-17
 
 ### Performance

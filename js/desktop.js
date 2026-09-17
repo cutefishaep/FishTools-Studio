@@ -2594,6 +2594,7 @@
     initDesktopFloatingZoom();
     syncLayout();
     checkUrlTestParams();
+    checkAndPromptMobileSwitch();
   });
 
   checkUrlTestParams();
@@ -2613,6 +2614,73 @@
     initDesktopFloatingZoom();
     syncLayout();
     checkUrlTestParams();
+    checkAndPromptMobileSwitch();
   }, 350);
+
+  // --- Mobile Device & Small Viewport Detection ---
+  const MOBILE_DISMISS_KEY = 'oft_desktop_mobile_dismissed';
+
+  function isMobileOrSmallScreen() {
+    const isMobileUA = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isNarrowViewport = window.innerWidth <= 768;
+    return isNarrowViewport || (isMobileUA && window.innerWidth <= 960);
+  }
+
+  function checkAndPromptMobileSwitch() {
+    try {
+      if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay' || sessionStorage.getItem(MOBILE_DISMISS_KEY) === 'stay') {
+        return;
+      }
+    } catch (_) {}
+
+    if (isMobileOrSmallScreen()) {
+      setTimeout(() => {
+        if (window.Modal && typeof window.Modal.open === 'function') {
+          if (!document.querySelector('.modal-backdrop.is-active')) {
+            window.Modal.open('modal-switch-mobile');
+          }
+        }
+      }, 500);
+    }
+  }
+
+  function proceedToMobileView() {
+    const checkbox = document.getElementById('checkbox-remember-mobile-switch');
+    if (checkbox && checkbox.checked) {
+      try {
+        localStorage.setItem(MOBILE_DISMISS_KEY, 'mobile');
+      } catch (_) {}
+    }
+    const search = window.location.search || '';
+    window.location.href = 'editor.html' + search;
+  }
+
+  function dismissMobileSwitchModal() {
+    const checkbox = document.getElementById('checkbox-remember-mobile-switch');
+    try {
+      if (checkbox && checkbox.checked) {
+        localStorage.setItem(MOBILE_DISMISS_KEY, 'stay');
+      } else {
+        sessionStorage.setItem(MOBILE_DISMISS_KEY, 'stay');
+      }
+    } catch (_) {}
+
+    if (window.Modal && typeof window.Modal.close === 'function') {
+      window.Modal.close();
+    }
+  }
+
+  let resizeMobileTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeMobileTimer);
+    resizeMobileTimer = setTimeout(() => {
+      checkAndPromptMobileSwitch();
+    }, 400);
+  });
+
+  window.proceedToMobileView = proceedToMobileView;
+  window.dismissMobileSwitchModal = dismissMobileSwitchModal;
+  window.checkAndPromptMobileSwitch = checkAndPromptMobileSwitch;
 
 })();

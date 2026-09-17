@@ -973,6 +973,9 @@
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-install-app')" style="padding: 12px 24px; font-size: 14px;">
                   Open "Install as App" Modal
                 </button>
+                <button type="button" class="theme-btn" onclick="Modal.open('modal-switch-mobile')" style="padding: 12px 24px; font-size: 14px;">
+                  Open "Switch to Mobile" Modal
+                </button>
               </div>
               <span style="color: var(--text-secondary); font-size: 12.5px;">
                 Slide-down animation on mobile (≤600px), center scale on desktop (≥601px). Dismiss by clicking backdrop or pressing browser back button.
@@ -6082,6 +6085,42 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
         <button type="button" class="install-btn-primary" id="install-pwa-action-btn" onclick="alert('PWA install prompt simulated'); Modal.close();">
           <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
           <span>Install as App</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Switch to Mobile View Modal Demo -->
+  <div class="modal-backdrop" id="modal-switch-mobile" role="dialog" aria-modal="true" aria-label="Switch to Mobile View">
+    <div class="modal-card mobile-switch-modal-card" onclick="event.stopPropagation()">
+      <div class="mobile-switch-hero">
+        <div class="mobile-switch-icon-wrapper">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+          </svg>
+        </div>
+        <h2 class="mobile-switch-title">Switch to Mobile View?</h2>
+        <p class="mobile-switch-desc">
+          It looks like you are using a mobile phone or smaller screen. Would you like to switch to the mobile-optimized editor?
+        </p>
+      </div>
+
+      <div class="mobile-switch-options">
+        <label class="mobile-switch-remember-label">
+          <input type="checkbox" class="mobile-switch-checkbox">
+          <span>Remember my choice</span>
+        </label>
+      </div>
+
+      <div class="mobile-switch-actions">
+        <button type="button" class="mobile-switch-btn-secondary" onclick="Modal.close()">
+          Stay on Desktop
+        </button>
+        <button type="button" class="mobile-switch-btn-primary" onclick="alert('Navigating to mobile editor.html'); Modal.close();">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+          </svg>
+          <span>Switch to Mobile View</span>
         </button>
       </div>
     </div>

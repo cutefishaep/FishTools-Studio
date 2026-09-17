@@ -76,6 +76,10 @@
               <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
               <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
             </svg>
+          <button type="button" class="editor-settings-btn" id="btn-desktop-mobile-view" title="Switch to Mobile View" aria-label="Switch to Mobile View" onclick="proceedToMobileView()">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+            </svg>
           </button>
           <button type="button" class="editor-settings-btn" id="btn-editor-template" title="Template Editor" aria-label="Template Editor" onclick="if(window.FishTemplateEditor) window.FishTemplateEditor.open()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -4033,6 +4037,44 @@
       <div class="modal-progress-details">
         <span class="modal-progress-percent" id="ofts-progress-percent">0%</span>
         <span class="modal-progress-status" id="ofts-progress-status">Packing project...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR POP-UP: SWITCH TO MOBILE VIEW MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-switch-mobile" role="dialog" aria-modal="true" aria-label="Switch to Mobile View">
+    <div class="modal-card mobile-switch-modal-card" onclick="event.stopPropagation()">
+      <div class="mobile-switch-hero">
+        <div class="mobile-switch-icon-wrapper">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+          </svg>
+        </div>
+        <h2 class="mobile-switch-title">Switch to Mobile View?</h2>
+        <p class="mobile-switch-desc">
+          It looks like you're using a phone or smaller screen. Would you like to switch to the mobile-optimized editor?
+        </p>
+      </div>
+
+      <div class="mobile-switch-options">
+        <label class="mobile-switch-remember-label">
+          <input type="checkbox" id="checkbox-remember-mobile-switch" class="mobile-switch-checkbox">
+          <span>Remember my choice</span>
+        </label>
+      </div>
+
+      <div class="mobile-switch-actions">
+        <button type="button" class="mobile-switch-btn-secondary" onclick="dismissMobileSwitchModal()">
+          Stay on Desktop
+        </button>
+        <button type="button" class="mobile-switch-btn-primary" onclick="proceedToMobileView()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+          </svg>
+          <span>Switch to Mobile View</span>
+        </button>
       </div>
     </div>
   </div>

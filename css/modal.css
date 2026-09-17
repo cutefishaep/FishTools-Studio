@@ -2350,3 +2350,218 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* ==========================================================================
+   INSTALL AS APP MODAL (.install-modal-card)
+   - 100% Theme Token Binding, Flat & Fast
+   ========================================================================== */
+.install-modal-card {
+  width: 100%;
+  max-width: 440px;
+  border-radius: 16px;
+  background-color: var(--bg-dashboard);
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.install-modal-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 24px 18px;
+  gap: 12px;
+}
+
+.install-app-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.install-app-icon-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  display: block;
+}
+
+.install-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.install-modal-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.install-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 24px 18px;
+}
+
+.install-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+}
+
+.install-feature-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background-color: var(--bg-panel-inner);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.install-feature-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.install-feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.install-feature-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.install-feature-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* iOS Step by Step Instructions Card */
+.install-ios-card {
+  margin: 0 24px 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  display: none;
+}
+
+.install-ios-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.install-ios-steps {
+  margin: 0;
+  padding: 0 0 0 18px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.install-ios-steps li {
+  margin-bottom: 6px;
+}
+
+.install-ios-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.install-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  background-color: var(--bg-dashboard);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.install-btn-primary {
+  flex: 1;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.install-btn-primary svg {
+  fill: currentColor;
+}
+
+.install-btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.install-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.install-btn-secondary {
+  height: 42px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  color: var(--text-secondary);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.install-btn-secondary:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+  border-color: var(--color-primary);
+}
+
+.install-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+

@@ -126,15 +126,60 @@ window.FishDatabase = (function () {
     });
     return dbPromise;
   }
-  async function requestPersistentStorage() {
-    if (typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.persist === 'function') {
+  var _storagePersistenceState = {
+    checked: false,
+    persisted: false,
+    quota: 0,
+    usage: 0
+  };
+
+  async function checkStoragePersistence() {
+    if (typeof navigator !== 'undefined' && navigator.storage) {
       try {
-        var isPersisted = await navigator.storage.persisted();
-        if (!isPersisted) {
-          await navigator.storage.persist();
+        if (typeof navigator.storage.persisted === 'function') {
+          _storagePersistenceState.persisted = await navigator.storage.persisted();
         }
-      } catch (_) {}
+        if (typeof navigator.storage.estimate === 'function') {
+          var est = await navigator.storage.estimate();
+          _storagePersistenceState.quota = est.quota || 0;
+          _storagePersistenceState.usage = est.usage || 0;
+        }
+        _storagePersistenceState.checked = true;
+      } catch (err) {
+        console.warn('[FishDatabase] Storage estimate error:', err);
+      }
     }
+    return Object.assign({}, _storagePersistenceState);
+  }
+
+  async function requestPersistentStorage() {
+    if (typeof navigator !== 'undefined' && navigator.storage) {
+      try {
+        if (typeof navigator.storage.persisted === 'function') {
+          var isPersisted = await navigator.storage.persisted();
+          if (!isPersisted && typeof navigator.storage.persist === 'function') {
+            isPersisted = await navigator.storage.persist();
+          }
+          _storagePersistenceState.persisted = !!isPersisted;
+          if (isPersisted) {
+            console.log('[FishDatabase] 🛡️ Storage durability: persistent (protected from browser eviction)');
+          } else {
+            console.info('[FishDatabase] ℹ️ Storage durability: best-effort (installing as app or bookmarking grants persistence)');
+          }
+        }
+        await checkStoragePersistence();
+      } catch (e) {
+        console.warn('[FishDatabase] Persistent storage request error:', e);
+      }
+    }
+    return Object.assign({}, _storagePersistenceState);
+  }
+
+  // Proactively trigger persistence check when script loads in browser
+  if (typeof window !== 'undefined') {
+    setTimeout(function () {
+      requestPersistentStorage().catch(function () {});
+    }, 150);
   }
 
   async function init() {
@@ -2558,6 +2603,9 @@ window.FishDatabase = (function () {
     updateProjectSize: updateProjectSize,
     deleteProjectFrameCaches: deleteProjectFrameCaches,
     clearFrameCacheDB: clearFrameCacheDB,
-    cleanupAllStudioCaches: cleanupAllStudioCaches
+    cleanupAllStudioCaches: cleanupAllStudioCaches,
+    checkStoragePersistence: checkStoragePersistence,
+    requestPersistentStorage: requestPersistentStorage,
+    getStorageEstimate: checkStoragePersistence
   };
 })();

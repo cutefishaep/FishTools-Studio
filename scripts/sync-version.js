@@ -220,6 +220,19 @@ function syncVersion(specifiedVersion) {
     }
   }
 
+  // 4. Update sw.js CACHE_NAME and header version
+  const swPath = path.join(ROOT, 'sw.js');
+  if (fs.existsSync(swPath)) {
+    try {
+      let swContent = fs.readFileSync(swPath, 'utf8');
+      swContent = swContent.replace(/const CACHE_NAME = 'oft-studio-v[^']*';/, `const CACHE_NAME = 'oft-studio-v${targetVersion}';`);
+      swContent = swContent.replace(/\* Version: [0-9]+\.[0-9]+\.[0-9]+[^\n]*/, `* Version: ${targetVersion}`);
+      fs.writeFileSync(swPath, swContent, 'utf8');
+    } catch (e) {
+      console.error('[SyncVersion] Error updating sw.js:', e);
+    }
+  }
+
   console.log(`[SyncVersion] Successfully synchronized all files to v${targetVersion}!`);
   return targetVersion;
 }

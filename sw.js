@@ -1,0 +1,129 @@
+/**
+ * OpenFishTools Studio - Service Worker
+ * Version: 0.5.15
+ * 
+ * Provides offline caching, lightning-fast boot times,
+ * and enables PWA standalone install experience.
+ */
+
+const CACHE_NAME = 'oft-studio-v0.5.15';
+
+const CORE_ASSETS = [
+  './',
+  'index.html',
+  'manifest.webmanifest',
+  'css/theme.css',
+  'css/layout.css',
+  'css/modal.css',
+  'css/context-menu.css',
+  'css/safari.css',
+  'js/modal.js',
+  'js/context-menu.js',
+  'js/db.js',
+  'js/pwa-install.js',
+  'js/main.js',
+  'assets/icon.svg',
+  'assets/icon-192.png',
+  'assets/icon-512.png',
+  'assets/doodles.svg',
+  'assets/grid.svg',
+  'assets/handles.svg',
+  'assets/fonts/CalSans-SemiBold.woff2'
+];
+
+// Install: Pre-cache core shell
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(CORE_ASSETS).catch((err) => {
+        console.warn('[SW] Pre-cache warning:', err);
+      });
+    }).then(() => self.skipWaiting())
+  );
+});
+
+// Activate: Purge obsolete caches and claim clients
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith('oft-studio-') && name !== CACHE_NAME)
+          .map((name) => {
+            console.log('[SW] Purging outdated cache:', name);
+            return caches.delete(name);
+          })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// Fetch: Smart caching strategy
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+
+  // Skip DevServer SSE, API endpoints, extension URLs, range requests
+  if (
+    url.pathname.includes('__live_reload') ||
+    url.pathname.includes('__config') ||
+    url.pathname.startsWith('/api/') ||
+    url.protocol.startsWith('chrome-extension') ||
+    req.headers.has('range')
+  ) {
+    return;
+  }
+
+  // HTML navigation: Network first, fall back to cached index.html
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(req).then((cached) => cached || caches.match('./index.html'));
+        })
+    );
+    return;
+  }
+
+  // Same-origin static assets: Cache first, stale-while-revalidate
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.match(req).then((cachedResponse) => {
+        const fetchPromise = fetch(req).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(req, responseToCache);
+            });
+          }
+          return networkResponse;
+        }).catch(() => cachedResponse);
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // External static assets (fonts, icons): Cache first with network fallback
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      return cached || fetch(req).then((res) => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        }
+        return res;
+      }).catch(() => null);
+    })
+  );
+});

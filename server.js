@@ -30,7 +30,8 @@ const MIME_TYPES = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
   '.wasm': 'application/wasm',
-  '.xml': 'application/xml; charset=utf-8'
+  '.xml': 'application/xml; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8'
 };
 
 const SSE_INJECTION = `
@@ -272,13 +273,19 @@ function handleRequest(req, res) {
       content = Buffer.from(htmlStr, 'utf-8');
     }
 
-    res.writeHead(200, {
+    const headers = {
       'Content-Type': contentType,
       'Cache-Control': process.env.VERCEL ? 'public, max-age=3600' : 'no-store, no-cache, must-revalidate',
       'Access-Control-Allow-Origin': '*',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless'
-    });
+    };
+    if (path.basename(filePath) === 'sw.js') {
+      headers['Service-Worker-Allowed'] = '/';
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    }
+
+    res.writeHead(200, headers);
     res.end(content);
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });

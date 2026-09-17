@@ -1084,10 +1084,57 @@ async function handleImportedFiles(files, dropzone, statusEl) {
 }
 
 /**
+ * Queries and updates storage durability status in Welcome modal
+ */
+async function updateStorageDurabilityUI() {
+  const statusEl = document.getElementById('welcome-storage-status');
+  const btnEl = document.getElementById('welcome-storage-btn');
+  if (!statusEl) return;
+
+  if (!window.FishDatabase || typeof window.FishDatabase.checkStoragePersistence !== 'function') {
+    statusEl.textContent = 'IndexedDB local storage active';
+    return;
+  }
+
+  const info = await window.FishDatabase.checkStoragePersistence();
+  let usageStr = '';
+  if (info.usage && info.quota) {
+    const usedMB = (info.usage / (1024 * 1024)).toFixed(1);
+    const quotaGB = (info.quota / (1024 * 1024 * 1024)).toFixed(1);
+    usageStr = ` (${usedMB} MB / ${quotaGB} GB)`;
+  }
+
+  if (info.persisted) {
+    statusEl.innerHTML = `<span style="color: var(--color-primary); font-weight: 700;">Protected (Persistent)</span> &bull; IndexedDB${usageStr}`;
+    if (btnEl) btnEl.style.display = 'none';
+  } else {
+    statusEl.innerHTML = `<span>Standard (Best-effort)${usageStr}</span>`;
+    if (btnEl) btnEl.style.display = 'inline-flex';
+  }
+}
+
+window.requestStudioStoragePersist = async function () {
+  const btnEl = document.getElementById('welcome-storage-btn');
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.textContent = 'Protecting...';
+  }
+  if (window.FishDatabase && typeof window.FishDatabase.requestPersistentStorage === 'function') {
+    await window.FishDatabase.requestPersistentStorage();
+    await updateStorageDurabilityUI();
+  }
+  if (btnEl) {
+    btnEl.disabled = false;
+    btnEl.textContent = 'Protect';
+  }
+};
+
+/**
  * Automatically displays Welcome modal on first visit unless dismissed
  */
 function initWelcomeModal() {
   syncWelcomeVersionTags();
+  updateStorageDurabilityUI().catch(() => {});
   try {
     const hasDismissed = localStorage.getItem('oft_seen_welcome_v1');
     if (!hasDismissed) {

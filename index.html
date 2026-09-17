@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>OpenFishTools Studio</title>
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0e1015">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OpenFishTools">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
   
   <!-- Separated CSS: Theme (Colors & Variables, Cal Sans Font), Layout, and Modular Modal -->
   <link rel="stylesheet" href="css/theme.css">
@@ -28,6 +34,12 @@
         </div>
       </div>
       <div class="studio-header-actions">
+        <button type="button" class="studio-top-btn" id="btn-install-app" style="display: none;" aria-label="Install App" onclick="PWAInstall.openModal()">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          <span>Install App</span>
+        </button>
         <a href="https://www.cutefish.my.id/#contact" target="_blank" rel="noopener noreferrer" class="studio-top-btn" aria-label="Feedback">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
             <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
@@ -1018,6 +1030,20 @@
         </div>
 
         <div class="welcome-features-list">
+          <div class="welcome-feature-item" id="welcome-storage-item">
+            <div class="welcome-feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <strong>Local Storage Durability</strong>
+              <span id="welcome-storage-status">Checking storage persistence...</span>
+            </div>
+            <button type="button" class="welcome-link-btn" id="welcome-storage-btn" onclick="window.requestStudioStoragePersist()" style="display: none;">
+              <span>Protect</span>
+            </button>
+          </div>
           <div class="welcome-feature-item">
             <div class="welcome-feature-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -1174,11 +1200,76 @@
       </div>
     </div>
   </div>
+  <!-- ==========================================================================
+       MODULAR POP-UP: INSTALL AS APP MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-install-app" role="dialog" aria-modal="true" aria-label="Install OpenFishTools Studio">
+    <div class="modal-card install-modal-card" onclick="event.stopPropagation()">
+      <div class="install-modal-hero">
+        <div class="install-app-icon-wrapper">
+          <img src="assets/icon.svg" class="install-app-icon-img" alt="OpenFishTools App Icon">
+        </div>
+        <h2 class="install-modal-title">Install OpenFishTools Studio</h2>
+        <p class="install-modal-desc" id="install-modal-desc">Install as a standalone app for faster startup, offline access, and durable local project storage.</p>
+      </div>
 
+      <div class="install-features-list">
+        <div class="install-feature-item">
+          <div class="install-feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H5V8h14v10z"/></svg>
+          </div>
+          <div class="install-feature-text">
+            <span class="install-feature-title">Standalone App Window</span>
+            <span class="install-feature-subtitle">Clean workspace free from browser tabs and URL bars</span>
+          </div>
+        </div>
+        <div class="install-feature-item">
+          <div class="install-feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+          </div>
+          <div class="install-feature-text">
+            <span class="install-feature-title">Persistent Data Protection</span>
+            <span class="install-feature-subtitle">Immune to browser cache clearance &amp; storage eviction</span>
+          </div>
+        </div>
+        <div class="install-feature-item">
+          <div class="install-feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+          </div>
+          <div class="install-feature-text">
+            <span class="install-feature-title">Instant Boot &amp; Offline Ready</span>
+            <span class="install-feature-subtitle">Loads immediately even when offline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- iOS Step-by-Step Instructions -->
+      <div class="install-ios-card" id="install-ios-instructions">
+        <div class="install-ios-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <span>Install on iPhone / iPad</span>
+        </div>
+        <ol class="install-ios-steps">
+          <li>Tap <strong>Share</strong> (square with arrow up) in Safari.</li>
+          <li>Scroll and tap <strong>"Add to Home Screen"</strong>.</li>
+          <li>Tap <strong>"Add"</strong> at top right to install.</li>
+        </ol>
+      </div>
+
+      <div class="install-modal-actions">
+        <button type="button" class="install-btn-secondary" onclick="PWAInstall.dismiss()">Maybe Later</button>
+        <button type="button" class="install-btn-primary" id="install-pwa-action-btn" onclick="PWAInstall.prompt()">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Install as App</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/jszip.min.js"></script>
   <script src="js/db.js?v=0.5.15"></script>
   <script src="js/modal.js?v=0.5.15"></script>
+  <script src="js/pwa-install.js?v=0.5.15"></script>
   <script src="js/context-menu.js?v=0.5.15"></script>
   <script src="js/main.js?v=0.5.15"></script>
 </body>

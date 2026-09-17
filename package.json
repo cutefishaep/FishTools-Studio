@@ -12,9 +12,9 @@
     "sync:effects": "node scripts/sync-effects.js",
     "serve": "npx serve .",
     "test": "node scratch/test_suite.js",
-    "tauri": "tauri",
-    "desktop:dev": "node scripts/build-native-dist.js && tauri dev --config native/src-tauri/tauri.conf.json",
-    "desktop:build": "node scripts/build-native-dist.js && tauri build --config native/src-tauri/tauri.conf.json"
+    "tauri": "npx @tauri-apps/cli",
+    "desktop:dev": "node scripts/build-native-dist.js && npx @tauri-apps/cli dev --config native/src-tauri/tauri.conf.json",
+    "desktop:build": "node scripts/build-native-dist.js && npx @tauri-apps/cli build --config native/src-tauri/tauri.conf.json"
   },
   "keywords": [
     "openfishtools",
@@ -25,8 +25,5 @@
   "license": "MIT",
   "dependencies": {
     "mp4-muxer": "^5.2.2"
-  },
-  "devDependencies": {
-    "@tauri-apps/cli": "^2"
   }
 }

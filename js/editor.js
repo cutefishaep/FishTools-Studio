@@ -5780,11 +5780,24 @@
           const isActive = isPropActive && isSelectedLayer && !!(activeProp && prop === activeProp);
           marker.classList.toggle('is-active-prop', isActive);
           marker.classList.toggle('is-other-prop', !isActive);
-          if (!isActive) {
+          if (!isActive && !isDesktopLayout()) {
             marker.classList.remove('is-selected-kf', 'is-dragging');
           }
         });
       });
+
+      if (Array.isArray(window.selectedKeyframes)) {
+        document.querySelectorAll('.desktop-kf-diamond').forEach(diamond => {
+          const prop = diamond.dataset.prop;
+          const time = Number(diamond.dataset.time);
+          const lane = diamond.closest('.timeline-track-lane');
+          const layerId = lane ? lane.dataset.layerId : null;
+          const isSelected = window.selectedKeyframes.some(it => 
+            (it.marker === diamond) || (it.layerId === layerId && it.prop === prop && Math.abs(it.time - time) < 0.002)
+          );
+          diamond.classList.toggle('is-selected-kf', isSelected);
+        });
+      }
     }
     window.updateTimelineKeyframeMarkersHighlight = updateTimelineKeyframeMarkersHighlight;
 
@@ -19341,7 +19354,7 @@
       window.selectedKeyframes = [];
       window.clearSelectedKeyframes = function() {
         window.selectedKeyframes = [];
-        document.querySelectorAll('.timeline-keyframe-marker.is-selected-kf').forEach(m => {
+        document.querySelectorAll('.timeline-keyframe-marker.is-selected-kf, .desktop-kf-diamond.is-selected-kf').forEach(m => {
           m.classList.remove('is-selected-kf');
         });
       };
@@ -19358,7 +19371,7 @@
           if (!layer || !layer.keyframes || !Array.isArray(layer.keyframes[item.prop])) return;
           const origLen = layer.keyframes[item.prop].length;
           layer.keyframes[item.prop] = layer.keyframes[item.prop].filter(k => 
-            Math.abs(k.time - item.time) >= 0.001
+            Math.abs(k.time - item.time) >= 0.002
           );
           if (layer.keyframes[item.prop].length !== origLen) {
             didMutate = true;
@@ -19370,9 +19383,18 @@
           if (typeof invalidatePreviewCacheForLayer === 'function') {
             mutatedLayers.forEach(l => invalidatePreviewCacheForLayer(l));
           }
+          mutatedLayers.forEach(l => {
+            if (typeof syncLayerKeyframeMarkersInPlace === 'function') {
+              syncLayerKeyframeMarkersInPlace(l);
+            }
+          });
           saveCurrentProjectLayers();
           renderTimelineLayers();
           if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+          if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
+          if (typeof syncEffectsKeyframeState === 'function') {
+            mutatedLayers.forEach(l => syncEffectsKeyframeState(l));
+          }
           if (typeof updateGraphEditorUI === 'function') updateGraphEditorUI();
           if (typeof redrawComposition === 'function') redrawComposition('delete-selected-keyframes');
         }
@@ -20845,9 +20867,9 @@
       }
       window.centerSelectedTimelineLayer = centerSelectedTimelineLayer;
 
-      function selectTimelineLayer(layerId, isMulti = false) {
+      function selectTimelineLayer(layerId, isMulti = false, keepKeyframes = false) {
         if (!layerId) return;
-        if (typeof window.clearSelectedKeyframes === 'function') {
+        if (!keepKeyframes && typeof window.clearSelectedKeyframes === 'function') {
           window.clearSelectedKeyframes();
         }
         if (!isMulti) {
@@ -21645,27 +21667,27 @@
 
         if (!targetLayer) return false;
 
+        const clipProp = window.internalKeyframeClipboard.prop;
         let targetProp = null;
         if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
           targetProp = window.selectedKeyframes[0].prop;
         } else if (window.activeKeyframeProperty) {
           targetProp = window.activeKeyframeProperty;
-        } else if (window.activeTransformTool) {
+        } else if (window.activeTransformTool && isKeyframePropCompatible(clipProp, window.activeTransformTool)) {
           targetProp = window.activeTransformTool;
         } else {
-          targetProp = 'move';
+          targetProp = clipProp;
         }
 
-        const clipProp = window.internalKeyframeClipboard.prop;
         if (!isKeyframePropCompatible(clipProp, targetProp)) {
-          console.warn(`[Keyframe Paste] Type mismatch: cannot paste "${clipProp}" keyframes to "${targetProp}".`);
-          return false;
+          targetProp = clipProp;
         }
 
         if (window.Popover) window.Popover.close();
 
-        const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
-        let baseSec = Number((Math.max(0, - (window.timelinePanX || panX || 0) / pps)).toFixed(4));
+        let baseSec = (typeof window.getCurrentPlayheadTime === 'function')
+          ? window.getCurrentPlayheadTime()
+          : ((typeof currentSec === 'number') ? currentSec : (window.currentSec || 0));
         if (lastContextClickSec !== null && typeof lastContextClickSec === 'number') {
           baseSec = lastContextClickSec;
         }
@@ -21676,29 +21698,30 @@
         }
 
         if (!targetLayer.keyframes) targetLayer.keyframes = {};
-        if (!targetLayer.keyframes[targetProp]) targetLayer.keyframes[targetProp] = [];
 
         const pastedList = [];
         window.internalKeyframeClipboard.items.forEach(item => {
+          const itemProp = (item.prop && isKeyframePropCompatible(item.prop, targetProp)) ? targetProp : (item.prop || targetProp);
+          if (!targetLayer.keyframes[itemProp]) targetLayer.keyframes[itemProp] = [];
+
           const pasteTime = Number((baseSec + item.offsetSec).toFixed(4));
-          targetLayer.keyframes[targetProp] = targetLayer.keyframes[targetProp].filter(k => Math.abs(k.time - pasteTime) > 0.005);
+          targetLayer.keyframes[itemProp] = targetLayer.keyframes[itemProp].filter(k => Math.abs(k.time - pasteTime) > 0.005);
 
           const newKf = {
             time: pasteTime,
-            value: item.value !== null ? JSON.parse(JSON.stringify(item.value)) : (typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(targetLayer, targetProp) : null),
+            value: item.value !== null ? JSON.parse(JSON.stringify(item.value)) : (typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(targetLayer, itemProp) : null),
             easing: item.easing ? [...item.easing] : [0.0, 0.0, 1.0, 1.0]
           };
-          targetLayer.keyframes[targetProp].push(newKf);
+          targetLayer.keyframes[itemProp].push(newKf);
+          targetLayer.keyframes[itemProp].sort((a, b) => a.time - b.time);
           pastedList.push({
             layerId: targetLayer.id,
             layer: targetLayer,
-            prop: targetProp,
+            prop: itemProp,
             time: pasteTime,
             kf: newKf
           });
         });
-
-        targetLayer.keyframes[targetProp].sort((a, b) => a.time - b.time);
 
         window.selectedKeyframes = pastedList;
 
@@ -21771,11 +21794,11 @@
 
         if (pasteBtn) {
           if (shouldPasteKeyframe) {
+            const clipProp = window.internalKeyframeClipboard.prop;
             const targetProp = (hasKeyframesSelected && window.selectedKeyframes[0].prop)
               || window.activeKeyframeProperty
-              || window.activeTransformTool
-              || 'move';
-            const clipProp = window.internalKeyframeClipboard.prop;
+              || (window.activeTransformTool && isKeyframePropCompatible(clipProp, window.activeTransformTool) ? window.activeTransformTool : null)
+              || clipProp;
             const isCompatible = isKeyframePropCompatible(clipProp, targetProp);
 
             if (isCompatible) {
@@ -24095,6 +24118,31 @@
                     if (typeof window.syncDesktopInspectorProperty === 'function') {
                       window.syncDesktopInspectorProperty(layer, p.prop);
                     }
+                    if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
+                      selectTimelineLayer(layer.id, false, true);
+                    }
+                    // AE Workflow: Clicking property track header selects all keyframes of that property
+                    if (Array.isArray(p.keyframes) && p.keyframes.length > 0) {
+                      const isShift = !!(e.shiftKey || e.metaKey || e.ctrlKey);
+                      if (!isShift && typeof window.clearSelectedKeyframes === 'function') {
+                        window.clearSelectedKeyframes();
+                      }
+                      if (!window.selectedKeyframes) window.selectedKeyframes = [];
+                      p.keyframes.forEach(kf => {
+                        const dm = document.querySelector(`.desktop-kf-diamond[data-prop="${p.prop}"][data-time="${kf.time}"]`);
+                        if (dm) dm.classList.add('is-selected-kf');
+                        if (!window.selectedKeyframes.some(it => it.kf === kf || (it.layerId === layer.id && it.prop === p.prop && Math.abs(it.time - kf.time) < 0.002))) {
+                          window.selectedKeyframes.push({
+                            layerId: layer.id,
+                            layer: layer,
+                            prop: p.prop,
+                            time: kf.time,
+                            kf: kf,
+                            marker: dm
+                          });
+                        }
+                      });
+                    }
                   });
                   treeEl.appendChild(pRow);
                 });
@@ -25097,73 +25145,128 @@
                   diamond.style.left = `${leftPx.toFixed(1)}px`;
                   diamond.dataset.time = kf.time;
                   diamond.dataset.prop = p.prop;
+                  diamond.dataset.layerId = layer.id;
                   diamond.title = `${p.label}: ${kf.time.toFixed(2)}s\nValue: ${typeof p.curValue === 'string' ? p.curValue : ''}`;
 
-                  diamond.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                  const isSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => 
+                    (it.marker === diamond) || (it.layerId === layer.id && it.prop === p.prop && Math.abs(it.time - kf.time) < 0.002)
+                  );
+                  if (isSelected) {
                     diamond.classList.add('is-selected-kf');
-                    window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
-                    if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
-                      selectTimelineLayer(layer.id);
+                    const matchItem = window.selectedKeyframes.find(it => 
+                      (it.layerId === layer.id && it.prop === p.prop && Math.abs(it.time - kf.time) < 0.002)
+                    );
+                    if (matchItem) {
+                      matchItem.marker = diamond;
+                      matchItem.kf = kf;
+                      matchItem.layer = layer;
                     }
-                    if (typeof seekTimelineToTime === 'function') {
-                      seekTimelineToTime(kf.time, true);
-                    }
-                    if (typeof window.syncDesktopPlayhead === 'function') {
-                      window.syncDesktopPlayhead();
-                    }
-                  });
+                  }
 
                   diamond.addEventListener('pointerdown', (e) => {
                     if (e.button !== 0) return;
                     e.stopPropagation();
                     e.preventDefault();
 
-                    if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
-                    diamond.classList.add('is-selected-kf');
-                    window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
+                    const isShift = !!(e.shiftKey || e.metaKey || e.ctrlKey);
+                    const wasAlreadySelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => 
+                      it.kf === kf || (it.layerId === layer.id && it.prop === p.prop && Math.abs(it.time - kf.time) < 0.002)
+                    );
+
                     if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
-                      selectTimelineLayer(layer.id);
+                      selectTimelineLayer(layer.id, false, true);
                     }
 
-                    if (typeof seekTimelineToTime === 'function') {
-                      seekTimelineToTime(kf.time, true);
-                    }
-                    if (typeof window.syncDesktopPlayhead === 'function') {
-                      window.syncDesktopPlayhead();
+                    if (!wasAlreadySelected) {
+                      if (!isShift) {
+                        if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                      }
+                      diamond.classList.add('is-selected-kf');
+                      if (!window.selectedKeyframes) window.selectedKeyframes = [];
+                      window.selectedKeyframes.push({ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond });
                     }
 
-                    let startX = e.clientX;
-                    let origTime = kf.time;
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const kfInitialTime = kf.time;
                     let hasMoved = false;
+
                     try { diamond.setPointerCapture(e.pointerId); } catch (_) {}
-                    diamond.classList.add('is-dragging');
+
+                    // Snapshot all selected keyframes for simultaneous dragging
+                    const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+                    const multiDragSnapshots = (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0)
+                      ? window.selectedKeyframes.map(it => {
+                          const targetLayer = it.layer || layers.find(l => l.id === it.layerId);
+                          const targetKf = it.kf || (targetLayer && targetLayer.keyframes && targetLayer.keyframes[it.prop] ? targetLayer.keyframes[it.prop].find(k => Math.abs(k.time - it.time) < 0.002) : null);
+                          const targetDiamond = it.marker || document.querySelector(`.desktop-kf-diamond[data-prop="${it.prop}"][data-time="${it.time}"]`);
+                          return {
+                            item: it,
+                            layer: targetLayer,
+                            kf: targetKf,
+                            prop: it.prop,
+                            origTime: (targetKf ? targetKf.time : it.time),
+                            marker: targetDiamond
+                          };
+                        })
+                      : [{
+                          item: { layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond },
+                          layer: layer,
+                          kf: kf,
+                          prop: p.prop,
+                          origTime: kf.time,
+                          marker: diamond
+                        }];
 
                     function onDiamondMove(ev) {
                       const dx = ev.clientX - startX;
-                      if (Math.abs(dx) > 2) hasMoved = true;
+                      const dy = ev.clientY - startY;
+                      if (!hasMoved && Math.hypot(dx, dy) > 3) {
+                        hasMoved = true;
+                        window.isTransformInteracting = true;
+                        multiDragSnapshots.forEach(s => {
+                          if (s.marker) s.marker.classList.add('is-dragging');
+                        });
+                      }
                       if (!hasMoved) return;
 
-                      let nextTime = Math.max(0, origTime + dx / pps);
+                      ev.stopPropagation();
+                      ev.preventDefault();
 
-                      // Snap to playhead
+                      const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+                      let rawLeaderTime = Math.max(0, kfInitialTime + dx / pps);
+
+                      // Snap leader to playhead
                       const curP = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : (window.currentSec || 0);
-                      if (Math.abs(nextTime - curP) * pps < 6) nextTime = curP;
+                      if (Math.abs(rawLeaderTime - curP) * pps < 6) {
+                        rawLeaderTime = curP;
+                      }
 
-                      // Snap to beatmarks
+                      // Snap leader to beatmarks
                       const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
                       for (let b of beatmarks) {
-                        if (Math.abs(nextTime - b) * pps < 6) {
-                          nextTime = b;
+                        if (Math.abs(rawLeaderTime - b) * pps < 6) {
+                          rawLeaderTime = b;
                           break;
                         }
                       }
 
-                      kf.time = Number(nextTime.toFixed(3));
-                      diamond.style.left = `${(kf.time * pps).toFixed(1)}px`;
-                      diamond.title = `${p.label}: ${kf.time.toFixed(2)}s`;
+                      // Snap to frame boundary
+                      rawLeaderTime = Math.round(rawLeaderTime * fps) / fps;
+
+                      const deltaTime = rawLeaderTime - kfInitialTime;
+
+                      // Move all dragged keyframes synchronously
+                      multiDragSnapshots.forEach(s => {
+                        const shifted = Math.max(0, Number((s.origTime + deltaTime).toFixed(4)));
+                        if (s.kf) s.kf.time = shifted;
+                        if (s.item) s.item.time = shifted;
+                        if (s.marker) {
+                          s.marker.style.left = `${(shifted * pps).toFixed(1)}px`;
+                          s.marker.dataset.time = shifted;
+                          s.marker.title = `${s.prop}: ${shifted.toFixed(2)}s`;
+                        }
+                      });
 
                       if (typeof redrawComposition === 'function') {
                         redrawComposition('keyframe-drag');
@@ -25172,28 +25275,105 @@
 
                     function onDiamondUp(ev) {
                       try { diamond.releasePointerCapture(ev.pointerId); } catch (_) {}
-                      diamond.classList.remove('is-dragging');
-                      window.removeEventListener('pointermove', onDiamondMove);
-                      window.removeEventListener('pointerup', onDiamondUp);
-                      window.removeEventListener('pointercancel', onDiamondUp);
+                      window.isTransformInteracting = false;
+                      multiDragSnapshots.forEach(s => {
+                        if (s.marker) s.marker.classList.remove('is-dragging');
+                      });
+                      window.removeEventListener('pointermove', onDiamondMove, true);
+                      window.removeEventListener('pointerup', onDiamondUp, true);
+                      window.removeEventListener('pointercancel', onDiamondUp, true);
 
                       if (hasMoved) {
-                        if (layer.keyframes && Array.isArray(layer.keyframes[p.prop])) {
-                          layer.keyframes[p.prop].sort((a, b) => a.time - b.time);
-                        }
+                        const affectedLayers = new Set();
+                        multiDragSnapshots.forEach(s => {
+                          if (s.layer && s.layer.keyframes && Array.isArray(s.layer.keyframes[s.prop])) {
+                            s.layer.keyframes[s.prop].sort((a, b) => a.time - b.time);
+                            affectedLayers.add(s.layer);
+                          }
+                        });
+
+                        affectedLayers.forEach(l => {
+                          if (typeof invalidatePreviewCacheForLayer === 'function') {
+                            invalidatePreviewCacheForLayer(l);
+                          }
+                          if (typeof syncLayerKeyframeMarkersInPlace === 'function') {
+                            syncLayerKeyframeMarkersInPlace(l);
+                          }
+                        });
+
                         if (typeof saveCurrentProjectLayers === 'function') {
                           saveCurrentProjectLayers();
                         }
                         if (typeof redrawComposition === 'function') {
                           redrawComposition('keyframe-drag-end');
                         }
-                        syncLayerKeyframeMarkersInPlace(layer);
+                        if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+                        if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
+                        if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
+                      } else {
+                        // Clicked without dragging
+                        if (isShift) {
+                          if (wasAlreadySelected) {
+                            // Toggle off
+                            diamond.classList.remove('is-selected-kf');
+                            window.selectedKeyframes = window.selectedKeyframes.filter(it => 
+                              !(it.kf === kf || (it.layerId === layer.id && it.prop === p.prop && Math.abs(it.time - kf.time) < 0.002))
+                            );
+                          }
+                        } else {
+                          // Single select
+                          if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                          diamond.classList.add('is-selected-kf');
+                          window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
+                          if (typeof seekTimelineToTime === 'function') {
+                            seekTimelineToTime(kf.time, true);
+                          }
+                          if (typeof window.syncDesktopPlayhead === 'function') {
+                            window.syncDesktopPlayhead();
+                          }
+                        }
                       }
                     }
 
-                    window.addEventListener('pointermove', onDiamondMove);
-                    window.addEventListener('pointerup', onDiamondUp);
-                    window.addEventListener('pointercancel', onDiamondUp);
+                    window.addEventListener('pointermove', onDiamondMove, true);
+                    window.addEventListener('pointerup', onDiamondUp, true);
+                    window.addEventListener('pointercancel', onDiamondUp, true);
+                  });
+
+                  diamond.addEventListener('contextmenu', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
+                      selectTimelineLayer(layer.id, false, true);
+                    }
+
+                    const isAlreadySelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => 
+                      it.kf === kf || (it.layerId === layer.id && it.prop === p.prop && Math.abs(it.time - kf.time) < 0.002)
+                    );
+                    if (!isAlreadySelected) {
+                      if (!e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                        if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                      }
+                      diamond.classList.add('is-selected-kf');
+                      if (!window.selectedKeyframes) window.selectedKeyframes = [];
+                      window.selectedKeyframes.push({ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond });
+                    }
+                    if (window.Popover) {
+                      const mouseAnchor = {
+                        isVirtual: true,
+                        getBoundingClientRect: () => ({
+                          left: e.clientX,
+                          top: e.clientY,
+                          right: e.clientX,
+                          bottom: e.clientY,
+                          width: 0,
+                          height: 0
+                        }),
+                        dataset: {}
+                      };
+                      window.Popover.open(mouseAnchor, 'popover-layer-actions');
+                    }
                   });
 
                   pTrack.appendChild(diamond);

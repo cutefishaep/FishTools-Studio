@@ -5,6 +5,32 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.29] - 2026-09-17
+
+### Added
+- **Desktop Expanded Keyframes Multi-Selection, Drag, Copy, Paste & Delete (`desktop.html`, `js/desktop.js`, `js/editor.js`, `css/desktop.css`)**:
+  - **Interactive Multi-Selection**:
+    - Click on any diamond (`.desktop-kf-diamond`) selects single keyframe and seeks playhead.
+    - `Shift`-click or `Cmd`/`Ctrl`-click multi-selects keyframes across any tracks into `window.selectedKeyframes`.
+    - Clicking any property track header (`.desktop-kf-prop-row`) in the left tree selects all keyframes on that property simultaneously (After Effects behavior).
+    - Timeline Marquee rectangle selection (`.desktop-timeline-marquee-box`) automatically detects and lasso-selects diamond keyframes with live highlight candidates.
+  - **Simultaneous Multi-Drag & Re-timing**:
+    - Dragging any selected diamond simultaneously shifts all selected keyframes by exact `deltaTime` with frame clamping.
+    - Snapping support to playhead time, beatmarks, and integer frame boundaries.
+    - Automatic array sorting, layer cache invalidation, project auto-save, and canvas redraw on pointer release.
+  - **Keyboard Copy & Paste (Cmd+C / Cmd+V)**:
+    - `Cmd+C` / `Ctrl+C` captures selected keyframes into `window.internalKeyframeClipboard` with relative timestamp offsets and easing.
+    - `Cmd+V` / `Ctrl+V` pastes copied keyframes onto target layer and property track starting at current playhead time (`window.getCurrentPlayheadTime()`).
+    - Smart property fallback prevents type mismatches when pasting copied attributes.
+  - **Keyboard Delete & Deselect (Delete / Backspace / Escape)**:
+    - `Delete` / `Backspace` deletes all selected keyframes cleanly from the layer without deleting the parent layer.
+    - `Escape` / `F2` deselects all keyframes before falling back to layer deselection.
+  - **Event Delivery & Interception Hardening**:
+    - Whitelisted `.desktop-kf-diamond`, `.desktop-kf-track-row`, and `.desktop-kf-prop-row` in desktop capture-phase pointer handlers to prevent accidental deselection and event cancellation.
+    - Updated `selectTimelineLayer` with `keepKeyframes` option so selecting a layer while clicking a keyframe doesn't clear the keyframe selection.
+
+---
+
 ## [0.5.28] - 2026-09-17
 
 ### Added

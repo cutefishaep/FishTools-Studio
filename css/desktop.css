@@ -4770,8 +4770,9 @@
   border-radius: 1px;
   cursor: pointer;
   z-index: 15;
-  transition: transform 0.1s ease, background-color 0.1s ease;
+  transition: transform 0.08s ease, background-color 0.08s ease;
   touch-action: none;
+  user-select: none;
 }
 
 .desktop-kf-diamond:hover {
@@ -4781,9 +4782,10 @@
 }
 
 .desktop-kf-diamond.is-selected-kf,
-.desktop-kf-diamond.is-dragging {
-  background-color: var(--color-accent);
-  transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
-  border-color: var(--text-primary);
-  z-index: 25;
+.desktop-kf-diamond.is-dragging,
+.desktop-kf-diamond.is-marquee-candidate {
+  background-color: var(--color-accent) !important;
+  border: 1.5px solid var(--text-primary) !important;
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.35) !important;
+  z-index: 25 !important;
 }

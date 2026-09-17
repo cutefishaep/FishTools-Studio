@@ -1206,6 +1206,7 @@
       if (
         e.target.closest('.timeline-clip-handle') ||
         e.target.closest('.timeline-keyframe-marker') ||
+        e.target.closest('.desktop-kf-diamond') ||
         e.target.closest('.text-anim-marker')
       ) {
         return;
@@ -1506,11 +1507,12 @@
         }
       }
 
-      // Do NOT intercept if clicking on a clip, layer pill button, needle, or active dropzone
+      // Do NOT intercept if clicking on a clip, layer pill button, needle, keyframe diamond, or active dropzone
       if (
         e.target.closest('.timeline-clip-block') ||
         e.target.closest('.timeline-layer-ctrl-pill') ||
         e.target.closest('.timeline-center-needle') ||
+        e.target.closest('.desktop-kf-diamond') ||
         (e.target.closest('.media-dropzone-split') && e.target.closest('.media-dropzone-split').classList.contains('is-active'))
       ) {
         return;
@@ -1582,6 +1584,18 @@
               );
               clip.classList.toggle('is-marquee-candidate', intersects);
             });
+
+            const diamonds = layersViewport.querySelectorAll('.desktop-kf-diamond');
+            diamonds.forEach(diamond => {
+              const dr = diamond.getBoundingClientRect();
+              const intersects = !(
+                dr.right < marqueeRect.left ||
+                dr.left > marqueeRect.right ||
+                dr.bottom < marqueeRect.top ||
+                dr.top > marqueeRect.bottom
+              );
+              diamond.classList.toggle('is-marquee-candidate', intersects);
+            });
           });
         }
       }
@@ -1601,6 +1615,55 @@
             right: Math.max(startClientX, upEvent.clientX),
             bottom: Math.max(startClientY, upEvent.clientY)
           };
+
+          const matchedDiamonds = [];
+          const diamonds = layersViewport.querySelectorAll('.desktop-kf-diamond');
+          diamonds.forEach(diamond => {
+            diamond.classList.remove('is-marquee-candidate');
+            const dr = diamond.getBoundingClientRect();
+            const intersects = !(
+              dr.right < marqueeRect.left ||
+              dr.left > marqueeRect.right ||
+              dr.bottom < marqueeRect.top ||
+              dr.top > marqueeRect.bottom
+            );
+            if (intersects) {
+              matchedDiamonds.push(diamond);
+            }
+          });
+
+          if (matchedDiamonds.length > 0) {
+            const isShift = !!(upEvent.shiftKey || upEvent.metaKey || upEvent.ctrlKey);
+            if (!isShift && typeof window.clearSelectedKeyframes === 'function') {
+              window.clearSelectedKeyframes();
+            }
+            if (!window.selectedKeyframes) window.selectedKeyframes = [];
+            const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+
+            matchedDiamonds.forEach(d => {
+              d.classList.add('is-selected-kf');
+              const prop = d.dataset.prop;
+              const time = Number(d.dataset.time);
+              const lane = d.closest('.timeline-track-lane');
+              const layerId = lane ? lane.dataset.layerId : (d.dataset.layerId || null);
+              const layer = layers.find(l => l.id === layerId);
+              const kf = (layer && layer.keyframes && layer.keyframes[prop]) 
+                ? layer.keyframes[prop].find(k => Math.abs(k.time - time) < 0.002) 
+                : null;
+
+              if (!window.selectedKeyframes.some(it => it.marker === d || (it.layerId === layerId && it.prop === prop && Math.abs(it.time - time) < 0.002))) {
+                window.selectedKeyframes.push({
+                  layerId: layerId || (layer ? layer.id : ''),
+                  layer: layer,
+                  prop: prop,
+                  time: time,
+                  kf: kf,
+                  marker: d
+                });
+              }
+            });
+            return;
+          }
 
           const matchedIds = new Set();
           const clips = layersViewport.querySelectorAll('.timeline-clip-block');
@@ -1673,6 +1736,10 @@
         '.timeline-layer-ctrl-pill, ' +
         '.timeline-layer-eye-btn, ' +
         '.timeline-layer-lock-btn, ' +
+        '.desktop-layer-twistie-btn, ' +
+        '.desktop-kf-diamond, ' +
+        '.desktop-kf-track-row, ' +
+        '.desktop-kf-prop-row, ' +
         '.timeline-center-needle, ' +
         '.timeline-needle-head, ' +
         '.timeline-ruler-track, ' +
@@ -1725,6 +1792,15 @@
         const openModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop[style*="display: flex"], .modal-backdrop[style*="display: block"]');
         if (openModal) return;
 
+        if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof window.clearSelectedKeyframes === 'function') {
+            window.clearSelectedKeyframes();
+          }
+          return;
+        }
+
         const hasSelection = !!(
           (window.selectedLayerId && window.selectedLayerId !== '') ||
           (window.selectedLayerIds && window.selectedLayerIds.size > 0) ||
@@ -1758,6 +1834,39 @@
         }
         const openModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop[style*="display: flex"], .modal-backdrop[style*="display: block"]');
         if (openModal) return;
+
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.deleteSelectedKeyframes === 'function') {
+              window.deleteSelectedKeyframes();
+            }
+            return;
+          }
+        } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'c') {
+          if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.copySelectedKeyframes === 'function') {
+              window.copySelectedKeyframes();
+            }
+            return;
+          }
+        } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
+          const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
+          const hasKeyframeClip = window.internalKeyframeClipboard && Array.isArray(window.internalKeyframeClipboard.items) && window.internalKeyframeClipboard.items.length > 0;
+          const shouldPasteKeyframe = (window.lastClipboardType === 'keyframe' && hasKeyframeClip) || (hasKeyframesSelected && hasKeyframeClip);
+
+          if (shouldPasteKeyframe) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.pasteKeyframes === 'function') {
+              window.pasteKeyframes();
+            }
+            return;
+          }
+        }
 
         const isBracketLeft = (e.code === 'BracketLeft' || e.key === '[' || e.keyCode === 219 || e.key === '“' || e.key === '”');
         const isBracketRight = (e.code === 'BracketRight' || e.key === ']' || e.keyCode === 221 || e.key === '‘' || e.key === '’');

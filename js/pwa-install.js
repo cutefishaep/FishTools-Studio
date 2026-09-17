@@ -35,6 +35,14 @@
     );
   }
 
+  // 2b. Detect macOS Safari
+  function isMacSafari() {
+    var ua = navigator.userAgent;
+    var isMac = /Macintosh|MacIntel|MacPPC|Mac68K/i.test(navigator.platform || '') || /Macintosh/i.test(ua);
+    var isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|Vivaldi|FxiOS/i.test(ua);
+    return isMac && isSafari && !isIOS();
+  }
+
   // 3. Register Service Worker
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
@@ -74,32 +82,49 @@
     var modal = document.getElementById('modal-install-app');
     if (!modal) return;
 
-    // Adapt content for iOS / Desktop / Native prompt
+    // Adapt content for iOS / macOS Safari / Generic Desktop / Native prompt
     var iosCard = document.getElementById('install-ios-instructions');
+    var macCard = document.getElementById('install-mac-safari-instructions');
     var desktopCard = document.getElementById('install-desktop-instructions');
     var nativeAction = document.getElementById('install-pwa-action-btn');
+    var actionText = nativeAction ? nativeAction.querySelector('span') : null;
     var defaultDesc = document.getElementById('install-modal-desc');
 
-    if (isIOS() && !deferredPrompt) {
-      if (iosCard) iosCard.style.display = 'block';
-      if (desktopCard) desktopCard.style.display = 'none';
-      if (nativeAction) nativeAction.style.display = 'none';
-      if (defaultDesc) {
-        defaultDesc.textContent = 'To install OpenFishTools Studio on iOS, tap Share in Safari and select Add to Home Screen.';
-      }
-    } else if (!deferredPrompt) {
-      if (iosCard) iosCard.style.display = 'none';
-      if (desktopCard) desktopCard.style.display = 'block';
-      if (nativeAction) nativeAction.style.display = 'none';
-      if (defaultDesc) {
-        defaultDesc.textContent = 'Install OpenFishTools Studio as a standalone desktop application directly from your browser.';
-      }
-    } else {
-      if (iosCard) iosCard.style.display = 'none';
-      if (desktopCard) desktopCard.style.display = 'none';
-      if (nativeAction) nativeAction.style.display = 'inline-flex';
+    if (iosCard) iosCard.style.display = 'none';
+    if (macCard) macCard.style.display = 'none';
+    if (desktopCard) desktopCard.style.display = 'none';
+
+    // Primary action button is ALWAYS visible!
+    if (nativeAction) {
+      nativeAction.style.display = 'inline-flex';
+    }
+
+    if (deferredPrompt) {
+      // Browser with native prompt ready (Chrome, Edge, Android)
+      if (actionText) actionText.textContent = 'Install as App';
       if (defaultDesc) {
         defaultDesc.textContent = 'Install as a standalone app for faster startup, offline access, and durable local project storage.';
+      }
+    } else if (isMacSafari()) {
+      // macOS Safari (Add to Dock)
+      if (macCard) macCard.style.display = 'block';
+      if (actionText) actionText.textContent = 'Got It (File → Add to Dock)';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'Add OpenFishTools Studio to your Mac Dock for native window experience and persistent storage.';
+      }
+    } else if (isIOS()) {
+      // iOS / iPadOS Safari (Add to Home Screen)
+      if (iosCard) iosCard.style.display = 'block';
+      if (actionText) actionText.textContent = 'Got It (Share → Home Screen)';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'Add OpenFishTools Studio to your Home Screen for faster startup and offline access.';
+      }
+    } else {
+      // Generic desktop browser without active prompt
+      if (desktopCard) desktopCard.style.display = 'block';
+      if (actionText) actionText.textContent = 'Got It (Address Bar Install)';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'Install OpenFishTools Studio as a standalone desktop application directly from your browser.';
       }
     }
 
@@ -108,33 +133,77 @@
     }
   }
 
-  // 6. Trigger Browser Native Install Prompt
-  async function triggerInstallPrompt() {
-    if (!deferredPrompt) {
-      if (isIOS()) {
+  // 6. Header Action: Direct Browser Native Install Prompt (or Fallback Modal)
+  async function handleInstallRequest() {
+    if (deferredPrompt) {
+      try {
+        // Direct browser installation API invocation (Chromium / Android / Edge)
+        deferredPrompt.prompt();
+        var choice = await deferredPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          console.log('[PWA] User accepted installation prompt');
+          deferredPrompt = null;
+          updateInstallButton();
+          if (window.Modal && typeof window.Modal.close === 'function') {
+            window.Modal.close();
+          }
+        } else {
+          console.log('[PWA] User dismissed installation prompt');
+        }
+      } catch (err) {
+        console.warn('[PWA] Direct prompt error, falling back to modal:', err);
         openInstallModal();
-        return;
       }
-      // If deferredPrompt not available, alert instructions or open modal
-      openInstallModal();
       return;
     }
 
-    try {
-      deferredPrompt.prompt();
-      var choice = await deferredPrompt.userChoice;
-      if (choice && choice.outcome === 'accepted') {
-        console.log('[PWA] User accepted installation prompt');
-        deferredPrompt = null;
-        if (window.Modal && typeof window.Modal.close === 'function') {
-          window.Modal.close();
+    // Browsers without beforeinstallprompt (Safari macOS, Safari iOS, Firefox, etc.)
+    openInstallModal();
+  }
+
+  // 6b. Action Button Click INSIDE Modal Card
+  async function handleModalActionClick() {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        var choice = await deferredPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          console.log('[PWA] User accepted installation prompt');
+          deferredPrompt = null;
+          updateInstallButton();
         }
-      } else {
-        console.log('[PWA] User dismissed installation prompt');
-        dismissInstallPrompt();
+      } catch (err) {
+        console.warn('[PWA] Modal action prompt error:', err);
       }
-    } catch (err) {
-      console.warn('[PWA] Install prompt error:', err);
+      if (window.Modal && typeof window.Modal.close === 'function') {
+        window.Modal.close();
+      } else {
+        var m = document.getElementById('modal-install-app');
+        if (m) m.classList.remove('is-active');
+      }
+      return;
+    }
+
+    // Modal closed for Safari / unsupported browser
+    if (window.Modal && typeof window.Modal.close === 'function') {
+      window.Modal.close();
+    } else {
+      var m = document.getElementById('modal-install-app');
+      if (m) m.classList.remove('is-active');
+    }
+
+    if (isMacSafari()) {
+      if (typeof window.showDashboardToast === 'function') {
+        window.showDashboardToast("In Safari: Click File → 'Add to Dock...' in your menu bar");
+      }
+    } else if (isIOS()) {
+      if (typeof window.showDashboardToast === 'function') {
+        window.showDashboardToast("In Safari: Tap Share → 'Add to Home Screen'");
+      }
+    } else {
+      if (typeof window.showDashboardToast === 'function') {
+        window.showDashboardToast("Click the Install icon in your browser address bar");
+      }
     }
   }
 
@@ -145,6 +214,9 @@
     } catch (_) {}
     if (window.Modal && typeof window.Modal.close === 'function') {
       window.Modal.close();
+    } else {
+      var m = document.getElementById('modal-install-app');
+      if (m) m.classList.remove('is-active');
     }
   }
 
@@ -190,6 +262,9 @@
     updateInstallButton();
     if (window.Modal && typeof window.Modal.close === 'function') {
       window.Modal.close();
+    } else {
+      var m = document.getElementById('modal-install-app');
+      if (m) m.classList.remove('is-active');
     }
   });
 
@@ -214,13 +289,15 @@
   // Expose global controller
   window.PWAInstall = {
     openModal: openInstallModal,
-    prompt: triggerInstallPrompt,
+    prompt: handleInstallRequest,
+    handleInstallRequest: handleInstallRequest,
+    onModalAction: handleModalActionClick,
     dismiss: dismissInstallPrompt,
     isInstalled: function () {
       return isInstalled;
     },
     isInstallable: function () {
-      return !!deferredPrompt || isIOS();
+      return !!deferredPrompt || isIOS() || isMacSafari();
     }
   };
 })();

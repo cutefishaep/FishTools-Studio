@@ -398,8 +398,8 @@
           rawFps = window.currentTimelineFps;
         } else if (window.currentProjectState && window.currentProjectState.fps) {
           rawFps = window.currentProjectState.fps;
-        } else {
-          const domFps = document.getElementById('dropdown-fps')?.dataset?.value;
+          const fpsEl = document.getElementById('dropdown-fps');
+          const domFps = (fpsEl && fpsEl.dataset) ? fpsEl.dataset.value : null;
           if (domFps) rawFps = domFps;
         }
       }

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.16] - 2026-09-17
 
 ### Added
+- **macOS Safari "Add to Dock" App Installation (`index.html`, `js/pwa-install.js`, `demo.html`)**: Added dedicated detection for Safari on macOS. The modal now directly instructs users how to install via Apple's native **File → Add to Dock...** and toolbar Share button, and guarantees the primary action button is always visible.
 - **Prominent "Install App" Header Action (`index.html`, `css/layout.css`, `js/pwa-install.js`)**: Added a dedicated, high-contrast "Install App" button in the top navigation bar. Automatically adapts across desktop, Android, and iOS Safari with tailored installation modals and address-bar instructions.
 - **Direct `.ofts` Project Drag & Drop (`js/editor.js`)**: Dropping `.ofts` project archives anywhere onto the desktop canvas, timeline, or media pool automatically unpacks and loads the project with the Template Editor open.
 

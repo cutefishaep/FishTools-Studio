@@ -166,26 +166,32 @@
         return inRange(90) || inRange(270) || inRange(-90) || inRange(-270);
       };
 
+      function def(v1, v2, v3) {
+        if (v1 !== undefined && v1 !== null) return v1;
+        if (v2 !== undefined && v2 !== null) return v2;
+        return v3 !== undefined ? v3 : 0;
+      }
+
       // posX/posY: getLayerEffectivePropsAtTime always sets these in baseProps,
       // so if p0.posX === undefined the layer truly has no position data — use layer fallback
-      const x0 = p0.posX !== undefined ? p0.posX : (layer.posX ?? 0);
-      const x1 = p1.posX !== undefined ? p1.posX : (layer.posX ?? 0);
-      const y0 = p0.posY !== undefined ? p0.posY : (layer.posY ?? 0);
-      const y1 = p1.posY !== undefined ? p1.posY : (layer.posY ?? 0);
+      const x0 = p0.posX !== undefined ? p0.posX : (layer.posX !== undefined ? layer.posX : 0);
+      const x1 = p1.posX !== undefined ? p1.posX : (layer.posX !== undefined ? layer.posX : 0);
+      const y0 = p0.posY !== undefined ? p0.posY : (layer.posY !== undefined ? layer.posY : 0);
+      const y1 = p1.posY !== undefined ? p1.posY : (layer.posY !== undefined ? layer.posY : 0);
 
       const dx  = Math.abs(x0 - x1);
       const dy  = Math.abs(y0 - y1);
-      const dz  = Math.abs((p0.posZ  ?? layer.posZ  ?? 0) - (p1.posZ  ?? layer.posZ  ?? 0));
-      const dsX = Math.abs((p0.scaleW ?? layer.scaleW ?? 1) - (p1.scaleW ?? layer.scaleW ?? 1));
-      const dsY = Math.abs((p0.scaleH ?? layer.scaleH ?? 1) - (p1.scaleH ?? layer.scaleH ?? 1));
+      const dz  = Math.abs(def(p0.posZ, layer.posZ, 0) - def(p1.posZ, layer.posZ, 0));
+      const dsX = Math.abs(def(p0.scaleW, layer.scaleW, 1) - def(p1.scaleW, layer.scaleW, 1));
+      const dsY = Math.abs(def(p0.scaleH, layer.scaleH, 1) - def(p1.scaleH, layer.scaleH, 1));
 
       // Shortest-path angular diffs (avoids 340° reading for a 20° wrap-around move)
-      const r0Z = p0.rotZ ?? layer.rotZ ?? layer.rotation ?? 0;
-      const r1Z = p1.rotZ ?? layer.rotZ ?? layer.rotation ?? 0;
-      const r0X = p0.rotX ?? layer.rotX ?? 0;
-      const r1X = p1.rotX ?? layer.rotX ?? 0;
-      const r0Y = p0.rotY ?? layer.rotY ?? 0;
-      const r1Y = p1.rotY ?? layer.rotY ?? 0;
+      const r0Z = def(p0.rotZ, layer.rotZ, def(layer.rotation, 0));
+      const r1Z = def(p1.rotZ, layer.rotZ, def(layer.rotation, 0));
+      const r0X = def(p0.rotX, layer.rotX, 0);
+      const r1X = def(p1.rotX, layer.rotX, 0);
+      const r0Y = def(p0.rotY, layer.rotY, 0);
+      const r1Y = def(p1.rotY, layer.rotY, 0);
 
       const drZ  = angDiff(r0Z, r1Z);
       const drX  = angDiff(r0X, r1X);
@@ -197,10 +203,10 @@
       const drYpole = (drY > 0.001 && crossesPole(r0Y, r1Y)) ? 999 : drY;
       const drXpole = (drX > 0.001 && crossesPole(r0X, r1X)) ? 999 : drX;
 
-      const dskX = Math.abs((p0.skewX ?? layer.skewX ?? 0) - (p1.skewX ?? layer.skewX ?? 0));
-      const dskY = Math.abs((p0.skewY ?? layer.skewY ?? 0) - (p1.skewY ?? layer.skewY ?? 0));
-      const dax  = Math.abs((p0.anchorX ?? layer.anchorX ?? 0) - (p1.anchorX ?? layer.anchorX ?? 0));
-      const day  = Math.abs((p0.anchorY ?? layer.anchorY ?? 0) - (p1.anchorY ?? layer.anchorY ?? 0));
+      const dskX = Math.abs(def(p0.skewX, layer.skewX, 0) - def(p1.skewX, layer.skewX, 0));
+      const dskY = Math.abs(def(p0.skewY, layer.skewY, 0) - def(p1.skewY, layer.skewY, 0));
+      const dax  = Math.abs(def(p0.anchorX, layer.anchorX, 0) - def(p1.anchorX, layer.anchorX, 0));
+      const day  = Math.abs(def(p0.anchorY, layer.anchorY, 0) - def(p1.anchorY, layer.anchorY, 0));
 
       return (dx > eps || dy > eps || dz > eps || dsX > eps || dsY > eps ||
               drZ > eps || drXpole > eps || drYpole > eps || dskX > eps || dskY > eps ||

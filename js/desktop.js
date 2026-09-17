@@ -1962,8 +1962,8 @@
             windowSelectedLayerIds: Array.from(window.selectedLayerIds || []),
             windowSelectedLayerId: window.selectedLayerId,
             isSelectorMode: window.isSelectorMode,
-            batchTitle: document.getElementById('editor-layer-batch-title')?.textContent,
-            batchDisplay: document.getElementById('editor-layer-batch-title')?.style.display
+            batchTitle: (function() { var el = document.getElementById('editor-layer-batch-title'); return el ? el.textContent : ''; })(),
+            batchDisplay: (function() { var el = document.getElementById('editor-layer-batch-title'); return el ? el.style.display : 'none'; })()
           });
         }, 1200);
       }
@@ -2071,7 +2071,8 @@
       leftPrecomp._bound = true;
       leftPrecomp.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.getElementById('btn-layer-header-precomp')?.click();
+        var target = document.getElementById('btn-layer-header-precomp');
+        if (target) target.click();
       });
     }
     const leftMask = document.getElementById('btn-layer-header-left-group-mask');
@@ -2079,7 +2080,8 @@
       leftMask._bound = true;
       leftMask.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.getElementById('btn-layer-header-group-mask')?.click();
+        var target = document.getElementById('btn-layer-header-group-mask');
+        if (target) target.click();
       });
     }
     const leftExclude = document.getElementById('btn-layer-header-left-group-exclude');
@@ -2087,7 +2089,8 @@
       leftExclude._bound = true;
       leftExclude.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.getElementById('btn-layer-header-group-exclude')?.click();
+        var target = document.getElementById('btn-layer-header-group-exclude');
+        if (target) target.click();
       });
     }
 
@@ -2622,14 +2625,18 @@
   let mobilePromptDismissedThisSession = false;
 
   function isMobileOrSmallScreen() {
-    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent) ||
+    const ua = navigator.userAgent || '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|SM-G/i.test(ua) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
       (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-    const isNarrowViewport = window.innerWidth <= 900 || (window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+    const w = window.innerWidth || (document.documentElement ? document.documentElement.clientWidth : 0) || (window.screen ? window.screen.width : 0) || 0;
+    const sw = (window.screen && window.screen.width) ? window.screen.width : 0;
+    const isNarrowViewport = (w > 0 && w <= 900) || (sw > 0 && sw <= 900) || (window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
     return isNarrowViewport || isMobileUA;
   }
 
-  function checkAndPromptMobileSwitch(force = false) {
+  function checkAndPromptMobileSwitch(force) {
+    force = Boolean(force);
     if (!force) {
       try {
         if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay') {

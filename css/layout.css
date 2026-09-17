@@ -929,6 +929,20 @@ html, body {
   }
 }
 
+@media (max-width: 380px) {
+  .studio-header {
+    padding: 24px 14px 0 14px;
+  }
+  .studio-header-actions {
+    gap: 4px;
+  }
+  .studio-top-btn-install {
+    padding: 0 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+}
+
 /* --------------------------------------------------------------------------
    2. FOLD (Samsung Z-Fold: 601px - 840px)
    - Lebar 50% persis mengisi layar kanan agar tidak memotong tekukan (crease)

@@ -38,6 +38,9 @@ jobs:
       - name: Install Node dependencies
         run: npm install
 
+      - name: Prepare native web assets
+        run: node scripts/build-native-dist.js
+
       - name: Build and Release Tauri App
         uses: tauri-apps/tauri-action@v0
         env:

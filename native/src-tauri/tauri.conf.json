@@ -4,7 +4,6 @@
   "version": "0.5.20",
   "identifier": "com.openfishtools.studio",
   "build": {
-    "beforeBuildCommand": "node ../../scripts/build-native-dist.js",
     "frontendDist": "../dist"
   },
   "app": {

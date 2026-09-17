@@ -970,9 +970,6 @@
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-video-import-options')" style="padding: 12px 24px; font-size: 14px;">
                   Open "Video Import Options" Modal
                 </button>
-                <button type="button" class="theme-btn" onclick="Modal.open('modal-install-app')" style="padding: 12px 24px; font-size: 14px;">
-                  Open "Install as App" Modal
-                </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-switch-mobile')" style="padding: 12px 24px; font-size: 14px;">
                   Open "Switch to Mobile" Modal
                 </button>
@@ -1013,22 +1010,6 @@
         &lt;span&gt;Confirm&lt;/span&gt;
       &lt;/button&gt;
     &lt;/footer&gt;
-  &lt;/div&gt;
-&lt;/div&gt;</code></pre>
-            <pre class="code-snippet-body" style="margin-top: 12px;"><code id="code-install-modal-example">&lt;!-- Install as App Pop-up Boilerplate --&gt;
-&lt;div class="modal-backdrop" id="modal-install-app" role="dialog" aria-modal="true" aria-label="Install App"&gt;
-  &lt;div class="modal-card install-modal-card" onclick="event.stopPropagation()"&gt;
-    &lt;div class="install-modal-hero"&gt;
-      &lt;div class="install-app-icon-wrapper"&gt;
-        &lt;img src="assets/icon.svg" class="install-app-icon-img" alt="App Icon"&gt;
-      &lt;/div&gt;
-      &lt;h2 class="install-modal-title"&gt;Install Studio App&lt;/h2&gt;
-      &lt;p class="install-modal-desc"&gt;Standalone window with persistent local storage.&lt;/p&gt;
-    &lt;/div&gt;
-    &lt;div class="install-modal-actions"&gt;
-      &lt;button type="button" class="install-btn-secondary" onclick="Modal.close()"&gt;Maybe Later&lt;/button&gt;
-      &lt;button type="button" class="install-btn-primary" onclick="PWAInstall.prompt()"&gt;Install as App&lt;/button&gt;
-    &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
           </div>
@@ -6084,127 +6065,6 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
     </div>
   </div>
 
-  <!-- Install as App Modal Demo -->
-  <div class="modal-backdrop" id="modal-install-app" role="dialog" aria-modal="true" aria-label="Install OpenFishTools Studio">
-    <div class="modal-card install-modal-card" onclick="event.stopPropagation()">
-      <div class="install-modal-hero">
-        <div class="install-app-icon-wrapper">
-          <img src="assets/icon.svg" class="install-app-icon-img" alt="OpenFishTools App Icon">
-        </div>
-        <h2 class="install-modal-title">Install OpenFishTools Studio</h2>
-        <p class="install-modal-desc" id="install-modal-desc">Install as a standalone app for faster startup, offline access, and durable local project storage.</p>
-      </div>
-
-      <div class="install-features-list">
-        <div class="install-feature-item">
-          <div class="install-feature-icon">
-            <svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H5V8h14v10z"/></svg>
-          </div>
-          <div class="install-feature-text">
-            <span class="install-feature-title">Standalone App Window</span>
-            <span class="install-feature-subtitle">Clean workspace free from browser tabs and URL bars</span>
-          </div>
-        </div>
-        <div class="install-feature-item">
-          <div class="install-feature-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
-          </div>
-          <div class="install-feature-text">
-            <span class="install-feature-title">Persistent Data Protection</span>
-            <span class="install-feature-subtitle">Immune to browser cache clearance &amp; storage eviction</span>
-          </div>
-        </div>
-        <div class="install-feature-item">
-          <div class="install-feature-icon">
-            <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
-          </div>
-          <div class="install-feature-text">
-            <span class="install-feature-title">Instant Boot &amp; Offline Ready</span>
-            <span class="install-feature-subtitle">Loads immediately even when offline</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- iOS Step-by-Step Instructions -->
-      <div class="install-ios-card" id="install-ios-instructions">
-        <div class="install-ios-title">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-          <span>Install on iPhone / iPad</span>
-        </div>
-        <ol class="install-ios-steps">
-          <li>Tap <strong>Share</strong> (square with arrow up) in Safari.</li>
-          <li>Scroll and tap <strong>"Add to Home Screen"</strong>.</li>
-          <li>Tap <strong>"Add"</strong> at top right to install.</li>
-        </ol>
-      </div>
-
-      <!-- macOS Safari Step-by-Step Instructions -->
-      <div class="install-ios-card" id="install-mac-safari-instructions" style="display: none;">
-        <div class="install-ios-title">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.87-.96.04-2.12.64-2.79 1.43-.59.68-1.1 1.74-.96 2.79 1.07.08 2.12-.55 2.74-1.35z"/>
-          </svg>
-          <span>Install on Mac (Safari)</span>
-        </div>
-        <ol class="install-ios-steps">
-          <li>Click <strong>File</strong> in the Mac menu bar, or click the <strong>Share</strong> button (<svg viewBox="0 0 24 24" width="12" height="12" style="vertical-align: -1px;" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>) in Safari toolbar.</li>
-          <li>Select <strong>"Add to Dock..."</strong>.</li>
-          <li>Click <strong>"Add"</strong> to install OpenFishTools Studio as a Mac app.</li>
-        </ol>
-      </div>
-
-      <!-- Firefox Desktop Notice Card -->
-      <div class="install-ios-card" id="install-firefox-instructions" style="display: none;">
-        <div class="install-ios-title">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-          </svg>
-          <span>Firefox Desktop PWA Notice</span>
-        </div>
-        <p style="margin: 0 0 10px 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary);">
-          Mozilla Firefox on desktop does not natively support standalone PWA installation.
-        </p>
-        <ol class="install-ios-steps">
-          <li><strong>Bookmark this page:</strong> Press <strong id="firefox-bookmark-shortcut">Cmd + D</strong> for instant 1-click access. Offline caching &amp; database storage work completely within your browser!</li>
-          <li><strong>Standalone App:</strong> To run as an isolated desktop window app, open OpenFishTools in <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong>, or <strong>Safari</strong> (macOS).</li>
-        </ol>
-      </div>
-
-      <!-- Firefox Android Instructions -->
-      <div class="install-ios-card" id="install-firefox-android-instructions" style="display: none;">
-        <div class="install-ios-title">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-          </svg>
-          <span>Install on Firefox (Android)</span>
-        </div>
-        <ol class="install-ios-steps">
-          <li>Tap the <strong>three dots (⋮)</strong> menu button in Firefox.</li>
-          <li>Select <strong>"Install"</strong> (or <strong>"Add to Home screen"</strong>).</li>
-        </ol>
-      </div>
-
-      <!-- Desktop Browser Manual Instructions -->
-      <div class="install-ios-card" id="install-desktop-instructions" style="display: none;">
-        <div class="install-ios-title">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
-          <span>Install on Desktop Browser</span>
-        </div>
-        <ol class="install-ios-steps">
-          <li>Click the <strong>Install icon</strong> (⊕ or 💻) in your browser address bar (top right).</li>
-          <li>Or click browser menu (<strong>⋮</strong>) &rarr; <strong>"Install OpenFishTools Studio"</strong>.</li>
-        </ol>
-      </div>
-
-      <div class="install-modal-actions">
-        <button type="button" class="install-btn-secondary" onclick="Modal.close()">Maybe Later</button>
-        <button type="button" class="install-btn-primary" id="install-pwa-action-btn" onclick="alert('PWA install prompt simulated'); Modal.close();">
-          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-          <span>Install as App</span>
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- Switch to Mobile View Modal Demo -->
   <div class="modal-backdrop" id="modal-switch-mobile" role="dialog" aria-modal="true" aria-label="Switch to Mobile View">

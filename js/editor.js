@@ -948,6 +948,17 @@
           }
           redrawComposition();
         };
+        img.onerror = () => {
+          console.warn('[Editor] Image load error for layer:', layer.id, layer.name);
+          if (layer.mediaId && window.FishDatabase && typeof window.FishDatabase.getMedia === 'function') {
+            window.FishDatabase.getMedia(layer.mediaId).then(m => {
+              if (m && m.dataUrl && m.dataUrl !== img.src) {
+                layer.dataUrl = m.dataUrl;
+                img.src = m.dataUrl;
+              }
+            }).catch(() => {});
+          }
+        };
         if (layer.dataUrl) {
           img.src = layer.dataUrl;
         }
@@ -1175,11 +1186,11 @@
 
       // Fallback async hydration if layer.dataUrl is missing or dead blob URL
       const isDeadBlob = layer.dataUrl && typeof layer.dataUrl === 'string' && layer.dataUrl.startsWith('blob:') && !(window._activeMediaMap && window._activeMediaMap.has(layer.mediaId));
-      if ((!layer.dataUrl || isDeadBlob) && (layer.mediaId || layer.type === 'video' || layer.type === 'audio') && window.FishDatabase && currentProjectState.id) {
+      if ((!layer.dataUrl || isDeadBlob) && (layer.mediaId || layer.type === 'video' || layer.type === 'audio' || layer.type === 'image') && window.FishDatabase && currentProjectState.id) {
         window.FishDatabase.getProjectMedia(currentProjectState.id).then(medias => {
           let m = (medias || []).find(item => item.id === layer.mediaId);
-          if (!m && (layer.type === 'video' || layer.type === 'audio')) {
-            m = (medias || []).find(item => item.id === layer.id || item.name === layer.name);
+          if (!m) {
+            m = (medias || []).find(item => item.id === layer.id || item.name === layer.name || (item.name && layer.name && (item.name.includes(layer.name) || layer.name.includes(item.name))));
             if (m) layer.mediaId = m.id;
           }
           if (m) {
@@ -17266,9 +17277,22 @@
         window._activeMediaMap = window._activeMediaMap || new Map();
         // Hydrate or merge in-memory session media items so live dataUrls are never lost
         mediaItems.forEach(item => {
+          if (!item.dataUrl && item.buffer) {
+            try {
+              item.blob = new Blob([item.buffer], { type: item.mimeType || '' });
+              item.dataUrl = URL.createObjectURL(item.blob);
+            } catch (_) {}
+          } else if (!item.dataUrl && item.blob) {
+            try {
+              item.dataUrl = URL.createObjectURL(item.blob);
+            } catch (_) {}
+          }
           if ((!item.dataUrl || item.dataUrl.startsWith('blob:')) && window._activeMediaMap.has(item.id)) {
             const cached = window._activeMediaMap.get(item.id);
             if (cached && cached.dataUrl) item.dataUrl = cached.dataUrl;
+          }
+          if (item.dataUrl && !window._activeMediaMap.has(item.id)) {
+            window._activeMediaMap.set(item.id, item);
           }
         });
         window._activeMediaMap.forEach(item => {

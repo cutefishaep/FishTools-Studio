@@ -5,6 +5,19 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.21] - 2026-09-17
+
+### Fixed
+- **`.ofts` Project Export & Import Missing Media Pipeline (`js/db.js`, `js/editor.js`)**:
+  - Fixed critical bug where exported `.ofts` archives contained an empty `media/` directory because `exportProjectToOFTS` only recognized `item.blob instanceof Blob` and ignored IndexedDB's native `item.buffer` (`ArrayBuffer` / `Uint8Array`).
+  - Rewrote export loop as an async pipeline with multi-source media resolution: direct `Blob`, `ArrayBuffer`, `window._activeMediaMap`, IndexedDB `getMedia()`, and URL fetching.
+  - Increased premature IndexedDB transaction timeouts (`openDB` 1.5s $\rightarrow$ 10s, `getProjectMedia` 1.2s $\rightarrow$ 15s, `saveMedia` 2.5s $\rightarrow$ 15s, `getMedia` 2s $\rightarrow$ 15s) to eliminate race condition where multi-megabyte project media timed out and silently fell back to empty localStorage metadata shells.
+  - Enhanced `importOFTSPackage` to extract raw binary `ArrayBuffer` directly into IndexedDB, populate `window._activeMediaMap`, and match media IDs cleanly to timeline layers.
+  - Expanded layer media hydration in `editor.js` to support image layers and match by layer name if `mediaId` is missing or remapped.
+  - Added `img.onerror` auto-recovery handler in `getLayerMediaElement` to re-fetch broken image layers dynamically from IndexedDB.
+
+---
+
 ## [0.5.20] - 2026-09-17
 
 ### Fixed

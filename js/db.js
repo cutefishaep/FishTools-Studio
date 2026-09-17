@@ -72,7 +72,7 @@ window.FishDatabase = (function () {
       var safetyTimer = setTimeout(function () {
         console.warn('FishDatabase openDB timeout, falling back to localStorage');
         done(null);
-      }, 1500);
+      }, 10000);
 
       try {
         var req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -486,7 +486,7 @@ window.FishDatabase = (function () {
             return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
           });
           resolve(local.map(_projectToListMeta));
-        }, 1500);
+        }, 10000);
 
         try {
           var tx = db.transaction('projects', 'readonly');
@@ -559,7 +559,7 @@ window.FishDatabase = (function () {
         var safetyTimer = setTimeout(function () {
           var found = getLocalBackup(id);
           resolve(found ? stripDeadBlobUrls(found) : null);
-        }, 1500);
+        }, 10000);
 
         try {
           var tx = db.transaction('projects', 'readonly');
@@ -1293,14 +1293,14 @@ window.FishDatabase = (function () {
       return new Promise(function (resolve) {
         var isDone = false;
         console.log('[FishDatabase] 💾 saveMedia starting for:', mediaItem.name, '(' + (mediaItem.type || 'media') + ')');
-        // Fast optimistic timeout (2500ms max) avoids 30s UI freeze
+        // Safe timeout (15000ms) allows large buffers to write without premature fallback
         var saveTimer = setTimeout(function () {
           if (isDone) return;
           isDone = true;
           console.warn('[FishDatabase] ⚠️ saveMedia timeout, saving optimistic fallback for:', mediaItem.name);
           saveToLocalFull(mediaItem);
           resolve(mediaItem);
-        }, 2500);
+        }, 15000);
 
         function finish(item) {
           if (isDone) return;
@@ -1456,7 +1456,7 @@ window.FishDatabase = (function () {
             console.warn('[FishDatabase] getProjectMedia transaction timeout, returning fallback');
             var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
             resolve(local);
-          }, 1200);
+          }, 15000);
 
           function finish(items) {
             if (isDone) return;
@@ -1537,7 +1537,7 @@ window.FishDatabase = (function () {
           isDone = true;
           var found = getLocalMedia().find(function (item) { return item.id === id; });
           resolve(found || null);
-        }, 2000);
+        }, 15000);
 
         try {
           var tx = db.transaction('media', 'readonly');
@@ -1587,7 +1587,7 @@ window.FishDatabase = (function () {
           if (isDone) return;
           isDone = true;
           resolve(getLocalMedia());
-        }, 2500);
+        }, 15000);
 
         try {
           var tx = db.transaction('media', 'readonly');
@@ -2095,6 +2095,53 @@ window.FishDatabase = (function () {
     if (!project) return null;
     var mediaItems = (await getProjectMedia(projectId)) || [];
 
+    // 1. Supplement with in-memory session media items from window._activeMediaMap
+    if (typeof window !== 'undefined' && window._activeMediaMap) {
+      window._activeMediaMap.forEach(function (activeItem, id) {
+        if (activeItem && (activeItem.projectId === projectId || !activeItem.projectId)) {
+          var existingIdx = mediaItems.findIndex(function (m) { return m && m.id === id; });
+          if (existingIdx >= 0) {
+            var ex = mediaItems[existingIdx];
+            if (!ex.blob && activeItem.blob) ex.blob = activeItem.blob;
+            if (!ex.buffer && activeItem.buffer) ex.buffer = activeItem.buffer;
+            if (!ex.dataUrl && activeItem.dataUrl) ex.dataUrl = activeItem.dataUrl;
+          } else {
+            mediaItems.push(Object.assign({}, activeItem));
+          }
+        }
+      });
+    }
+
+    // 2. Also check if any layer in project references a mediaId not in mediaItems
+    var mediaMap = new Map();
+    mediaItems.forEach(function (m) { if (m && m.id) mediaMap.set(m.id, m); });
+
+    var layersToCheck = [];
+    if (Array.isArray(project.layers)) {
+      var collectLayers = function (arr) {
+        arr.forEach(function (l) {
+          if (!l) return;
+          layersToCheck.push(l);
+          if (Array.isArray(l.layers)) collectLayers(l.layers);
+        });
+      };
+      collectLayers(project.layers);
+    }
+
+    for (var i = 0; i < layersToCheck.length; i++) {
+      var l = layersToCheck[i];
+      var targetMediaId = l.mediaId || l.fillMediaId;
+      if (targetMediaId && !mediaMap.has(targetMediaId)) {
+        try {
+          var directMedia = await getMedia(targetMediaId, true);
+          if (directMedia) {
+            mediaItems.push(directMedia);
+            mediaMap.set(targetMediaId, directMedia);
+          }
+        } catch (_) {}
+      }
+    }
+
     // Sanitize project metadata & layers, extracting embedded base64 layers if any
     var projectData = sanitizeProjectForExport(project, mediaItems);
     projectData.isTemplate = true;
@@ -2219,24 +2266,93 @@ window.FishDatabase = (function () {
         return false;
       }
 
-      reportProgress(15, 'Preparing media archive...');
+      reportProgress(12, 'Preparing media archive...');
 
       var zip = new JSZip();
       zip.file("project.json", pkg.projectJson);
       if (pkg.mediaItems && pkg.mediaItems.length > 0) {
         var mediaFolder = zip.folder("media");
-        pkg.mediaItems.forEach(function (item) {
-          var blobData = null;
-          if (item.blob instanceof Blob) {
-            blobData = item.blob;
-          } else if (item.dataUrl) {
-            blobData = dataUrlToBlob(item.dataUrl);
+        var total = pkg.mediaItems.length;
+
+        for (var i = 0; i < total; i++) {
+          var item = pkg.mediaItems[i];
+          var packPct = Math.min(25, 12 + Math.round((i / total) * 13));
+          reportProgress(packPct, 'Packing media (' + (i + 1) + '/' + total + '): ' + (item.name || 'asset'));
+
+          var binaryData = null;
+
+          // 1. Direct Blob
+          if (item.blob instanceof Blob && item.blob.size > 0) {
+            binaryData = item.blob;
           }
-          if (blobData) {
+          // 2. Direct ArrayBuffer / TypedArray
+          else if (item.buffer && (item.buffer instanceof ArrayBuffer || ArrayBuffer.isView(item.buffer))) {
+            binaryData = item.buffer;
+          }
+
+          // 3. Memory map fallback
+          if (!binaryData && typeof window !== 'undefined' && window._activeMediaMap && window._activeMediaMap.has(item.id)) {
+            var active = window._activeMediaMap.get(item.id);
+            if (active) {
+              if (active.blob instanceof Blob && active.blob.size > 0) {
+                binaryData = active.blob;
+              } else if (active.buffer && (active.buffer instanceof ArrayBuffer || ArrayBuffer.isView(active.buffer))) {
+                binaryData = active.buffer;
+              } else if (active.dataUrl && typeof active.dataUrl === 'string') {
+                if (active.dataUrl.startsWith('data:')) {
+                  binaryData = dataUrlToBlob(active.dataUrl);
+                } else if (active.dataUrl.startsWith('blob:')) {
+                  try {
+                    var r = await fetch(active.dataUrl);
+                    binaryData = await r.blob();
+                  } catch (_) {}
+                }
+              }
+            }
+          }
+
+          // 4. Retrieve directly from IndexedDB getMedia
+          if (!binaryData && item.id) {
+            try {
+              var rec = await getMedia(item.id, true);
+              if (rec) {
+                if (rec.blob instanceof Blob && rec.blob.size > 0) {
+                  binaryData = rec.blob;
+                } else if (rec.buffer && (rec.buffer instanceof ArrayBuffer || ArrayBuffer.isView(rec.buffer))) {
+                  binaryData = rec.buffer;
+                } else if (rec.dataUrl && typeof rec.dataUrl === 'string') {
+                  if (rec.dataUrl.startsWith('data:')) {
+                    binaryData = dataUrlToBlob(rec.dataUrl);
+                  } else if (rec.dataUrl.startsWith('blob:')) {
+                    try {
+                      var r2 = await fetch(rec.dataUrl);
+                      binaryData = await r2.blob();
+                    } catch (_) {}
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+
+          // 5. Check item.dataUrl
+          if (!binaryData && item.dataUrl && typeof item.dataUrl === 'string') {
+            if (item.dataUrl.startsWith('data:')) {
+              binaryData = dataUrlToBlob(item.dataUrl);
+            } else if (item.dataUrl.startsWith('blob:')) {
+              try {
+                var r3 = await fetch(item.dataUrl);
+                binaryData = await r3.blob();
+              } catch (_) {}
+            }
+          }
+
+          if (binaryData) {
             var targetName = item.archiveFilename || ('media_' + item.id + '_' + (item.name || 'asset').replace(/[^a-zA-Z0-9._-]/g, '_'));
-            mediaFolder.file(targetName, blobData);
+            mediaFolder.file(targetName, binaryData);
+          } else {
+            console.warn('[FishDatabase] ⚠️ Could not find binary payload for media item:', item.name, item.id);
           }
-        });
+        }
       }
 
       reportProgress(20, 'Compressing archive (DEFLATE 9)...');
@@ -2384,40 +2500,78 @@ window.FishDatabase = (function () {
 
         // Try exact match with manifest filename or original name or media id prefix
         var matchDesc = declaredMedia.find(function (m) {
-          return m && (
-            m.filename === rawFileName ||
-            m.name === rawFileName ||
-            rawFileName.startsWith('media_' + m.id + '_') ||
-            rawFileName === ('media_' + m.id)
-          );
+          if (!m) return false;
+          if (m.filename === rawFileName) return true;
+          if (m.name === rawFileName) return true;
+          if (m.id && rawFileName === ('media_' + m.id)) return true;
+          if (m.id && rawFileName.startsWith('media_' + m.id + '_')) return true;
+          if (m.id && rawFileName.includes(m.id)) return true;
+          return false;
         }) || {};
 
-        var mediaId = matchDesc.id || (rawFileName.startsWith('media_') ? rawFileName.split('_')[1] : null) || ('media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+        var mediaId = matchDesc.id || (rawFileName.startsWith('media_') ? rawFileName.replace(/^media_/, '').replace(/\.[^/.]+$/, '') : null) || ('med_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + i);
         var displayName = matchDesc.name || rawFileName.replace(/^media_[^_]+_/, '');
+
+        var ext = (rawFileName.split('.').pop() || '').toLowerCase();
+        var mime = matchDesc.mimeType || (
+          ext === 'png' ? 'image/png' :
+          ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
+          ext === 'webp' ? 'image/webp' :
+          ext === 'mp4' ? 'video/mp4' :
+          ext === 'webm' ? 'video/webm' :
+          ext === 'mov' ? 'video/quicktime' :
+          ext === 'mp3' ? 'audio/mpeg' :
+          ext === 'wav' ? 'audio/wav' :
+          ''
+        );
+        var type = matchDesc.type || (
+          ['mp4', 'mov', 'webm', 'mkv'].includes(ext) || (mime && mime.startsWith('video/')) ? 'video' :
+          ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext) || (mime && mime.startsWith('audio/')) ? 'audio' : 'image'
+        );
 
         // Extract raw binary Blob directly
         var blob = await zipEntry.async("blob");
-        var type = matchDesc.type || (blob.type.startsWith('video/') ? 'video' : blob.type.startsWith('audio/') ? 'audio' : 'image');
+        if (mime && (!blob.type || blob.type === 'application/octet-stream')) {
+          blob = new Blob([blob], { type: mime });
+        }
 
-        // Store directly as native Blob in IndexedDB with ZERO memory-waste base64 string
+        var buffer = null;
+        if (typeof blob.arrayBuffer === 'function') {
+          try {
+            buffer = await blob.arrayBuffer();
+          } catch (_) {}
+        }
+
+        var blobUrl = '';
+        try {
+          blobUrl = URL.createObjectURL(blob);
+        } catch (_) {}
+
         var mediaItem = {
           id: mediaId,
           projectId: savedProject.id,
           name: displayName,
           type: type,
-          mimeType: blob.type || matchDesc.mimeType || '',
+          mimeType: mime || blob.type || '',
           size: blob.size || matchDesc.size || 0,
           width: matchDesc.width || null,
           height: matchDesc.height || null,
           duration: matchDesc.duration || null,
-          dataUrl: '', // Zero base64 string! Hydrated on-demand via URL.createObjectURL(blob)
+          dataUrl: blobUrl,
           blob: blob,
+          buffer: buffer,
+          thumbUrl: (type === 'image' ? blobUrl : ''),
           createdAt: new Date().toISOString()
         };
 
+        if (typeof window !== 'undefined') {
+          window._activeMediaMap = window._activeMediaMap || new Map();
+          window._activeMediaMap.set(mediaId, mediaItem);
+        }
+
         await saveMedia(mediaItem);
-        // Explicitly dereference to assist GC
         blob = null;
+        buffer = null;
         mediaItem = null;
       }
     }

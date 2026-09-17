@@ -37,9 +37,47 @@
   <script src="js/sync-height.js"></script>
   <script>
     window.DEBUG = true;
+    try {
+      var _urlParams = new URLSearchParams(window.location.search);
+      var _urlName = _urlParams.get('name');
+      var _urlId = _urlParams.get('id');
+      if (_urlName) {
+        document.title = _urlName + ' - OpenFishTools Studio';
+      } else if (_urlId) {
+        var _cached = localStorage.getItem('oft_active_project_backup_' + _urlId);
+        if (_cached) {
+          var _parsed = JSON.parse(_cached);
+          if (_parsed && _parsed.name) document.title = _parsed.name + ' - OpenFishTools Studio';
+        }
+      }
+    } catch (_) {}
+    window._dismissLoadingOverlay = function() {
+      var ov = document.getElementById('editor-loading-overlay');
+      if (ov && !ov.classList.contains('is-hidden')) {
+        ov.classList.add('is-hidden');
+        setTimeout(function() {
+          try { ov.remove(); } catch (_) { ov.style.display = 'none'; }
+        }, 250);
+      }
+    };
+    setTimeout(function() {
+      if (typeof window._dismissLoadingOverlay === 'function') {
+        window._dismissLoadingOverlay();
+      }
+    }, 4000);
   </script>
 </head>
 <body oncontextmenu="return false;" onselectstart="return false;">
+
+  <!-- Fullscreen Project Loading Overlay (Dismissed immediately after composition loads) -->
+  <div id="editor-loading-overlay" class="editor-loading-overlay" aria-label="Loading Project" role="status">
+    <div class="editor-loading-content">
+      <img src="assets/icon.svg" alt="OpenFishTools" class="editor-loading-logo" width="52" height="52">
+      <div class="editor-loading-spinner" aria-hidden="true"></div>
+      <div class="editor-loading-title" id="editor-loading-title">Loading Project...</div>
+      <div class="editor-loading-sub">Preparing composition & assets</div>
+    </div>
+  </div>
 
   <div class="editor-viewport desktop-viewport">
     

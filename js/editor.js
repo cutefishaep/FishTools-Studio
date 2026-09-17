@@ -16170,6 +16170,10 @@
         nameInput.value = initialProjectName;
         document.title = `${initialProjectName} - OpenFishTools Studio`;
       }
+      const loadingTitleEl = document.getElementById('editor-loading-title');
+      if (loadingTitleEl && initialProjectName) {
+        loadingTitleEl.textContent = `Loading "${initialProjectName}"...`;
+      }
 
       // Clean up all non-essential studio caches in background (non-blocking, deferred)
       if (typeof window.cleanupAllStudioCaches === 'function') {
@@ -16504,6 +16508,11 @@
 
       if (typeof redrawComposition === 'function') {
         redrawComposition('initProjectLoaded');
+      }
+
+      // Dismiss loading screen overlay cleanly as soon as initial project layout and canvas render
+      if (typeof window._dismissLoadingOverlay === 'function') {
+        window._dismissLoadingOverlay();
       }
 
       // Non-blocking layer media hydration from IndexedDB Media Pool

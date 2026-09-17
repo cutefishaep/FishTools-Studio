@@ -24174,7 +24174,9 @@
           // Select / Deselect clip on click & Long-Press Horizontal Slide
           const clipEl = lane.querySelector('.timeline-clip-block');
           if (clipEl) {
-            renderLayerKeyframes(layer, clipEl);
+            if (!isDesktop || !layer._kfExpanded) {
+              renderLayerKeyframes(layer, clipEl);
+            }
 
             // Interactive Drag for Text IN / OUT Animation Markers (Only in selection mode)
             if (clipType === 'text') {

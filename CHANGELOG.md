@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Structured property tree on the left side (`Transform`, `Effects: <Name>`, `Camera Options`, `Audio`, `Time Remap`) displaying current live interpolated property values.
   - Matching right-side timeline keyframe track rows with horizontal guide lines, maintaining pixel-perfect vertical height alignment with the left property panel.
   - Interactive diamond keyframes (`.desktop-kf-diamond` / `◆`) positioned at exact timestamps with hover tooltips, click to seek playhead (`seekTimelineToTime`), and smooth horizontal drag re-timing with playhead and beatmark snapping.
+  - Hides in-clip keyframe markers on the main layer bar when expanded, cleanly surfacing them exclusively on their dedicated categorized sub-tracks below (After Effects accurate).
 
 ### Fixed
 - **Instant Save Settings Pop-up Dismissal (`js/editor.js`, `js/main.js`, `js/db.js`)**:

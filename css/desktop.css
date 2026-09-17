@@ -4638,6 +4638,11 @@
   position: relative !important;
 }
 
+/* Hide keyframe markers on the main clip block when layer is expanded (AE style: keyframes appear on sub-tracks below) */
+.desktop-timeline-wrapper .timeline-track-lane.is-kf-expanded .timeline-clip-keyframes {
+  display: none !important;
+}
+
 /* 3. Left Property Tree */
 .desktop-kf-property-tree {
   width: 100%;

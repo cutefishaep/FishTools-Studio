@@ -634,7 +634,7 @@
         e.stopPropagation();
         if (iframe && window.FishToolsAdapter) {
           if (loaderEl) loaderEl.style.display = 'flex';
-          window.FishToolsAdapter.loadIntoIframe(iframe, loaderEl);
+          window.FishToolsAdapter.loadIntoIframe(iframe, loaderEl, true);
         }
       });
     }

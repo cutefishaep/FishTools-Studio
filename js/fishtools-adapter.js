@@ -1017,28 +1017,99 @@ window.FishToolsAdapter = (function () {
   const CDN_BASE = 'https://cdn.jsdelivr.net/gh/cutefishaep/OpenFishTools@main/client/';
   const RAW_FALLBACK = 'https://raw.githubusercontent.com/cutefishaep/OpenFishTools/main/client/index.html';
 
-  async function getAdaptedHtml() {
+  function getAppRootUrl() {
+    if (typeof window !== 'undefined' && window.location) {
+      const loc = window.location;
+      if (loc.origin && loc.origin !== 'null') {
+        const pathname = loc.pathname || '';
+        const lastSlash = pathname.lastIndexOf('/');
+        let dir = pathname.substring(0, lastSlash + 1);
+        if (dir === '/desktop/' || dir === '/editor/' || dir === '/demo/') {
+          dir = '/';
+        }
+        return new URL(dir || '/', loc.origin).href;
+      }
+      const href = loc.href.split('?')[0].split('#')[0];
+      return href.substring(0, href.lastIndexOf('/') + 1);
+    }
+    return '/';
+  }
+
+  function isValidExtensionHtml(html) {
+    if (!html || typeof html !== 'string') return false;
+    // Reject SPA fallback hijack (index.html containing studio markup)
+    if (html.includes('OpenFishTools Studio') || html.includes('modal-new-project') || html.includes('dashboard-container') || html.includes('editor-viewport')) {
+      return false;
+    }
+    // Must contain extension panel markers
+    return html.includes('content-container') && (html.includes('tab-main') || html.includes('tab-tools') || html.includes('Fish Tools'));
+  }
+
+  async function getAdaptedHtml(forceReload = false) {
+    if (forceReload) {
+      cachedTemplate = null;
+    }
+
     if (!cachedTemplate) {
       let rawHtml = '';
       let isLocal = false;
-      try {
-        const localRes = await fetch('Extension/extension.html');
-        if (localRes.ok) {
-          rawHtml = await localRes.text();
-          isLocal = true;
-        } else {
-          throw new Error('Local status ' + localRes.status);
+      const appRoot = getAppRootUrl();
+      const localExtensionUrl = new URL('Extension/extension.html', appRoot).href;
+
+      const candidates = [
+        localExtensionUrl,
+        '/Extension/extension.html',
+        'Extension/extension.html',
+        './Extension/extension.html'
+      ];
+      const uniqueCandidates = Array.from(new Set(candidates));
+
+      for (const url of uniqueCandidates) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const text = await res.text();
+            if (isValidExtensionHtml(text)) {
+              rawHtml = text;
+              isLocal = true;
+              break;
+            } else {
+              console.warn('[FishToolsAdapter] Candidate returned non-extension content (SPA fallback ignored):', url);
+            }
+          }
+        } catch (e) {
+          // try next candidate
         }
-      } catch (localErr) {
+      }
+
+      if (!rawHtml) {
+        console.warn('[FishToolsAdapter] Local extension fetch failed, trying CDN fallback...');
         try {
           const response = await fetch(CDN_BASE + 'index.html');
-          if (!response.ok) throw new Error('CDN status ' + response.status);
-          rawHtml = await response.text();
+          if (response.ok) {
+            const text = await response.text();
+            if (isValidExtensionHtml(text)) {
+              rawHtml = text;
+              isLocal = false;
+            }
+          }
         } catch (err) {
-          console.warn('CDN fetch failed, trying GitHub raw fallback...', err);
-          const fallbackRes = await fetch(RAW_FALLBACK);
-          rawHtml = await fallbackRes.text();
+          console.warn('[FishToolsAdapter] CDN fetch failed, trying GitHub raw fallback...', err);
+          try {
+            const fallbackRes = await fetch(RAW_FALLBACK);
+            if (fallbackRes.ok) {
+              const text = await fallbackRes.text();
+              if (isValidExtensionHtml(text)) {
+                rawHtml = text;
+                isLocal = false;
+              }
+            }
+          } catch (e) {}
         }
+      }
+
+      if (!rawHtml || !isValidExtensionHtml(rawHtml)) {
+        throw new Error('Failed to load valid OpenFishTools Extension HTML template');
       }
 
       // 1. Parse HTML with DOMParser for clean, robust manipulation
@@ -1155,27 +1226,31 @@ window.FishToolsAdapter = (function () {
         lensBtn.setAttribute('title', 'Left click: Fast Box Blur | Right click: Lens Blur');
       }
 
-      // 7. Convert all Relative URLs in <link>, <script>, <img> to Absolute or Extension/ URLs
-      const CLIENT_BASE = isLocal ? 'Extension/' : CDN_BASE;
+      // 7. Convert all Relative URLs in <link>, <script>, <img> to Absolute URLs
+      const extensionBase = isLocal ? localExtensionUrl : CDN_BASE + 'index.html';
 
       doc.querySelectorAll('link[href]').forEach(el => {
         const href = el.getAttribute('href');
-        if (href && !href.startsWith('http') && !href.startsWith('//')) {
-          el.setAttribute('href', CLIENT_BASE + href.replace(/^\.\//, '').replace(/^\//, ''));
+        if (href && !href.startsWith('http:') && !href.startsWith('https:') && !href.startsWith('//') && !href.startsWith('data:')) {
+          if (href.includes('theme.css')) {
+            el.setAttribute('href', new URL('css/theme.css', appRoot).href);
+          } else {
+            el.setAttribute('href', new URL(href, extensionBase).href);
+          }
         }
       });
 
       doc.querySelectorAll('script[src]').forEach(el => {
         const src = el.getAttribute('src');
-        if (src && !src.startsWith('http') && !src.startsWith('//')) {
-          el.setAttribute('src', CLIENT_BASE + src.replace(/^\.\//, '').replace(/^\//, ''));
+        if (src && !src.startsWith('http:') && !src.startsWith('https:') && !src.startsWith('//') && !src.startsWith('data:')) {
+          el.setAttribute('src', new URL(src, extensionBase).href);
         }
       });
 
       doc.querySelectorAll('img[src]').forEach(el => {
         const src = el.getAttribute('src');
-        if (src && !src.startsWith('http') && !src.startsWith('//')) {
-          el.setAttribute('src', CLIENT_BASE + src.replace(/^\.\//, '').replace(/^\//, ''));
+        if (src && !src.startsWith('http:') && !src.startsWith('https:') && !src.startsWith('//') && !src.startsWith('data:')) {
+          el.setAttribute('src', new URL(src, extensionBase).href);
         }
       });
 
@@ -1879,10 +1954,10 @@ window.FishToolsAdapter = (function () {
     return '<!DOCTYPE html>\n' + docClone.documentElement.outerHTML;
   }
 
-  async function loadIntoIframe(iframeEl, loaderEl) {
+  async function loadIntoIframe(iframeEl, loaderEl, forceReload = false) {
     if (!iframeEl) return;
     try {
-      const html = await getAdaptedHtml();
+      const html = await getAdaptedHtml(forceReload);
       iframeEl.srcdoc = html;
       iframeEl.onload = function () {
         if (loaderEl) loaderEl.style.display = 'none';
@@ -1894,13 +1969,19 @@ window.FishToolsAdapter = (function () {
     } catch (err) {
       console.error('FishToolsAdapter load error:', err);
       if (loaderEl) {
-        loaderEl.innerHTML = '<span style="color:var(--color-danger, #ff5555);">Failed to load OpenFishTools</span>';
+        loaderEl.style.display = 'flex';
+        loaderEl.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;"><span style="color:var(--color-danger,#ff5555);font-size:12px;font-weight:600;">Failed to load OpenFishTools</span><span style="color:var(--text-muted,#7fb862);font-size:11px;">Extension template not reachable</span><button type="button" style="margin-top:8px;padding:4px 12px;font-size:11px;background:var(--bg-panel-inner,#151a0f);border:1px solid var(--border-color,#2a3321);color:var(--text-primary,#c0dbc0);border-radius:4px;cursor:pointer;" onclick="if(window.FishToolsAdapter){window.FishToolsAdapter.loadIntoIframe(this.closest(\'.desktop-extension-body, .popover-body\')?.querySelector(\'iframe\'),this.parentElement,true)}">Retry</button></div>';
       }
     }
   }
 
+  function clearCache() {
+    cachedTemplate = null;
+  }
+
   return {
     getAdaptedHtml: getAdaptedHtml,
-    loadIntoIframe: loadIntoIframe
+    loadIntoIframe: loadIntoIframe,
+    clearCache: clearCache
   };
 })();

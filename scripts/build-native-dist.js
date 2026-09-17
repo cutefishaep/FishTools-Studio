@@ -32,7 +32,8 @@ const dirsToCopy = [
   'assets',
   'shapes',
   'effects',
-  'vendor'
+  'vendor',
+  'Extension'
 ];
 
 for (const f of filesToCopy) {

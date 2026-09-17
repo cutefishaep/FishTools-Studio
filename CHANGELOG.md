@@ -5,6 +5,17 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.26] - 2026-09-17
+
+### Fixed
+- **Shape Media Fill Invisibility & Media Replacement Desync (`js/editor.js`)**:
+  - Resolved bug where shape layers filled with media remained completely transparent due to premature caching in `renderShapeToCanvas`. Empty canvas is no longer cached while media is still loading asynchronously (`isMediaReady` guard).
+  - Wired `getFillRenderKey(layer)` into `shapeKey` so replacing or modifying media/gradient/color fill properly invalidates the shape rasterization cache.
+  - Fixed media hydration from IndexedDB pool (`hydrateMediaFromPool`) to unconditionally refresh expired session `blob:` URLs for media-filled shape layers.
+  - Synchronized layer name (`targetL.name = item.name`) and preloaded images in `applyFlexibleMediaReplacement` when replacing media on shape layers.
+
+---
+
 ## [0.5.25] - 2026-09-17
 
 ### Fixed

@@ -1509,7 +1509,7 @@
         fctx.fillRect(0, 0, targetW, targetH);
       } else if (fillType === 'media') {
         const mediaUrl = layer.fillMediaUrl || layer.thumbUrl || (layer.dataUrl && !layer.dataUrl.startsWith('data:video') ? layer.dataUrl : '');
-        const cachedEntry = window.layerMediaCache ? (window.layerMediaCache.get(layer.id) || (layer.mediaId ? window.layerMediaCache.get(layer.mediaId) : null)) : null;
+        const cachedEntry = window.layerMediaCache ? (window.layerMediaCache.get(layer.id) || (layer.mediaId ? window.layerMediaCache.get(layer.mediaId) : null) || (layer.fillMediaId ? window.layerMediaCache.get(layer.fillMediaId) : null)) : null;
         if (cachedEntry && cachedEntry.el && cachedEntry.isReady && cachedEntry.el.tagName === 'IMG') {
           fctx.drawImage(cachedEntry.el, 0, 0, targetW, targetH);
         } else if (layer._fillMediaImg && layer._fillMediaImg.complete && layer._fillMediaImg.naturalWidth > 0 && layer._fillMediaImg.src === mediaUrl) {
@@ -1521,6 +1521,9 @@
             img.onload = () => {
               layer._fillMediaImg = img;
               layer._fillDirty = true;
+              if (layer._shapeBufferCanvas) {
+                layer._shapeBufferCanvas._lastShapeKey = null;
+              }
               if (typeof redrawComposition === 'function') redrawComposition('fill-media-loaded');
             };
             img.src = mediaUrl;
@@ -1530,8 +1533,14 @@
       }
       // 'none' leaves canvas cleared transparently
 
-      layer._fillDirty = false;
-      layer._lastFillRenderKey = currentKey;
+      const cachedEntry = window.layerMediaCache ? (window.layerMediaCache.get(layer.id) || (layer.mediaId ? window.layerMediaCache.get(layer.mediaId) : null) || (layer.fillMediaId ? window.layerMediaCache.get(layer.fillMediaId) : null)) : null;
+      const isMediaReady = (fillType !== 'media') ||
+        (cachedEntry && cachedEntry.el && cachedEntry.isReady) ||
+        (layer._fillMediaImg && layer._fillMediaImg.complete && layer._fillMediaImg.naturalWidth > 0);
+      if (isMediaReady) {
+        layer._fillDirty = false;
+        layer._lastFillRenderKey = currentKey;
+      }
       return canvas;
     }
 
@@ -10895,12 +10904,11 @@
     function renderShapeToCanvas(layer, targetCanvas, targetW, targetH) {
       if (!targetCanvas || typeof targetCanvas.getContext !== 'function' || !layer) return targetCanvas;
       const sProps = layer.shapeProps || {};
-      const shapeKey = `${layer.shapeType || 'rectangle'}_${sProps.sizeX}_${sProps.sizeY}_${sProps.roundness}_${sProps.strokeWidth}_${layer.fillType}_${layer.fillColor}_${layer.strokeColor}_${layer.mediaId || ''}_${targetW}_${targetH}`;
-      if (targetCanvas._lastShapeKey === shapeKey && targetCanvas.width === targetW && targetCanvas.height === targetH) {
+      const fillKey = (typeof getFillRenderKey === 'function') ? getFillRenderKey(layer) : (layer.fillType || 'color');
+      const shapeKey = `${layer.shapeType || 'rectangle'}_${sProps.sizeX}_${sProps.sizeY}_${sProps.roundness}_${sProps.strokeWidth}_${layer.strokeColor}_${fillKey}_${targetW}_${targetH}`;
+      if (!layer._fillDirty && targetCanvas._lastShapeKey === shapeKey && targetCanvas.width === targetW && targetCanvas.height === targetH) {
         return targetCanvas;
       }
-      targetCanvas._lastShapeKey = shapeKey;
-      targetCanvas._contentVersion = (targetCanvas._contentVersion || 0) + 1;
 
       const sctx = targetCanvas.getContext('2d');
       if (!sctx) return targetCanvas;
@@ -11074,6 +11082,18 @@
       }
 
       sctx.restore();
+
+      const cachedEntry = window.layerMediaCache ? (window.layerMediaCache.get(layer.id) || (layer.mediaId ? window.layerMediaCache.get(layer.mediaId) : null) || (layer.fillMediaId ? window.layerMediaCache.get(layer.fillMediaId) : null)) : null;
+      const isMediaReady = (fillType !== 'media') ||
+        (cachedEntry && cachedEntry.el && cachedEntry.isReady) ||
+        (layer._fillMediaImg && layer._fillMediaImg.complete && layer._fillMediaImg.naturalWidth > 0);
+      if (isMediaReady) {
+        targetCanvas._lastShapeKey = shapeKey;
+        targetCanvas._contentVersion = (targetCanvas._contentVersion || 0) + 1;
+      } else {
+        targetCanvas._lastShapeKey = null;
+      }
+
       return targetCanvas;
     }
     window.renderShapeToCanvas = renderShapeToCanvas;
@@ -12769,10 +12789,16 @@
         targetL.type = 'shape';
         targetL.fillType = 'media';
         targetL.fillMediaId = item.id;
+        targetL.fillMediaName = item.name || 'Media';
+        if (item.name) targetL.name = item.name;
         delete targetL.mediaId; // Strict: do not assign mediaId so playback engine never plays it
         delete targetL._fillBufferCanvas;
         delete targetL._fillMediaImg;
+        if (targetL._shapeBufferCanvas) {
+          targetL._shapeBufferCanvas._lastShapeKey = null;
+        }
         delete targetL._shapeBufferCanvas;
+        targetL._fillDirty = true;
 
         const thumbSrc = (item.thumbUrl && !item.thumbUrl.startsWith('data:video')) ? item.thumbUrl : '';
         if (isVideo) {
@@ -12786,15 +12812,30 @@
                 targetL.fillMediaUrl = thumb;
                 targetL.thumbUrl = thumb;
                 targetL._fillDirty = true;
+                if (targetL._shapeBufferCanvas) targetL._shapeBufferCanvas._lastShapeKey = null;
                 if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(targetL);
                 if (typeof redrawComposition === 'function') redrawComposition('fill-media-loaded');
               }
             });
           }
         } else {
-          targetL.fillMediaUrl = item.thumbUrl || item.dataUrl || '';
+          const freshMediaUrl = item.thumbUrl || item.dataUrl || '';
+          targetL.fillMediaUrl = freshMediaUrl;
           targetL.dataUrl = item.dataUrl || '';
           targetL.thumbUrl = item.thumbUrl || item.dataUrl || '';
+
+          if (freshMediaUrl && !freshMediaUrl.startsWith('data:video')) {
+            const preImg = new Image();
+            preImg.crossOrigin = 'anonymous';
+            preImg.onload = () => {
+              targetL._fillMediaImg = preImg;
+              targetL._fillDirty = true;
+              if (targetL._shapeBufferCanvas) targetL._shapeBufferCanvas._lastShapeKey = null;
+              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(targetL);
+              if (typeof redrawComposition === 'function') redrawComposition('fill-media-img-ready');
+            };
+            preImg.src = freshMediaUrl;
+          }
         }
       }
 
@@ -16631,10 +16672,24 @@
                     l.is3D = !!m.is3D;
                   }
                 }
-                if (l.fillMediaId && mediaMap.has(l.fillMediaId)) {
-                  const fm = mediaMap.get(l.fillMediaId);
-                  if (!l.fillMediaUrl && (fm.thumbUrl || fm.dataUrl)) l.fillMediaUrl = fm.thumbUrl || fm.dataUrl;
-                  if (!l.fillMediaName && fm.name) l.fillMediaName = fm.name;
+                const targetFillMediaId = l.fillMediaId || (l.fillType === 'media' ? (l.mediaId || null) : null);
+                let fm = targetFillMediaId ? mediaMap.get(targetFillMediaId) : null;
+                if (!fm && l.fillType === 'media') {
+                  fm = projectMedias.find(item => item.id === l.fillMediaId || item.name === l.fillMediaName || item.name === l.name);
+                }
+                if (fm) {
+                  l.fillMediaId = fm.id;
+                  const freshUrl = fm.thumbUrl || fm.dataUrl;
+                  if (freshUrl) {
+                    l.fillMediaUrl = freshUrl;
+                    if (!l.dataUrl || l.dataUrl.startsWith('blob:')) l.dataUrl = fm.dataUrl || freshUrl;
+                    if (!l.thumbUrl || l.thumbUrl.startsWith('blob:')) l.thumbUrl = fm.thumbUrl || freshUrl;
+                  }
+                  if (fm.name) l.fillMediaName = fm.name;
+                  l._fillDirty = true;
+                  delete l._fillMediaImg;
+                  delete l._fillBufferCanvas;
+                  if (l._shapeBufferCanvas) l._shapeBufferCanvas._lastShapeKey = null;
                 }
                 if (Array.isArray(l.layers)) {
                   l.layers.forEach(hydrateLayer);

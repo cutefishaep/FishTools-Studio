@@ -5,6 +5,25 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.28] - 2026-09-17
+
+### Added
+- **Desktop Exclusive Collapsible Layer Keyframe Tracks (`desktop.html`, `js/desktop.js`, `js/editor.js`, `css/desktop.css`)**:
+  - After Effects-accurate twirl-down collapsible layer tracks exclusively in Desktop Workstation mode (`desktop.html`), keeping mobile `editor.html` 100% clean and untouched.
+  - Interactive twistie chevron button (`.desktop-layer-twistie-btn`) injected on layer headers, rotating 90° down when expanded.
+  - Keyboard shortcut `U` on desktop toggles keyframe expansion for all selected layer(s) matching standard After Effects workflow.
+  - Structured property tree on the left side (`Transform`, `Effects: <Name>`, `Camera Options`, `Audio`, `Time Remap`) displaying current live interpolated property values.
+  - Matching right-side timeline keyframe track rows with horizontal guide lines, maintaining pixel-perfect vertical height alignment with the left property panel.
+  - Interactive diamond keyframes (`.desktop-kf-diamond` / `◆`) positioned at exact timestamps with hover tooltips, click to seek playhead (`seekTimelineToTime`), and smooth horizontal drag re-timing with playhead and beatmark snapping.
+
+### Fixed
+- **Instant Save Settings Pop-up Dismissal (`js/editor.js`, `js/main.js`, `js/db.js`)**:
+  - Moved modal dismissal (`Modal.close()`) to immediate first line of `saveProjectSettingsAction` for 0ms instantaneous visual feedback.
+  - Offloaded heavy canvas recreation, timeline duration recalculations, and IndexedDB persistence into non-blocking background queue (`setTimeout` + async Promise).
+  - Reduced IndexedDB safety fallback timer from 10,000ms to 600ms in `js/db.js` for immediate local backup resolution.
+
+---
+
 ## [0.5.27] - 2026-09-17
 
 ### Performance

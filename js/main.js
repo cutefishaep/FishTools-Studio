@@ -653,6 +653,10 @@ async function saveProjectSettingsAction() {
   const selectedFps = document.getElementById('settings-dropdown-fps')?.dataset.value || '60';
   const selectedBg = document.querySelector('#settings-options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
 
+  if (window.Modal) {
+    window.Modal.close();
+  }
+
   try {
     const project = await window.FishDatabase.getProject(projectId);
     if (project) {
@@ -667,10 +671,6 @@ async function saveProjectSettingsAction() {
   } catch (err) {
     console.warn('Failed to save project settings:', err);
     showDashboardToast('Failed to save settings');
-  }
-
-  if (window.Modal) {
-    window.Modal.close();
   }
 }
 

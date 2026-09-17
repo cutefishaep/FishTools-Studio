@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OpenFishTools Studio",
-  "version": "0.5.27",
+  "version": "0.5.28",
   "identifier": "com.openfishtools.studio",
   "build": {
     "frontendDist": "../dist"

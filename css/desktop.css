@@ -4574,3 +4574,211 @@
   transform: scale(1.3) !important;
   filter: brightness(1.25);
 }
+
+/* ==========================================================================
+   DESKTOP EXCLUSIVE: COLLAPSIBLE LAYER KEYFRAME TRACKS (AFTER EFFECTS STYLE)
+   ========================================================================== */
+
+/* 1. Twistie Chevron Toggle Button */
+.desktop-layer-twistie-btn {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  margin-right: 2px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.desktop-layer-twistie-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-layer-twistie-btn .desktop-twistie-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s ease;
+  transform: rotate(0deg);
+}
+
+.desktop-layer-twistie-btn.is-expanded .desktop-twistie-icon {
+  transform: rotate(90deg);
+}
+
+/* 2. Expanded Lane & Pill Slot Heights */
+.desktop-timeline-wrapper .timeline-lane-pill-slot.is-kf-expanded,
+.desktop-timeline-wrapper .timeline-track-lane.is-kf-expanded {
+  height: auto !important;
+  min-height: 34px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  overflow: visible !important;
+}
+
+.desktop-timeline-wrapper .timeline-lane-pill-slot.is-kf-expanded .timeline-layer-ctrl-pill {
+  height: 34px !important;
+  min-height: 34px !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-timeline-wrapper .timeline-track-lane.is-kf-expanded .track-content-lane {
+  height: 34px !important;
+  min-height: 34px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+}
+
+/* 3. Left Property Tree */
+.desktop-kf-property-tree {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border-panel);
+  background-color: var(--bg-panel-inner);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.desktop-kf-cat-row {
+  height: 22px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 16px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-panel);
+  box-sizing: border-box;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.desktop-kf-cat-icon {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.desktop-kf-prop-row {
+  height: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 0 24px;
+  border-bottom: 1px solid var(--border-panel);
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.desktop-kf-prop-row:hover {
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-kf-prop-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desktop-kf-prop-row:hover .desktop-kf-prop-name {
+  color: var(--text-primary);
+}
+
+.desktop-kf-prop-val {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 4. Right Keyframe Tracks */
+.desktop-kf-tracks-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border-panel);
+}
+
+.desktop-kf-track-cat-row {
+  height: 22px;
+  min-height: 22px;
+  width: 100%;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-panel);
+  box-sizing: border-box;
+}
+
+.desktop-kf-track-row {
+  height: 24px;
+  min-height: 24px;
+  width: 100%;
+  position: relative;
+  border-bottom: 1px solid var(--border-panel);
+  box-sizing: border-box;
+  background-color: transparent;
+  cursor: crosshair;
+}
+
+.desktop-kf-track-row:hover {
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-kf-track-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background-color: var(--border-panel);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Diamond Keyframes */
+.desktop-kf-diamond {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background-color: var(--color-primary);
+  border: 1px solid var(--bg-canvas);
+  border-radius: 1px;
+  cursor: pointer;
+  z-index: 15;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+  touch-action: none;
+}
+
+.desktop-kf-diamond:hover {
+  background-color: var(--color-accent);
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.3);
+  z-index: 20;
+}
+
+.desktop-kf-diamond.is-selected-kf,
+.desktop-kf-diamond.is-dragging {
+  background-color: var(--color-accent);
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
+  border-color: var(--text-primary);
+  z-index: 25;
+}

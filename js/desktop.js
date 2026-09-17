@@ -676,6 +676,38 @@
         const layerType = layer ? layer.type : 'video';
         const layerName = layer ? layer.name : (pill.title ? pill.title.split(' - ')[0] : 'Layer');
 
+        // Keyframe Expansion Twistie Button
+        let twistie = pill.querySelector('.desktop-layer-twistie-btn');
+        if (!twistie) {
+          twistie = document.createElement('button');
+          twistie.type = 'button';
+          twistie.className = `desktop-layer-twistie-btn ${layer && layer._kfExpanded ? 'is-expanded' : ''}`;
+          twistie.title = layer && layer._kfExpanded ? 'Collapse Keyframes (U)' : 'Expand Keyframes (U)';
+          twistie.setAttribute('aria-label', twistie.title);
+          twistie.innerHTML = `<svg class="desktop-twistie-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>`;
+          pill.prepend(twistie);
+
+          twistie.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          });
+          twistie.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+            const targetLayer = currentLayers.find(l => l.id === layerId) || layer;
+            if (targetLayer) {
+              targetLayer._kfExpanded = !targetLayer._kfExpanded;
+              if (typeof window.renderTimelineLayers === 'function') {
+                window.renderTimelineLayers();
+              }
+            }
+          });
+        } else {
+          twistie.classList.toggle('is-expanded', !!(layer && layer._kfExpanded));
+          twistie.title = layer && layer._kfExpanded ? 'Collapse Keyframes (U)' : 'Expand Keyframes (U)';
+        }
+
         // Layer type indicator bar
         let dot = pill.querySelector('.desktop-layer-type-dot');
         if (!dot) {
@@ -685,7 +717,7 @@
           if (eyeBtn) {
             pill.insertBefore(dot, eyeBtn);
           } else {
-            pill.prepend(dot);
+            pill.appendChild(dot);
           }
         } else {
           dot.className = `desktop-layer-type-dot type-${layerType}`;
@@ -904,7 +936,7 @@
           }
 
           pill.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('.timeline-layer-eye-btn')) {
+            if (e.target.closest('.timeline-layer-eye-btn') || e.target.closest('.desktop-layer-twistie-btn')) {
               return;
             }
             // Stop editor.js mobile hold timer from starting!
@@ -934,6 +966,7 @@
     observer.observe(overlayContainer, { childList: true, subtree: true });
 
 
+    window.enhanceLaneHeads = enhanceLaneHeads;
     enhanceLaneHeads();
   }
 
@@ -1755,6 +1788,30 @@
             e.stopPropagation();
             if (typeof window.executeMoveOut === 'function') {
               window.executeMoveOut();
+            }
+          } else if (e.key && e.key.toLowerCase() === 'u') {
+            const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+            const selectedIds = window.selectedLayerIds && window.selectedLayerIds.size > 0 
+              ? Array.from(window.selectedLayerIds) 
+              : (window.selectedLayerId ? [window.selectedLayerId] : []);
+
+            if (selectedIds.length > 0) {
+              e.preventDefault();
+              e.stopPropagation();
+
+              const anyExpanded = selectedIds.some(id => {
+                const l = currentLayers.find(ly => ly.id === id);
+                return l && l._kfExpanded;
+              });
+
+              selectedIds.forEach(id => {
+                const l = currentLayers.find(ly => ly.id === id);
+                if (l) l._kfExpanded = !anyExpanded;
+              });
+
+              if (typeof window.renderTimelineLayers === 'function') {
+                window.renderTimelineLayers();
+              }
             }
           }
         }

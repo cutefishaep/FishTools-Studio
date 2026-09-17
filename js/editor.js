@@ -15855,11 +15855,10 @@
         if (typeof renderTimelineLayers === 'function') {
           renderTimelineLayers();
         }
-        saveCurrentProjectLayers();
-
         if (window.Modal) {
           window.Modal.close();
         }
+        saveCurrentProjectLayers();
         return;
       }
 
@@ -15896,22 +15895,9 @@
         window.VideoFrameExtractor.setFps(selectedFps);
       }
 
-      // 1. Persist to FishDatabase if project exists
-      if (currentProjectState.id && window.FishDatabase) {
-        try {
-          const proj = await window.FishDatabase.getProject(currentProjectState.id);
-          if (proj) {
-            proj.aspectRatio = selectedRatio;
-            proj.resolution = selectedRes;
-            proj.fps = String(selectedFps);
-            proj.defaultDuration = selectedDur;
-            proj.bgColor = selectedBg;
-            if (currentProjectState.motionBlur) {
-              proj.motionBlur = JSON.parse(JSON.stringify(currentProjectState.motionBlur));
-            }
-            await window.FishDatabase.saveProject(proj);
-          }
-        } catch (_) {}
+      // 1. Close Modal immediately for instantaneous UX feedback
+      if (window.Modal) {
+        window.Modal.close();
       }
 
       // 2. Synchronize URL query params
@@ -15922,28 +15908,46 @@
         url.searchParams.set('fps', String(selectedFps));
         url.searchParams.set('duration', String(selectedDur));
         url.searchParams.set('bg', selectedBg);
-        window.history.replaceState({}, '', url.toString());
+        window.history.replaceState({ modalOpen: false }, '', url.toString());
       } catch (_) {}
 
-      // 3. Apply to Preview Canvas
-      updatePreviewCanvas(selectedRatio, selectedRes, selectedFps, selectedBg);
+      setTimeout(() => {
+        // 3. Apply to Preview Canvas
+        updatePreviewCanvas(selectedRatio, selectedRes, selectedFps, selectedBg);
 
-      // 4. Apply to Timeline
-      window.currentTimelineFps = selectedFps;
-      if (typeof window.setTimelineFps === 'function') {
-        window.setTimelineFps(selectedFps);
-      }
-      if (typeof window.updateTimelineDuration === 'function') {
-        window.updateTimelineDuration(true);
-      }
-      if (typeof redrawComposition === 'function') {
-        redrawComposition('saveProjectSettings');
-      }
+        // 4. Apply to Timeline
+        window.currentTimelineFps = selectedFps;
+        if (typeof window.setTimelineFps === 'function') {
+          window.setTimelineFps(selectedFps);
+        }
+        if (typeof window.updateTimelineDuration === 'function') {
+          window.updateTimelineDuration(true);
+        }
+        if (typeof redrawComposition === 'function') {
+          redrawComposition('saveProjectSettings');
+        }
 
-      // 5. Close Modal
-      if (window.Modal) {
-        window.Modal.close();
-      }
+        // 5. Asynchronously persist to FishDatabase in background without blocking UI
+        if (currentProjectState.id && window.FishDatabase) {
+          window.FishDatabase.getProject(currentProjectState.id).then(proj => {
+            if (proj) {
+              proj.aspectRatio = selectedRatio;
+              proj.resolution = selectedRes;
+              proj.fps = String(selectedFps);
+              proj.defaultDuration = selectedDur;
+              proj.bgColor = selectedBg;
+              if (currentProjectState.motionBlur) {
+                proj.motionBlur = JSON.parse(JSON.stringify(currentProjectState.motionBlur));
+              }
+              return window.FishDatabase.saveProject(proj);
+            } else {
+              return window.FishDatabase.saveProject(currentProjectState);
+            }
+          }).catch(() => {
+            try { window.FishDatabase.saveProject(currentProjectState); } catch (_) {}
+          });
+        }
+      }, 16);
     }
 
     // ── Debug State Helper: Multi-Layer Fetch & Duration Analysis ──────────────
@@ -23636,6 +23640,11 @@
           if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
           return;
         }
+        const isDesktop = Boolean(document.querySelector('.desktop-timeline-wrapper, .desktop-workstation, .desktop-viewport')) || window.location.pathname.includes('desktop.html');
+        if (isDesktop && layer._kfExpanded) {
+          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+          return;
+        }
         const lane = layersTrack.querySelector(`.timeline-track-lane[data-layer-id="${layer.id}"]`);
         if (!lane) {
           if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
@@ -23650,12 +23659,199 @@
       }
       window.syncLayerKeyframeMarkersInPlace = syncLayerKeyframeMarkersInPlace;
 
+      function getLayerCategorizedKeyframeRows(layer) {
+        if (!layer) return [];
+        const categories = [];
+
+        function formatValText(prop, val) {
+          if (val === undefined || val === null) return '';
+          if (typeof val === 'number') {
+            if (prop === 'opacity') return `${Math.round(val <= 1.0 && val > 0 ? val * 100 : val)}%`;
+            if (prop === 'rotate') return `${val.toFixed(1)}°`;
+            return val.toFixed(1);
+          }
+          if (typeof val === 'object') {
+            if (val.posX !== undefined && val.posY !== undefined) {
+              return `[${Math.round(val.posX)}, ${Math.round(val.posY)}]`;
+            }
+            if (val.scaleW !== undefined && val.scaleH !== undefined) {
+              return `[${Math.round(val.scaleW)}, ${Math.round(val.scaleH)}]`;
+            }
+            if (val.x !== undefined && val.y !== undefined) {
+              return `[${Math.round(val.x)}, ${Math.round(val.y)}]`;
+            }
+          }
+          return String(val);
+        }
+
+        // 1. Transform Category
+        const isVisual = !['audio'].includes(layer.type);
+        if (isVisual) {
+          const transformDefs = [
+            { prop: 'move', label: 'Position' },
+            { prop: 'scale', label: 'Scale' },
+            { prop: 'rotate', label: 'Rotation' },
+            { prop: 'opacity', label: 'Opacity' }
+          ];
+          if (layer.skew !== undefined || (layer.keyframes && layer.keyframes.skew)) {
+            transformDefs.push({ prop: 'skew', label: 'Skew' });
+          }
+          if (layer.origin !== undefined || (layer.keyframes && layer.keyframes.origin)) {
+            transformDefs.push({ prop: 'origin', label: 'Anchor Point' });
+          }
+
+          const keyframedProps = transformDefs.filter(d => {
+            const list = layer.keyframes && layer.keyframes[d.prop];
+            return Array.isArray(list) && list.length > 0;
+          });
+
+          const activeProps = keyframedProps.length > 0 ? keyframedProps : transformDefs;
+
+          categories.push({
+            id: 'transform',
+            title: 'Transform',
+            props: activeProps.map(d => {
+              const kfs = (layer.keyframes && layer.keyframes[d.prop]) || [];
+              const rawVal = (typeof getLayerPropertyValue === 'function') ? getLayerPropertyValue(layer, d.prop) : null;
+              return {
+                prop: d.prop,
+                label: d.label,
+                keyframes: Array.isArray(kfs) ? [...kfs].sort((a, b) => a.time - b.time) : [],
+                curValue: formatValText(d.prop, rawVal)
+              };
+            })
+          });
+        }
+
+        // 2. Effects Category
+        if (Array.isArray(layer.effects) && layer.effects.length > 0) {
+          layer.effects.forEach((fx, fxIdx) => {
+            const def = (window.FishEffectsRegistry && typeof window.FishEffectsRegistry.get === 'function')
+              ? window.FishEffectsRegistry.get(fx.type)
+              : null;
+            const fxTitle = fx.name || (def ? def.name : `Effect ${fxIdx + 1}`);
+            const fxProps = [];
+            const params = (def && Array.isArray(def.params)) ? def.params : [];
+
+            params.forEach(param => {
+              const scopedKey = `${fx.id}:${param.id}`;
+              let kfs = (layer.keyframes && layer.keyframes[scopedKey]) || [];
+              if ((!kfs || kfs.length === 0) && fxIdx === 0 && layer.keyframes && layer.keyframes[param.id]) {
+                kfs = layer.keyframes[param.id];
+              }
+              const hasKf = Array.isArray(kfs) && kfs.length > 0;
+              if (hasKf) {
+                const curVal = (typeof getLayerPropertyValue === 'function') ? getLayerPropertyValue(layer, scopedKey) : fx[param.id];
+                fxProps.push({
+                  prop: scopedKey,
+                  label: param.name || param.id,
+                  keyframes: [...kfs].sort((a, b) => a.time - b.time),
+                  curValue: formatValText(param.id, curVal !== undefined ? curVal : fx[param.id])
+                });
+              }
+            });
+
+            // If no keyframes on this effect yet, show first 3 params
+            if (fxProps.length === 0 && params.length > 0) {
+              params.slice(0, 3).forEach(param => {
+                const scopedKey = `${fx.id}:${param.id}`;
+                const curVal = fx[param.id] !== undefined ? fx[param.id] : param.default;
+                fxProps.push({
+                  prop: scopedKey,
+                  label: param.name || param.id,
+                  keyframes: (layer.keyframes && layer.keyframes[scopedKey]) || [],
+                  curValue: formatValText(param.id, curVal)
+                });
+              });
+            }
+
+            if (fxProps.length > 0) {
+              categories.push({
+                id: `fx_${fx.id || fxIdx}`,
+                title: `Effects: ${fxTitle}`,
+                props: fxProps
+              });
+            }
+          });
+        }
+
+        // 3. Camera Options
+        if (layer.type === 'camera') {
+          const camDefs = [
+            { prop: 'cameraZoom', label: 'Zoom' },
+            { prop: 'cameraFocusDistance', label: 'Focus Distance' },
+            { prop: 'cameraBlurAmount', label: 'Aperture Blur' }
+          ];
+          categories.push({
+            id: 'camera',
+            title: 'Camera Options',
+            props: camDefs.map(d => {
+              const kfs = (layer.keyframes && layer.keyframes[d.prop]) || [];
+              const rawVal = layer[d.prop];
+              return {
+                prop: d.prop,
+                label: d.label,
+                keyframes: Array.isArray(kfs) ? [...kfs].sort((a, b) => a.time - b.time) : [],
+                curValue: formatValText(d.prop, rawVal)
+              };
+            })
+          });
+        }
+
+        // 4. Audio
+        if (layer.type === 'audio' || layer.audioUrl) {
+          const kfs = (layer.keyframes && layer.keyframes.volume) || [];
+          categories.push({
+            id: 'audio',
+            title: 'Audio',
+            props: [{
+              prop: 'volume',
+              label: 'Audio Levels',
+              keyframes: Array.isArray(kfs) ? [...kfs].sort((a, b) => a.time - b.time) : [],
+              curValue: `${Math.round((layer.volume !== undefined ? layer.volume : 1) * 100)}%`
+            }]
+          });
+        }
+
+        // 5. Time Remap
+        if (layer.keyframes && (layer.keyframes.timeRemap || layer.keyframes.speed)) {
+          const timeProps = [];
+          if (layer.keyframes.timeRemap) {
+            timeProps.push({
+              prop: 'timeRemap',
+              label: 'Time Remap',
+              keyframes: [...layer.keyframes.timeRemap].sort((a, b) => a.time - b.time),
+              curValue: ''
+            });
+          }
+          if (layer.keyframes.speed) {
+            timeProps.push({
+              prop: 'speed',
+              label: 'Speed',
+              keyframes: [...layer.keyframes.speed].sort((a, b) => a.time - b.time),
+              curValue: ''
+            });
+          }
+          if (timeProps.length > 0) {
+            categories.push({
+              id: 'timeremap',
+              title: 'Time Remap',
+              props: timeProps
+            });
+          }
+        }
+
+        return categories;
+      }
+      window.getLayerCategorizedKeyframeRows = getLayerCategorizedKeyframeRows;
+
       function renderTimelineLayers() {
         if (!layersTrack) return;
         const viewport = document.getElementById('timeline-layers-viewport');
         const prevScrollTop = viewport ? viewport.scrollTop : 0;
 
         updateTimelineDuration();
+        const isDesktop = Boolean(document.querySelector('.desktop-timeline-wrapper, .desktop-workstation, .desktop-viewport')) || window.location.pathname.includes('desktop.html');
         layersTrack.innerHTML = '';
         const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
         if (overlayContainer) {
@@ -23750,7 +23946,7 @@
             const pillEl = pillSlot.querySelector('.timeline-layer-ctrl-pill');
             if (pillEl) {
               function onPillPointerDown(e) {
-                if (e.target.closest('.timeline-layer-eye-btn')) return;
+                if (e.target.closest('.timeline-layer-eye-btn') || e.target.closest('.desktop-layer-twistie-btn')) return;
                 if (e.button !== undefined && e.button !== 0) return;
 
                 // Stop browser default text selection, image drag, and touch scroll
@@ -23871,6 +24067,40 @@
               }
 
               pillEl.addEventListener('pointerdown', onPillPointerDown);
+            }
+
+            if (isDesktop && layer._kfExpanded) {
+              pillSlot.classList.add('is-kf-expanded');
+              const catRows = getLayerCategorizedKeyframeRows(layer);
+              const treeEl = document.createElement('div');
+              treeEl.className = 'desktop-kf-property-tree';
+
+              catRows.forEach(cat => {
+                const catRow = document.createElement('div');
+                catRow.className = 'desktop-kf-cat-row';
+                catRow.innerHTML = `<span class="desktop-kf-cat-icon">▾</span><span class="desktop-kf-cat-title">${cat.title}</span>`;
+                treeEl.appendChild(catRow);
+
+                cat.props.forEach(p => {
+                  const pRow = document.createElement('div');
+                  pRow.className = 'desktop-kf-prop-row';
+                  pRow.dataset.prop = p.prop;
+                  pRow.innerHTML = `
+                    <span class="desktop-kf-prop-name" title="${p.label}">${p.label}</span>
+                    <span class="desktop-kf-prop-val">${p.curValue || ''}</span>
+                  `;
+                  pRow.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.activeKeyframeProperty = p.prop;
+                    if (typeof window.syncDesktopInspectorProperty === 'function') {
+                      window.syncDesktopInspectorProperty(layer, p.prop);
+                    }
+                  });
+                  treeEl.appendChild(pRow);
+                });
+              });
+
+              pillSlot.appendChild(treeEl);
             }
 
             overlayContainer.appendChild(pillSlot);
@@ -24822,6 +25052,158 @@
             }
           }
 
+          if (isDesktop && layer._kfExpanded) {
+            lane.classList.add('is-kf-expanded');
+            const catRows = getLayerCategorizedKeyframeRows(layer);
+            const tracksEl = document.createElement('div');
+            tracksEl.className = 'desktop-kf-tracks-wrapper';
+
+            catRows.forEach(cat => {
+              const catTrack = document.createElement('div');
+              catTrack.className = 'desktop-kf-track-cat-row';
+              tracksEl.appendChild(catTrack);
+
+              cat.props.forEach(p => {
+                const pTrack = document.createElement('div');
+                pTrack.className = 'desktop-kf-track-row';
+                pTrack.dataset.prop = p.prop;
+
+                const trackLine = document.createElement('div');
+                trackLine.className = 'desktop-kf-track-line';
+                pTrack.appendChild(trackLine);
+
+                // Seek playhead on track line click
+                pTrack.addEventListener('click', (ev) => {
+                  if (ev.target.closest('.desktop-kf-diamond')) return;
+                  const rect = pTrack.getBoundingClientRect();
+                  const deskScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : 0;
+                  const clickX = ev.clientX - rect.left + deskScrollX;
+                  const targetSec = Math.max(0, clickX / pps);
+                  if (typeof seekTimelineToTime === 'function') {
+                    seekTimelineToTime(targetSec, true);
+                  }
+                  if (typeof window.syncDesktopPlayhead === 'function') {
+                    window.syncDesktopPlayhead();
+                  }
+                });
+
+                // Render diamond keyframes
+                (p.keyframes || []).forEach(kf => {
+                  const diamond = document.createElement('div');
+                  diamond.className = 'desktop-kf-diamond';
+                  const leftPx = kf.time * pps;
+                  diamond.style.left = `${leftPx.toFixed(1)}px`;
+                  diamond.dataset.time = kf.time;
+                  diamond.dataset.prop = p.prop;
+                  diamond.title = `${p.label}: ${kf.time.toFixed(2)}s\nValue: ${typeof p.curValue === 'string' ? p.curValue : ''}`;
+
+                  diamond.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                    diamond.classList.add('is-selected-kf');
+                    window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
+                    if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
+                      selectTimelineLayer(layer.id);
+                    }
+                    if (typeof seekTimelineToTime === 'function') {
+                      seekTimelineToTime(kf.time, true);
+                    }
+                    if (typeof window.syncDesktopPlayhead === 'function') {
+                      window.syncDesktopPlayhead();
+                    }
+                  });
+
+                  diamond.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                    diamond.classList.add('is-selected-kf');
+                    window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
+                    if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
+                      selectTimelineLayer(layer.id);
+                    }
+
+                    if (typeof seekTimelineToTime === 'function') {
+                      seekTimelineToTime(kf.time, true);
+                    }
+                    if (typeof window.syncDesktopPlayhead === 'function') {
+                      window.syncDesktopPlayhead();
+                    }
+
+                    let startX = e.clientX;
+                    let origTime = kf.time;
+                    let hasMoved = false;
+                    try { diamond.setPointerCapture(e.pointerId); } catch (_) {}
+                    diamond.classList.add('is-dragging');
+
+                    function onDiamondMove(ev) {
+                      const dx = ev.clientX - startX;
+                      if (Math.abs(dx) > 2) hasMoved = true;
+                      if (!hasMoved) return;
+
+                      let nextTime = Math.max(0, origTime + dx / pps);
+
+                      // Snap to playhead
+                      const curP = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : (window.currentSec || 0);
+                      if (Math.abs(nextTime - curP) * pps < 6) nextTime = curP;
+
+                      // Snap to beatmarks
+                      const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
+                      for (let b of beatmarks) {
+                        if (Math.abs(nextTime - b) * pps < 6) {
+                          nextTime = b;
+                          break;
+                        }
+                      }
+
+                      kf.time = Number(nextTime.toFixed(3));
+                      diamond.style.left = `${(kf.time * pps).toFixed(1)}px`;
+                      diamond.title = `${p.label}: ${kf.time.toFixed(2)}s`;
+
+                      if (typeof redrawComposition === 'function') {
+                        redrawComposition('keyframe-drag');
+                      }
+                    }
+
+                    function onDiamondUp(ev) {
+                      try { diamond.releasePointerCapture(ev.pointerId); } catch (_) {}
+                      diamond.classList.remove('is-dragging');
+                      window.removeEventListener('pointermove', onDiamondMove);
+                      window.removeEventListener('pointerup', onDiamondUp);
+                      window.removeEventListener('pointercancel', onDiamondUp);
+
+                      if (hasMoved) {
+                        if (layer.keyframes && Array.isArray(layer.keyframes[p.prop])) {
+                          layer.keyframes[p.prop].sort((a, b) => a.time - b.time);
+                        }
+                        if (typeof saveCurrentProjectLayers === 'function') {
+                          saveCurrentProjectLayers();
+                        }
+                        if (typeof redrawComposition === 'function') {
+                          redrawComposition('keyframe-drag-end');
+                        }
+                        syncLayerKeyframeMarkersInPlace(layer);
+                      }
+                    }
+
+                    window.addEventListener('pointermove', onDiamondMove);
+                    window.addEventListener('pointerup', onDiamondUp);
+                    window.addEventListener('pointercancel', onDiamondUp);
+                  });
+
+                  pTrack.appendChild(diamond);
+                });
+
+                tracksEl.appendChild(pTrack);
+              });
+            });
+
+            lane.appendChild(tracksEl);
+          }
+
           layersTrack.appendChild(lane);
         });
 
@@ -25075,6 +25457,10 @@
           if (typeof centerSelectedTimelineLayer === 'function') {
             centerSelectedTimelineLayer(false);
           }
+        }
+
+        if (typeof window.enhanceLaneHeads === 'function') {
+          try { window.enhanceLaneHeads(); } catch (_) {}
         }
       }
 

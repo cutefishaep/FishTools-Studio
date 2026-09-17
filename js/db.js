@@ -559,7 +559,7 @@ window.FishDatabase = (function () {
         var safetyTimer = setTimeout(function () {
           var found = getLocalBackup(id);
           resolve(found ? stripDeadBlobUrls(found) : null);
-        }, 10000);
+        }, 600);
 
         try {
           var tx = db.transaction('projects', 'readonly');

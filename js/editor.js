@@ -1322,6 +1322,9 @@
         const canvas = document.getElementById('editor-active-canvas');
         if (!canvas) return;
         const activeBg = (currentActivePrecomp && currentActivePrecomp.bgColor !== undefined) ? currentActivePrecomp.bgColor : (currentProjectState.bgColor || 'transparent');
+        if (typeof invalidateEffectivePropsCache === 'function') {
+          invalidateEffectivePropsCache();
+        }
         renderCanvasFrame(canvas, activeBg, canvas.width, canvas.height, _lastRedrawSource);
       });
     }
@@ -2218,6 +2221,12 @@
       if (overrideSec === null || overrideSec === undefined) {
         window.currentSec = currentSec;
         window.currentPlaybackSec = currentSec;
+      }
+      if (window._lastRenderFrameSec !== currentSec) {
+        window._lastRenderFrameSec = currentSec;
+        if (typeof invalidateEffectivePropsCache === 'function') {
+          invalidateEffectivePropsCache();
+        }
       }
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
       const frameIndex = Math.round(currentSec * fps);
@@ -4842,6 +4851,46 @@
       };
     }
 
+    const _compiledExpressionCache = new Map();
+    let _cachedCompBeatmarksRef = null;
+    let _cachedCompBeatmarksLen = -1;
+    let _cachedCompBeatmarksLast = null;
+    let _cachedCompMarkerObj = null;
+    let _cachedEmptyMarkerObj = null;
+
+    function getCompMarkerObject() {
+      const bm = (currentProjectState && Array.isArray(currentProjectState.beatmarks))
+        ? currentProjectState.beatmarks
+        : (typeof window !== 'undefined' && Array.isArray(window.beatmarks) ? window.beatmarks : []);
+      const len = bm.length;
+      const lastVal = len > 0 ? bm[len - 1] : null;
+      if (_cachedCompMarkerObj && _cachedCompBeatmarksRef === bm && _cachedCompBeatmarksLen === len && _cachedCompBeatmarksLast === lastVal) {
+        return _cachedCompMarkerObj;
+      }
+      _cachedCompBeatmarksRef = bm;
+      _cachedCompBeatmarksLen = len;
+      _cachedCompBeatmarksLast = lastVal;
+      _cachedCompMarkerObj = createMarkerObject(bm);
+      return _cachedCompMarkerObj;
+    }
+
+    function getLayerMarkerObject(layer) {
+      if (!layer) return getCompMarkerObject();
+      const markers = layer.markers;
+      if (Array.isArray(markers) && markers.length > 0) {
+        const len = markers.length;
+        const lastVal = markers[len - 1];
+        if (layer._cachedMarkerObj && layer._cachedMarkerLen === len && layer._cachedMarkerLast === lastVal) {
+          return layer._cachedMarkerObj;
+        }
+        layer._cachedMarkerLen = len;
+        layer._cachedMarkerLast = lastVal;
+        layer._cachedMarkerObj = createMarkerObject(markers);
+        return layer._cachedMarkerObj;
+      }
+      return getCompMarkerObject();
+    }
+
     function evaluateLayerExpression(code, prop, baseProps, layer, currentSec, visited = null, layerPool = null) {
       if (!code || typeof code !== 'string') return;
       const trimmed = code.trim();
@@ -4936,24 +4985,8 @@
       const durationSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
       const outPoint = Number((inPoint + durationSec).toFixed(4));
 
-      // Gather comp beat markers
-      let compBeatmarks = [];
-      if (currentProjectState && Array.isArray(currentProjectState.beatmarks)) {
-        compBeatmarks = compBeatmarks.concat(currentProjectState.beatmarks);
-      }
-      if (typeof window !== 'undefined' && Array.isArray(window.beatmarks)) {
-        compBeatmarks = compBeatmarks.concat(window.beatmarks);
-      }
-      const compMarkerObj = createMarkerObject(compBeatmarks);
-
-      // Layer beat markers (or comp beat markers inside layer duration)
-      let layerMarkers = Array.isArray(layer.markers) ? layer.markers.slice() : [];
-      if (layerMarkers.length === 0 && compBeatmarks.length > 0) {
-        // Use ALL comp beatmarks (no inPoint/outPoint clamp) — AE evaluates null expressions
-        // across full comp time regardless of the null's render range.
-        layerMarkers = compBeatmarks.slice();
-      }
-      const layerMarkerObj = createMarkerObject(layerMarkers);
+      const compMarkerObj = getCompMarkerObject();
+      const layerMarkerObj = getLayerMarkerObject(layer);
 
       const thisLayer = {
         effect,
@@ -4980,8 +5013,9 @@
             otherLayer = pool.find(l => (l.name || '').toLowerCase() === q);
           }
           if (!otherLayer) {
+            if (!_cachedEmptyMarkerObj) _cachedEmptyMarkerObj = createMarkerObject([]);
             return {
-              marker: createMarkerObject([]),
+              marker: _cachedEmptyMarkerObj,
               inPoint: 0,
               outPoint: 100,
               effect: () => createEffectProxy(null),
@@ -4992,24 +5026,31 @@
           const otherDur = otherLayer.durationSec !== undefined ? otherLayer.durationSec : ((otherLayer.widthPx || 320) / pps);
           const otherOutPoint = Number((otherInPoint + otherDur).toFixed(4));
 
-          // In AE, layer.marker only contains markers explicitly set on THAT layer.
-          // Null layers never have custom markers. If a layer has no explicit markers,
-          // otherMarkers is empty (numKeys === 0), allowing expressions like
-          // (layer(index+1).marker.numKeys > 0 ? layer(index+1).marker : thisComp.marker)
-          // to correctly fall back to thisComp.marker across the entire timeline.
-          let otherMarkers = [];
+          let otherMarkerObj;
           if (otherLayer.type !== 'null' && Array.isArray(otherLayer.markers) && otherLayer.markers.length > 0) {
-            otherMarkers = otherLayer.markers.slice();
+            otherMarkerObj = getLayerMarkerObject(otherLayer);
+          } else {
+            if (!_cachedEmptyMarkerObj) _cachedEmptyMarkerObj = createMarkerObject([]);
+            otherMarkerObj = _cachedEmptyMarkerObj;
           }
-          const otherMarkerObj = createMarkerObject(otherMarkers);
 
-          const otherEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(otherLayer, currentSec, visited, pool) : otherLayer;
+          let _otherEff = null;
+          function getOtherEff() {
+            if (!_otherEff) {
+              _otherEff = (typeof getLayerEffectivePropsAtTime === 'function')
+                ? getLayerEffectivePropsAtTime(otherLayer, currentSec, visited, pool)
+                : otherLayer;
+            }
+            return _otherEff;
+          }
+
           return {
             marker: otherMarkerObj,
             inPoint: otherInPoint,
             outPoint: otherOutPoint,
             effect: function(fxName) {
-              const fxList = otherEff.effects || otherLayer.effects || [];
+              const eff = getOtherEff();
+              const fxList = eff.effects || otherLayer.effects || [];
               let target = null;
               if (typeof fxName === 'number') {
                 target = fxList[fxName - 1] || fxList[fxName];
@@ -5022,11 +5063,14 @@
               }
               return createEffectProxy(target);
             },
-            transform: {
-              position: [otherEff.posX || 0, otherEff.posY || 0, otherEff.posZ || 0],
-              rotation: otherEff.rotZ || 0,
-              scale: [otherEff.scaleW || 100, otherEff.scaleH || 100],
-              opacity: (otherEff.opacity !== undefined ? otherEff.opacity : 1) * 100
+            get transform() {
+              const eff = getOtherEff();
+              return {
+                position: [eff.posX || 0, eff.posY || 0, eff.posZ || 0],
+                rotation: eff.rotZ || 0,
+                scale: [eff.scaleW || 100, eff.scaleH || 100],
+                opacity: (eff.opacity !== undefined ? eff.opacity : 1) * 100
+              };
             }
           };
         },
@@ -5036,48 +5080,50 @@
         duration: currentProjectState.durationSec || 5
       };
 
-      let script = trimmed;
-      // Transform AE vector additions: value + [...] -> addVec(value, [...])
-      script = script.replace(/\b([a-zA-Z0-9_$]+)\s*\+\s*\[([^\]]+)\]/g, (m, g1, g2) => `addVec(${g1}, [${g2}])`);
+      let compiledFn = _compiledExpressionCache.get(trimmed);
+      if (!compiledFn) {
+        let script = trimmed.replace(/\b([a-zA-Z0-9_$]+)\s*\+\s*\[([^\]]+)\]/g, (m, g1, g2) => `addVec(${g1}, [${g2}])`);
+        try {
+          compiledFn = new Function(
+            'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
+            'inPoint', 'outPoint', 'index', 'addVec',
+            'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
+            'return eval(' + JSON.stringify(script) + ');'
+          );
+        } catch (_) {
+          try {
+            let fallbackScript = trimmed;
+            if (!fallbackScript.includes('return ') && !fallbackScript.includes('return\n')) {
+              const lines = fallbackScript.split('\n');
+              const lastIdx = lines.length - 1;
+              lines[lastIdx] = 'return (' + lines[lastIdx].replace(/;$/, '') + ');';
+              fallbackScript = lines.join('\n');
+            }
+            compiledFn = new Function(
+              'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
+              'inPoint', 'outPoint', 'index', 'addVec',
+              'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
+              fallbackScript
+            );
+          } catch (e) {
+            compiledFn = () => undefined;
+          }
+        }
+        if (_compiledExpressionCache.size > 200) {
+          _compiledExpressionCache.clear();
+        }
+        _compiledExpressionCache.set(trimmed, compiledFn);
+      }
 
       let result;
       try {
-        const fn = new Function(
-          'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
-          'inPoint', 'outPoint', 'index', 'addVec',
-          'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
-          'return eval(' + JSON.stringify(script) + ');'
-        );
-
-        result = fn(
+        result = compiledFn(
           time, val, effect, wiggle, linear, clamp, thisLayer, thisComp,
           inPoint, outPoint, index, addVec,
           Math.sin, Math.cos, Math.tan, Math.abs, Math.floor, Math.ceil, Math.round, Math.sqrt, Math.PI, Math.min, Math.max, Math.random
         );
-      } catch (_) {
-        // Fallback for simple single-statement return scripts
-        try {
-          let fallbackScript = trimmed;
-          if (!fallbackScript.includes('return ') && !fallbackScript.includes('return\n')) {
-            const lines = fallbackScript.split('\n');
-            const lastIdx = lines.length - 1;
-            lines[lastIdx] = 'return (' + lines[lastIdx].replace(/;$/, '') + ');';
-            fallbackScript = lines.join('\n');
-          }
-          const fnFallback = new Function(
-            'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
-            'inPoint', 'outPoint', 'index', 'addVec',
-            'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
-            fallbackScript
-          );
-          result = fnFallback(
-            time, val, effect, wiggle, linear, clamp, thisLayer, thisComp,
-            inPoint, outPoint, index, addVec,
-            Math.sin, Math.cos, Math.tan, Math.abs, Math.floor, Math.ceil, Math.round, Math.sqrt, Math.PI, Math.min, Math.max, Math.random
-          );
-        } catch (e) {
-          return;
-        }
+      } catch (e) {
+        return;
       }
 
       if (result === undefined || result === null || (typeof result === 'number' && isNaN(result))) return;
@@ -5122,11 +5168,25 @@
     }
     window.evaluateLayerExpression = evaluateLayerExpression;
 
+    const _effectivePropsCache = new Map();
+
+    function invalidateEffectivePropsCache() {
+      _effectivePropsCache.clear();
+    }
+    window.invalidateEffectivePropsCache = invalidateEffectivePropsCache;
+
     // Get effective animated properties of layer at given time (with hierarchical parenting)
     function getLayerEffectivePropsAtTime(layer, currentSec, visited = null, layerPool = null, skipParenting = false) {
       if (!layer) return {};
+      if (visited && visited.has(layer.id)) return {};
+
+      const cacheKey = layer.id + ':' + currentSec + ':' + (skipParenting ? '1' : '0');
+      const cached = _effectivePropsCache.get(cacheKey);
+      if (cached) {
+        return Object.assign({}, cached);
+      }
+
       if (!visited) visited = new Set();
-      if (visited.has(layer.id)) return {};
       visited.add(layer.id);
 
       const baseProps = {
@@ -5430,6 +5490,11 @@
           baseProps.opacity = (baseProps.opacity !== undefined ? baseProps.opacity : 1.0) * animTf.alpha;
         }
       }
+
+      if (_effectivePropsCache.size > 512) {
+        _effectivePropsCache.clear();
+      }
+      _effectivePropsCache.set(cacheKey, baseProps);
 
       return baseProps;
     }

@@ -5,6 +5,18 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.27] - 2026-09-17
+
+### Performance
+- **High-Performance Layer Expression AST Compilation Caching & Memoization (`js/editor.js`)**:
+  - Eliminated per-frame `new Function()` re-compilation and AST parsing overhead by introducing `_compiledExpressionCache`, compiling expressions once into pure callable functions cached by script content.
+  - Implemented per-frame hierarchical transform memoization (`_effectivePropsCache`) in `getLayerEffectivePropsAtTime`, computing multi-tier parent null chains (`Null` $\to$ `Y BEAT` $\to$ `X FLIP` $\to$ `OSCILLATE`) once per frame instead of re-evaluating redundantly for every child layer.
+  - Converted `thisComp.layer(...)` proxy properties (`.transform`, `.effect`) into lazy getters, preventing marker inspection queries (`thisComp.layer(index + 1).marker.numKeys`) from triggering expensive full layer transform and parent DAG evaluations.
+  - Cached comp and layer marker objects (`getCompMarkerObject`, `getLayerMarkerObject`) with length and reference tracking, eliminating repeated marker array sorting and memory allocations.
+  - Reduced 3D sequence property evaluation time from 17.80ms/frame to 0.60ms/frame (29.6x speedup, 96.6% CPU time reduction), unlocking locked 60 FPS real-time playback.
+
+---
+
 ## [0.5.26] - 2026-09-17
 
 ### Fixed

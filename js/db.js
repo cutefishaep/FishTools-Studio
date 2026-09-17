@@ -2342,6 +2342,9 @@ window.FishDatabase = (function () {
         l.fillMediaUrl = '';
       }
 
+      if (typeof l.opacity === 'number' && l.opacity > 1.0) {
+        l.opacity = Number((l.opacity / 100).toFixed(2));
+      }
       if (Array.isArray(l.layers)) {
         l.layers = l.layers.map(sanitizeImportedLayer).filter(Boolean);
       }

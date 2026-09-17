@@ -920,7 +920,8 @@
       if ((!is3D && !hasCamera3D) || !this.isReady) {
         ctx.save();
         if (layer.opacity !== undefined && layer.opacity !== null) {
-          ctx.globalAlpha = Math.max(0, Math.min(1, layer.opacity));
+          const rawOp = Number(layer.opacity);
+          ctx.globalAlpha = (rawOp > 1.0) ? Math.max(0, Math.min(1, rawOp / 100)) : Math.max(0, Math.min(1, rawOp));
         }
         if (layer.blendMode && layer.blendMode !== 'normal') {
           ctx.globalCompositeOperation = (layer.blendMode === 'mask') ? 'destination-in' : (layer.blendMode === 'exclude') ? 'destination-out' : layer.blendMode;
@@ -1055,7 +1056,9 @@
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(this.locations.texture, 0);
-      gl.uniform1f(this.locations.opacity, layer.opacity !== undefined ? layer.opacity : 1.0);
+      const rawLayerOp = (layer.opacity !== undefined && layer.opacity !== null) ? Number(layer.opacity) : 1.0;
+      const normLayerOp = (rawLayerOp > 1.0) ? Math.max(0, Math.min(1, rawLayerOp / 100)) : Math.max(0, Math.min(1, rawLayerOp));
+      gl.uniform1f(this.locations.opacity, normLayerOp);
       if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(camera));
 
       gl.disable(gl.DEPTH_TEST);
@@ -1323,7 +1326,8 @@
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        const layerOpacity = layer.opacity !== undefined ? layer.opacity : 1.0;
+        const rawBatchOp = (layer.opacity !== undefined && layer.opacity !== null) ? Number(layer.opacity) : 1.0;
+        const layerOpacity = (rawBatchOp > 1.0) ? Math.max(0, Math.min(1, rawBatchOp / 100)) : Math.max(0, Math.min(1, rawBatchOp));
         gl.uniform1f(this.locations.opacity, layerOpacity);
         gl.depthMask(layerOpacity >= 0.999);
         if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(camera));

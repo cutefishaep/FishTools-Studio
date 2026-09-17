@@ -3090,7 +3090,7 @@
                   anchorX: layer.anchorX || 0,
                   anchorY: layer.anchorY || 0,
                   posZ: layer.posZ || 0,
-                  opacity: layer.opacity !== undefined ? layer.opacity : 1.0
+                  opacity: (layer.opacity !== undefined && layer.opacity !== null) ? (Number(layer.opacity) > 1.0 ? Math.max(0, Math.min(1, Number(layer.opacity) / 100)) : Math.max(0, Math.min(1, Number(layer.opacity)))) : 1.0
                 };
 
             const cx = effProps.posX * bufferScale;
@@ -5105,7 +5105,7 @@
         scaleH: layer.scaleH !== undefined ? layer.scaleH : 500,
         skewX: layer.skewX || 0,
         skewY: layer.skewY || 0,
-        opacity: layer.opacity !== undefined ? layer.opacity : 1.0,
+        opacity: (layer.opacity !== undefined && layer.opacity !== null) ? (Number(layer.opacity) > 1.0 ? Math.max(0, Math.min(1, Number(layer.opacity) / 100)) : Math.max(0, Math.min(1, Number(layer.opacity)))) : 1.0,
         volume: layer.volume !== undefined ? layer.volume : 1.0,
         speed: layer.speed !== undefined ? layer.speed : 1.0,
         timeRemap: layer.timeRemap !== undefined ? layer.timeRemap : 0,
@@ -12622,7 +12622,7 @@
         if (targetL.mediaId) window.layerMediaCache.delete(targetL.mediaId);
       }
 
-      const isShape = (targetL.type === 'shape') || !!targetL.shapeType || !!targetL.shapeProps || (targetL.id && targetL.id.startsWith('layer_shape_')) || (targetL.fillType !== undefined);
+      const isShape = (targetL.type === 'shape') || !!targetL.shapeType || !!targetL.shapeProps || (targetL.id && targetL.id.startsWith('layer_shape_'));
       const isAudio = item.type === 'audio' ||
         (item.dataUrl && (item.dataUrl.startsWith('data:audio') || /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(item.dataUrl))) ||
         (item.name && /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(item.name));
@@ -14570,7 +14570,7 @@
               const badge = card.querySelector(`.fx-badge-${paramName}`);
               if (badge) badge.textContent = badgeText;
 
-              if (!layer.effects || fx === layer.effects[0]) {
+              if (fx && fx.type === 'brightness-contrast' && (paramName === 'brightness' || paramName === 'contrast')) {
                 layer[paramName] = fx[paramName];
               }
               if (typeof recordLayerPropertyChange === 'function') {
@@ -14654,7 +14654,7 @@
             }
           }
 
-          if (!layer.effects || fx === layer.effects[0]) {
+          if (fx && fx.type === 'brightness-contrast' && (paramName === 'brightness' || paramName === 'contrast')) {
             layer[paramName] = fx[paramName];
           }
 
@@ -16301,6 +16301,9 @@
       // Sanitize dangling parentId references to non-existent layers
       const existingLayerIdSet = new Set(currentProjectState.layers.map(l => l.id));
       currentProjectState.layers.forEach(l => {
+        if (typeof l.opacity === 'number' && l.opacity > 1.0) {
+          l.opacity = Number((l.opacity / 100).toFixed(2));
+        }
         if (l.type === 'shape' || l.shapeType || l.shapeProps || (l.id && (l.id.startsWith('layer_shape_') || l.id.startsWith('layer_solid_')))) {
           l.type = 'shape';
           if (!l.fillType) l.fillType = 'color';

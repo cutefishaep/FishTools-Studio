@@ -111,7 +111,7 @@
         });
       },
 
-      _computeFingerprint(layers, beatmarks) {
+      _computeFingerprint(layers, beatmarks, markerNames = {}) {
         const lSig = (layers || []).map(l => {
           let kfCount = 0;
           let kfSig = '';
@@ -138,7 +138,7 @@
           return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${l.motionBlur ? 1 : 0}:${l.is3D ? 1 : 0}:${l.collapseTransformations ? 1 : 0}:${kfCount}:${(l.effects || []).length}:${kfSig}:${exprSig}:${defEasSig}:${childSig}`;
         }).join(';');
         const bSig = (beatmarks || []).join(',');
-        const mSig = (markerNames && typeof markerNames === 'object') ? JSON.stringify(markerNames) : '';
+        const mSig = (markerNames && typeof markerNames === 'object' && Object.keys(markerNames).length > 0) ? JSON.stringify(markerNames) : '';
         return `${lSig}|${bSig}|${mSig}`;
       },
 
@@ -484,6 +484,7 @@
 
           if (prj && prj.id) {
             prj.beatmarks = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
+            prj.markerNames = (currentProjectState.markerNames && typeof currentProjectState.markerNames === 'object') ? { ...currentProjectState.markerNames } : {};
             prj.pixelsPerSecond = window.currentPixelsPerSecond || 80;
             currentProjectState.pixelsPerSecond = prj.pixelsPerSecond;
 
@@ -16232,6 +16233,8 @@
       currentProjectState.bgColor = (currentProject && currentProject.bgColor) || bgParam || 'transparent';
       currentProjectState.layers = (currentProject && Array.isArray(currentProject.layers)) ? currentProject.layers : [];
       currentProjectState.beatmarks = (currentProject && Array.isArray(currentProject.beatmarks)) ? currentProject.beatmarks.slice().sort((a, b) => a - b) : [];
+      currentProjectState.markerNames = (currentProject && currentProject.markerNames && typeof currentProject.markerNames === 'object') ? { ...currentProject.markerNames } : {};
+      currentProjectState.isTemplate = !!(currentProject && currentProject.isTemplate);
       const loadedPps = (currentProject && typeof currentProject.pixelsPerSecond === 'number' && currentProject.pixelsPerSecond > 0) ? currentProject.pixelsPerSecond : 80;
       currentProjectState.pixelsPerSecond = loadedPps;
       if (currentProject && currentProject.motionBlur) {
@@ -16560,12 +16563,12 @@
 
       // Auto-open Template Editor for imported projects or templates
       const isTemplateParam = params.get('template') === '1';
-      const isTemplateProject = isTemplateParam || (currentProject && currentProject.isTemplate);
+      const isTemplateProject = isTemplateParam || (currentProject && currentProject.isTemplate) || (currentProjectState && currentProjectState.isTemplate);
       if (isTemplateProject) {
         const tryOpenTemplate = (attempts = 0) => {
           if (window.FishTemplateEditor && typeof window.FishTemplateEditor.open === 'function') {
             window.FishTemplateEditor.open();
-          } else if (attempts < 20) {
+          } else if (attempts < 30) {
             setTimeout(() => tryOpenTemplate(attempts + 1), 100);
           }
         };
@@ -17487,6 +17490,23 @@
         // Phase 1: Instant synchronous registration (< 1ms per file)
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
+          if (file && file.name && file.name.toLowerCase().endsWith('.ofts')) {
+            if (window.FishDatabase && typeof window.FishDatabase.importOFTSPackage === 'function') {
+              try {
+                const imported = await window.FishDatabase.importOFTSPackage(file);
+                if (imported && imported.id) {
+                  const isDesktop = window.location.pathname.includes('desktop.html') || window.innerWidth >= 900;
+                  const target = isDesktop ? 'desktop.html' : 'editor.html';
+                  window.location.href = `${target}?id=${encodeURIComponent(imported.id)}&template=1`;
+                  return [];
+                }
+              } catch (e) {
+                console.warn('Error importing dropped .ofts file:', e);
+              }
+            }
+            continue;
+          }
+
           const ext = (file.name.split('.').pop() || '').toLowerCase();
           const mime = (file.type || '').toLowerCase();
 

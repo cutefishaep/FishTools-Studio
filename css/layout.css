@@ -133,6 +133,33 @@ html, body {
   transform: scale(0.95);
 }
 
+.studio-top-btn-install {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+  font-weight: 700;
+}
+
+.studio-top-btn-install svg {
+  fill: var(--bg-canvas);
+}
+
+.studio-top-btn-install:hover {
+  background-color: var(--color-primary-hover);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary-hover);
+}
+
+.studio-top-btn-install:hover svg {
+  fill: var(--bg-canvas);
+}
+
+.studio-top-btn-install:active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  transform: scale(0.95);
+}
+
 .btn-info-top {
   padding: 0;
   width: 34px;
@@ -875,6 +902,30 @@ html, body {
 
   .action-btn-title {
     font-size: 14.5px;
+  }
+
+  .studio-header-actions {
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+
+  .studio-top-btn {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 11px;
+    gap: 4px;
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 440px) {
+  .studio-top-btn:not(.studio-top-btn-install):not(.btn-info-top) span {
+    display: none;
+  }
+  .studio-top-btn:not(.studio-top-btn-install):not(.btn-info-top) {
+    padding: 0;
+    width: 32px;
+    justify-content: center;
   }
 }
 

@@ -30,11 +30,11 @@
         <h1 class="brand-title">OpenFishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.5.15</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.5.16</span>
         </div>
       </div>
       <div class="studio-header-actions">
-        <button type="button" class="studio-top-btn" id="btn-install-app" style="display: none;" aria-label="Install App" onclick="PWAInstall.openModal()">
+        <button type="button" class="studio-top-btn studio-top-btn-install" id="btn-install-app" aria-label="Install App" onclick="PWAInstall.openModal()">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
@@ -420,7 +420,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.15</span>
+          <span class="welcome-badge">v0.5.16</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -456,11 +456,54 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.16 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.16</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 17, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Direct `.ofts` Project Drag &amp; Drop (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Dropping `.ofts` project archives anywhere onto the desktop canvas, timeline, or media pool automatically unpacks and loads the project with the Template Editor open.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">`markerNames` ReferenceError &amp; Snapshot Crash (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Fixed `ReferenceError: Can't find variable: markerNames` in `_computeFingerprint` and `saveCurrentProjectLayers`, which caused unhandled promise rejections and prematurely halted project loading.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Template Editor Auto-Open on Import (`desktop.html`, `js/editor.js`, `js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Restored reliable automatic pop-up of Template Editor on initial `.ofts` import across desktop and mobile workstations. Added multi-attempt polling, project state hydration, and idempotency protection.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Mobile View Switch Modal Prompt (`js/desktop.js`, `desktop.html`)</span>
+                  <span class="changelog-item-desc">Widened viewport threshold (`&lt;= 900px`), added coarse pointer / touch detection, removed stale dismissal traps, and ensured the "Switch to Mobile View?" modal prompts promptly on phone screens and responsive viewports.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Network-First Service Worker Strategy (`sw.js`)</span>
+                  <span class="changelog-item-desc">Switched static asset caching to Network-First with cache fallback, preventing stale cached script traps while preserving full offline PWA functionality. Added `desktop.html` and `editor.html` to pre-cached core assets.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.15 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.15</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 17, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -1256,6 +1299,18 @@
         </ol>
       </div>
 
+      <!-- Desktop Browser Manual Instructions -->
+      <div class="install-ios-card" id="install-desktop-instructions" style="display: none;">
+        <div class="install-ios-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+          <span>Install on Desktop Browser</span>
+        </div>
+        <ol class="install-ios-steps">
+          <li>Click the <strong>Install icon</strong> (⊕ or 💻) in your browser address bar (top right).</li>
+          <li>Or click browser menu (<strong>⋮</strong>) &rarr; <strong>"Install OpenFishTools Studio"</strong>.</li>
+        </ol>
+      </div>
+
       <div class="install-modal-actions">
         <button type="button" class="install-btn-secondary" onclick="PWAInstall.dismiss()">Maybe Later</button>
         <button type="button" class="install-btn-primary" id="install-pwa-action-btn" onclick="PWAInstall.prompt()">
@@ -1267,10 +1322,10 @@
   </div>
 
   <script src="js/jszip.min.js"></script>
-  <script src="js/db.js?v=0.5.15"></script>
-  <script src="js/modal.js?v=0.5.15"></script>
-  <script src="js/pwa-install.js?v=0.5.15"></script>
-  <script src="js/context-menu.js?v=0.5.15"></script>
-  <script src="js/main.js?v=0.5.15"></script>
+  <script src="js/db.js?v=0.5.16"></script>
+  <script src="js/modal.js?v=0.5.16"></script>
+  <script src="js/pwa-install.js?v=0.5.16"></script>
+  <script src="js/context-menu.js?v=0.5.16"></script>
+  <script src="js/main.js?v=0.5.16"></script>
 </body>
 </html>

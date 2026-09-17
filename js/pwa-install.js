@@ -63,10 +63,8 @@
       return;
     }
 
-    // Visible on browsers that fired beforeinstallprompt or on iOS
-    if (deferredPrompt || isIOS()) {
-      btn.style.display = 'inline-flex';
-    }
+    // Always visible unless already running as installed standalone app
+    btn.style.display = 'inline-flex';
   }
 
   // 5. Open Install Pop-up Modal
@@ -76,20 +74,33 @@
     var modal = document.getElementById('modal-install-app');
     if (!modal) return;
 
-    // Adapt content for iOS if needed
+    // Adapt content for iOS / Desktop / Native prompt
     var iosCard = document.getElementById('install-ios-instructions');
+    var desktopCard = document.getElementById('install-desktop-instructions');
     var nativeAction = document.getElementById('install-pwa-action-btn');
     var defaultDesc = document.getElementById('install-modal-desc');
 
     if (isIOS() && !deferredPrompt) {
       if (iosCard) iosCard.style.display = 'block';
+      if (desktopCard) desktopCard.style.display = 'none';
       if (nativeAction) nativeAction.style.display = 'none';
       if (defaultDesc) {
         defaultDesc.textContent = 'To install OpenFishTools Studio on iOS, tap Share in Safari and select Add to Home Screen.';
       }
+    } else if (!deferredPrompt) {
+      if (iosCard) iosCard.style.display = 'none';
+      if (desktopCard) desktopCard.style.display = 'block';
+      if (nativeAction) nativeAction.style.display = 'none';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'Install OpenFishTools Studio as a standalone desktop application directly from your browser.';
+      }
     } else {
       if (iosCard) iosCard.style.display = 'none';
+      if (desktopCard) desktopCard.style.display = 'none';
       if (nativeAction) nativeAction.style.display = 'inline-flex';
+      if (defaultDesc) {
+        defaultDesc.textContent = 'Install as a standalone app for faster startup, offline access, and durable local project storage.';
+      }
     }
 
     if (window.Modal && typeof window.Modal.open === 'function') {

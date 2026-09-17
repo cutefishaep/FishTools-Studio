@@ -5,6 +5,22 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.16] - 2026-09-17
+
+### Added
+- **Prominent "Install App" Header Action (`index.html`, `css/layout.css`, `js/pwa-install.js`)**: Added a dedicated, high-contrast "Install App" button in the top navigation bar. Automatically adapts across desktop, Android, and iOS Safari with tailored installation modals and address-bar instructions.
+- **Direct `.ofts` Project Drag & Drop (`js/editor.js`)**: Dropping `.ofts` project archives anywhere onto the desktop canvas, timeline, or media pool automatically unpacks and loads the project with the Template Editor open.
+
+### Fixed
+- **`markerNames` ReferenceError & Snapshot Crash (`js/editor.js`)**: Fixed `ReferenceError: Can't find variable: markerNames` in `_computeFingerprint` and `saveCurrentProjectLayers`, which caused unhandled promise rejections and prematurely halted project loading.
+- **Template Editor Auto-Open on Import (`desktop.html`, `js/editor.js`, `js/desktop.js`)**: Restored reliable automatic pop-up of Template Editor on initial `.ofts` import across desktop and mobile workstations. Added multi-attempt polling, project state hydration, and idempotency protection.
+- **Mobile View Switch Modal Prompt (`js/desktop.js`, `desktop.html`)**: Widened viewport threshold (`<= 900px`), added coarse pointer / touch detection, removed stale dismissal traps, and ensured the "Switch to Mobile View?" modal prompts promptly on phone screens and responsive viewports.
+
+### Improved
+- **Network-First Service Worker Strategy (`sw.js`)**: Switched static asset caching to Network-First with cache fallback, preventing stale cached script traps while preserving full offline PWA functionality. Added `desktop.html` and `editor.html` to pre-cached core assets.
+
+---
+
 ## [0.5.15] - 2026-09-17
 
 ### Added

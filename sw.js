@@ -1,27 +1,33 @@
 /**
  * OpenFishTools Studio - Service Worker
- * Version: 0.5.15
+ * Version: 0.5.16
  * 
  * Provides offline caching, lightning-fast boot times,
  * and enables PWA standalone install experience.
  */
 
-const CACHE_NAME = 'oft-studio-v0.5.15';
+const CACHE_NAME = 'oft-studio-v0.5.16';
 
 const CORE_ASSETS = [
   './',
   'index.html',
+  'editor.html',
+  'desktop.html',
   'manifest.webmanifest',
   'css/theme.css',
   'css/layout.css',
   'css/modal.css',
   'css/context-menu.css',
   'css/safari.css',
+  'css/desktop.css',
   'js/modal.js',
   'js/context-menu.js',
   'js/db.js',
   'js/pwa-install.js',
   'js/main.js',
+  'js/editor.js',
+  'js/desktop.js',
+  'js/template-editor.js',
   'assets/icon.svg',
   'assets/icon-192.png',
   'assets/icon-512.png',
@@ -94,22 +100,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Same-origin static assets: Cache first, stale-while-revalidate
+  // Same-origin static assets (scripts, styles, icons): Network first, fall back to cache
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(req).then((cachedResponse) => {
-        const fetchPromise = fetch(req).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(req, responseToCache);
             });
           }
           return networkResponse;
-        }).catch(() => cachedResponse);
-
-        return cachedResponse || fetchPromise;
-      })
+        })
+        .catch(() => {
+          return caches.match(req);
+        })
     );
     return;
   }

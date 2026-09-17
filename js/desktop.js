@@ -2619,29 +2619,37 @@
 
   // --- Mobile Device & Small Viewport Detection ---
   const MOBILE_DISMISS_KEY = 'oft_desktop_mobile_dismissed';
+  let mobilePromptDismissedThisSession = false;
 
   function isMobileOrSmallScreen() {
-    const isMobileUA = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isNarrowViewport = window.innerWidth <= 768;
-    return isNarrowViewport || (isMobileUA && window.innerWidth <= 960);
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    const isNarrowViewport = window.innerWidth <= 900 || (window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+    return isNarrowViewport || isMobileUA;
   }
 
-  function checkAndPromptMobileSwitch() {
-    try {
-      if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay' || sessionStorage.getItem(MOBILE_DISMISS_KEY) === 'stay') {
+  function checkAndPromptMobileSwitch(force = false) {
+    if (!force) {
+      try {
+        if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay') {
+          return;
+        }
+      } catch (_) {}
+      if (mobilePromptDismissedThisSession) {
         return;
       }
-    } catch (_) {}
+    }
 
     if (isMobileOrSmallScreen()) {
       setTimeout(() => {
         if (window.Modal && typeof window.Modal.open === 'function') {
-          if (!document.querySelector('.modal-backdrop.is-active')) {
+          const modalEl = document.getElementById('modal-switch-mobile');
+          if (modalEl && !modalEl.classList.contains('is-active')) {
             window.Modal.open('modal-switch-mobile');
           }
         }
-      }, 500);
+      }, 250);
     }
   }
 
@@ -2657,12 +2665,11 @@
   }
 
   function dismissMobileSwitchModal() {
+    mobilePromptDismissedThisSession = true;
     const checkbox = document.getElementById('checkbox-remember-mobile-switch');
     try {
       if (checkbox && checkbox.checked) {
         localStorage.setItem(MOBILE_DISMISS_KEY, 'stay');
-      } else {
-        sessionStorage.setItem(MOBILE_DISMISS_KEY, 'stay');
       }
     } catch (_) {}
 
@@ -2675,12 +2682,50 @@
   window.addEventListener('resize', () => {
     clearTimeout(resizeMobileTimer);
     resizeMobileTimer = setTimeout(() => {
-      checkAndPromptMobileSwitch();
-    }, 400);
+      if (isMobileOrSmallScreen()) {
+        try {
+          if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay') return;
+        } catch (_) {}
+        const modalEl = document.getElementById('modal-switch-mobile');
+        if (modalEl && !modalEl.classList.contains('is-active')) {
+          if (window.Modal && typeof window.Modal.open === 'function') {
+            window.Modal.open('modal-switch-mobile');
+          }
+        }
+      }
+    }, 300);
   });
+
+  // Template Editor Auto-Open Fallback for Initial Import in Desktop Workstation
+  function ensureTemplateEditorAutoOpens() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isTemplateParam = searchParams.get('template') === '1';
+    if (isTemplateParam || (window.currentProjectState && window.currentProjectState.isTemplate)) {
+      const tryOpen = (attempts = 0) => {
+        if (window.FishTemplateEditor && typeof window.FishTemplateEditor.open === 'function') {
+          window.FishTemplateEditor.open();
+        } else if (attempts < 30) {
+          setTimeout(() => tryOpen(attempts + 1), 100);
+        }
+      };
+      setTimeout(() => tryOpen(0), 180);
+    }
+  }
+
+  // Trigger mobile check immediately if DOM already loaded
+  if (document.readyState !== 'loading') {
+    checkAndPromptMobileSwitch();
+    ensureTemplateEditorAutoOpens();
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAndPromptMobileSwitch();
+      ensureTemplateEditorAutoOpens();
+    });
+  }
 
   window.proceedToMobileView = proceedToMobileView;
   window.dismissMobileSwitchModal = dismissMobileSwitchModal;
   window.checkAndPromptMobileSwitch = checkAndPromptMobileSwitch;
+  window.ensureTemplateEditorAutoOpens = ensureTemplateEditorAutoOpens;
 
 })();

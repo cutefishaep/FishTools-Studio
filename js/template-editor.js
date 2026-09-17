@@ -314,6 +314,7 @@
     },
 
     async open() {
+      if (this.isOpen) return;
       this.init();
       const el = this._elements;
       if (!el.overlay) return;

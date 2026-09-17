@@ -1,0 +1,17 @@
+[package]
+name = "openfishtools-studio"
+version = "0.5.20"
+description = "OpenFishTools Studio Native Desktop App"
+edition = "2021"
+
+[lib]
+name = "openfishtools_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -11,7 +11,10 @@
     "version:sync": "node scripts/sync-version.js",
     "sync:effects": "node scripts/sync-effects.js",
     "serve": "npx serve .",
-    "test": "node scratch/test_suite.js"
+    "test": "node scratch/test_suite.js",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev --config native/src-tauri/tauri.conf.json",
+    "desktop:build": "tauri build --config native/src-tauri/tauri.conf.json"
   },
   "keywords": [
     "openfishtools",
@@ -22,5 +25,8 @@
   "license": "MIT",
   "dependencies": {
     "mp4-muxer": "^5.2.2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
   }
 }

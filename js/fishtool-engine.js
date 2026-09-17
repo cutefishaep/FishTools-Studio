@@ -1182,7 +1182,21 @@
               ctx.shadowOffsetX = ox + offX;
               ctx.drawImage(this.glCanvas, -offX, 0);
             } else {
-              ctx.drawImage(this.glCanvas, 0, 0);
+              // Sub-rect draw avoids 1080p full-canvas CPU Gaussian blur overhead
+              const pad = Math.ceil(blur * 2 + Math.max(Math.abs(ox), Math.abs(oy)));
+              const rawBx = bounds.x !== undefined ? bounds.x : 0;
+              const rawBy = bounds.y !== undefined ? bounds.y : 0;
+              const rawBw = bounds.aabbW || bounds.w || vw;
+              const rawBh = bounds.aabbH || bounds.h || vh;
+              const sx = Math.max(0, Math.floor(rawBx - pad));
+              const sy = Math.max(0, Math.floor(rawBy - pad));
+              const sw = Math.min(vw - sx, Math.ceil(rawBw + pad * 2));
+              const sh = Math.min(vh - sy, Math.ceil(rawBh + pad * 2));
+              if (sw > 0 && sh > 0 && (sw < vw * 0.95 || sh < vh * 0.95)) {
+                ctx.drawImage(this.glCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
+              } else {
+                ctx.drawImage(this.glCanvas, 0, 0);
+              }
             }
             ctx.restore();
           } else if (!rgbSplitFx) {

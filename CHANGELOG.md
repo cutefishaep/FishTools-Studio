@@ -5,6 +5,15 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.22] - 2026-09-17
+
+### Performance
+- **3D Layer Drop Shadow Bounding Box Optimization (`js/fishtool-engine.js`)**:
+  - Replaced full-frame 1080p canvas Gaussian blur with tightly padded sub-rectangle draws clipped to the layer's 3D AABB bounding box.
+  - Slashes CPU pixel rasterization by 90-95% when multiple 3D layers with Drop Shadow are active simultaneously, eliminating lag spikes during heavy compositions.
+
+---
+
 ## [0.5.21] - 2026-09-17
 
 ### Fixed

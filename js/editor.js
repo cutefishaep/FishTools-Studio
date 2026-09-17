@@ -16147,15 +16147,42 @@
       const bgParam = params.get('bg');
       const nameInput = document.getElementById('editor-project-name');
 
-      // Clean up all non-essential studio caches on opening project (preserves projects & media)
-      if (typeof window.cleanupAllStudioCaches === 'function') {
-        window.cleanupAllStudioCaches('project_open').catch(() => {});
+      // Fast synchronous cache discovery to immediately show project title & prevent 30s placeholder freeze
+      let fastProject = null;
+      if (idParam) {
+        try {
+          const backupRaw = localStorage.getItem('oft_active_project_backup_' + idParam);
+          if (backupRaw) fastProject = JSON.parse(backupRaw);
+          if (!fastProject) {
+            const rawProjects = localStorage.getItem('fishtools_projects');
+            if (rawProjects) {
+              const list = JSON.parse(rawProjects);
+              if (Array.isArray(list)) {
+                fastProject = list.find(p => p && p.id === idParam) || null;
+              }
+            }
+          }
+        } catch (_) {}
       }
 
-      let currentProject = null;
+      const initialProjectName = (fastProject && fastProject.name) || nameParam || '';
+      if (nameInput && initialProjectName) {
+        nameInput.value = initialProjectName;
+        document.title = `${initialProjectName} - OpenFishTools Studio`;
+      }
+
+      // Clean up all non-essential studio caches in background (non-blocking, deferred)
+      if (typeof window.cleanupAllStudioCaches === 'function') {
+        setTimeout(() => {
+          window.cleanupAllStudioCaches('project_open').catch(() => {});
+        }, 1000);
+      }
+
+      let currentProject = fastProject;
       if (idParam && window.FishDatabase) {
         try {
-          currentProject = await window.FishDatabase.getProject(idParam);
+          const dbProj = await window.FishDatabase.getProject(idParam);
+          if (dbProj) currentProject = dbProj;
         } catch (_) {}
         // Fallback 1: check active project backup in localStorage
         if (!currentProject && idParam) {
@@ -16283,88 +16310,6 @@
         }
       });
 
-      // Hydrate layer media from IndexedDB Media Pool if dataUrl or thumbUrl was omitted/stripped
-      if (currentProjectState.id && window.FishDatabase) {
-        try {
-          const projectMedias = await window.FishDatabase.getProjectMedia(currentProjectState.id);
-          if (Array.isArray(projectMedias) && projectMedias.length > 0) {
-            const mediaMap = new Map(projectMedias.map(m => [m.id, m]));
-            const hydrateLayer = (l) => {
-              if (!l) return;
-              let m = l.mediaId ? mediaMap.get(l.mediaId) : null;
-              if (!m && (l.type === 'video' || l.type === 'image' || l.type === 'audio')) {
-                // Fallback matching by name and type, or single media item match
-                m = projectMedias.find(item => item.name === l.name && item.type === l.type) ||
-                    (projectMedias.filter(item => item.type === l.type).length === 1 ? projectMedias.find(item => item.type === l.type) : null);
-                if (m) l.mediaId = m.id;
-              }
-              if (m) {
-                if (!m.dataUrl && m.buffer) {
-                  try {
-                    m.blob = new Blob([m.buffer], { type: m.mimeType || '' });
-                    m.dataUrl = URL.createObjectURL(m.blob);
-                  } catch (_) {}
-                }
-                if (m.dataUrl) {
-                  l.dataUrl = m.dataUrl;
-                } else if (m.blob) {
-                  try { l.dataUrl = URL.createObjectURL(m.blob); } catch (_) {}
-                }
-                if (m.thumbUrl) {
-                  l.thumbUrl = m.thumbUrl;
-                } else if (m.thumbBlob) {
-                  try { l.thumbUrl = URL.createObjectURL(m.thumbBlob); } catch (_) {}
-                } else if (m.thumbBuffer) {
-                  try {
-                    m.thumbBlob = new Blob([m.thumbBuffer], { type: 'image/jpeg' });
-                    l.thumbUrl = URL.createObjectURL(m.thumbBlob);
-                  } catch (_) {}
-                }
-                if (!l.mediaDuration && m.duration) l.mediaDuration = m.duration;
-                if (!l.mediaWidth && m.width) l.mediaWidth = m.width;
-                if (!l.mediaHeight && m.height) l.mediaHeight = m.height;
-
-                // Sync with any media element already mounted in layerMediaCache
-                const cacheKey = l.type === 'video' ? l.id : (l.mediaId || l.id);
-                if (layerMediaCache && layerMediaCache.has(cacheKey)) {
-                  const entry = layerMediaCache.get(cacheKey);
-                  if (entry && entry.el && l.dataUrl && entry.el.src !== l.dataUrl) {
-                    entry.el.src = l.dataUrl;
-                    if (typeof entry.el.load === 'function') entry.el.load();
-                  }
-                }
-              }
-              if (l.type === 'precomp' && m && Array.isArray(m.layers)) {
-                if (!Array.isArray(l.layers) || l.layers.length === 0) {
-                  l.layers = JSON.parse(JSON.stringify(m.layers));
-                }
-                if (l.collapseTransformations === undefined && m.collapseTransformations !== undefined) {
-                  l.collapseTransformations = !!m.collapseTransformations;
-                }
-                if (l.is3D === undefined && m.is3D !== undefined) {
-                  l.is3D = !!m.is3D;
-                }
-              }
-              if (l.fillMediaId && mediaMap.has(l.fillMediaId)) {
-                const fm = mediaMap.get(l.fillMediaId);
-                if (!l.fillMediaUrl && (fm.thumbUrl || fm.dataUrl)) l.fillMediaUrl = fm.thumbUrl || fm.dataUrl;
-                if (!l.fillMediaName && fm.name) l.fillMediaName = fm.name;
-              }
-              if (Array.isArray(l.layers)) {
-                l.layers.forEach(hydrateLayer);
-              }
-            };
-            currentProjectState.layers.forEach(hydrateLayer);
-            if (window.layerMediaCache) window.layerMediaCache.clear();
-            if (typeof saveCurrentProjectLayers === 'function' && Array.isArray(currentProjectState.layers) && currentProjectState.layers.length > 0) {
-              saveCurrentProjectLayers();
-            }
-          }
-        } catch (e) {
-          console.warn('Hydrating layers from media pool warning:', e);
-        }
-      }
-
       // Seed preview cache boundaries for all loaded layers and ensure unique effect IDs
       const initPps = currentProjectState.pixelsPerSecond || window.currentPixelsPerSecond || 80;
       currentProjectState.layers.forEach(l => {
@@ -16408,14 +16353,19 @@
 
       if (nameInput) {
         nameInput.value = currentProjectState.name;
-        nameInput.addEventListener('change', async () => {
-          const updatedName = nameInput.value.trim() || 'Untitled_Project';
-          nameInput.value = updatedName;
-          currentProjectState.name = updatedName;
-          if (currentProjectState.id && window.FishDatabase) {
-            await window.FishDatabase.renameProject(currentProjectState.id, updatedName);
-          }
-        });
+        document.title = `${currentProjectState.name} - OpenFishTools Studio`;
+        if (!nameInput._renameWired) {
+          nameInput._renameWired = true;
+          nameInput.addEventListener('change', async () => {
+            const updatedName = nameInput.value.trim() || 'Untitled_Project';
+            nameInput.value = updatedName;
+            currentProjectState.name = updatedName;
+            document.title = `${updatedName} - OpenFishTools Studio`;
+            if (currentProjectState.id && window.FishDatabase) {
+              await window.FishDatabase.renameProject(currentProjectState.id, updatedName);
+            }
+          });
+        }
       }
 
       // Synchronous Save & Exit Trapping on Back Button
@@ -16459,8 +16409,6 @@
           window.location.href = 'index.html';
         });
       }
-
-
 
       // Restore More Settings toggle states (default: both disabled)
       let isDraftActive = false;
@@ -16533,9 +16481,6 @@
         window.renderTimelineBeatmarks();
       }
       // Force-sync timeline CSS transform immediately after project load.
-      // Without this, rulerTrack/layersTrack transform is never applied on first
-      // render (renderTimeline RAF guard skips if panX === lastRenderedPanX),
-      // causing clip blocks to appear visually offset until the user zooms.
       if (typeof window.updateTimelinePosition === 'function') {
         window.updateTimelinePosition(window.timelinePanX || 0, true);
       }
@@ -16559,6 +16504,95 @@
 
       if (typeof redrawComposition === 'function') {
         redrawComposition('initProjectLoaded');
+      }
+
+      // Non-blocking layer media hydration from IndexedDB Media Pool
+      if (currentProjectState.id && window.FishDatabase) {
+        (async function hydrateMediaFromPool() {
+          try {
+            const projectMedias = await window.FishDatabase.getProjectMedia(currentProjectState.id);
+            if (Array.isArray(projectMedias) && projectMedias.length > 0) {
+              const mediaMap = new Map(projectMedias.map(m => [m.id, m]));
+              const hydrateLayer = (l) => {
+                if (!l) return;
+                let m = l.mediaId ? mediaMap.get(l.mediaId) : null;
+                if (!m && (l.type === 'video' || l.type === 'image' || l.type === 'audio')) {
+                  m = projectMedias.find(item => item.name === l.name && item.type === l.type) ||
+                      (projectMedias.filter(item => item.type === l.type).length === 1 ? projectMedias.find(item => item.type === l.type) : null);
+                  if (m) l.mediaId = m.id;
+                }
+                if (m) {
+                  if (!m.dataUrl && m.buffer) {
+                    try {
+                      m.blob = new Blob([m.buffer], { type: m.mimeType || '' });
+                      m.dataUrl = URL.createObjectURL(m.blob);
+                    } catch (_) {}
+                  }
+                  if (m.dataUrl) {
+                    l.dataUrl = m.dataUrl;
+                  } else if (m.blob) {
+                    try { l.dataUrl = URL.createObjectURL(m.blob); } catch (_) {}
+                  }
+                  if (m.thumbUrl) {
+                    l.thumbUrl = m.thumbUrl;
+                  } else if (m.thumbBlob) {
+                    try { l.thumbUrl = URL.createObjectURL(m.thumbBlob); } catch (_) {}
+                  } else if (m.thumbBuffer) {
+                    try {
+                      m.thumbBlob = new Blob([m.thumbBuffer], { type: 'image/jpeg' });
+                      l.thumbUrl = URL.createObjectURL(m.thumbBlob);
+                    } catch (_) {}
+                  }
+                  if (!l.mediaDuration && m.duration) l.mediaDuration = m.duration;
+                  if (!l.mediaWidth && m.width) l.mediaWidth = m.width;
+                  if (!l.mediaHeight && m.height) l.mediaHeight = m.height;
+
+                  // Sync with any media element already mounted in layerMediaCache
+                  const cacheKey = l.type === 'video' ? l.id : (l.mediaId || l.id);
+                  if (layerMediaCache && layerMediaCache.has(cacheKey)) {
+                    const entry = layerMediaCache.get(cacheKey);
+                    if (entry && entry.el && l.dataUrl && entry.el.src !== l.dataUrl) {
+                      entry.el.src = l.dataUrl;
+                      if (typeof entry.el.load === 'function') entry.el.load();
+                    }
+                  }
+                }
+                if (l.type === 'precomp' && m && Array.isArray(m.layers)) {
+                  if (!Array.isArray(l.layers) || l.layers.length === 0) {
+                    l.layers = JSON.parse(JSON.stringify(m.layers));
+                  }
+                  if (l.collapseTransformations === undefined && m.collapseTransformations !== undefined) {
+                    l.collapseTransformations = !!m.collapseTransformations;
+                  }
+                  if (l.is3D === undefined && m.is3D !== undefined) {
+                    l.is3D = !!m.is3D;
+                  }
+                }
+                if (l.fillMediaId && mediaMap.has(l.fillMediaId)) {
+                  const fm = mediaMap.get(l.fillMediaId);
+                  if (!l.fillMediaUrl && (fm.thumbUrl || fm.dataUrl)) l.fillMediaUrl = fm.thumbUrl || fm.dataUrl;
+                  if (!l.fillMediaName && fm.name) l.fillMediaName = fm.name;
+                }
+                if (Array.isArray(l.layers)) {
+                  l.layers.forEach(hydrateLayer);
+                }
+              };
+              currentProjectState.layers.forEach(hydrateLayer);
+              if (window.layerMediaCache) window.layerMediaCache.clear();
+              if (typeof saveCurrentProjectLayers === 'function' && Array.isArray(currentProjectState.layers) && currentProjectState.layers.length > 0) {
+                saveCurrentProjectLayers();
+              }
+              if (typeof redrawComposition === 'function') {
+                redrawComposition('mediaHydrated');
+              }
+              if (typeof window.renderTimelineLayers === 'function') {
+                window.renderTimelineLayers();
+              }
+            }
+          } catch (e) {
+            console.warn('Hydrating layers from media pool warning:', e);
+          }
+        })();
       }
 
       // Auto-open Template Editor for imported projects or templates

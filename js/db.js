@@ -182,12 +182,6 @@ window.FishDatabase = (function () {
     }, 150);
   }
 
-  async function init() {
-    await requestPersistentStorage();
-    await cleanupLegacyData();
-    await openDB();
-  }
-
   // Synchronous localStorage project helpers
   function getLocalProjects() {
     try {
@@ -306,18 +300,23 @@ window.FishDatabase = (function () {
    */
   async function cleanupLegacyData() {
     if (typeof window !== 'undefined' && window.indexedDB && typeof window.indexedDB.deleteDatabase === 'function') {
-      var legacyDbs = [
-        'FishTool_Studio_DB',
-        'FishTool_MediaStorage_DB',
-        'FishTool_Projects_DB',
-        'fishTool_media_db',
-        'fishTool_projects_db'
-      ];
-      legacyDbs.forEach(function (name) {
-        try {
-          window.indexedDB.deleteDatabase(name);
-        } catch (_) {}
-      });
+      try {
+        if (!localStorage.getItem('fishtool_legacy_dbs_purged')) {
+          var legacyDbs = [
+            'FishTool_Studio_DB',
+            'FishTool_MediaStorage_DB',
+            'FishTool_Projects_DB',
+            'fishTool_media_db',
+            'fishTool_projects_db'
+          ];
+          legacyDbs.forEach(function (name) {
+            try {
+              window.indexedDB.deleteDatabase(name);
+            } catch (_) {}
+          });
+          localStorage.setItem('fishtool_legacy_dbs_purged', 'true');
+        }
+      } catch (_) {}
     }
 
     // Immediate localStorage Quota Recovery: Purge bloated base64 from stale localStorage items
@@ -369,8 +368,10 @@ window.FishDatabase = (function () {
       }
     }
 
-    // Execute cleanup of legacy mock data on init
-    await cleanupLegacyData();
+    // Execute cleanup of legacy mock data in background after startup
+    setTimeout(function () {
+      cleanupLegacyData().catch(function () {});
+    }, 500);
   }
 
   // --- Settings APIs ---
@@ -1455,7 +1456,7 @@ window.FishDatabase = (function () {
             console.warn('[FishDatabase] getProjectMedia transaction timeout, returning fallback');
             var local = getLocalMedia().filter(function (m) { return m.projectId === projectId; });
             resolve(local);
-          }, 25000);
+          }, 1200);
 
           function finish(items) {
             if (isDone) return;

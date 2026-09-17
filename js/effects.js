@@ -524,6 +524,49 @@
       return entry;
     },
 
+    isEffectIdentity(fx) {
+      if (!fx || fx.disabled) return true;
+      const type = fx.type;
+      if (type === 'wave-warp') {
+        return Math.abs(fx.waveHeight !== undefined ? fx.waveHeight : 25) < 0.05;
+      }
+      if (type === 'hue-shift') {
+        const rawHue = fx.hue !== undefined ? Number(fx.hue) : 0;
+        const normAngle = ((rawHue % 360) + 360) % 360;
+        return Math.abs(normAngle) < 0.1 || Math.abs(normAngle - 360) < 0.1;
+      }
+      if (type === 'transform') {
+        const s = fx.scale !== undefined ? Number(fx.scale) : 100;
+        const r = fx.rotation !== undefined ? Number(fx.rotation) : 0;
+        const x = fx.posX !== undefined ? Number(fx.posX) : 0;
+        const y = fx.posY !== undefined ? Number(fx.posY) : 0;
+        const sk = fx.skew !== undefined ? Number(fx.skew) : 0;
+        const op = fx.opacity !== undefined ? Number(fx.opacity) : 100;
+        return s === 100 && r === 0 && x === 0 && y === 0 && sk === 0 && op === 100;
+      }
+      if (type === 'brightness-contrast' || type === 'brightness_contrast') {
+        return (!fx.brightness) && (!fx.contrast);
+      }
+      if (type === 'fast-box-blur' || type === 'fast_box_blur') {
+        return !fx.radius || fx.radius <= 0.1;
+      }
+      if (type === 'gaussian-blur' || type === 'gaussian_blur') {
+        return !fx.blur || fx.blur <= 0.1;
+      }
+      if (type === 'drop-shadow') {
+        const op = fx.opacity !== undefined ? fx.opacity : 75;
+        const blur = fx.blur !== undefined ? fx.blur : 10;
+        const dist = fx.distance !== undefined ? fx.distance : 15;
+        return op <= 0 || (blur <= 0 && dist <= 0);
+      }
+      return false;
+    },
+
+    hasNonIdentityEffects(layer) {
+      if (!layer || !Array.isArray(layer.effects) || layer.effects.length === 0) return false;
+      return layer.effects.some(fx => !this.isEffectIdentity(fx));
+    },
+
     renderLayer(ctx, el, layer, bounds, currentSec) {
       if (!ctx || !el) return;
       const bx = bounds && bounds.x !== undefined ? bounds.x : 0;
@@ -555,7 +598,8 @@
       const renderEffects = effects.filter(f => {
         const def = FishEffectsRegistry.get(f.type);
         if (!def || def.category === 'expression') return false;
-        return typeof def.render === 'function';
+        if (typeof def.render !== 'function') return false;
+        return !this.isEffectIdentity(f);
       });
 
       if (renderEffects.length === 0) {

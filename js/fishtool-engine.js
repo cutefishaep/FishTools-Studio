@@ -274,10 +274,22 @@
         if (el.tagName === 'CANVAS' && (el.width <= 0 || el.height <= 0)) return tex;
         const isStaticImg = (el.tagName === 'IMG');
         const src = el.src || '';
-        if (!isStaticImg || tex._uploadedSrc !== src) {
+        if (isStaticImg) {
+          if (tex._uploadedSrc !== src) {
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+            if (src) tex._uploadedSrc = src;
+          }
+        } else if (el.tagName === 'CANVAS') {
+          const ver = el._contentVersion;
+          if (ver === undefined || tex._uploadedVersion !== ver) {
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+            if (ver !== undefined) tex._uploadedVersion = ver;
+          }
+        } else {
           gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
-          if (isStaticImg && src) tex._uploadedSrc = src;
         }
       } catch (_) {}
 
@@ -1068,6 +1080,13 @@
         ? layer.effects.find(f => f.type === 'tile' && !f.disabled)
         : null;
 
+      this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, bounds);
+
+      // Blit GL framebuffer onto target 2D canvas context
+      this._blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale);
+    }
+
+    _drawQuadOrTile(gl, mvp, tileFx, vw, vh, bounds) {
       if (tileFx) {
         const isMirror = (tileFx.mirror === 1 || tileFx.mirror === true || tileFx.mirror === '1' || tileFx.mirror === 'true' || tileFx.mirror === 'on');
         const tileScale = Math.max(5, (tileFx.scale !== undefined ? tileFx.scale : 100)) / 100;
@@ -1103,31 +1122,26 @@
             const shiftX = offX + i * tileScale;
             const shiftY = offY + j * tileScale;
 
-            // Column 0: scaled & flipped X basis vector
             tileMVP[0] = mvp[0] * sX;
             tileMVP[1] = mvp[1] * sX;
             tileMVP[2] = mvp[2] * sX;
             tileMVP[3] = mvp[3] * sX;
 
-            // Column 1: scaled & flipped Y basis vector
             tileMVP[4] = mvp[4] * sY;
             tileMVP[5] = mvp[5] * sY;
             tileMVP[6] = mvp[6] * sY;
             tileMVP[7] = mvp[7] * sY;
 
-            // Column 2: Z basis vector
             tileMVP[8] = mvp[8];
             tileMVP[9] = mvp[9];
             tileMVP[10] = mvp[10];
             tileMVP[11] = mvp[11];
 
-            // Column 3: Translation offset along layer 3D X & Y basis vectors
             tileMVP[12] = mvp[12] + mvp[0] * shiftX + mvp[4] * shiftY;
             tileMVP[13] = mvp[13] + mvp[1] * shiftX + mvp[5] * shiftY;
             tileMVP[14] = mvp[14] + mvp[2] * shiftX + mvp[6] * shiftY;
             tileMVP[15] = mvp[15] + mvp[3] * shiftX + mvp[7] * shiftY;
 
-            // Skip tiles whose W component is non-positive across all vertices (completely behind camera near plane)
             const maxRadiusW = Math.abs(tileMVP[3] * 0.5) + Math.abs(tileMVP[7] * 0.5);
             if (tileMVP[15] + maxRadiusW <= 0.001) continue;
 
@@ -1137,11 +1151,11 @@
         }
       } else {
         gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
-        // Single Draw Call: 1 Quad, 2 Triangles, 0 Subdivisions!
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
       }
+    }
 
-      // Blit GL framebuffer onto target 2D canvas context
+    _blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale) {
       try {
         ctx.save();
         if (layer.blendMode && layer.blendMode !== 'normal') {
@@ -1182,7 +1196,6 @@
               ctx.shadowOffsetX = ox + offX;
               ctx.drawImage(this.glCanvas, -offX, 0);
             } else {
-              // Sub-rect draw avoids 1080p full-canvas CPU Gaussian blur overhead
               const pad = Math.ceil(blur * 2 + Math.max(Math.abs(ox), Math.abs(oy)));
               const rawBx = bounds.x !== undefined ? bounds.x : 0;
               const rawBy = bounds.y !== undefined ? bounds.y : 0;
@@ -1225,6 +1238,137 @@
         }
         ctx.restore();
       } catch (_) {}
+    }
+
+    /**
+     * Hardware WebGL Motion Blur for 3D Layers
+     * Accumulates multi-sample motion blur directly in WebGL framebuffer via additive blending,
+     * reducing 8 round-trip 2D canvas copies + 8 shadow blurs down to 1 single draw call per sample and 1 single blit!
+     */
+    render3DMotionBlur(ctx, el, layer, bufferScale = 1, camera = null, currentSec = null, compState = null) {
+      if (!ctx || !el || !this._hasValidDimensions(el)) return;
+      if (!this.isReady) {
+        this.renderLayer(ctx, el, layer, bufferScale, camera, currentSec);
+        return;
+      }
+
+      const bounds = this.getBounds(layer, bufferScale, camera);
+      if (bounds.isBehindCamera || bounds.aabbW < 1.0 || bounds.aabbH < 1.0) {
+        return;
+      }
+
+      const mbEngine = window.FishMotionBlurEngine;
+      const config = mbEngine ? mbEngine.getConfig(compState) : { shutterAngle: 180, shutterPhase: 0, samples: 8 };
+      const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+      const frameDur = 1 / Math.max(1, fps);
+      const exposureTime = (config.shutterAngle / 360) * frameDur;
+      const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
+
+      const isExport = (typeof window !== 'undefined' && (window._isExportingVideo === true || window._isExportingSequence === true));
+      const samples = isExport
+        ? Math.max(2, config.samples || 16)
+        : Math.min(8, Math.max(2, config.samples || 8));
+
+      const targetCanvas = ctx.canvas;
+      const vw = targetCanvas ? targetCanvas.width : (bounds.cx * 2 || 1920);
+      const vh = targetCanvas ? targetCanvas.height : (bounds.cy * 2 || 1080);
+
+      // Pre-process 2D effects onto local offscreen canvas if needed
+      const layerSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((layer && typeof layer._currentSec === 'number') ? layer._currentSec : null);
+      const processed = this._getEffectProcessedElement(el, layer, bounds, layerSec);
+      const sourceEl = processed.el;
+
+      const gl = this.gl;
+      if (this.glCanvas.width !== vw || this.glCanvas.height !== vh) {
+        this.glCanvas.width = vw;
+        this.glCanvas.height = vh;
+        gl.viewport(0, 0, vw, vh);
+      }
+
+      gl.viewport(0, 0, vw, vh);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      gl.useProgram(this.program);
+
+      // Bind quad buffers
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+
+      // Upload/Bind texture ONCE for all samples
+      const tex = this._getOrCreateTexture(sourceEl);
+      if (!tex) return;
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(this.locations.texture, 0);
+      if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(camera));
+
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.CULL_FACE);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE); // Premultiplied additive accumulation: (1/N) * sample
+
+      const tileFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f.type === 'tile' && !f.disabled)
+        : null;
+
+      const pStart = (typeof window.getLayerEffectivePropsAtTime === 'function')
+        ? window.getLayerEffectivePropsAtTime(layer, tStart)
+        : layer;
+      const pEnd = (typeof window.getLayerEffectivePropsAtTime === 'function')
+        ? window.getLayerEffectivePropsAtTime(layer, tStart + exposureTime)
+        : layer;
+
+      // Multi-sample accumulation loop with sub-frame shutter interpolation
+      for (let s = 0; s < samples; s++) {
+        const u = (s + 0.5) / samples;
+        const subEff = {
+          posX: pStart.posX + ((pEnd.posX !== undefined ? pEnd.posX : pStart.posX) - pStart.posX) * u,
+          posY: pStart.posY + ((pEnd.posY !== undefined ? pEnd.posY : pStart.posY) - pStart.posY) * u,
+          posZ: (pStart.posZ || 0) + ((pEnd.posZ || 0) - (pStart.posZ || 0)) * u,
+          rotX: (pStart.rotX || 0) + ((pEnd.rotX || 0) - (pStart.rotX || 0)) * u,
+          rotY: (pStart.rotY || 0) + ((pEnd.rotY || 0) - (pStart.rotY || 0)) * u,
+          rotZ: (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)) + (((pEnd.rotZ !== undefined ? pEnd.rotZ : (pEnd.rotation || 0)) - (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)))) * u,
+          scaleW: (pStart.scaleW !== undefined ? pStart.scaleW : 1) + (((pEnd.scaleW !== undefined ? pEnd.scaleW : 1) - (pStart.scaleW !== undefined ? pStart.scaleW : 1))) * u,
+          scaleH: (pStart.scaleH !== undefined ? pStart.scaleH : 1) + (((pEnd.scaleH !== undefined ? pEnd.scaleH : 1) - (pStart.scaleH !== undefined ? pStart.scaleH : 1))) * u,
+          opacity: (pStart.opacity !== undefined ? pStart.opacity : 1) + (((pEnd.opacity !== undefined ? pEnd.opacity : 1) - (pStart.opacity !== undefined ? pStart.opacity : 1))) * u,
+          anchorX: pStart.anchorX,
+          anchorY: pStart.anchorY,
+          anchorZ: pStart.anchorZ
+        };
+        const subAnimLayer = Object.assign({}, layer, subEff);
+        const subBounds = this.getBounds(subAnimLayer, bufferScale, camera);
+        if (subBounds.isBehindCamera) continue;
+
+        let mvp = this._computeMVP(subBounds, vw, vh, 0, camera);
+        if (!mvp) continue;
+
+        if (processed.padX > 0 || processed.padY > 0) {
+          const sX = (processed.origW + processed.padX * 2) / processed.origW;
+          const sY = (processed.origH + processed.padY * 2) / processed.origH;
+          const scaledMVP = new Float32Array(mvp);
+          scaledMVP[0] *= sX; scaledMVP[1] *= sX; scaledMVP[2] *= sX; scaledMVP[3] *= sX;
+          scaledMVP[4] *= sY; scaledMVP[5] *= sY; scaledMVP[6] *= sY; scaledMVP[7] *= sY;
+          mvp = scaledMVP;
+        }
+
+        const rawOp = (subAnimLayer.opacity !== undefined && subAnimLayer.opacity !== null) ? Number(subAnimLayer.opacity) : 1.0;
+        const normOp = (rawOp > 1.0) ? Math.max(0, Math.min(1, rawOp / 100)) : Math.max(0, Math.min(1, rawOp));
+        const sampleOp = normOp / samples;
+        gl.uniform1f(this.locations.opacity, sampleOp);
+
+        this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, subBounds);
+      }
+
+      // Blit accumulated result to 2D canvas context ONCE with shadow / RGB split
+      this._blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale);
     }
 
     /**

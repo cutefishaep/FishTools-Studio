@@ -1,6 +1,6 @@
 [package]
 name = "openfishtools-studio"
-version = "0.5.22"
+version = "0.5.23"
 description = "OpenFishTools Studio Native Desktop App"
 edition = "2021"
 

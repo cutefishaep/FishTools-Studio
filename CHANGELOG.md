@@ -5,6 +5,23 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.23] - 2026-09-17
+
+### Performance
+- **Hardware WebGL Motion Blur for 3D Layers (`js/fishtool-engine.js`, `js/editor.js`)**:
+  - Replaced CPU 2D canvas sub-frame blitting (8 round-trip passes per layer) with in-framebuffer additive multi-sample accumulation (`render3DMotionBlur`).
+  - Added linear shutter interpolation between exposure interval start and end ($t_{start} \to t_{end}$), reducing complex 3D transform & expression evaluations by 75%.
+  - Blits accumulated multi-sample motion blur to 2D canvas once, with drop shadow rasterized only on the final composite.
+- **Identity & Zero-Opacity Adjustment Layer Bypass (`js/effects.js`, `js/editor.js`)**:
+  - Added `FishEffects.isEffectIdentity()` to detect no-op effects (zero-amplitude wave warp, identity transform, 0-degree hue shift, 0-radius blur).
+  - Automatically bypasses full-frame snapshot and filtering for adjustment layers that have 0% opacity or purely identity effects.
+- **Canvas Shape Texture Caching & Background Pre-warming (`js/editor.js`, `js/fishtool-engine.js`)**:
+  - Cached shape rasterization in `renderShapeToCanvas` to prevent redundant drawing and texture re-uploads.
+  - Added background pre-warming of project media elements on startup to eliminate image decoding hitches during scrubbing.
+  - Guarded project state persistence during active timeline scrubbing to prevent main thread IndexedDB write locks.
+
+---
+
 ## [0.5.22] - 2026-09-17
 
 ### Performance

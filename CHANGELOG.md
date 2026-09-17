@@ -5,6 +5,18 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.25] - 2026-09-17
+
+### Fixed
+- **Fill Media Pool Grid Row Track Collapse & Card Overlap (`css/transform-controller.css`, `css/desktop.css`)**:
+  - Resolved WebKit CSS Grid bug where items with `overflow: hidden` reset automatic minimum track height to `0`, collapsing flexible grid rows to 17.8px and crashing cards into subsequent rows.
+  - Set `overflow: visible` with `position: relative` and `aspect-ratio: 1` on `.fill-media-tile`.
+  - Positioned thumbnails (`.fill-media-thumb`) and fallbacks (`.fill-media-fallback`) as `position: absolute; inset: 0;` with explicit border-radius matching card geometry, preventing form control content-box expansion.
+  - Normalized border width across normal and active states to maintain uniform 86.6px square proportions and clean 8px row/col gaps with zero card overlap.
+  - Bound media badge styling strictly to theme tokens (`var(--bg-canvas)`, `var(--color-primary)`).
+
+---
+
 ## [0.5.24] - 2026-09-17
 
 ### Performance

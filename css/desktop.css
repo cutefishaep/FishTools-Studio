@@ -2810,8 +2810,8 @@
   width: 100% !important;
   aspect-ratio: 1 / 1 !important;
   border-radius: var(--desktop-radius-sm, 5px) !important;
-  border: 1px solid var(--border-subtle) !important;
-  overflow: hidden !important;
+  border: 1.5px solid var(--border-subtle) !important;
+  overflow: visible !important;
   cursor: pointer !important;
   background-color: var(--bg-panel-inner) !important;
   display: flex !important;
@@ -2832,23 +2832,29 @@
 
 .desktop-panel-right .fill-media-tile.is-active,
 #desktop-panel-inspector .fill-media-tile.is-active {
-  border: 2px solid var(--color-primary) !important;
-  outline: 1px solid var(--bg-canvas) !important;
+  border-color: var(--color-primary) !important;
+  background-color: var(--bg-panel-hover) !important;
 }
 
 .desktop-panel-right .fill-media-thumb,
 #desktop-panel-inspector .fill-media-thumb {
+  position: absolute !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  border-radius: var(--desktop-radius-sm, 4.5px) !important;
   display: block !important;
   pointer-events: none !important;
 }
 
 .desktop-panel-right .fill-media-fallback,
 #desktop-panel-inspector .fill-media-fallback {
+  position: absolute !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  border-radius: var(--desktop-radius-sm, 4.5px) !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;

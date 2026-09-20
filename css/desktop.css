@@ -91,13 +91,18 @@
   cursor: pointer;
   flex-shrink: 0;
   text-decoration: none;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
 }
 
 .desktop-header .editor-back-btn:hover {
   background-color: var(--color-primary);
   color: var(--bg-canvas);
   border-color: var(--color-primary);
+}
+
+.desktop-header .editor-back-btn:active {
+  transform: scale(0.93);
+  transition: transform 0.05s ease;
 }
 
 .desktop-header .editor-back-btn svg {
@@ -122,7 +127,7 @@
   max-width: 280px;
   height: var(--desktop-btn-h);
   box-sizing: border-box;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, border-color 0.08s ease;
 }
 
 .desktop-header .editor-title-input:hover {
@@ -186,7 +191,7 @@
   padding: 0;
   flex-shrink: 0;
   box-sizing: border-box;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
 }
 
 /* SVGs inside Header Action Buttons: Strict 16px */
@@ -250,6 +255,20 @@
   border-color: var(--color-danger);
 }
 
+.desktop-header .editor-settings-btn:active,
+.desktop-header .editor-precomp-collapse-btn:active,
+.desktop-header .editor-layer-precomp-btn:active,
+.desktop-header .editor-layer-group-mask-btn:active,
+.desktop-header .editor-layer-group-exclude-btn:active,
+.desktop-header .editor-layer-delete-btn:active,
+.desktop-header .editor-layer-collapse-btn:active,
+.desktop-header .editor-layer-motion-blur-btn:active,
+.desktop-header .editor-layer-link-btn:active,
+.desktop-header .editor-layer-more-btn:active {
+  transform: scale(0.93);
+  transition: transform 0.05s ease;
+}
+
 /* Header Export Button — same size as settings btn, solid green accent */
 .desktop-header .editor-export-btn {
   width: var(--desktop-btn-h);
@@ -266,7 +285,7 @@
   cursor: pointer;
   flex-shrink: 0;
   padding: 0;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, border-color 0.08s ease;
 }
 
 .desktop-header .editor-export-btn:hover {
@@ -321,8 +340,8 @@
 }
 
 .desktop-panel-header {
-  height: 36px;
-  min-height: 36px;
+  height: 30px;
+  min-height: 30px;
   padding: 0 12px;
   background-color: var(--bg-panel);
   border-bottom: 1px solid var(--border-subtle);
@@ -399,7 +418,7 @@
   margin: 0 !important;
   cursor: pointer !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-left .segmented-switch-item svg {
@@ -413,6 +432,11 @@
 .desktop-panel-left .segmented-switch-item:hover {
   color: var(--text-primary) !important;
   background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-panel-left .segmented-switch-item:active {
+  transform: scale(0.93) !important;
+  transition: transform 0.05s ease !important;
 }
 
 .desktop-panel-left .segmented-switch-item.is-active,
@@ -452,7 +476,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.08s ease, color 0.08s ease, background-color 0.08s ease;
 }
 
 .desktop-panel-left .media-import-box:hover {
@@ -499,7 +523,7 @@
   margin: 0 !important;
   cursor: pointer;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
 }
 
 .desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover {
@@ -510,6 +534,12 @@
 
 .desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover .layer-action-icon {
   fill: var(--bg-canvas) !important;
+}
+
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn:active,
+.desktop-panel-left #add-layer-control-grid .layer-action-btn:active {
+  transform: scale(0.93) !important;
+  transition: transform 0.05s ease !important;
 }
 
 .desktop-panel-left #add-layer-shape-grid .layer-action-icon {
@@ -551,7 +581,7 @@
   margin: 0 !important;
   cursor: pointer;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
 }
 
 .desktop-panel-left #add-layer-control-grid .layer-action-btn:hover {
@@ -609,7 +639,7 @@
   transform: none !important;
   box-sizing: border-box !important;
   gap: 4px !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-left .text-preset-card:hover {
@@ -773,7 +803,7 @@
   cursor: pointer;
   padding: 0;
   box-sizing: border-box;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
 }
 
 .desktop-panel-extension .desktop-panel-header-btn:hover {
@@ -988,7 +1018,7 @@
   gap: 6px !important;
   cursor: pointer;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
 }
 
 /* If odd number of visible items (5 items), let the 5th item (Effects) span 2 columns across the bottom row */
@@ -1271,7 +1301,7 @@
   cursor: pointer !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-panel-right .transform-nav-btn:hover,
@@ -1355,7 +1385,7 @@
   cursor: pointer !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-panel-right .transform-tool-btn:hover,
@@ -1432,7 +1462,7 @@
   border-radius: var(--desktop-radius) !important;
   margin-bottom: 6px !important;
   overflow: hidden !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-panel-right .blend-group-card:hover {
@@ -1681,7 +1711,7 @@
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.08s ease, background-color 0.08s ease;
 }
 
 .desktop-panel-right #pane-transform-scale .transform-link-btn:hover {
@@ -1848,7 +1878,7 @@
   box-sizing: border-box !important;
   overflow: hidden !important;
   position: relative !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-panel-right .graph-preset-btn:hover {
@@ -1947,7 +1977,7 @@
   cursor: pointer !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .graph-preset-save-btn:hover {
@@ -2003,7 +2033,7 @@
   cursor: pointer !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right #btn-add-effect:hover,
@@ -2078,7 +2108,7 @@
   flex: none !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.12s ease, color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .fill-back-btn:hover,
@@ -2124,7 +2154,7 @@
   cursor: pointer !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.12s ease, color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .fill-tab-btn:last-child,
@@ -2341,7 +2371,7 @@
   line-height: 1 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-panel-right .color-picker-header-action-btn svg,
@@ -2415,7 +2445,7 @@
   font-size: 11.5px !important;
   font-weight: 600 !important;
   line-height: 1 !important;
-  transition: background-color 0.12s ease, color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right #fill-view-color .color-picker-tab-btn span,
@@ -2779,7 +2809,7 @@
   padding: 0 !important;
   box-sizing: border-box !important;
   font-family: var(--font-brand) !important;
-  transition: border-color 0.12s ease, color 0.12s ease, background-color 0.12s ease !important;
+  transition: border-color 0.08s ease, color 0.08s ease, background-color 0.08s ease !important;
 }
 
 .desktop-panel-right .fill-media-import-tile:hover,
@@ -2910,7 +2940,7 @@
   justify-content: center !important;
   gap: 10px !important;
   cursor: pointer !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-panel-right .fill-none-card:hover,
@@ -3025,7 +3055,7 @@
   color: var(--text-primary) !important;
   font-family: var(--font-brand) !important;
   font-size: 13px !important;
-  transition: border-color 0.12s ease !important;
+  transition: border-color 0.08s ease !important;
 }
 
 .desktop-panel-right #input-text-content:focus {
@@ -3106,7 +3136,7 @@
   font-weight: 600 !important;
   color: var(--text-secondary) !important;
   cursor: pointer !important;
-  transition: background-color 0.12s ease, color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .segmented-switch-item:hover {
@@ -3178,7 +3208,7 @@
   cursor: pointer !important;
   padding: 0 16px !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .beatmark-giant-btn:hover {
@@ -3255,7 +3285,7 @@
   font-size: 11px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
-  transition: background-color 0.12s ease, color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .btn-add-audio-fx:hover {
@@ -3294,7 +3324,7 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: background-color 0.12s ease, color 0.12s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-panel-right .speed-type-btn:hover {
@@ -3484,7 +3514,7 @@
   cursor: pointer !important;
   padding: 0 !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-timeline-toolbar .ctrl-btn .svg-icon,
@@ -3508,17 +3538,22 @@
   display: block !important;
 }
 
-.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled) {
-  background-color: var(--color-primary) !important;
-  color: var(--bg-canvas) !important;
-  border-color: var(--color-primary) !important;
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-panel) !important;
 }
 
-.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled) svg,
-.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled) .svg-icon {
-  fill: var(--bg-canvas) !important;
-  color: var(--bg-canvas) !important;
-  background-color: var(--bg-canvas) !important;
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) svg,
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) .svg-icon {
+  fill: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+  background-color: var(--text-primary) !important;
+}
+
+.desktop-timeline-toolbar .ctrl-btn:active:not(:disabled) {
+  transform: scale(0.93) !important;
+  transition: transform 0.05s ease !important;
 }
 
 /* Toolbar Control Buttons Active State (Draft mode, Grid, Motion Blur, FishTools, etc.) */
@@ -3579,7 +3614,7 @@
   cursor: pointer;
   padding: 0;
   outline: none;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color 0.08s ease, color 0.08s ease;
 }
 
 .desktop-zoom-stepper .stepper-btn:hover {
@@ -3603,7 +3638,7 @@
   cursor: pointer;
   letter-spacing: -0.02em;
   line-height: var(--desktop-btn-h-sm);
-  transition: color 0.12s ease;
+  transition: color 0.08s ease;
 }
 
 .desktop-zoom-stepper .stepper-val:hover {
@@ -3673,7 +3708,7 @@
   margin: 0 !important;
   cursor: pointer !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
 }
 
 .desktop-timeline-toolbar .layer-cut-bar-row > .layer-tile-btn .svg-icon,
@@ -3735,7 +3770,7 @@
   margin: 0 !important;
   cursor: pointer !important;
   box-sizing: border-box !important;
-  transition: background-color 0.15s ease, color 0.15s ease !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
 }
 
 .desktop-timeline-toolbar .layer-cut-group .segmented-button:last-child {
@@ -4396,7 +4431,7 @@
   padding: 0 8px;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.12s ease;
+  transition: border-color 0.08s ease;
 }
 
 .beatmark-popover-input:focus {
@@ -4422,7 +4457,7 @@
   cursor: pointer;
   padding: 0;
   box-sizing: border-box;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: background-color 0.08s ease, color 0.08s ease;
 }
 
 .beatmark-popover-delete-btn:hover {
@@ -4479,7 +4514,7 @@
   justify-content: center;
   cursor: pointer;
   border-radius: 50%;
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color 0.08s ease, background-color 0.08s ease;
 }
 
 .desktop-timeline-floating-zoom .floating-zoom-btn:hover {
@@ -4612,7 +4647,7 @@
   margin-right: 2px;
   flex-shrink: 0;
   border-radius: 3px;
-  transition: color 0.12s ease, background-color 0.12s ease;
+  transition: color 0.08s ease, background-color 0.08s ease;
 }
 
 .desktop-layer-twistie-btn:hover {

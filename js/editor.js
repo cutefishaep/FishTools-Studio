@@ -5765,6 +5765,15 @@
     }
     window.isPropertyEditorActive = isPropertyEditorActive;
 
+    // Modular detector for desktop workstation layout
+    function isDesktopLayout() {
+      return Boolean(
+        document.querySelector('.desktop-timeline-wrapper, .desktop-workstation, .desktop-viewport') ||
+        (window.location && (window.location.pathname.includes('desktop.html') || window.location.pathname.includes('/desktop')))
+      );
+    }
+    window.isDesktopLayout = isDesktopLayout;
+
     // Fast selective update of timeline diamond keyframe marker highlight classes without full redraw
     function updateTimelineKeyframeMarkersHighlight() {
       const isPropActive = isPropertyEditorActive();
@@ -23663,7 +23672,7 @@
           if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
           return;
         }
-        const isDesktop = Boolean(document.querySelector('.desktop-timeline-wrapper, .desktop-workstation, .desktop-viewport')) || window.location.pathname.includes('desktop.html');
+        const isDesktop = isDesktopLayout();
         if (isDesktop && layer._kfExpanded) {
           if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
           return;
@@ -23874,7 +23883,7 @@
         const prevScrollTop = viewport ? viewport.scrollTop : 0;
 
         updateTimelineDuration();
-        const isDesktop = Boolean(document.querySelector('.desktop-timeline-wrapper, .desktop-workstation, .desktop-viewport')) || window.location.pathname.includes('desktop.html');
+        const isDesktop = isDesktopLayout();
         layersTrack.innerHTML = '';
         const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
         if (overlayContainer) {

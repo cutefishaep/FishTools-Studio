@@ -1,6 +1,7 @@
 /**
  * WAVE WARP (WebGPU WGSL Driver) - effects/wgpu/wave_warp.js
- * Hardware WebGPU shader pipeline for Wave Warp with bit-exact WebGL parity.
+ * Hardware WebGPU shader pipeline for Wave Warp with bit-exact WebGL parity,
+ * zero-trig per-pixel fragment shader, and in-GPU multi-pass batching.
  */
 (function(window) {
   'use strict';
@@ -12,11 +13,15 @@
       resX: f32,
       resY: f32,
       waveHeight: f32,
-      waveWidth: f32,
-      dirRad: f32,
+      invWidthTwoPi: f32,
+      dirCos: f32,
+      dirSin: f32,
       phaseRad: f32,
       waveType: u32,
       tile: u32,
+      pad0: u32,
+      pad1: u32,
+      pad2: u32,
     };
 
     @group(0) @binding(0) var u_sampler: sampler;
@@ -42,29 +47,29 @@
       return a + (b - a) * q;
     }
 
-    fn getWaveVal(dist: f32, width: f32, phase: f32, wType: u32) -> f32 {
-      let p = (dist / max(width, 0.0001)) * 6.28318530718 + phase;
+    fn getWaveVal(dist: f32, invWidthTwoPi: f32, phase: f32, wType: u32) -> f32 {
+      let p = dist * invWidthTwoPi + phase;
       if (wType == 1u) {
         let s = clamp(sin(p), -1.0, 1.0);
         return asin(s) * 0.63661977236;
       } else if (wType == 2u) {
         if (sin(p) >= 0.0) { return 1.0; } else { return -1.0; }
       } else if (wType == 3u) {
-        let norm = fract(p / 6.28318530718);
+        let norm = fract(p * 0.15915494309);
         return norm * 2.0 - 1.0;
       } else if (wType == 4u) {
-        let norm = fract(p / 6.28318530718);
+        let norm = fract(p * 0.15915494309);
         let d = (norm - 0.5) * 2.0;
         return sqrt(max(0.0, 1.0 - d * d)) * 2.0 - 1.0;
       } else if (wType == 5u) {
-        let norm = fract(p / 6.28318530718);
+        let norm = fract(p * 0.15915494309);
         let d = (norm - 0.5) * 2.0;
         return sqrt(max(0.0, 1.0 - d * d));
       } else if (wType == 6u) {
-        let cycle = p / 6.28318530718;
+        let cycle = p * 0.15915494309;
         return pseudoNoise1D(floor(cycle));
       } else if (wType == 7u) {
-        let cycle = p / 6.28318530718;
+        let cycle = p * 0.15915494309;
         return smoothNoise1D(cycle);
       }
       return sin(p);
@@ -86,11 +91,12 @@
       let center = resolution * 0.5;
       let p = pixelPos - center;
 
-      let dist = p.x * cos(u_params.dirRad) + p.y * sin(u_params.dirRad);
-      let wave = getWaveVal(dist, u_params.waveWidth, u_params.phaseRad, u_params.waveType);
+      let dirVec = vec2<f32>(u_params.dirCos, u_params.dirSin);
+      let dist = dot(p, dirVec);
+      let wave = getWaveVal(dist, u_params.invWidthTwoPi, u_params.phaseRad, u_params.waveType);
       let dy = wave * u_params.waveHeight;
 
-      let srcPixel = pixelPos + vec2<f32>(dy * sin(u_params.dirRad), -dy * cos(u_params.dirRad));
+      let srcPixel = pixelPos + vec2<f32>(dy * u_params.dirSin, -dy * u_params.dirCos);
       var srcUV = srcPixel / resolution;
 
       if (u_params.tile == 1u) {
@@ -106,9 +112,20 @@
     }
   `;
 
-  let _uniformBuffer = null;
   let _bindGroupLayout = null;
   let _pipeline = null;
+  const _uniformBuffers = [];
+
+  function getUniformBuffer(device, index) {
+    if (!_uniformBuffers[index]) {
+      _uniformBuffers[index] = device.createBuffer({
+        label: `WaveWarp_Uniforms_${index}`,
+        size: 48, // 12 x 4 bytes
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+      });
+    }
+    return _uniformBuffers[index];
+  }
 
   function initPipeline(gpu) {
     if (_pipeline && gpu.device) return _pipeline;
@@ -163,12 +180,6 @@
         }
       });
 
-      _uniformBuffer = device.createBuffer({
-        label: 'WaveWarp_Uniforms',
-        size: 32, // 8 x 4 bytes
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-      });
-
       return _pipeline;
     } catch (e) {
       console.warn('[WaveWarp:WebGPU] Failed to initialize pipeline:', e);
@@ -176,23 +187,12 @@
     }
   }
 
-  function renderWebGPU(ctx, el, layer, bounds, fx, gpu) {
-    if (!gpu || !gpu.isReady || !gpu.device) return false;
-    const device = gpu.device;
-    const pipe = initPipeline(gpu);
-    if (!pipe) return false;
+  const _uniformBufferData = new ArrayBuffer(48);
+  const _f32View = new Float32Array(_uniformBufferData);
+  const _u32View = new Uint32Array(_uniformBufferData);
 
-    const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
-    const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
-    const x = bounds && bounds.x !== undefined ? bounds.x : 0;
-    const y = bounds && bounds.y !== undefined ? bounds.y : 0;
-
+  function fillUniformData(fx, rw, rh, w, layer, effectiveSec) {
     const height = fx && fx.waveHeight !== undefined ? fx.waveHeight : 25;
-    if (Math.abs(height) < 0.05) {
-      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
-      return true;
-    }
-
     const width = Math.max(10, fx && fx.waveWidth !== undefined ? fx.waveWidth : 120);
     const baseRefW = Math.abs((layer && layer.scaleW) || (layer && layer.mediaWidth) || w);
     const bufferScale = baseRefW > 0 ? (w / baseRefW) : 1;
@@ -204,13 +204,10 @@
     const speed = fx && fx.speed !== undefined ? fx.speed : 1;
     const phaseDeg = fx && fx.phase !== undefined ? fx.phase : 0;
 
-    let curSec = 0;
-    if (typeof window !== 'undefined') {
-      if (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)) curSec = window._currentRenderSec;
-      else if (typeof window.currentPlaybackSec === 'number') curSec = window.currentPlaybackSec;
-      else if (typeof window.currentSec === 'number') curSec = window.currentSec;
-      else if (typeof window.getCurrentPlayheadTime === 'function') curSec = window.getCurrentPlayheadTime();
-    }
+    const curSec = (typeof effectiveSec === 'number' && !isNaN(effectiveSec))
+      ? effectiveSec
+      : (window.FishEffects ? window.FishEffects.resolveCurrentTime(layer) : 0);
+
     const layerStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
     const sourceOffset = (layer && layer.sourceOffsetSec !== undefined) ? layer.sourceOffsetSec : 0;
     const t = curSec - (layerStart - sourceOffset);
@@ -228,88 +225,147 @@
     else if (rawType === 'noise') typeInt = 6;
     else if (rawType === 'smooth-noise' || rawType === 'smoothnoise' || rawType === 'noisesmooth' || rawType === 'noise-smooth') typeInt = 7;
 
+    const invWidthTwoPi = (Math.PI * 2) / effectiveWidth;
+    const dirCos = Math.cos(dirRad);
+    const dirSin = Math.sin(dirRad);
+
+    _f32View[0] = rw;
+    _f32View[1] = rh;
+    _f32View[2] = effectiveHeight;
+    _f32View[3] = invWidthTwoPi;
+    _f32View[4] = dirCos;
+    _f32View[5] = dirSin;
+    _f32View[6] = phaseRad;
+    _u32View[7] = typeInt;
+    _u32View[8] = isTile ? 1 : 0;
+    _u32View[9] = 0;
+    _u32View[10] = 0;
+    _u32View[11] = 0;
+  }
+
+  function renderWebGPUBatch(ctx, el, layer, bounds, fxArray, arg6, arg7) {
+    const gpu = (arg6 && arg6.device) ? arg6 : ((arg7 && arg7.device) ? arg7 : (window && window.FishGPU));
+    const effectiveSec = (typeof arg6 === 'number') ? arg6 : (typeof arg7 === 'number' ? arg7 : null);
+    if (!gpu || !gpu.isReady || !gpu.device || !ctx || !el || !Array.isArray(fxArray) || fxArray.length === 0) return false;
+    const activeFx = fxArray.filter(f => f && !f.disabled && Math.abs(f.waveHeight !== undefined ? f.waveHeight : 25) >= 0.05);
+    const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
+    const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
+    const x = bounds && bounds.x !== undefined ? bounds.x : 0;
+    const y = bounds && bounds.y !== undefined ? bounds.y : 0;
+
+    if (activeFx.length === 0) {
+      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+      return true;
+    }
+
+    const device = gpu.device;
+    const pipe = initPipeline(gpu);
+    if (!pipe) return false;
+
     const rw = Math.max(1, Math.round(w));
     const rh = Math.max(1, Math.round(h));
 
-    const srcTex = gpu.getTexture('wave_src', rw, rh, GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT);
-    if (!srcTex) return false;
+    // 1. Upload source at native resolution directly with zero DOM allocations
+    const upload = gpu.uploadSourceToTexture(el, 'wave_src');
+    if (!upload || !upload.texture) return false;
+    const srcTex = upload.texture;
 
-    try {
-      device.queue.copyExternalImageToTexture(
-        { source: el, flipY: false },
-        { texture: srcTex },
-        [rw, rh]
+    const sampler = gpu.getSampler('linear_clamp');
+    const { canvas: offCanvas, ctx: offCtx } = gpu.getOffscreenCanvas(rw, rh, 'wave-warp');
+    if (!offCtx) return false;
+
+    const commandEncoder = device.createCommandEncoder({ label: 'WaveWarp_BatchEncoder' });
+
+    if (activeFx.length === 1) {
+      // Single pass: straight to offCanvas
+      const uBuf = getUniformBuffer(device, 0);
+      fillUniformData(activeFx[0], rw, rh, w, layer, effectiveSec);
+      device.queue.writeBuffer(uBuf, 0, _uniformBufferData);
+
+      const bindGroup = device.createBindGroup({
+        label: 'WaveWarp_BG_0',
+        layout: _bindGroupLayout,
+        entries: [
+          { binding: 0, resource: sampler },
+          { binding: 1, resource: srcTex.createView() },
+          { binding: 2, resource: { buffer: uBuf } }
+        ]
+      });
+
+      const renderPass = commandEncoder.beginRenderPass({
+        colorAttachments: [{
+          view: offCtx.getCurrentTexture().createView(),
+          loadOp: 'clear',
+          storeOp: 'store',
+          clearValue: { r: 0, g: 0, b: 0, a: 0 }
+        }]
+      });
+      renderPass.setPipeline(pipe);
+      renderPass.setBindGroup(0, bindGroup);
+      renderPass.draw(3, 1, 0, 0);
+      renderPass.end();
+    } else {
+      // Multi-pass in-GPU ping-pong
+      const pingTex = gpu.getTexture(
+        'wave_ping',
+        rw,
+        rh,
+        GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
+        gpu.canvasFormat
       );
-    } catch (_) {
-      try {
-        const scratch = document.createElement('canvas');
-        scratch.width = rw;
-        scratch.height = rh;
-        const sctx = scratch.getContext('2d');
-        sctx.drawImage(el, 0, 0, rw, rh);
-        device.queue.copyExternalImageToTexture(
-          { source: scratch, flipY: false },
-          { texture: srcTex },
-          [rw, rh]
-        );
-      } catch (err2) {
-        return false;
+      if (!pingTex) return false;
+
+      let currentSrcView = srcTex.createView();
+      let currentDstView = pingTex.createView();
+
+      for (let i = 0; i < activeFx.length; i++) {
+        const isLast = (i === activeFx.length - 1);
+        const uBuf = getUniformBuffer(device, i);
+        fillUniformData(activeFx[i], rw, rh, w, layer, effectiveSec);
+        device.queue.writeBuffer(uBuf, 0, _uniformBufferData);
+
+        const bindGroup = device.createBindGroup({
+          label: `WaveWarp_BG_${i}`,
+          layout: _bindGroupLayout,
+          entries: [
+            { binding: 0, resource: sampler },
+            { binding: 1, resource: currentSrcView },
+            { binding: 2, resource: { buffer: uBuf } }
+          ]
+        });
+
+        const targetView = isLast ? offCtx.getCurrentTexture().createView() : currentDstView;
+        const renderPass = commandEncoder.beginRenderPass({
+          colorAttachments: [{
+            view: targetView,
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: { r: 0, g: 0, b: 0, a: 0 }
+          }]
+        });
+        renderPass.setPipeline(pipe);
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.draw(3, 1, 0, 0);
+        renderPass.end();
+
+        if (!isLast) {
+          currentSrcView = pingTex.createView();
+        }
       }
     }
 
-    // Prepare Uniform Buffer
-    const uniformBufferData = new ArrayBuffer(32);
-    const f32View = new Float32Array(uniformBufferData);
-    const u32View = new Uint32Array(uniformBufferData);
-
-    f32View[0] = rw;
-    f32View[1] = rh;
-    f32View[2] = effectiveHeight;
-    f32View[3] = effectiveWidth;
-    f32View[4] = dirRad;
-    f32View[5] = phaseRad;
-    u32View[6] = typeInt;
-    u32View[7] = isTile ? 1 : 0;
-
-    device.queue.writeBuffer(_uniformBuffer, 0, uniformBufferData);
-
-    const sampler = gpu.getSampler('linear_clamp');
-    const bindGroup = device.createBindGroup({
-      label: 'WaveWarp_BindGroup',
-      layout: _bindGroupLayout,
-      entries: [
-        { binding: 0, resource: sampler },
-        { binding: 1, resource: srcTex.createView() },
-        { binding: 2, resource: { buffer: _uniformBuffer } }
-      ]
-    });
-
-    const { canvas: offCanvas, ctx: offCtx } = gpu.getOffscreenCanvas(rw, rh);
-    if (!offCtx) return false;
-
-    const commandEncoder = device.createCommandEncoder({ label: 'WaveWarp_Encoder' });
-    const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: offCtx.getCurrentTexture().createView(),
-        loadOp: 'clear',
-        storeOp: 'store',
-        clearValue: { r: 0, g: 0, b: 0, a: 0 }
-      }]
-    });
-
-    renderPass.setPipeline(pipe);
-    renderPass.setBindGroup(0, bindGroup);
-    renderPass.draw(3, 1, 0, 0);
-    renderPass.end();
-
     device.queue.submit([commandEncoder.finish()]);
-
-    // Blit rendered frame back to 2D context
     ctx.drawImage(offCanvas, x, y, w, h);
     return true;
   }
 
+  function renderWebGPU(ctx, el, layer, bounds, fx, arg6, arg7) {
+    return renderWebGPUBatch(ctx, el, layer, bounds, [fx], arg6, arg7);
+  }
+
   reg.registerBackend('wave-warp', 'wgpu', {
-    renderPost: renderWebGPU
+    render: renderWebGPU,
+    renderPost: renderWebGPU,
+    renderBatch: renderWebGPUBatch
   });
 })(typeof window !== 'undefined' ? window : globalThis);

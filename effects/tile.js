@@ -8,14 +8,15 @@
     name: 'Tile',
     category: 'warp',
     icon: 'assets/FXPH.svg',
-    description: 'Optimal seamless motion tile repeat with mirror switch',
+    description: 'Optimal seamless motion tile repeat with centered coordinates and symmetrical mirror switch',
+    isExpanding: true,
     params: [
       { id: 'mirror', label: 'Mirror', type: 'switch', default: 1 },
       { id: 'scale', label: 'Scale', type: 'number', min: 10, max: 300, default: 100, unit: '%' },
       { id: 'offsetX', label: 'Offset X', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
       { id: 'offsetY', label: 'Offset Y', type: 'number', min: -100, max: 100, default: 0, unit: '%' }
     ],
-    render(ctx, el, layer, bounds, fx, rgbSplitFx) {
+    render(ctx, el, layer, bounds, fx) {
       if (!ctx || !el) return;
 
       const bw = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
@@ -23,43 +24,45 @@
       const bx = bounds && bounds.x !== undefined ? bounds.x : 0;
       const by = bounds && bounds.y !== undefined ? bounds.y : 0;
 
-      const renderRgbSplit = (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.renderRGBSplit === 'function')
-        ? window.FishEffects.renderRGBSplit
-        : null;
-
       if (!fx) {
-        try {
-          if (rgbSplitFx && renderRgbSplit) renderRgbSplit(ctx, el, layer, { x: bx, y: by, w: bw, h: bh }, rgbSplitFx);
-          else ctx.drawImage(el, bx, by, bw, bh);
-        } catch (_) {}
+        try { ctx.drawImage(el, bx, by, bw, bh); } catch (_) {}
         return;
       }
 
-      const isMirror = (fx.mirror === 1 || fx.mirror === true || fx.mirror === '1' || fx.mirror === 'true' || fx.mirror === 'on');
-      const scale = Math.max(5, (fx.scale !== undefined ? fx.scale : 100)) / 100;
+      const tileWgl = (typeof reg.getBackend === 'function') ? reg.getBackend('tile', 'wgl') : (reg.get('tile') && reg.get('tile').backends && reg.get('tile').backends.wgl);
+      if (tileWgl && typeof tileWgl.render === 'function') {
+        if (tileWgl.render(ctx, el, layer, bounds, fx)) return;
+      }
+
+      const isMirror = !(fx.mirror === 0 || fx.mirror === false || fx.mirror === '0' || fx.mirror === 'false' || fx.mirror === 'off');
+      const scale = Math.max(5, (fx.scale !== undefined ? Number(fx.scale) : 100)) / 100;
       const tw = Math.max(1, Math.round(bw * scale));
       const th = Math.max(1, Math.round(bh * scale));
 
-      const offX = ((fx.offsetX !== undefined ? fx.offsetX : 0) / 100) * bw;
-      const offY = ((fx.offsetY !== undefined ? fx.offsetY : 0) / 100) * bh;
-      const baseX = bx + offX;
-      const baseY = by + offY;
+      const offX = ((fx.offsetX !== undefined ? Number(fx.offsetX) : 0) / 100) * tw;
+      const offY = ((fx.offsetY !== undefined ? Number(fx.offsetY) : 0) / 100) * th;
 
 
+      // Center tile (0, 0) directly on the layer/target center
+      const centerX = bx + bw / 2;
+      const centerY = by + bh / 2;
+      const originX = centerX - tw / 2 + offX;
+      const originY = centerY - th / 2 + offY;
 
-      const targetCanvas = ctx.canvas;
-      const cw = targetCanvas ? targetCanvas.width : (bw * 2);
-      const ch = targetCanvas ? targetCanvas.height : (bh * 2);
-
-      let minLocalX = bx - bw * 2;
-      let maxLocalX = bx + bw * 3;
-      let minLocalY = by - bh * 2;
-      let maxLocalY = by + bh * 3;
+      // Compute visible viewport bounds in local context coordinate space
+      let minLocalX = originX - bw * 3;
+      let maxLocalX = originX + bw * 4;
+      let minLocalY = originY - bh * 3;
+      let maxLocalY = originY + bh * 4;
 
       if (ctx.getTransform) {
         try {
           const mat = ctx.getTransform();
           const inv = mat.inverse();
+          const targetCanvas = ctx.canvas;
+          const cw = targetCanvas ? targetCanvas.width : (bw * 3);
+          const ch = targetCanvas ? targetCanvas.height : (bh * 3);
+
           const p1 = inv.transformPoint ? inv.transformPoint({ x: 0, y: 0 }) : null;
           const p2 = inv.transformPoint ? inv.transformPoint({ x: cw, y: 0 }) : null;
           const p3 = inv.transformPoint ? inv.transformPoint({ x: 0, y: ch }) : null;
@@ -78,19 +81,20 @@
         } catch (_) {}
       }
 
-      let minI = Math.floor((minLocalX - baseX) / tw);
-      let maxI = Math.ceil((maxLocalX - baseX) / tw);
-      let minJ = Math.floor((minLocalY - baseY) / th);
-      let maxJ = Math.ceil((maxLocalY - baseY) / th);
+      let minI = Math.floor((minLocalX - originX) / tw) - 1;
+      let maxI = Math.ceil((maxLocalX - originX) / tw) + 1;
+      let minJ = Math.floor((minLocalY - originY) / th) - 1;
+      let maxJ = Math.ceil((maxLocalY - originY) / th) + 1;
 
       if (!Number.isFinite(minI) || !Number.isFinite(maxI) || minI > maxI) {
-        minI = -1; maxI = 1;
+        minI = -2; maxI = 2;
       }
       if (!Number.isFinite(minJ) || !Number.isFinite(maxJ) || minJ > maxJ) {
-        minJ = -1; maxJ = 1;
+        minJ = -2; maxJ = 2;
       }
 
-      const MAX_TILES = 15;
+      // Safety clamp
+      const MAX_TILES = 30;
       minI = Math.max(minI, -MAX_TILES);
       maxI = Math.min(maxI, MAX_TILES);
       minJ = Math.max(minJ, -MAX_TILES);
@@ -98,37 +102,30 @@
 
       try {
         for (let j = minJ; j <= maxJ; j++) {
-          for (let i = minI; i <= maxI; i++) {
-            const tx = baseX + i * tw;
-            const ty = baseY + j * th;
+          const ty0 = Math.floor(originY + j * th);
+          const ty1 = Math.floor(originY + (j + 1) * th);
+          const curTh = ty1 - ty0;
+          const flipY = isMirror && (Math.abs(j) % 2 === 1);
 
+          for (let i = minI; i <= maxI; i++) {
+            const tx0 = Math.floor(originX + i * tw);
+            const tx1 = Math.floor(originX + (i + 1) * tw);
+            const curTw = tx1 - tx0;
             const flipX = isMirror && (Math.abs(i) % 2 === 1);
-            const flipY = isMirror && (Math.abs(j) % 2 === 1);
 
             if (!flipX && !flipY) {
-              if (rgbSplitFx && renderRgbSplit) {
-                renderRgbSplit(ctx, el, layer, { x: tx, y: ty, w: tw, h: th }, rgbSplitFx);
-              } else {
-                ctx.drawImage(el, tx, ty, tw, th);
-              }
+              ctx.drawImage(el, tx0, ty0, curTw, curTh);
             } else {
               ctx.save();
-              ctx.translate(tx + (flipX ? tw : 0), ty + (flipY ? th : 0));
+              ctx.translate(tx0 + (flipX ? curTw : 0), ty0 + (flipY ? curTh : 0));
               ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-              if (rgbSplitFx && renderRgbSplit) {
-                renderRgbSplit(ctx, el, layer, { x: 0, y: 0, w: tw, h: th }, rgbSplitFx);
-              } else {
-                ctx.drawImage(el, 0, 0, tw, th);
-              }
+              ctx.drawImage(el, 0, 0, curTw, curTh);
               ctx.restore();
             }
           }
         }
       } catch (err) {
-        try {
-          if (rgbSplitFx && renderRgbSplit) renderRgbSplit(ctx, el, layer, { x: bx, y: by, w: bw, h: bh }, rgbSplitFx);
-          else ctx.drawImage(el, bx, by, bw, bh);
-        } catch (_) {}
+        try { ctx.drawImage(el, bx, by, bw, bh); } catch (_) {}
       }
     }
   });

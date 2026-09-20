@@ -282,7 +282,12 @@
     }
   }
 
-  function renderWebGPU(ctx, el, layer, bounds, fx, gpu) {
+  const _uniformBufferData = new ArrayBuffer(48);
+  const _f32View = new Float32Array(_uniformBufferData);
+  const _u32View = new Uint32Array(_uniformBufferData);
+
+  function renderWebGPU(ctx, el, layer, bounds, fx, arg6, arg7) {
+    const gpu = (arg6 && arg6.device) ? arg6 : ((arg7 && arg7.device) ? arg7 : (window && window.FishGPU));
     if (!gpu || !gpu.isReady || !gpu.device) return false;
     const device = gpu.device;
     const pipe = initPipeline(gpu);
@@ -327,51 +332,25 @@
     const rw = Math.max(1, Math.round(w));
     const rh = Math.max(1, Math.round(h));
 
-    const srcTex = gpu.getTexture('turb_src', rw, rh, GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT);
-    if (!srcTex) return false;
+    // Upload source at native resolution directly with zero DOM allocations
+    const upload = gpu.uploadSourceToTexture(el, 'turb_src');
+    if (!upload || !upload.texture) return false;
+    const srcTex = upload.texture;
 
-    try {
-      device.queue.copyExternalImageToTexture(
-        { source: el, flipY: false },
-        { texture: srcTex },
-        [rw, rh]
-      );
-    } catch (_) {
-      try {
-        const scratch = document.createElement('canvas');
-        scratch.width = rw;
-        scratch.height = rh;
-        const sctx = scratch.getContext('2d');
-        sctx.drawImage(el, 0, 0, rw, rh);
-        device.queue.copyExternalImageToTexture(
-          { source: scratch, flipY: false },
-          { texture: srcTex },
-          [rw, rh]
-        );
-      } catch (err2) {
-        return false;
-      }
-    }
+    _f32View[0] = rw;
+    _f32View[1] = rh;
+    _f32View[2] = amount;
+    _f32View[3] = size;
+    _f32View[4] = offsetX;
+    _f32View[5] = offsetY;
+    _f32View[6] = complexity;
+    _f32View[7] = evolution;
+    _u32View[8] = dispTypeInt;
+    _u32View[9] = pinningInt;
+    _u32View[10] = isTile ? 1 : 0;
+    _u32View[11] = 0; // padding
 
-    // Write Uniform Buffer
-    const uniformBufferData = new ArrayBuffer(48);
-    const f32View = new Float32Array(uniformBufferData);
-    const u32View = new Uint32Array(uniformBufferData);
-
-    f32View[0] = rw;
-    f32View[1] = rh;
-    f32View[2] = amount;
-    f32View[3] = size;
-    f32View[4] = offsetX;
-    f32View[5] = offsetY;
-    f32View[6] = complexity;
-    f32View[7] = evolution;
-    u32View[8] = dispTypeInt;
-    u32View[9] = pinningInt;
-    u32View[10] = isTile ? 1 : 0;
-    u32View[11] = 0; // padding
-
-    device.queue.writeBuffer(_uniformBuffer, 0, uniformBufferData);
+    device.queue.writeBuffer(_uniformBuffer, 0, _uniformBufferData);
 
     const sampler = gpu.getSampler('linear_clamp');
     const bindGroup = device.createBindGroup({
@@ -384,7 +363,7 @@
       ]
     });
 
-    const { canvas: offCanvas, ctx: offCtx } = gpu.getOffscreenCanvas(rw, rh);
+    const { canvas: offCanvas, ctx: offCtx } = gpu.getOffscreenCanvas(rw, rh, 'turbulent-displace');
     if (!offCtx) return false;
 
     const commandEncoder = device.createCommandEncoder({ label: 'Turbulent_Encoder' });
@@ -404,12 +383,12 @@
 
     device.queue.submit([commandEncoder.finish()]);
 
-    // Blit rendered frame back to 2D context
     ctx.drawImage(offCanvas, x, y, w, h);
     return true;
   }
 
   reg.registerBackend('turbulent-displace', 'wgpu', {
+    render: renderWebGPU,
     renderPost: renderWebGPU
   });
 })(typeof window !== 'undefined' ? window : globalThis);

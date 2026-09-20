@@ -1038,7 +1038,12 @@
 
         // Schedule next frame AFTER await — canvas is safe to reuse now
         if (queue.length > 0 || this._lookaheadExtendTo > targetFrame + 1) {
-          scheduleNext();
+          if (window._lastFrameRenderDuration && window._lastFrameRenderDuration > 10) {
+            // Main thread / GPU is busy with heavy passes — yield to preserve locked 60fps playback
+            setTimeout(scheduleNext, Math.min(32, Math.round(window._lastFrameRenderDuration)));
+          } else {
+            scheduleNext();
+          }
         } else {
           this._lookaheadRunning = false;
         }

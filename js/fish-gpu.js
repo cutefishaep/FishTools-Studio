@@ -188,13 +188,14 @@
       if (this.activeBackend === 'wgpu' && this.isReady) {
         badge.textContent = 'WebGPU';
         badge.dataset.backend = 'wgpu';
-        badge.setAttribute('title', 'Hardware Accelerated: WebGPU active (WGSL pipelines)');
+        const gpuName = (this.adapterInfo && (this.adapterInfo.description || this.adapterInfo.device)) || 'Hardware GPU';
+        badge.setAttribute('title', `Hardware Accelerated: WebGPU active (${gpuName}) — Klik untuk switch ke WebGL2`);
         badge.classList.remove('is-wgl', 'is-canvas2d');
         badge.classList.add('is-wgpu');
       } else if (this.activeBackend === 'wgl') {
         badge.textContent = 'WebGL2';
         badge.dataset.backend = 'wgl';
-        badge.setAttribute('title', 'Hardware Accelerated: WebGL fallback active');
+        badge.setAttribute('title', 'Hardware Accelerated: WebGL2 fallback active — Klik untuk switch ke WebGPU');
         badge.classList.remove('is-wgpu', 'is-canvas2d');
         badge.classList.add('is-wgl');
       } else {
@@ -207,35 +208,97 @@
     }
 
     /**
-     * Get or create a shared offscreen WebGPU canvas
+     * Get or create a pooled offscreen WebGPU canvas per effect tag
+     * Prevents canvas resize thrashing and swapchain recreation between effects
      * @param {number} width
      * @param {number} height
+     * @param {string} tag
      * @returns {{ canvas: HTMLCanvasElement, ctx: GPUCanvasContext }}
      */
-    getOffscreenCanvas(width, height) {
+    getOffscreenCanvas(width, height, tag = 'default') {
       const w = Math.max(1, Math.round(width || 320));
       const h = Math.max(1, Math.round(height || 180));
 
-      if (!this._offscreenCanvas) {
-        this._offscreenCanvas = document.createElement('canvas');
-      }
-      if (this._offscreenCanvas.width !== w || this._offscreenCanvas.height !== h) {
-        this._offscreenCanvas.width = w;
-        this._offscreenCanvas.height = h;
+      if (!this._offscreenPool) {
+        this._offscreenPool = new Map();
       }
 
-      if (!this._offscreenCtx && this.device) {
-        this._offscreenCtx = this._offscreenCanvas.getContext('webgpu');
-        if (this._offscreenCtx) {
-          this._offscreenCtx.configure({
+      let entry = this._offscreenPool.get(tag);
+      if (!entry) {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('webgpu');
+        if (ctx && this.device) {
+          ctx.configure({
             device: this.device,
             format: this.canvasFormat,
             alphaMode: 'premultiplied'
           });
         }
+        entry = { canvas: c, ctx: ctx };
+        this._offscreenPool.set(tag, entry);
+      } else {
+        if (entry.canvas.width !== w || entry.canvas.height !== h) {
+          entry.canvas.width = w;
+          entry.canvas.height = h;
+          if (entry.ctx && this.device) {
+            entry.ctx.configure({
+              device: this.device,
+              format: this.canvasFormat,
+              alphaMode: 'premultiplied'
+            });
+          }
+        }
       }
 
-      return { canvas: this._offscreenCanvas, ctx: this._offscreenCtx };
+      return entry;
+    }
+
+    /**
+     * Upload an image, video, or canvas element to a GPUTexture at native resolution
+     * Eliminates per-frame DOM allocations, guarantees no copySize bounds errors
+     * @param {CanvasImageSource} source
+     * @param {string} tag
+     * @returns {{ texture: GPUTexture, width: number, height: number }|null}
+     */
+    uploadSourceToTexture(source, tag = 'src') {
+      if (!this.device || !this.queue || !source) return null;
+      const w = Math.max(1, Math.round(source.videoWidth || source.naturalWidth || source.width || 100));
+      const h = Math.max(1, Math.round(source.videoHeight || source.naturalHeight || source.height || 100));
+
+      const tex = this.getTexture(tag, w, h, GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT);
+      if (!tex) return null;
+
+      try {
+        this.queue.copyExternalImageToTexture(
+          { source, flipY: false },
+          { texture: tex },
+          [w, h]
+        );
+        return { texture: tex, width: w, height: h };
+      } catch (_) {
+        if (!this._sharedScratchCanvas) {
+          this._sharedScratchCanvas = document.createElement('canvas');
+          this._sharedScratchCtx = this._sharedScratchCanvas.getContext('2d');
+        }
+        if (this._sharedScratchCanvas.width !== w || this._sharedScratchCanvas.height !== h) {
+          this._sharedScratchCanvas.width = w;
+          this._sharedScratchCanvas.height = h;
+        }
+        this._sharedScratchCtx.clearRect(0, 0, w, h);
+        try {
+          this._sharedScratchCtx.drawImage(source, 0, 0, w, h);
+          this.queue.copyExternalImageToTexture(
+            { source: this._sharedScratchCanvas, flipY: false },
+            { texture: tex },
+            [w, h]
+          );
+          return { texture: tex, width: w, height: h };
+        } catch (err2) {
+          return null;
+        }
+      }
     }
 
     /**
@@ -337,6 +400,20 @@
       };
     }
 
+    _notifyUser(message, type = 'info') {
+      if (typeof window !== 'undefined') {
+        if (typeof window.showEffectsRackToast === 'function') {
+          window.showEffectsRackToast(message);
+          return;
+        }
+        if (typeof window.showDashboardToast === 'function') {
+          window.showDashboardToast(message, 3500);
+          return;
+        }
+      }
+      console.info(`[FishGPU] ${message}`);
+    }
+
     /**
      * Manually switch GPU backend
      * @param {'wgpu'|'wgl'} target
@@ -346,15 +423,55 @@
         try { localStorage.removeItem('oft_gpu_backend_override'); } catch (_) {}
         global.__FISH_FORCE_WEBGL = false;
         this._initPromise = null;
-        await this.init();
+        const ok = await this.init();
+        if (!ok || !this.isReady) {
+          this.activeBackend = 'wgl';
+          this.isReady = false;
+          this._updateUIBadge();
+          const reason = (typeof window !== 'undefined' && !window.isSecureContext)
+            ? 'WebGPU butuh Secure Context (HTTPS / localhost)'
+            : (typeof navigator !== 'undefined' && !navigator.gpu)
+              ? 'navigator.gpu tidak didukung di browser ini'
+              : 'Gagal inisialisasi GPUDevice';
+          this._notifyUser(`⚠️ WebGPU tidak aktif (${reason}) — fallback ke WebGL2`, 'warning');
+          return;
+        }
+        const gpuName = (this.adapterInfo && (this.adapterInfo.description || this.adapterInfo.device)) || 'Hardware GPU';
+        this._notifyUser(`⚡ GPU Engine: WebGPU (${gpuName})`, 'success');
       } else {
         try { localStorage.setItem('oft_gpu_backend_override', 'wgl'); } catch (_) {}
         global.__FISH_FORCE_WEBGL = true;
         this.activeBackend = 'wgl';
         this.isReady = false;
         this._updateUIBadge();
+        this._notifyUser('🔄 GPU Engine: WebGL2 (Fallback mode)', 'info');
       }
-      if (typeof window.redrawComposition === 'function') {
+
+      // 1. Invalidate preview RAM cache and timeline ruler green bar
+      if (typeof window !== 'undefined' && window.PreviewCacheManager) {
+        try {
+          if (typeof window.PreviewCacheManager.clearAll === 'function') {
+            window.PreviewCacheManager.clearAll('all');
+          }
+          if (typeof window.PreviewCacheManager.updateRulerUI === 'function') {
+            window.PreviewCacheManager.updateRulerUI();
+          }
+        } catch (_) {}
+      }
+
+      // 2. Clear effective properties cache & FrameExtractor cache
+      if (typeof window !== 'undefined' && typeof window.invalidateEffectivePropsCache === 'function') {
+        try { window.invalidateEffectivePropsCache(); } catch (_) {}
+      }
+      if (typeof window !== 'undefined' && window.FrameExtractor && typeof window.FrameExtractor.clearCache === 'function') {
+        try { window.FrameExtractor.clearCache(); } catch (_) {}
+      }
+
+      // 3. Clear GPU texture pool to ensure fresh textures
+      this._texturePool.clear();
+
+      // 4. Force redraw
+      if (typeof window !== 'undefined' && typeof window.redrawComposition === 'function') {
         window.redrawComposition('gpu-backend-change');
       }
     }

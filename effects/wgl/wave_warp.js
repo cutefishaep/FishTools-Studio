@@ -4,14 +4,19 @@
   if (!reg) return;
 
   // Hardware WebGL Pipeline for Wave Warp
-  // Single-pass analytical fragment shader: 0 slicing strips, 100% solid opacity, razor sharp sampling
+  // Single-pass analytical fragment shader + In-GPU FBO multi-pass ping-pong
   let _glCanvas = null;
   let _gl = null;
   let _glProg = null;
   let _glUniforms = null;
   let _posBuf = null;
   let _uvBuf = null;
-  let _tex = null;
+  let _texSource = null;
+  let _tex0 = null;
+  let _tex1 = null;
+  let _fbo = null;
+  let _texWidth = 0;
+  let _texHeight = 0;
   let _scratchCanvas = null;
   let _scratchCtx = null;
   let _glFailed = false;
@@ -62,8 +67,8 @@
         'uniform sampler2D u_image;',
         'uniform vec2 u_resolution;',
         'uniform float u_waveHeight;',
-        'uniform float u_waveWidth;',
-        'uniform float u_dirRad;',
+        'uniform float u_invWidth;',
+        'uniform vec2 u_dirVec;',
         'uniform float u_phaseRad;',
         'uniform int u_waveType;',
         'uniform int u_tile;',
@@ -82,29 +87,29 @@
         '  return a + (b - a) * q;',
         '}',
         '',
-        'float getWaveVal(float dist, float width, float phase, int wType) {',
-        '  float p = (dist / width) * 6.28318530718 + phase;',
+        'float getWaveVal(float dist, float invWidth, float phase, int wType) {',
+        '  float p = dist * invWidth + phase;',
         '  if (wType == 1) {', // triangle
         '    float s = clamp(sin(p), -1.0, 1.0);',
         '    return asin(s) * 0.63661977236;',
         '  } else if (wType == 2) {', // square
         '    return sin(p) >= 0.0 ? 1.0 : -1.0;',
         '  } else if (wType == 3) {', // sawtooth
-        '    float norm = fract(p / 6.28318530718);',
+        '    float norm = fract(p * 0.15915494309);',
         '    return norm * 2.0 - 1.0;',
         '  } else if (wType == 4) {', // circle
-        '    float norm = fract(p / 6.28318530718);',
+        '    float norm = fract(p * 0.15915494309);',
         '    float d = (norm - 0.5) * 2.0;',
         '    return sqrt(max(0.0, 1.0 - d * d)) * 2.0 - 1.0;',
         '  } else if (wType == 5) {', // semicircle
-        '    float norm = fract(p / 6.28318530718);',
+        '    float norm = fract(p * 0.15915494309);',
         '    float d = (norm - 0.5) * 2.0;',
         '    return sqrt(max(0.0, 1.0 - d * d));',
         '  } else if (wType == 6) {', // noise
-        '    float cycle = p / 6.28318530718;',
+        '    float cycle = p * 0.15915494309;',
         '    return pseudoNoise1D(floor(cycle));',
         '  } else if (wType == 7) {', // smooth-noise
-        '    float cycle = p / 6.28318530718;',
+        '    float cycle = p * 0.15915494309;',
         '    return smoothNoise1D(cycle);',
         '  }',
         '  return sin(p);', // 0: sine
@@ -123,11 +128,11 @@
         '  vec2 center = u_resolution * 0.5;',
         '  vec2 p = pixelPos - center;',
         '',
-        '  float dist = p.x * cos(u_dirRad) + p.y * sin(u_dirRad);',
-        '  float wave = getWaveVal(dist, u_waveWidth, u_phaseRad, u_waveType);',
+        '  float dist = dot(p, u_dirVec);',
+        '  float wave = getWaveVal(dist, u_invWidth, u_phaseRad, u_waveType);',
         '  float dy = wave * u_waveHeight;',
         '',
-        '  vec2 srcPixel = pixelPos + vec2(dy * sin(u_dirRad), -dy * cos(u_dirRad));',
+        '  vec2 srcPixel = pixelPos + vec2(dy * u_dirVec.y, -dy * u_dirVec.x);',
         '  vec2 srcUV = srcPixel / u_resolution;',
         '',
         '  if (u_tile == 1) {',
@@ -176,8 +181,8 @@
         image: gl.getUniformLocation(prog, 'u_image'),
         resolution: gl.getUniformLocation(prog, 'u_resolution'),
         waveHeight: gl.getUniformLocation(prog, 'u_waveHeight'),
-        waveWidth: gl.getUniformLocation(prog, 'u_waveWidth'),
-        dirRad: gl.getUniformLocation(prog, 'u_dirRad'),
+        invWidth: gl.getUniformLocation(prog, 'u_invWidth'),
+        dirVec: gl.getUniformLocation(prog, 'u_dirVec'),
         phaseRad: gl.getUniformLocation(prog, 'u_phaseRad'),
         waveType: gl.getUniformLocation(prog, 'u_waveType'),
         tile: gl.getUniformLocation(prog, 'u_tile')
@@ -204,12 +209,20 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
       gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
 
-      _tex = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, _tex);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      function createTex() {
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        return tex;
+      }
+
+      _texSource = createTex();
+      _tex0 = createTex();
+      _tex1 = createTex();
+      _fbo = gl.createFramebuffer();
 
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
@@ -220,6 +233,181 @@
       _glFailed = true;
       return false;
     }
+  }
+
+  function ensureTextureStorage(gl, rw, rh) {
+    if (_texWidth !== rw || _texHeight !== rh) {
+      gl.bindTexture(gl.TEXTURE_2D, _tex0);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, rw, rh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.bindTexture(gl.TEXTURE_2D, _tex1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, rw, rh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      _texWidth = rw;
+      _texHeight = rh;
+    }
+  }
+
+  function uploadToTexSource(gl, el) {
+    gl.bindTexture(gl.TEXTURE_2D, _texSource);
+    try {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+      return true;
+    } catch (_) {
+      if (!_scratchCanvas) {
+        _scratchCanvas = document.createElement('canvas');
+        _scratchCtx = _scratchCanvas.getContext('2d');
+      }
+      const sw = Math.min(1920, el.videoWidth || el.naturalWidth || el.width || 100);
+      const sh = Math.min(1080, el.videoHeight || el.naturalHeight || el.height || 100);
+      if (_scratchCanvas.width !== sw || _scratchCanvas.height !== sh) {
+        _scratchCanvas.width = sw;
+        _scratchCanvas.height = sh;
+      }
+      _scratchCtx.clearRect(0, 0, sw, sh);
+      _scratchCtx.drawImage(el, 0, 0, sw, sh);
+      try {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _scratchCanvas);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  function setWaveUniforms(gl, u, fx, rw, rh, w, layer, currentSec) {
+    const height = fx && fx.waveHeight !== undefined ? fx.waveHeight : 25;
+    const width = Math.max(10, fx && fx.waveWidth !== undefined ? fx.waveWidth : 120);
+    const baseRefW = Math.abs((layer && layer.scaleW) || (layer && layer.mediaWidth) || w);
+    const bufferScale = baseRefW > 0 ? (w / baseRefW) : 1;
+    const effectiveHeight = height * bufferScale;
+    const effectiveWidth = Math.max(1, width * bufferScale);
+
+    const rawType = (fx && fx.waveType ? String(fx.waveType) : 'sine').toLowerCase().replace(/[\s_]+/g, '-');
+    const dirDeg = fx && fx.direction !== undefined ? fx.direction : 0;
+    const speed = fx && fx.speed !== undefined ? fx.speed : 1;
+    const phaseDeg = fx && fx.phase !== undefined ? fx.phase : 0;
+
+    let curSec = 0;
+    if (typeof currentSec === 'number' && !isNaN(currentSec)) curSec = currentSec;
+    else if (layer && typeof layer._currentSec === 'number') curSec = layer._currentSec;
+    else if (typeof window !== 'undefined') {
+      if (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)) curSec = window._currentRenderSec;
+      else if (typeof window.currentPlaybackSec === 'number') curSec = window.currentPlaybackSec;
+      else if (typeof window.currentSec === 'number') curSec = window.currentSec;
+      else if (typeof window.getCurrentPlayheadTime === 'function') curSec = window.getCurrentPlayheadTime();
+      else if (window.currentFrame !== undefined && window.currentFps) curSec = window.currentFrame / window.currentFps;
+      else if (window.timelinePanX !== undefined) curSec = Math.abs(window.timelinePanX) / (window.currentPixelsPerSecond || 80);
+    }
+    const layerStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
+    const sourceOffset = (layer && layer.sourceOffsetSec !== undefined) ? layer.sourceOffsetSec : 0;
+    const t = curSec - (layerStart - sourceOffset);
+
+    const phaseRad = (phaseDeg * Math.PI / 180) - (t * speed * Math.PI * 2);
+    const dirRad = (dirDeg * Math.PI) / 180;
+    const isTile = !!(fx && (fx.tile === 1 || fx.tile === true || fx.tile === '1' || fx.tile === 'true' || fx.tile === 'on'));
+
+    let typeInt = 0; // sine
+    if (rawType === 'triangle') typeInt = 1;
+    else if (rawType === 'square') typeInt = 2;
+    else if (rawType === 'sawtooth') typeInt = 3;
+    else if (rawType === 'circle') typeInt = 4;
+    else if (rawType === 'semicircle' || rawType === 'semi-circle') typeInt = 5;
+    else if (rawType === 'noise') typeInt = 6;
+    else if (rawType === 'smooth-noise' || rawType === 'smoothnoise' || rawType === 'noisesmooth' || rawType === 'noise-smooth') typeInt = 7;
+
+    const invWidth = (Math.PI * 2) / effectiveWidth;
+    const dirCos = Math.cos(dirRad);
+    const dirSin = Math.sin(dirRad);
+
+    gl.uniform1i(u.image, 0);
+    gl.uniform2f(u.resolution, rw, rh);
+    gl.uniform1f(u.waveHeight, effectiveHeight);
+    gl.uniform1f(u.invWidth, invWidth);
+    gl.uniform2f(u.dirVec, dirCos, dirSin);
+    gl.uniform1f(u.phaseRad, phaseRad);
+    gl.uniform1i(u.waveType, typeInt);
+    gl.uniform1i(u.tile, isTile ? 1 : 0);
+  }
+
+  function renderWaveWarpBatch(ctx, el, layer, bounds, fxArray, currentSec) {
+    if (!ctx || !el || !Array.isArray(fxArray) || fxArray.length === 0) return false;
+    const activeFx = fxArray.filter(f => f && !f.disabled && Math.abs(f.waveHeight !== undefined ? f.waveHeight : 25) >= 0.05);
+    const x = bounds && bounds.x !== undefined ? bounds.x : 0;
+    const y = bounds && bounds.y !== undefined ? bounds.y : 0;
+    const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
+    const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
+
+    if (activeFx.length === 0) {
+      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+      return true;
+    }
+
+    if (!_glFailed && initWaveGL()) {
+      try {
+        const gl = _gl;
+        const prog = _glProg;
+        const u = _glUniforms;
+        const rw = Math.max(1, Math.round(w));
+        const rh = Math.max(1, Math.round(h));
+
+        if (_glCanvas.width !== rw || _glCanvas.height !== rh) {
+          _glCanvas.width = rw;
+          _glCanvas.height = rh;
+        }
+
+        if (!uploadToTexSource(gl, el)) return false;
+
+        gl.viewport(0, 0, rw, rh);
+        gl.useProgram(prog);
+
+        const posLoc = gl.getAttribLocation(prog, 'a_pos');
+        gl.bindBuffer(gl.ARRAY_BUFFER, _posBuf);
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+        const uvLoc = gl.getAttribLocation(prog, 'a_uv');
+        gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
+        gl.enableVertexAttribArray(uvLoc);
+        gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
+
+        const passCount = activeFx.length;
+        if (passCount > 1) {
+          ensureTextureStorage(gl, rw, rh);
+        }
+
+        for (let i = 0; i < passCount; i++) {
+          const isLast = (i === passCount - 1);
+          let readTex;
+          let writeTex;
+
+          if (i === 0) {
+            readTex = _texSource;
+            writeTex = isLast ? null : _tex0;
+          } else {
+            readTex = (i % 2 === 1) ? _tex0 : _tex1;
+            writeTex = isLast ? null : ((i % 2 === 1) ? _tex1 : _tex0);
+          }
+
+          if (writeTex === null) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          } else {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, _fbo);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, writeTex, 0);
+          }
+
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, readTex);
+
+          setWaveUniforms(gl, u, activeFx[i], rw, rh, w, layer, currentSec);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+
+        ctx.drawImage(_glCanvas, x, y, w, h);
+        return true;
+      } catch (err) {
+        console.warn('[WaveWarp GL Batch] WebGL render failed:', err);
+      }
+    }
+    return false;
   }
 
   // Reusable offscreen buffer for Canvas2D fallback
@@ -241,6 +429,186 @@
     return { canvas: _waveBuf, ctx: _waveBufCtx };
   }
 
+  function renderWaveWarp(ctx, el, layer, bounds, fx, currentSec) {
+    if (!ctx || !el) return;
+    if (renderWaveWarpBatch(ctx, el, layer, bounds, [fx], currentSec)) {
+      return;
+    }
+
+    // =========================================================================
+    // FALLBACK: Canvas2D Strip Slicing with Solid Overlap
+    // =========================================================================
+    const x = bounds && bounds.x !== undefined ? bounds.x : 0;
+    const y = bounds && bounds.y !== undefined ? bounds.y : 0;
+    const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
+    const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
+
+    const height = fx && fx.waveHeight !== undefined ? fx.waveHeight : 25;
+    if (Math.abs(height) < 0.05) {
+      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+      return;
+    }
+
+    const width = Math.max(10, fx && fx.waveWidth !== undefined ? fx.waveWidth : 120);
+    const baseRefW = Math.abs((layer && layer.scaleW) || (layer && layer.mediaWidth) || w);
+    const bufferScale = baseRefW > 0 ? (w / baseRefW) : 1;
+    const effectiveHeight = height * bufferScale;
+
+    const rawType = (fx && fx.waveType ? String(fx.waveType) : 'sine').toLowerCase().replace(/[\s_]+/g, '-');
+    const dirDeg = fx && fx.direction !== undefined ? fx.direction : 0;
+    const speed = fx && fx.speed !== undefined ? fx.speed : 1;
+    const phaseDeg = fx && fx.phase !== undefined ? fx.phase : 0;
+
+    let curSec = 0;
+    if (typeof currentSec === 'number' && !isNaN(currentSec)) curSec = currentSec;
+    else if (layer && typeof layer._currentSec === 'number') curSec = layer._currentSec;
+    const layerStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
+    const sourceOffset = (layer && layer.sourceOffsetSec !== undefined) ? layer.sourceOffsetSec : 0;
+    const t = curSec - (layerStart - sourceOffset);
+    const phaseRad = (phaseDeg * Math.PI / 180) - (t * speed * Math.PI * 2);
+    const dirRad = (dirDeg * Math.PI) / 180;
+    const isTile = !!(fx && (fx.tile === 1 || fx.tile === true || fx.tile === '1' || fx.tile === 'true' || fx.tile === 'on'));
+
+    function pseudoNoise1D(k) {
+      const s = Math.sin(k * 127.1 + 311.7) * 43758.5453123;
+      return (s - Math.floor(s)) * 2 - 1;
+    }
+
+    function smoothNoise1D(u) {
+      const i0 = Math.floor(u);
+      const f = u - i0;
+      const q = f * f * f * (f * (f * 6 - 15) + 10);
+      const a = pseudoNoise1D(i0);
+      const b = pseudoNoise1D(i0 + 1);
+      return a + (b - a) * q;
+    }
+
+    function getWave(val) {
+      const p = (val / width) * Math.PI * 2 + phaseRad;
+      if (rawType === 'triangle') {
+        const s = Math.max(-1, Math.min(1, Math.sin(p)));
+        return Math.asin(s) * (2 / Math.PI);
+      } else if (rawType === 'square') {
+        return Math.sin(p) >= 0 ? 1 : -1;
+      } else if (rawType === 'sawtooth') {
+        const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
+        return norm * 2 - 1;
+      } else if (rawType === 'circle') {
+        const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
+        return Math.sqrt(Math.max(0, 1 - Math.pow((norm - 0.5) * 2, 2))) * 2 - 1;
+      } else if (rawType === 'semicircle' || rawType === 'semi-circle') {
+        const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
+        return Math.sqrt(Math.max(0, 1 - Math.pow((norm - 0.5) * 2, 2)));
+      } else if (rawType === 'noise') {
+        const cycle = p / (Math.PI * 2);
+        return pseudoNoise1D(Math.floor(cycle));
+      } else if (rawType === 'smooth-noise' || rawType === 'smoothnoise' || rawType === 'noisesmooth' || rawType === 'noise-smooth') {
+        const cycle = p / (Math.PI * 2);
+        return smoothNoise1D(cycle);
+      }
+      return Math.sin(p);
+    }
+
+    const cosA = Math.abs(Math.cos(dirRad));
+    const sinA = Math.abs(Math.sin(dirRad));
+    const spanW = Math.ceil(w * cosA + h * sinA);
+    const spanH = Math.ceil(w * sinA + h * cosA);
+
+    const padY = Math.ceil(Math.abs(effectiveHeight) * 2) + (isTile ? 24 : 4);
+    const totalW = Math.ceil(spanW + (isTile ? padY * 2 : 4));
+    const totalH = Math.ceil(spanH + padY * 2);
+
+    const buf = getWaveBuffer(totalW, totalH);
+    if (!buf || !buf.ctx) {
+      try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+      return;
+    }
+
+    const bCanvas = buf.canvas;
+    const bCtx = buf.ctx;
+
+    bCtx.clearRect(0, 0, totalW, totalH);
+    bCtx.save();
+    bCtx.imageSmoothingEnabled = true;
+    bCtx.imageSmoothingQuality = 'high';
+    const halfTotalW = Math.round(totalW / 2);
+    const halfTotalH = Math.round(totalH / 2);
+    bCtx.translate(halfTotalW, halfTotalH);
+    bCtx.rotate(-dirRad);
+
+    const halfW = Math.round(w / 2);
+    const halfH = Math.round(h / 2);
+
+    try {
+      if (!isTile) {
+        bCtx.drawImage(el, -halfW, -halfH, w, h);
+      } else {
+        const maxDim = Math.max(totalW, totalH);
+        const rangeX = Math.max(1, Math.ceil(maxDim / w));
+        const rangeY = Math.max(1, Math.ceil(maxDim / h));
+
+        for (let j = -rangeY; j <= rangeY; j++) {
+          for (let i = -rangeX; i <= rangeX; i++) {
+            const flipX = (Math.abs(i) % 2 === 1);
+            const flipY = (Math.abs(j) % 2 === 1);
+            const tx = i * w - halfW;
+            const ty = j * h - halfH;
+
+            if (!flipX && !flipY) {
+              bCtx.drawImage(el, tx, ty, w, h);
+            } else {
+              bCtx.save();
+              bCtx.translate(tx + (flipX ? w : 0), ty + (flipY ? h : 0));
+              bCtx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+              bCtx.drawImage(el, 0, 0, w, h);
+              bCtx.restore();
+            }
+          }
+        }
+      }
+    } catch (_) {
+      bCtx.restore();
+      try { ctx.drawImage(el, x, y, w, h); } catch (e) {}
+      return;
+    }
+    bCtx.restore();
+
+    const cx = Math.round(x + w / 2);
+    const cy = Math.round(y + h / 2);
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if (isTile) {
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+    }
+    ctx.translate(cx, cy);
+    ctx.rotate(dirRad);
+
+    const sliceW = 2;
+    const overlap = 1.0;
+    const startSx = isTile ? 0 : Math.max(0, Math.floor((totalW - spanW) / 2));
+    const endSx = isTile ? totalW : Math.min(totalW, Math.ceil((totalW + spanW) / 2));
+
+    for (let sx = startSx; sx < endSx; sx += sliceW) {
+      const sw = Math.min(sliceW, endSx - sx);
+      const u = (sx + sw / 2) - halfTotalW;
+      const wave = getWave(u);
+      const dy = wave * effectiveHeight;
+
+      ctx.drawImage(
+        bCanvas,
+        sx, 0, sw, totalH,
+        sx - halfTotalW, -halfTotalH + dy, sw + overlap, totalH
+      );
+    }
+
+    ctx.restore();
+  }
+
   reg.register({
     id: 'wave-warp',
     name: 'Wave Warp',
@@ -257,282 +625,12 @@
       { id: 'phase', label: 'Phase', type: 'number', min: 0, max: 360, default: 0, unit: '°' },
       { id: 'tile', label: 'Tile', type: 'switch', default: 0 }
     ],
-    render(ctx, el, layer, bounds, fx, currentSec) {
-      if (!ctx || !el) return;
-      const x = bounds && bounds.x !== undefined ? bounds.x : 0;
-      const y = bounds && bounds.y !== undefined ? bounds.y : 0;
-      const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
-      const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
+    render: renderWaveWarp,
+    renderBatch: renderWaveWarpBatch
+  });
 
-      const height = fx && fx.waveHeight !== undefined ? fx.waveHeight : 25;
-      if (Math.abs(height) < 0.05) {
-        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
-        return;
-      }
-
-      const width = Math.max(10, fx && fx.waveWidth !== undefined ? fx.waveWidth : 120);
-      const baseRefW = Math.abs((layer && layer.scaleW) || (layer && layer.mediaWidth) || w);
-      const bufferScale = baseRefW > 0 ? (w / baseRefW) : 1;
-      const effectiveHeight = height * bufferScale;
-      const effectiveWidth = Math.max(1, width * bufferScale);
-
-      const rawType = (fx && fx.waveType ? String(fx.waveType) : 'sine').toLowerCase().replace(/[\s_]+/g, '-');
-      const dirDeg = fx && fx.direction !== undefined ? fx.direction : 0;
-      const speed = fx && fx.speed !== undefined ? fx.speed : 1;
-      const phaseDeg = fx && fx.phase !== undefined ? fx.phase : 0;
-
-      let curSec = 0;
-      if (typeof currentSec === 'number' && !isNaN(currentSec)) curSec = currentSec;
-      else if (layer && typeof layer._currentSec === 'number') curSec = layer._currentSec;
-      else if (typeof window !== 'undefined') {
-        if (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)) curSec = window._currentRenderSec;
-        else if (typeof window.currentPlaybackSec === 'number') curSec = window.currentPlaybackSec;
-        else if (typeof window.currentSec === 'number') curSec = window.currentSec;
-        else if (typeof window.getCurrentPlayheadTime === 'function') curSec = window.getCurrentPlayheadTime();
-        else if (window.currentFrame !== undefined && window.currentFps) curSec = window.currentFrame / window.currentFps;
-        else if (window.timelinePanX !== undefined) curSec = Math.abs(window.timelinePanX) / (window.currentPixelsPerSecond || 80);
-      }
-      const layerStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
-      const sourceOffset = (layer && layer.sourceOffsetSec !== undefined) ? layer.sourceOffsetSec : 0;
-      // Continuous phase: offset by sourceOffset ensures cuts don't jump phase
-      const t = curSec - (layerStart - sourceOffset);
-
-      // Positive speed moves the wave forward along the direction vector
-      const phaseRad = (phaseDeg * Math.PI / 180) - (t * speed * Math.PI * 2);
-      const dirRad = (dirDeg * Math.PI) / 180;
-      const isTile = !!(fx && (fx.tile === 1 || fx.tile === true || fx.tile === '1' || fx.tile === 'true' || fx.tile === 'on'));
-
-      let typeInt = 0; // sine
-      if (rawType === 'triangle') typeInt = 1;
-      else if (rawType === 'square') typeInt = 2;
-      else if (rawType === 'sawtooth') typeInt = 3;
-      else if (rawType === 'circle') typeInt = 4;
-      else if (rawType === 'semicircle' || rawType === 'semi-circle') typeInt = 5;
-      else if (rawType === 'noise') typeInt = 6;
-      else if (rawType === 'smooth-noise' || rawType === 'smoothnoise' || rawType === 'noisesmooth' || rawType === 'noise-smooth') typeInt = 7;
-
-      // =========================================================================
-      // FAST PATH: Hardware WebGL Single-Pass Shader (Razor Sharp, 100% Opacity)
-      // =========================================================================
-      if (!_glFailed && initWaveGL()) {
-        try {
-          const gl = _gl;
-          const prog = _glProg;
-          const u = _glUniforms;
-          const rw = Math.max(1, Math.round(w));
-          const rh = Math.max(1, Math.round(h));
-
-          if (_glCanvas.width !== rw || _glCanvas.height !== rh) {
-            _glCanvas.width = rw;
-            _glCanvas.height = rh;
-          }
-
-          gl.viewport(0, 0, rw, rh);
-          gl.clearColor(0, 0, 0, 0);
-          gl.clear(gl.COLOR_BUFFER_BIT);
-
-          gl.useProgram(prog);
-
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, _tex);
-
-          let uploaded = false;
-          try {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
-            uploaded = true;
-          } catch (_) {
-            // Safari WebKit texture fallback buffer
-            if (!_scratchCanvas) {
-              _scratchCanvas = document.createElement('canvas');
-              _scratchCtx = _scratchCanvas.getContext('2d');
-            }
-            const sw = Math.min(1920, el.videoWidth || el.naturalWidth || el.width || rw);
-            const sh = Math.min(1080, el.videoHeight || el.naturalHeight || el.height || rh);
-            if (_scratchCanvas.width !== sw || _scratchCanvas.height !== sh) {
-              _scratchCanvas.width = sw;
-              _scratchCanvas.height = sh;
-            }
-            _scratchCtx.clearRect(0, 0, sw, sh);
-            _scratchCtx.drawImage(el, 0, 0, sw, sh);
-            try {
-              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _scratchCanvas);
-              uploaded = true;
-            } catch (_) {}
-          }
-
-          if (uploaded) {
-            gl.uniform1i(u.image, 0);
-            gl.uniform2f(u.resolution, rw, rh);
-            gl.uniform1f(u.waveHeight, effectiveHeight);
-            gl.uniform1f(u.waveWidth, effectiveWidth);
-            gl.uniform1f(u.dirRad, dirRad);
-            gl.uniform1f(u.phaseRad, phaseRad);
-            gl.uniform1i(u.waveType, typeInt);
-            gl.uniform1i(u.tile, isTile ? 1 : 0);
-
-            const posLoc = gl.getAttribLocation(prog, 'a_pos');
-            gl.bindBuffer(gl.ARRAY_BUFFER, _posBuf);
-            gl.enableVertexAttribArray(posLoc);
-            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-            const uvLoc = gl.getAttribLocation(prog, 'a_uv');
-            gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
-            gl.enableVertexAttribArray(uvLoc);
-            gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
-
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-            ctx.drawImage(_glCanvas, x, y, w, h);
-            return;
-          }
-        } catch (err) {
-          console.warn('[WaveWarp] WebGL render failed, falling back to 2D:', err);
-        }
-      }
-
-      // =========================================================================
-      // FALLBACK: Canvas2D Strip Slicing with Solid Overlap (Guaranteed Solid Opacity)
-      // =========================================================================
-      function pseudoNoise1D(k) {
-        const s = Math.sin(k * 127.1 + 311.7) * 43758.5453123;
-        return (s - Math.floor(s)) * 2 - 1;
-      }
-
-      function smoothNoise1D(u) {
-        const i0 = Math.floor(u);
-        const f = u - i0;
-        const q = f * f * f * (f * (f * 6 - 15) + 10);
-        const a = pseudoNoise1D(i0);
-        const b = pseudoNoise1D(i0 + 1);
-        return a + (b - a) * q;
-      }
-
-      function getWave(val) {
-        const p = (val / width) * Math.PI * 2 + phaseRad;
-        if (rawType === 'triangle') {
-          const s = Math.max(-1, Math.min(1, Math.sin(p)));
-          return Math.asin(s) * (2 / Math.PI);
-        } else if (rawType === 'square') {
-          return Math.sin(p) >= 0 ? 1 : -1;
-        } else if (rawType === 'sawtooth') {
-          const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
-          return norm * 2 - 1;
-        } else if (rawType === 'circle') {
-          const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
-          return Math.sqrt(Math.max(0, 1 - Math.pow((norm - 0.5) * 2, 2))) * 2 - 1;
-        } else if (rawType === 'semicircle' || rawType === 'semi-circle') {
-          const norm = ((p / (Math.PI * 2)) % 1 + 1) % 1;
-          return Math.sqrt(Math.max(0, 1 - Math.pow((norm - 0.5) * 2, 2)));
-        } else if (rawType === 'noise') {
-          const cycle = p / (Math.PI * 2);
-          return pseudoNoise1D(Math.floor(cycle));
-        } else if (rawType === 'smooth-noise' || rawType === 'smoothnoise' || rawType === 'noisesmooth' || rawType === 'noise-smooth') {
-          const cycle = p / (Math.PI * 2);
-          return smoothNoise1D(cycle);
-        }
-        return Math.sin(p);
-      }
-
-      const cosA = Math.abs(Math.cos(dirRad));
-      const sinA = Math.abs(Math.sin(dirRad));
-      const spanW = Math.ceil(w * cosA + h * sinA);
-      const spanH = Math.ceil(w * sinA + h * cosA);
-
-      const padY = Math.ceil(Math.abs(effectiveHeight) * 2) + (isTile ? 24 : 4);
-      const totalW = Math.ceil(spanW + (isTile ? padY * 2 : 4));
-      const totalH = Math.ceil(spanH + padY * 2);
-
-      const buf = getWaveBuffer(totalW, totalH);
-      if (!buf || !buf.ctx) {
-        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
-        return;
-      }
-
-      const bCanvas = buf.canvas;
-      const bCtx = buf.ctx;
-
-      bCtx.clearRect(0, 0, totalW, totalH);
-      bCtx.save();
-      bCtx.imageSmoothingEnabled = true;
-      bCtx.imageSmoothingQuality = 'high';
-      const halfTotalW = Math.round(totalW / 2);
-      const halfTotalH = Math.round(totalH / 2);
-      bCtx.translate(halfTotalW, halfTotalH);
-      bCtx.rotate(-dirRad);
-
-      const halfW = Math.round(w / 2);
-      const halfH = Math.round(h / 2);
-
-      try {
-        if (!isTile) {
-          bCtx.drawImage(el, -halfW, -halfH, w, h);
-        } else {
-          const maxDim = Math.max(totalW, totalH);
-          const rangeX = Math.max(1, Math.ceil(maxDim / w));
-          const rangeY = Math.max(1, Math.ceil(maxDim / h));
-
-          for (let j = -rangeY; j <= rangeY; j++) {
-            for (let i = -rangeX; i <= rangeX; i++) {
-              const flipX = (Math.abs(i) % 2 === 1);
-              const flipY = (Math.abs(j) % 2 === 1);
-              const tx = i * w - halfW;
-              const ty = j * h - halfH;
-
-              if (!flipX && !flipY) {
-                bCtx.drawImage(el, tx, ty, w, h);
-              } else {
-                bCtx.save();
-                bCtx.translate(tx + (flipX ? w : 0), ty + (flipY ? h : 0));
-                bCtx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-                bCtx.drawImage(el, 0, 0, w, h);
-                bCtx.restore();
-              }
-            }
-          }
-        }
-      } catch (_) {
-        bCtx.restore();
-        try { ctx.drawImage(el, x, y, w, h); } catch (e) {}
-        return;
-      }
-      bCtx.restore();
-
-      const cx = Math.round(x + w / 2);
-      const cy = Math.round(y + h / 2);
-
-      ctx.save();
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-
-      if (isTile) {
-        ctx.beginPath();
-        ctx.rect(x, y, w, h);
-        ctx.clip();
-      }
-      ctx.translate(cx, cy);
-      ctx.rotate(dirRad);
-
-      // Safe overlap in 2D fallback to guarantee no alpha feathering
-      const sliceW = 2;
-      const overlap = 1.0;
-      const startSx = isTile ? 0 : Math.max(0, Math.floor((totalW - spanW) / 2));
-      const endSx = isTile ? totalW : Math.min(totalW, Math.ceil((totalW + spanW) / 2));
-
-      for (let sx = startSx; sx < endSx; sx += sliceW) {
-        const sw = Math.min(sliceW, endSx - sx);
-        const u = (sx + sw / 2) - halfTotalW;
-        const wave = getWave(u);
-        const dy = wave * effectiveHeight;
-
-        ctx.drawImage(
-          bCanvas,
-          sx, 0, sw, totalH,
-          sx - halfTotalW, -halfTotalH + dy, sw + overlap, totalH
-        );
-      }
-
-      ctx.restore();
-    }
+  reg.registerBackend('wave-warp', 'wgl', {
+    render: renderWaveWarp,
+    renderBatch: renderWaveWarpBatch
   });
 })(typeof window !== 'undefined' ? window : this);
-

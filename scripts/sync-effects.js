@@ -52,7 +52,8 @@ function syncEffects() {
     try {
       const fullPath = path.join(EFFECTS_DIR, file);
       const code = fs.readFileSync(fullPath, 'utf8');
-      const idMatch = code.match(/id:\s*['"]([^'"]+)['"]/);
+      const idMatch = code.match(/id:\s*['"]([^'"]+)['"]/) ||
+                      code.match(/registerBackend\(\s*['"]([^'"]+)['"]/);
       const nameMatch = code.match(/name:\s*['"]([^'"]+)['"]/);
       const catMatch = code.match(/category:\s*['"]([^'"]+)['"]/);
       const iconMatch = code.match(/icon:\s*['"]([^'"]+)['"]/);

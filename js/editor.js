@@ -2247,6 +2247,7 @@
         if (earlyBitmap) {
           ctx.clearRect(0, 0, w, h);
           ctx.drawImage(earlyBitmap, 0, 0, w, h);
+          window._lastFrameRenderDuration = 0.5;
           return; // skip full pipeline — ~0.1ms vs ~10ms
         }
       }
@@ -2559,15 +2560,17 @@
             return; // Identity pass: normal blend, 100% opacity, all effects are identity no-ops
           }
 
-          // 4. Singleton offscreen buffers (allocated once, resized only when viewport dimensions change)
-          if (!window._adjBufferCanvas) {
-            window._adjBufferCanvas = document.createElement('canvas');
+          // 4. Offscreen buffers (allocated once, separate buffers for lookahead to prevent concurrency races)
+          const isLookahead = (triggerSource === 'lookahead-cache');
+          if (isLookahead) {
+            if (!window._lookaheadAdjBufferCanvas) window._lookaheadAdjBufferCanvas = document.createElement('canvas');
+            if (!window._lookaheadAdjProcCanvas) window._lookaheadAdjProcCanvas = document.createElement('canvas');
+          } else {
+            if (!window._adjBufferCanvas) window._adjBufferCanvas = document.createElement('canvas');
+            if (!window._adjProcCanvas) window._adjProcCanvas = document.createElement('canvas');
           }
-          if (!window._adjProcCanvas) {
-            window._adjProcCanvas = document.createElement('canvas');
-          }
-          const buf = window._adjBufferCanvas;
-          const proc = window._adjProcCanvas;
+          const buf = isLookahead ? window._lookaheadAdjBufferCanvas : window._adjBufferCanvas;
+          const proc = isLookahead ? window._lookaheadAdjProcCanvas : window._adjProcCanvas;
           if (buf.width !== w || buf.height !== h) {
             buf.width = w;
             buf.height = h;
@@ -3628,6 +3631,7 @@
         }
       }
 
+      window._lastFrameRenderDuration = performance.now() - t0;
       return !hasUnreadyMedia;
     }
     window.renderCanvasFrame = renderCanvasFrame;

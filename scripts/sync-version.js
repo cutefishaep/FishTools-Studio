@@ -233,29 +233,6 @@ function syncVersion(specifiedVersion) {
     }
   }
 
-  // 5. Update native/src-tauri (tauri.conf.json and Cargo.toml)
-  const tauriConfPath = path.join(ROOT, 'native', 'src-tauri', 'tauri.conf.json');
-  if (fs.existsSync(tauriConfPath)) {
-    try {
-      const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf8'));
-      tauriConf.version = targetVersion;
-      fs.writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n', 'utf8');
-    } catch (e) {
-      console.error('[SyncVersion] Error updating tauri.conf.json:', e);
-    }
-  }
-
-  const cargoPath = path.join(ROOT, 'native', 'src-tauri', 'Cargo.toml');
-  if (fs.existsSync(cargoPath)) {
-    try {
-      let cargoContent = fs.readFileSync(cargoPath, 'utf8');
-      cargoContent = cargoContent.replace(/^version = "[^"]*"/m, `version = "${targetVersion}"`);
-      fs.writeFileSync(cargoPath, cargoContent, 'utf8');
-    } catch (e) {
-      console.error('[SyncVersion] Error updating Cargo.toml:', e);
-    }
-  }
-
   console.log(`[SyncVersion] Successfully synchronized all files to v${targetVersion}!`);
   return targetVersion;
 }

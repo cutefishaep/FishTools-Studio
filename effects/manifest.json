@@ -52,6 +52,19 @@
     }
   },
   {
+    "file": "wgpu/brightness_contrast.js",
+    "id": "brightness_contrast",
+    "name": "brightness_contrast",
+    "category": "lightning",
+    "icon": "assets/FXPH.svg",
+    "backends": [
+      "wgpu"
+    ],
+    "files": {
+      "wgpu": "wgpu/brightness_contrast.js"
+    }
+  },
+  {
     "file": "camera_lens_blur.js",
     "id": "camera-lens-blur",
     "name": "Camera Lens Blur",
@@ -580,10 +593,12 @@
     "category": "warp",
     "icon": "assets/FXPH.svg",
     "backends": [
-      "common"
+      "common",
+      "wgl"
     ],
     "files": {
-      "common": "tile.js"
+      "common": "tile.js",
+      "wgl": "wgl/tile.js"
     }
   },
   {
@@ -671,10 +686,12 @@
     "category": "warp",
     "icon": "assets/FXPH.svg",
     "backends": [
-      "wgl"
+      "wgl",
+      "wgpu"
     ],
     "files": {
-      "wgl": "wgl/warp.js"
+      "wgl": "wgl/warp.js",
+      "wgpu": "wgpu/warp.js"
     }
   },
   {

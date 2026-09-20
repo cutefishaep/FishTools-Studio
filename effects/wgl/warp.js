@@ -293,7 +293,25 @@
         _lastEl = el;
         _lastSrc = src;
       } catch (err) {
-        return false;
+        if (!_scratchCanvas) {
+          _scratchCanvas = document.createElement('canvas');
+          _scratchCtx = _scratchCanvas.getContext('2d');
+        }
+        const sw = Math.min(1920, el.videoWidth || el.naturalWidth || el.width || w);
+        const sh = Math.min(1080, el.videoHeight || el.naturalHeight || el.height || h);
+        if (_scratchCanvas.width !== sw || _scratchCanvas.height !== sh) {
+          _scratchCanvas.width = sw;
+          _scratchCanvas.height = sh;
+        }
+        _scratchCtx.clearRect(0, 0, sw, sh);
+        _scratchCtx.drawImage(el, 0, 0, sw, sh);
+        try {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _scratchCanvas);
+          _lastEl = el;
+          _lastSrc = src;
+        } catch (_) {
+          return false;
+        }
       }
     }
 
@@ -514,6 +532,37 @@
         renderCanvasMeshFallback(ctx, el, bounds, fx);
       } catch (err) {
         try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+      }
+    }
+  });
+
+  reg.registerBackend('warp', 'wgl', {
+    render(ctx, el, layer, bounds, fx) {
+      if (!ctx || !el) return false;
+      const x = bounds && bounds.x !== undefined ? bounds.x : 0;
+      const y = bounds && bounds.y !== undefined ? bounds.y : 0;
+      const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
+      const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
+
+      const bend = fx && fx.bend !== undefined ? fx.bend : 30;
+      const distortH = fx && fx.distortH !== undefined ? fx.distortH : 0;
+      const distortV = fx && fx.distortV !== undefined ? fx.distortV : 0;
+
+      if (bend === 0 && distortH === 0 && distortV === 0) {
+        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+        return true;
+      }
+
+      if (renderWebGL(ctx, el, bounds, fx)) {
+        return true;
+      }
+
+      try {
+        renderCanvasMeshFallback(ctx, el, bounds, fx);
+        return true;
+      } catch (err) {
+        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+        return false;
       }
     }
   });

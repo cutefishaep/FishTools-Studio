@@ -3892,6 +3892,11 @@
   overflow: hidden !important;
   position: relative !important;
   border-bottom: 1px solid var(--border-panel) !important;
+  cursor: col-resize !important;
+}
+
+.desktop-timeline-wrapper .timeline-ruler-viewport.is-dragging {
+  cursor: col-resize !important;
 }
 
 /* --- Timeline Viewport — left padding creates space for AE label panel --- */
@@ -4259,6 +4264,18 @@
   will-change: transform;
   transform: translate3d(var(--desktop-layer-panel-w, 160px), 0, 0);
   transition: none !important;
+}
+
+/* Wide transparent grab zone around needle — AE-style easy drag */
+.desktop-timeline-wrapper .timeline-center-needle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -10px;
+  right: -10px;
+  bottom: 0;
+  cursor: ew-resize;
+  pointer-events: auto;
 }
 
 /* Playhead Top Scrubber Cap (AE-style pentagon / flag needle head on ruler) */

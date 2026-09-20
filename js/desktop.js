@@ -1179,7 +1179,81 @@
 
     needle.addEventListener('pointerup', stopNeedleDrag);
     needle.addEventListener('pointercancel', stopNeedleDrag);
+
+    // --- AE-Style: Click / Drag empty track area → seek playhead ---
+    // After Effects lets you click anywhere in the empty layer track to jump the playhead.
+    // We replicate this: pointerdown on empty space (not clip, lane head, etc.) → seek.
+    if (layersViewport) {
+      let isEmptyAreaSeeking = false;
+
+      layersViewport.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        // Only intercept clicks on truly empty track space
+        if (
+          e.target.closest('.timeline-clip-block') ||
+          e.target.closest('.timeline-lane-head') ||
+          e.target.closest('.timeline-lane-head-item') ||
+          e.target.closest('.timeline-keyframe-marker') ||
+          e.target.closest('.desktop-kf-diamond') ||
+          e.target.closest('.text-anim-marker') ||
+          e.target.closest('.timeline-beatmark-item') ||
+          e.target.closest('.timeline-layer-reorder-pill') ||
+          e.target.closest('.timeline-layer-ctrl-pill') ||
+          e.target.closest('.timeline-lane-reorder-overlay') ||
+          e.target.closest('.timeline-lane-heads-overlay')
+        ) return;
+
+        // It's empty space — seek to click position
+        isEmptyAreaSeeking = true;
+        try { layersViewport.setPointerCapture(e.pointerId); } catch (_) {}
+
+        // Compute time from X position within layers track
+        const rect = layersViewport.getBoundingClientRect();
+        const panelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w')) || 160;
+        const clickX = e.clientX - rect.left - panelW;
+        const pps = window.currentPixelsPerSecond || 80;
+        const targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
+
+        // Snap to nearest frame
+        const safeFps = window.currentTimelineFps || window.currentFps || 60;
+        const snappedSec = Math.round(targetSec * safeFps) / safeFps;
+        const targetPanX = -snappedSec * pps;
+        if (typeof window.updateTimelinePosition === 'function') {
+          window.updateTimelinePosition(targetPanX, true);
+        }
+        syncDesktopPlayhead();
+
+        // Prevent clip drag engine from picking this up
+        e.stopImmediatePropagation();
+      }, true);
+
+      layersViewport.addEventListener('pointermove', (e) => {
+        if (!isEmptyAreaSeeking) return;
+        const rect = layersViewport.getBoundingClientRect();
+        const panelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w')) || 160;
+        const clickX = e.clientX - rect.left - panelW;
+        const pps = window.currentPixelsPerSecond || 80;
+        const targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
+        const safeFps = window.currentTimelineFps || window.currentFps || 60;
+        const snappedSec = Math.round(targetSec * safeFps) / safeFps;
+        const targetPanX = -snappedSec * pps;
+        if (typeof window.updateTimelinePosition === 'function') {
+          window.updateTimelinePosition(targetPanX, true);
+        }
+        syncDesktopPlayhead();
+        e.stopImmediatePropagation();
+      }, true);
+
+      function stopEmptyAreaSeek(e) {
+        if (!isEmptyAreaSeeking) return;
+        isEmptyAreaSeeking = false;
+        try { layersViewport.releasePointerCapture(e.pointerId); } catch (_) {}
+      }
+      layersViewport.addEventListener('pointerup', stopEmptyAreaSeek, true);
+      layersViewport.addEventListener('pointercancel', stopEmptyAreaSeek, true);
+    }
   }
+
 
   // --- 8. Desktop AE-Style Clip Drag & Move Engine ---
   let isClipDragInited = false;

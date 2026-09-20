@@ -5,6 +5,26 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.31] - 2026-09-20
+
+### Added
+- **WebGPU Hardware Acceleration Architecture & Dynamic Fallback (`js/fish-gpu.js`, `js/effects.js`)**:
+  - Centralized WebGPU Hardware Acceleration Manager singleton (`window.FishGPU`) managing device lifecycle, capability probing, `device.lost` recovery, texture pooling, and fallback.
+  - Automatic fallback hierarchy: `WebGPU (WGSL)` ➔ `WebGL2 / WebGL1 (GLSL)` ➔ `Canvas2D CPU`.
+  - Added interactive GPU engine status badge (`#gpu-engine-badge`) in Topbar with instant real-time telemetry (`WebGPU` / `WebGL2` / `Canvas2D`) and click-to-toggle backend override.
+- **Partitioned Effects Directory Architecture (`effects/wgl/`, `effects/wgpu/`)**:
+  - Organized existing 19 WebGL effects into dedicated `effects/wgl/` folder.
+  - Created `effects/wgpu/` for high-performance WebGPU WGSL shader drivers.
+  - Upgraded `FishEffectsRegistry` with `registerBackend(id, type, impl)` dual-backend pattern preserving 100% backward compatibility with project files and keyframe tracks.
+- **Wave 1 WebGPU (WGSL) Ported Shaders**:
+  - `effects/wgpu/invert.js`: Baseline color inversion WGSL shader.
+  - `effects/wgpu/wave_warp.js`: 9 mathematical wave functions (sine, triangle, square, sawtooth, noise) + mirror UV in native WGSL.
+  - `effects/wgpu/turbulent_displace.js`: Multi-octave simplex noise, analytical curl derivatives, and 8 displacement modes in native WGSL.
+- **Recursive Effects Discovery & Sync (`scripts/sync-effects.js`)**:
+  - Upgraded sync script to recursively traverse `effects/`, `effects/wgl/`, and `effects/wgpu/`, generating multi-backend `manifest.json` and `loader.js`.
+
+---
+
 ## [0.5.30] - 2026-09-20
 
 ### Fixed

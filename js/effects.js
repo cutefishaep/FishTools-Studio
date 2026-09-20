@@ -18,16 +18,19 @@
      */
     register(def) {
       if (!def || !def.id) return;
+      const existing = registry.get(def.id);
+      const backends = Object.assign({}, (existing && existing.backends) || {}, def.backends || {});
       const registeredDef = {
         id: def.id,
-        name: def.name || def.id,
-        category: def.category || 'lightning',
-        icon: def.icon || 'assets/FXPH.svg',
-        description: def.description || '',
-        params: Array.isArray(def.params) ? def.params : [],
-        filter: typeof def.filter === 'function' ? def.filter : null,
-        render: typeof def.render === 'function' ? def.render : null,
-        renderPost: typeof def.renderPost === 'function' ? def.renderPost : null,
+        name: def.name || (existing && existing.name) || def.id,
+        category: def.category || (existing && existing.category) || 'lightning',
+        icon: def.icon || (existing && existing.icon) || 'assets/FXPH.svg',
+        description: def.description || (existing && existing.description) || '',
+        params: Array.isArray(def.params) ? def.params : ((existing && existing.params) || []),
+        filter: typeof def.filter === 'function' ? def.filter : (existing ? existing.filter : null),
+        render: typeof def.render === 'function' ? def.render : (existing ? existing.render : null),
+        renderPost: typeof def.renderPost === 'function' ? def.renderPost : (existing ? existing.renderPost : null),
+        backends: backends,
         isExpanding: !!def.isExpanding
       };
       registry.set(def.id, registeredDef);
@@ -36,6 +39,33 @@
         try {
           window.dispatchEvent(new CustomEvent('fisheffects:registered', { detail: registeredDef }));
         } catch (_) {}
+      }
+    },
+
+    /**
+     * Register or augment an effect backend (wgpu or wgl)
+     * @param {string} id Effect ID
+     * @param {'wgpu'|'wgl'} backendType Backend name
+     * @param {Object|Function} backendImpl Backend implementation
+     */
+    registerBackend(id, backendType, backendImpl) {
+      if (!id || !backendType || !backendImpl) return;
+      let def = registry.get(id);
+      if (!def) {
+        def = {
+          id: id,
+          name: id,
+          category: 'lightning',
+          icon: 'assets/FXPH.svg',
+          params: [],
+          backends: {}
+        };
+        registry.set(id, def);
+      }
+      if (!def.backends) def.backends = {};
+      def.backends[backendType] = backendImpl;
+      if (typeof backendImpl.renderPost === 'function' && backendType === 'wgl' && !def.renderPost) {
+        def.renderPost = backendImpl.renderPost;
       }
     },
 
@@ -724,13 +754,47 @@
 
     applyPostEffects(ctx, el, layer, bounds) {
       if (!ctx || !layer || !Array.isArray(layer.effects) || layer.effects.length === 0) return;
+      const isWgpuReady = !!(typeof window !== 'undefined' && window.FishGPU && window.FishGPU.isReady && window.FishGPU.activeBackend === 'wgpu');
+
       for (let i = 0; i < layer.effects.length; i++) {
         const fx = layer.effects[i];
         if (!fx || fx.disabled === true) continue;
         const def = FishEffectsRegistry.get(fx.type);
         if (def && def.category === 'expression') continue;
-        if (def && typeof def.renderPost === 'function') {
-          def.renderPost(ctx, el, layer, bounds, fx);
+        if (!def) continue;
+
+        let handled = false;
+
+        // 1. Try WebGPU (WGSL) if FishGPU is active and effect provides a wgpu backend
+        if (isWgpuReady && def.backends && def.backends.wgpu) {
+          try {
+            const wgpuImpl = def.backends.wgpu;
+            const fn = (typeof wgpuImpl === 'function') ? wgpuImpl : (wgpuImpl.renderPost || wgpuImpl.render);
+            if (typeof fn === 'function') {
+              const res = fn(ctx, el, layer, bounds, fx, window.FishGPU);
+              if (res !== false) {
+                handled = true;
+              }
+            }
+          } catch (wgpuErr) {
+            console.warn(`[FishEffects] WebGPU failed on "${fx.type}", falling back to WebGL:`, wgpuErr);
+            handled = false;
+          }
+        }
+
+        // 2. Fallback to WebGL (or default renderPost)
+        if (!handled) {
+          if (def.backends && def.backends.wgl) {
+            const wglImpl = def.backends.wgl;
+            const fn = (typeof wglImpl === 'function') ? wglImpl : (wglImpl.renderPost || wglImpl.render);
+            if (typeof fn === 'function') {
+              fn(ctx, el, layer, bounds, fx);
+              handled = true;
+            }
+          }
+          if (!handled && typeof def.renderPost === 'function') {
+            def.renderPost(ctx, el, layer, bounds, fx);
+          }
         }
       }
     },

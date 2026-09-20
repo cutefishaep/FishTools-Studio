@@ -3090,3 +3090,44 @@ body.has-active-drawer .timeline-fab-add {
   cursor: grabbing !important;
 }
 
+/* GPU Hardware Engine Status Badge */
+.gpu-engine-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 8px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--bg-panel-inner);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.gpu-engine-badge:hover {
+  background-color: var(--bg-panel-hover);
+}
+
+.gpu-engine-badge.is-wgpu {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.gpu-engine-badge.is-wgl {
+  color: var(--color-accent);
+  border-color: var(--border-panel);
+}
+
+.gpu-engine-badge.is-canvas2d {
+  color: var(--color-warning);
+  border-color: var(--border-subtle);
+}
+

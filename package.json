@@ -1,6 +1,6 @@
 {
   "name": "openfishtools-studio",
-  "version": "0.5.31",
+  "version": "0.5.30",
   "description": "Professional lightweight browser-based motion graphics video editor in the browser",
   "main": "js/main.js",
   "scripts": {
@@ -11,7 +11,10 @@
     "version:sync": "node scripts/sync-version.js",
     "sync:effects": "node scripts/sync-effects.js",
     "serve": "npx serve .",
-    "test": "node scratch/test_suite.js"
+    "test": "node scratch/test_suite.js",
+    "tauri": "npx @tauri-apps/cli",
+    "desktop:dev": "node scripts/build-native-dist.js && npx @tauri-apps/cli dev --config native/src-tauri/tauri.conf.json",
+    "desktop:build": "node scripts/build-native-dist.js && npx @tauri-apps/cli build --config native/src-tauri/tauri.conf.json"
   },
   "keywords": [
     "openfishtools",

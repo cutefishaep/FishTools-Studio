@@ -4,720 +4,363 @@
     "id": "anamorphic-flare",
     "name": "Anamorphic Flare",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "anamorphic_flare.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "angle_control.js",
     "id": "angle-control",
     "name": "Angle Control",
     "category": "expression",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "angle_control.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "bevel.js",
     "id": "bevel",
     "name": "Bevel",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "bevel.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/brightness_contrast.js",
+    "file": "brightness_contrast.js",
     "id": "brightness-contrast",
     "name": "Brightness / Contrast",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/brightness_contrast.js"
-    }
-  },
-  {
-    "file": "wgpu/brightness_contrast.js",
-    "id": "brightness_contrast",
-    "name": "brightness_contrast",
-    "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgpu"
-    ],
-    "files": {
-      "wgpu": "wgpu/brightness_contrast.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "camera_lens_blur.js",
     "id": "camera-lens-blur",
     "name": "Camera Lens Blur",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "camera_lens_blur.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "checkbox_control.js",
     "id": "checkbox-control",
     "name": "Checkbox Control",
     "category": "expression",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "checkbox_control.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/chromatic_aberration.js",
+    "file": "chromatic_aberration.js",
     "id": "chromatic-aberration",
     "name": "Chromatic Aberration",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/chromatic_aberration.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "color_balance.js",
     "id": "color-balance",
     "name": "Color Balance",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "color_balance.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "color_control.js",
     "id": "color-control",
     "name": "Color Control",
     "category": "expression",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "color_control.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "color_temperature.js",
     "id": "color-temperature",
     "name": "Color Temperature",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "color_temperature.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "colorize.js",
     "id": "colorize",
     "name": "Colorize",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "colorize.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/curve.js",
+    "file": "curve.js",
     "id": "curve",
     "name": "Curve",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/curve.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "deep_glow.js",
     "id": "deep-glow",
     "name": "Deep Glow",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "deep_glow.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/diffusion.js",
+    "file": "diffusion.js",
     "id": "diffusion",
     "name": "Diffusion",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/diffusion.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "drop_shadow.js",
     "id": "drop-shadow",
     "name": "Drop Shadow",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "drop_shadow.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/exposure_gamma.js",
+    "file": "exposure_gamma.js",
     "id": "exposure-gamma",
     "name": "Exposure / Gamma",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/exposure_gamma.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "expression_controls.js",
     "id": "expression-controls",
     "name": "Expression Controls",
     "category": "expression",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "expression_controls.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "fast_box_blur.js",
     "id": "fast-box-blur",
     "name": "Fast Box Blur",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "fast_box_blur.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "fill.js",
     "id": "fill",
     "name": "Fill",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "fill.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/fsmb.js",
+    "file": "fsmb.js",
     "id": "fsmb",
     "name": "FSMB (Motion Blur)",
     "category": "movement",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/fsmb.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "glow_aura.js",
     "id": "glow-aura",
     "name": "Glow Aura",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "glow_aura.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/grad_exposure.js",
+    "file": "grad_exposure.js",
     "id": "grad-exposure",
     "name": "Grad Exposure",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/grad_exposure.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "gradient_overlay.js",
     "id": "gradient-overlay",
     "name": "Gradient Overlay",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "gradient_overlay.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "grid.js",
     "id": "grid",
     "name": "Grid",
     "category": "background",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "grid.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "haze_flare.js",
     "id": "haze-flare",
     "name": "Haze / Flare",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "haze_flare.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/highlight_shadow.js",
+    "file": "highlight_shadow.js",
     "id": "highlight-shadow",
     "name": "Highlight / Shadow",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/highlight_shadow.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/hue_shift.js",
+    "file": "hue_shift.js",
     "id": "hue-shift",
     "name": "Hue Shift",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/hue_shift.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/invert.js",
+    "file": "invert.js",
     "id": "invert",
     "name": "Invert",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl",
-      "wgpu"
-    ],
-    "files": {
-      "wgl": "wgl/invert.js",
-      "wgpu": "wgpu/invert.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "lumia.js",
     "id": "lumia",
     "name": "Lumia",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "lumia.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/mono.js",
+    "file": "mono.js",
     "id": "mono",
     "name": "Mono",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/mono.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/optic_compensation.js",
+    "file": "optic_compensation.js",
     "id": "optic-compensation",
     "name": "Optic Compensation",
     "category": "warp",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/optic_compensation.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "oscillate.js",
     "id": "oscillate",
     "name": "Oscillate",
     "category": "movement",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "oscillate.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "point_control.js",
     "id": "point-control",
     "name": "Point Control",
     "category": "expression",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "point_control.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "radio_waves.js",
     "id": "radio-waves",
     "name": "Radio Waves",
     "category": "background",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "radio_waves.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "rays.js",
     "id": "rays",
     "name": "Rays",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "rays.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "rgb_split.js",
     "id": "rgb-split",
     "name": "RGB Split",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "rgb_split.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/saturation_vibrant.js",
+    "file": "saturation_vibrant.js",
     "id": "saturation-vibrant",
     "name": "Saturation / Vibrant",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/saturation_vibrant.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "scanline.js",
     "id": "scanline",
     "name": "Scanline",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "scanline.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/sharpen.js",
+    "file": "sharpen.js",
     "id": "sharpen",
     "name": "Sharpen",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/sharpen.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/shatter.js",
+    "file": "shatter.js",
     "id": "shatter",
     "name": "Shatter",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/shatter.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "slider_control.js",
     "id": "slider-control",
     "name": "Slider Control",
     "category": "expression",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "slider_control.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "solid_aura.js",
     "id": "solid-aura",
     "name": "Solid Aura (Flux)",
     "category": "layer",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "solid_aura.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "star_burst.js",
     "id": "star-burst",
     "name": "Star Burst",
     "category": "background",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "star_burst.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "swing.js",
     "id": "swing",
     "name": "Swing",
     "category": "movement",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "swing.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "tile.js",
     "id": "tile",
     "name": "Tile",
     "category": "warp",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common",
-      "wgl"
-    ],
-    "files": {
-      "common": "tile.js",
-      "wgl": "wgl/tile.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "tint.js",
     "id": "tint",
     "name": "Tint",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "tint.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "transform.js",
     "id": "transform",
     "name": "Transform",
     "category": "movement",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "transform.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/turbulent_displace.js",
+    "file": "turbulent_displace.js",
     "id": "turbulent-displace",
     "name": "Turbulent Displace",
     "category": "warp",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/turbulent_displace.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgpu/turbulent_displace.js",
-    "id": "turbulent_displace",
-    "name": "turbulent_displace",
-    "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgpu"
-    ],
-    "files": {
-      "wgpu": "wgpu/turbulent_displace.js"
-    }
-  },
-  {
-    "file": "wgl/unsharp_mask.js",
+    "file": "unsharp_mask.js",
     "id": "unsharp-mask",
     "name": "Unsharp Mask",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/unsharp_mask.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "vignette.js",
     "id": "vignette",
     "name": "Vignette",
     "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "common"
-    ],
-    "files": {
-      "common": "vignette.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/warp.js",
+    "file": "warp.js",
     "id": "warp",
     "name": "Warp",
     "category": "warp",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl",
-      "wgpu"
-    ],
-    "files": {
-      "wgl": "wgl/warp.js",
-      "wgpu": "wgpu/warp.js"
-    }
+    "icon": "assets/FXPH.svg"
   },
   {
-    "file": "wgl/wave_warp.js",
+    "file": "wave_warp.js",
     "id": "wave-warp",
     "name": "Wave Warp",
     "category": "warp",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgl"
-    ],
-    "files": {
-      "wgl": "wgl/wave_warp.js"
-    }
-  },
-  {
-    "file": "wgpu/wave_warp.js",
-    "id": "wave_warp",
-    "name": "wave_warp",
-    "category": "lightning",
-    "icon": "assets/FXPH.svg",
-    "backends": [
-      "wgpu"
-    ],
-    "files": {
-      "wgpu": "wgpu/wave_warp.js"
-    }
+    "icon": "assets/FXPH.svg"
   }
 ]

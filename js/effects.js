@@ -18,19 +18,16 @@
      */
     register(def) {
       if (!def || !def.id) return;
-      const existing = registry.get(def.id);
-      const backends = Object.assign({}, (existing && existing.backends) || {}, def.backends || {});
       const registeredDef = {
         id: def.id,
-        name: def.name || (existing && existing.name) || def.id,
-        category: def.category || (existing && existing.category) || 'lightning',
-        icon: def.icon || (existing && existing.icon) || 'assets/FXPH.svg',
-        description: def.description || (existing && existing.description) || '',
-        params: Array.isArray(def.params) ? def.params : ((existing && existing.params) || []),
-        filter: typeof def.filter === 'function' ? def.filter : (existing ? existing.filter : null),
-        render: typeof def.render === 'function' ? def.render : (existing ? existing.render : null),
-        renderPost: typeof def.renderPost === 'function' ? def.renderPost : (existing ? existing.renderPost : null),
-        backends: backends,
+        name: def.name || def.id,
+        category: def.category || 'lightning',
+        icon: def.icon || 'assets/FXPH.svg',
+        description: def.description || '',
+        params: Array.isArray(def.params) ? def.params : [],
+        filter: typeof def.filter === 'function' ? def.filter : null,
+        render: typeof def.render === 'function' ? def.render : null,
+        renderPost: typeof def.renderPost === 'function' ? def.renderPost : null,
         isExpanding: !!def.isExpanding
       };
       registry.set(def.id, registeredDef);
@@ -39,36 +36,6 @@
         try {
           window.dispatchEvent(new CustomEvent('fisheffects:registered', { detail: registeredDef }));
         } catch (_) {}
-      }
-    },
-
-    /**
-     * Register or augment an effect backend (wgpu or wgl)
-     * @param {string} id Effect ID
-     * @param {'wgpu'|'wgl'} backendType Backend name
-     * @param {Object|Function} backendImpl Backend implementation
-     */
-    registerBackend(id, backendType, backendImpl) {
-      if (!id || !backendType || !backendImpl) return;
-      let def = registry.get(id);
-      if (!def) {
-        def = {
-          id: id,
-          name: id,
-          category: 'lightning',
-          icon: 'assets/FXPH.svg',
-          params: [],
-          backends: {}
-        };
-        registry.set(id, def);
-      }
-      if (!def.backends) def.backends = {};
-      def.backends[backendType] = backendImpl;
-      if (typeof backendImpl.renderPost === 'function' && backendType === 'wgl' && !def.renderPost) {
-        def.renderPost = backendImpl.renderPost;
-      }
-      if (typeof backendImpl.renderBatch === 'function' && !def.renderBatch) {
-        def.renderBatch = backendImpl.renderBatch;
       }
     },
 
@@ -532,10 +499,10 @@
       }
     },
 
-    renderTile(ctx, el, layer, bounds, fx) {
+    renderTile(ctx, el, layer, bounds, fx, rgbSplitFx) {
       const def = FishEffectsRegistry.get('tile');
-      if (def) {
-        this.executeEffect(def, ctx, el, layer, bounds, fx);
+      if (def && typeof def.render === 'function') {
+        def.render(ctx, el, layer, bounds, fx, rgbSplitFx);
       } else if (ctx && el) {
         try { ctx.drawImage(el, bounds.x, bounds.y, bounds.w, bounds.h); } catch (_) {}
       }
@@ -576,12 +543,6 @@
         const sk = fx.skew !== undefined ? Number(fx.skew) : 0;
         const op = fx.opacity !== undefined ? Number(fx.opacity) : 100;
         return s === 100 && r === 0 && x === 0 && y === 0 && sk === 0 && op === 100;
-      }
-      if (type === 'warp') {
-        const bend = fx.bend !== undefined ? Number(fx.bend) : 0;
-        const distH = fx.distortH !== undefined ? Number(fx.distortH) : 0;
-        const distV = fx.distortV !== undefined ? Number(fx.distortV) : 0;
-        return Math.abs(bend) < 0.001 && Math.abs(distH) < 0.001 && Math.abs(distV) < 0.001;
       }
       if (type === 'brightness-contrast' || type === 'brightness_contrast') {
         return (!fx.brightness) && (!fx.contrast);
@@ -630,11 +591,14 @@
         return;
       }
 
+      // Check legacy combo: tile + rgb-split
+      const tileFx = effects.find(f => f.type === 'tile');
+      const rgbSplitFx = effects.find(f => f.type === 'rgb-split' && ((f.distance !== undefined ? f.distance : 8) > 0));
+
       const renderEffects = effects.filter(f => {
         const def = FishEffectsRegistry.get(f.type);
         if (!def || def.category === 'expression') return false;
-        const hasBackend = !!(def.backends && (def.backends.wgpu || def.backends.wgl));
-        if (typeof def.render !== 'function' && typeof def.renderPost !== 'function' && !hasBackend) return false;
+        if (typeof def.render !== 'function') return false;
         return !this.isEffectIdentity(f);
       });
 
@@ -643,37 +607,21 @@
         return;
       }
 
-      // Group consecutive effects of the same type that support renderBatch
-      const batches = [];
-      for (let i = 0; i < renderEffects.length; i++) {
-        const fx = renderEffects[i];
-        const def = FishEffectsRegistry.get(fx.type);
-        const lastBatch = batches[batches.length - 1];
-        const hasBatchSupport = def && (
-          typeof def.renderBatch === 'function' ||
-          (def.backends && ((def.backends.wgpu && typeof def.backends.wgpu.renderBatch === 'function') ||
-                           (def.backends.wgl && typeof def.backends.wgl.renderBatch === 'function')))
-        );
-
-        if (lastBatch && lastBatch.type === fx.type && hasBatchSupport) {
-          lastBatch.items.push(fx);
-        } else {
-          batches.push({
-            type: fx.type,
-            def: def,
-            items: [fx]
-          });
-        }
-      }
-
-      // Single batch: draw straight into ctx
-      if (batches.length === 1) {
-        const batch = batches[0];
-        this.executeBatch(batch.def, ctx, el, layer, normBounds, batch.items, effectiveSec);
+      // If tile is present with optional rgbSplit, use existing optimized renderTile
+      if (tileFx && renderEffects.length === (rgbSplitFx ? 2 : 1)) {
+        this.renderTile(ctx, el, layer, normBounds, tileFx, rgbSplitFx);
         return;
       }
 
-      // Multi-batch pipeline: chain through offscreen buffers
+      // Single custom render effect: draw straight into ctx
+      if (renderEffects.length === 1) {
+        const fx = renderEffects[0];
+        const def = FishEffectsRegistry.get(fx.type);
+        def.render(ctx, el, layer, normBounds, fx, effectiveSec);
+        return;
+      }
+
+      // Multi-effect pipeline: chain through offscreen buffers
       const hasExpandingFx = renderEffects.some(f => {
         const d = FishEffectsRegistry.get(f.type);
         return (d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform' || f.type === 'tile' || f.type === 'fsmb';
@@ -694,9 +642,10 @@
       }
 
       let currentSource = el;
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        const isLast = (i === batches.length - 1);
+      for (let i = 0; i < renderEffects.length; i++) {
+        const fx = renderEffects[i];
+        const def = FishEffectsRegistry.get(fx.type);
+        const isLast = (i === renderEffects.length - 1);
         const buf = this._getPipelineCanvas(i % 2, pipeW, pipeH);
         const targetCtx = isLast ? ctx : buf.ctx;
         const targetBounds = isLast
@@ -707,144 +656,12 @@
           buf.ctx.clearRect(0, 0, pipeW, pipeH);
         }
 
-        this.executeBatch(batch.def, targetCtx, currentSource, layer, targetBounds, batch.items, effectiveSec);
+        def.render(targetCtx, currentSource, layer, targetBounds, fx, effectiveSec);
 
         if (!isLast) {
           currentSource = buf.canvas;
         }
       }
-    },
-
-    resolveCurrentTime(layer, currentSec) {
-      if (typeof currentSec === 'number' && !isNaN(currentSec) && currentSec !== 0) {
-        return currentSec;
-      }
-      if (layer && typeof layer._currentSec === 'number') {
-        return layer._currentSec;
-      }
-      if (typeof window !== 'undefined') {
-        if (typeof window._currentRenderSec === 'number' && !isNaN(window._currentRenderSec)) return window._currentRenderSec;
-        if (typeof window.currentPlaybackSec === 'number') return window.currentPlaybackSec;
-        if (typeof window.currentSec === 'number') return window.currentSec;
-        if (typeof window.getCurrentPlayheadTime === 'function') return window.getCurrentPlayheadTime();
-        if (window.currentFrame !== undefined && window.currentFps) return window.currentFrame / window.currentFps;
-        if (window.timelinePanX !== undefined) return Math.abs(window.timelinePanX) / (window.currentPixelsPerSecond || 80);
-      }
-      return (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : 0;
-    },
-
-    /**
-     * Unified Effect Execution Dispatcher
-     * Dispatches rendering through WebGPU (WGSL) -> WebGL (GLSL) -> Canvas2D
-     */
-    executeEffect(def, ctx, el, layer, bounds, fx, effectiveSec = null) {
-      if (!def || !ctx || !el) return false;
-      const isWgpuReady = !!(typeof window !== 'undefined' && window.FishGPU && window.FishGPU.isReady && window.FishGPU.activeBackend === 'wgpu');
-      const sec = (typeof effectiveSec === 'number' && !isNaN(effectiveSec) && effectiveSec !== 0)
-        ? effectiveSec
-        : this.resolveCurrentTime(layer);
-
-      // 1. Try WebGPU (WGSL) if active
-      if (isWgpuReady && def.backends && def.backends.wgpu) {
-        try {
-          const wgpuImpl = def.backends.wgpu;
-          const fn = (typeof wgpuImpl === 'function') ? wgpuImpl : (wgpuImpl.render || wgpuImpl.renderPost);
-          if (typeof fn === 'function') {
-            const res = fn(ctx, el, layer, bounds, fx, sec, window.FishGPU);
-            if (res !== false) return true;
-          }
-        } catch (wgpuErr) {
-          console.warn(`[FishEffects] WebGPU failed on "${def.id || fx.type}", falling back to WebGL:`, wgpuErr);
-        }
-      }
-
-      // 2. WebGL backend fallback
-      if (def.backends && def.backends.wgl) {
-        try {
-          const wglImpl = def.backends.wgl;
-          const fn = (typeof wglImpl === 'function') ? wglImpl : (wglImpl.render || wglImpl.renderPost);
-          if (typeof fn === 'function') {
-            fn(ctx, el, layer, bounds, fx, sec);
-            return true;
-          }
-        } catch (wglErr) {
-          console.warn(`[FishEffects] WebGL backend failed on "${def.id || fx.type}":`, wglErr);
-        }
-      }
-
-      // 3. Direct render method
-      if (typeof def.render === 'function') {
-        def.render(ctx, el, layer, bounds, fx, sec);
-        return true;
-      }
-
-      // 4. Direct renderPost method
-      if (typeof def.renderPost === 'function') {
-        def.renderPost(ctx, el, layer, bounds, fx);
-        return true;
-      }
-
-      return false;
-    },
-
-    /**
-     * Unified Effect Batch Dispatcher
-     * Executes consecutive instances of the same effect in a single GPU pass with FBO ping-pong
-     */
-    executeBatch(def, ctx, el, layer, bounds, fxArray, effectiveSec = null) {
-      if (!def || !ctx || !el || !Array.isArray(fxArray) || fxArray.length === 0) return false;
-      if (fxArray.length === 1) {
-        return this.executeEffect(def, ctx, el, layer, bounds, fxArray[0], effectiveSec);
-      }
-      const isWgpuReady = !!(typeof window !== 'undefined' && window.FishGPU && window.FishGPU.isReady && window.FishGPU.activeBackend === 'wgpu');
-      const sec = (typeof effectiveSec === 'number' && !isNaN(effectiveSec) && effectiveSec !== 0)
-        ? effectiveSec
-        : this.resolveCurrentTime(layer);
-
-      // 1. WebGPU batch
-      if (isWgpuReady && def.backends && def.backends.wgpu) {
-        const wgpuImpl = def.backends.wgpu;
-        if (typeof wgpuImpl.renderBatch === 'function') {
-          try {
-            const res = wgpuImpl.renderBatch(ctx, el, layer, bounds, fxArray, sec, window.FishGPU);
-            if (res !== false) return true;
-          } catch (wgpuErr) {
-            console.warn(`[FishEffects] WebGPU batch failed on "${def.id || fxArray[0].type}", falling back:`, wgpuErr);
-          }
-        }
-      }
-
-      // 2. WebGL batch
-      if (def.backends && def.backends.wgl) {
-        const wglImpl = def.backends.wgl;
-        if (typeof wglImpl.renderBatch === 'function') {
-          try {
-            const res = wglImpl.renderBatch(ctx, el, layer, bounds, fxArray, sec);
-            if (res !== false) return true;
-          } catch (wglErr) {
-            console.warn(`[FishEffects] WebGL batch failed on "${def.id || fxArray[0].type}":`, wglErr);
-          }
-        }
-      }
-
-      // 3. Direct def.renderBatch
-      if (typeof def.renderBatch === 'function') {
-        try {
-          const res = def.renderBatch(ctx, el, layer, bounds, fxArray, sec);
-          if (res !== false) return true;
-        } catch (err) {}
-      }
-
-      // Fallback: sequential single execution
-      let currentSource = el;
-      for (let i = 0; i < fxArray.length; i++) {
-        const isLast = (i === fxArray.length - 1);
-        const targetCtx = isLast ? ctx : this._getPipelineCanvas(i % 2, bounds.w, bounds.h).ctx;
-        if (!isLast) targetCtx.clearRect(0, 0, bounds.w, bounds.h);
-        this.executeEffect(def, targetCtx, currentSource, layer, bounds, fxArray[i], sec);
-        if (!isLast) currentSource = this._getPipelineCanvas(i % 2, bounds.w, bounds.h).canvas;
-      }
-      return true;
     },
 
     loadEffectFromXML(xmlText) {
@@ -871,26 +688,34 @@
           const pMin = p.hasAttribute('min') ? parseFloat(p.getAttribute('min')) : -100;
           const pMax = p.hasAttribute('max') ? parseFloat(p.getAttribute('max')) : 100;
           const pUnit = p.getAttribute('unit') || '';
+          let pDef = p.getAttribute('default');
+          if (pType === 'number') pDef = pDef !== null ? parseFloat(pDef) : 0;
+          else if (pType === 'switch' || pType === 'boolean') pDef = pDef === '0' || pDef === 'false' ? 0 : 1;
 
-          params.push({
-            id: pId,
-            label: pLabel,
-            type: pType,
-            min: pMin,
-            max: pMax,
-            unit: pUnit,
-            default: p.hasAttribute('default') ? parseFloat(p.getAttribute('default')) : 0
-          });
+          const paramObj = { id: pId, label: pLabel, type: pType, min: pMin, max: pMax, default: pDef, unit: pUnit };
+          if (p.hasAttribute('step')) {
+            paramObj.step = parseFloat(p.getAttribute('step'));
+          }
+          if (p.hasAttribute('options')) {
+            paramObj.options = p.getAttribute('options').split(',').map(s => s.trim());
+          }
+          params.push(paramObj);
         });
 
-        return {
+        const existing = FishEffectsRegistry.get(id);
+        const def = {
           id,
           name,
           category,
           icon,
           description,
-          params
+          params,
+          filter: existing ? existing.filter : null,
+          render: existing ? existing.render : null,
+          renderPost: existing ? existing.renderPost : null
         };
+        FishEffectsRegistry.register(def);
+        return def;
       } catch (e) {
         console.error('[FishEffects:XML] Error parsing effect XML:', e);
         return null;
@@ -899,16 +724,14 @@
 
     applyPostEffects(ctx, el, layer, bounds) {
       if (!ctx || !layer || !Array.isArray(layer.effects) || layer.effects.length === 0) return;
-      const effSec = this.resolveCurrentTime(layer);
-
       for (let i = 0; i < layer.effects.length; i++) {
         const fx = layer.effects[i];
         if (!fx || fx.disabled === true) continue;
         const def = FishEffectsRegistry.get(fx.type);
         if (def && def.category === 'expression') continue;
-        if (!def) continue;
-
-        this.executeEffect(def, ctx, el, layer, bounds, fx, effSec);
+        if (def && typeof def.renderPost === 'function') {
+          def.renderPost(ctx, el, layer, bounds, fx);
+        }
       }
     },
 

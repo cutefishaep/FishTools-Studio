@@ -3454,97 +3454,10 @@
 
       }
 
-      // Center-Aligned Grid Overlay (Garis tengah sebagai poros tengah simetris, bersih & tidak padat - skipped on export)
-      const gridBtn = document.getElementById('editor-icon-grid');
-      if (!isExport && !isTemplate && !isIdleCache && gridBtn && gridBtn.classList.contains('is-active')) {
-        ctx.save();
+      // Grid overlay → drawn by CanvasOverlay (js/canvas-overlay.js) on separate canvas
 
-        const cx = w / 2;
-        const cy = h / 2;
-        const baseLineWidth = Math.max(1, Math.round(w / 1200));
+      // Motion path → drawn by CanvasOverlay (js/canvas-overlay.js) on separate canvas
 
-        // 1. Symmetrical Quarter Grid Lines (Clean 4x4 layout, 1 garis di kiri/kanan & atas/bawah)
-        ctx.lineWidth = baseLineWidth;
-        ctx.strokeStyle = 'rgba(152, 206, 123, 0.2)';
-
-        ctx.beginPath();
-        // Quarter vertical lines (25% & 75%)
-        const qx1 = w * 0.25;
-        const qx2 = w * 0.75;
-        ctx.moveTo(qx1, 0); ctx.lineTo(qx1, h);
-        ctx.moveTo(qx2, 0); ctx.lineTo(qx2, h);
-
-        // Quarter horizontal lines (25% & 75%)
-        const qy1 = h * 0.25;
-        const qy2 = h * 0.75;
-        ctx.moveTo(0, qy1); ctx.lineTo(w, qy1);
-        ctx.moveTo(0, qy2); ctx.lineTo(w, qy2);
-        ctx.stroke();
-
-        // 2. Primary Center Axes Lines (Garis tengah horizontal & vertikal utama)
-        ctx.lineWidth = Math.max(1.5, baseLineWidth * 1.6);
-        ctx.strokeStyle = 'rgba(152, 206, 123, 0.6)';
-
-        ctx.beginPath();
-        // Sumbu tengah vertikal (X = w/2)
-        ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
-        // Sumbu tengah horizontal (Y = h/2)
-        ctx.moveTo(0, cy); ctx.lineTo(w, cy);
-        ctx.stroke();
-
-        // 3. Center Origin Crosshair (Titik temu poros tengah)
-        const crossSize = Math.max(12, Math.round(Math.min(w, h) * 0.035));
-        ctx.lineWidth = Math.max(2, baseLineWidth * 2.2);
-        ctx.strokeStyle = 'rgba(152, 206, 123, 0.95)';
-
-        ctx.beginPath();
-        ctx.moveTo(cx - crossSize, cy); ctx.lineTo(cx + crossSize, cy);
-        ctx.moveTo(cx, cy - crossSize); ctx.lineTo(cx, cy + crossSize);
-        ctx.stroke();
-
-        // 4. Dynamic Magnetic Snap Indicator Guides
-        if (window.activeSnapGuides) {
-          const themePrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#98ce7b';
-          ctx.strokeStyle = themePrimary;
-          ctx.setLineDash([8, 4]);
-
-          if (window.activeSnapGuides.x !== null && window.activeSnapGuides.x !== undefined) {
-            const gx = window.activeSnapGuides.x * (w / baseW);
-            ctx.beginPath();
-            ctx.moveTo(gx, 0);
-            ctx.lineTo(gx, h);
-            ctx.stroke();
-          }
-
-          if (window.activeSnapGuides.y !== null && window.activeSnapGuides.y !== undefined) {
-            const gy = window.activeSnapGuides.y * (h / baseH);
-            ctx.beginPath();
-            ctx.moveTo(0, gy);
-            ctx.lineTo(w, gy);
-            ctx.stroke();
-          }
-        }
-
-        ctx.restore();
-      }
-
-      // Draw Motion Path & Frame Dots for Selected Layer
-      // Performance Gate: Strictly shown ONLY in 'move' tool mode to guarantee 60fps & avoid any lag
-      if (!isExport && !isTemplate && !isIdleCache && !window.isTimelinePlaying && (typeof window.isPropertyEditorActive === 'function' && window.isPropertyEditorActive()) && (window.activeKeyframeProperty === 'move')) {
-        const selectedLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
-        if (selectedLayer && selectedLayer.keyframes && selectedLayer.keyframes.move && selectedLayer.keyframes.move.length >= 2) {
-          if (window.CanvasWireframe && typeof window.CanvasWireframe.drawMotionPath === 'function') {
-            const projectFps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
-            window.CanvasWireframe.drawMotionPath(ctx, selectedLayer, {
-              bufferScale,
-              baseW,
-              baseH,
-              fps: projectFps,
-              currentSec
-            });
-          }
-        }
-      }
 
       // Ensure wireframe bounds are always fresh for all active selected layers
       const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
@@ -3594,44 +3507,14 @@
         });
       }
 
-      // Draw Adaptive Wireframe for Selected Layer(s) via Modular CanvasWireframe
-      // In selection mode (multi-select / select all), wireframe stays visible during playback and draws ONLY pure bounding box (no anchor, no control handles)
-      if (!isExport && !isTemplate && !isIdleCache && (!window.isTimelinePlaying || isSelectionMode) && window.CanvasWireframe && allSelectedIds.length > 0) {
-        if (isSelectionMode) {
-          // Select All / Multi-Select Mode: Pure wireframe bounding box ONLY (no anchor, no scale handles)
-          allSelectedIds.forEach(id => {
-            const l = (currentProjectState.layers || []).find(layer => layer.id === id);
-            if (!l || l.hidden || l.type === 'camera' || l.type === 'audio') return;
-            const b = l._canvasBounds;
-            if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
-              window.CanvasWireframe.draw(ctx, b, {
-                showAnchor: false,
-                showHandles: false,
-                isAnchorMode: false
-              });
-            }
-          });
-        } else {
-          // Individual Select Mode: Full interactive wireframe with center anchor point and 8 perimeter scale handles (hidden during playback)
-          if (!window.isTimelinePlaying) {
-            const selId = allSelectedIds[0];
-            const selL = (currentProjectState.layers || []).find(l => l.id === selId);
-            if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'audio') {
-              const b = selL._canvasBounds;
-              if (b && (!b.isBehindCamera || (b.posZ || 0) < 950 * bufferScale)) {
-                const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
-                window.CanvasWireframe.draw(ctx, b, {
-                  showAnchor: true,
-                  showHandles: true,
-                  isAnchorMode: isAnchor
-                });
-              }
-            }
-          }
-        }
-      }
+      // Wireframe draw → drawn by CanvasOverlay (js/canvas-overlay.js) on separate canvas
+
 
       window._lastFrameRenderDuration = performance.now() - t0;
+      // Trigger overlay canvas redraw (grid, wireframe, motion path)
+      if (!isExport && !isTemplate && window.CanvasOverlay) {
+        window.CanvasOverlay.scheduleRedraw();
+      }
       return !hasUnreadyMedia;
     }
     window.renderCanvasFrame = renderCanvasFrame;
@@ -3771,6 +3654,12 @@
     (function initCanvasTransform() {
       const activeCanvasEl = document.getElementById('editor-active-canvas');
       if (!activeCanvasEl) return;
+
+      // Initialize overlay canvas
+      const overlayCanvas = document.getElementById('editor-overlay-canvas');
+      if (overlayCanvas && window.CanvasOverlay) {
+        window.CanvasOverlay.init(overlayCanvas);
+      }
 
       window.moveAnchorSubmode = window.moveAnchorSubmode || 'move';
       window.isAnchorMode = function() {

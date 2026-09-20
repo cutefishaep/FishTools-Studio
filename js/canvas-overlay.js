@@ -1,0 +1,188 @@
+/**
+ * OpenFishTools Studio — Canvas Overlay Engine
+ * Draws UI overlays (grid, wireframe, motion path, snap guides)
+ * onto a dedicated transparent overlay canvas layered ABOVE the main render canvas.
+ * These overlays are NEVER cached, NEVER exported — pure UI feedback.
+ */
+(function() {
+  'use strict';
+
+  const CanvasOverlay = {
+    _canvas: null,
+    _ctx: null,
+    _rafId: null,
+    _dirty: false,
+
+    /**
+     * Initialize overlay canvas — call once after DOM ready.
+     * overlayCanvas: the <canvas id="editor-overlay-canvas"> element
+     */
+    init(overlayCanvas) {
+      if (!overlayCanvas) return;
+      this._canvas = overlayCanvas;
+      this._ctx = overlayCanvas.getContext('2d', { alpha: true });
+      // Sync size to match main canvas physical size
+      this.syncSize();
+      window.addEventListener('resize', () => this.syncSize(), { passive: true });
+    },
+
+    syncSize() {
+      if (!this._canvas) return;
+      const main = document.getElementById('editor-active-canvas');
+      if (!main) return;
+      if (this._canvas.width !== main.width || this._canvas.height !== main.height) {
+        this._canvas.width = main.width;
+        this._canvas.height = main.height;
+      }
+    },
+
+    /** Request a redraw on next rAF — debounced */
+    scheduleRedraw() {
+      this._dirty = true;
+      if (this._rafId) return;
+      this._rafId = requestAnimationFrame(() => {
+        this._rafId = null;
+        if (this._dirty) {
+          this._dirty = false;
+          this.redraw();
+        }
+      });
+    },
+
+    /** Immediate synchronous redraw */
+    redraw() {
+      if (!this._ctx || !this._canvas) return;
+      this.syncSize();
+      const ctx = this._ctx;
+      const w = this._canvas.width;
+      const h = this._canvas.height;
+      if (!w || !h) return;
+
+      ctx.clearRect(0, 0, w, h);
+
+      this._drawGrid(ctx, w, h);
+      this._drawWireframes(ctx, w, h);
+      this._drawMotionPath(ctx, w, h);
+      this._drawSnapGuides(ctx, w, h);
+    },
+
+    _drawGrid(ctx, w, h) {
+      const gridBtn = document.getElementById('editor-icon-grid');
+      if (!gridBtn || !gridBtn.classList.contains('is-active')) return;
+
+      ctx.save();
+      const cx = w / 2;
+      const cy = h / 2;
+      const baseLineWidth = Math.max(1, Math.round(w / 1200));
+
+      // Quarter grid lines
+      ctx.lineWidth = baseLineWidth;
+      ctx.strokeStyle = 'rgba(152, 206, 123, 0.2)';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.25, 0); ctx.lineTo(w * 0.25, h);
+      ctx.moveTo(w * 0.75, 0); ctx.lineTo(w * 0.75, h);
+      ctx.moveTo(0, h * 0.25); ctx.lineTo(w, h * 0.25);
+      ctx.moveTo(0, h * 0.75); ctx.lineTo(w, h * 0.75);
+      ctx.stroke();
+
+      // Center axes
+      ctx.lineWidth = Math.max(1.5, baseLineWidth * 1.6);
+      ctx.strokeStyle = 'rgba(152, 206, 123, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+      ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+      ctx.stroke();
+
+      // Center crosshair
+      const crossSize = Math.max(12, Math.round(Math.min(w, h) * 0.035));
+      ctx.lineWidth = Math.max(2, baseLineWidth * 2.2);
+      ctx.strokeStyle = 'rgba(152, 206, 123, 0.95)';
+      ctx.beginPath();
+      ctx.moveTo(cx - crossSize, cy); ctx.lineTo(cx + crossSize, cy);
+      ctx.moveTo(cx, cy - crossSize); ctx.lineTo(cx, cy + crossSize);
+      ctx.stroke();
+
+      ctx.restore();
+    },
+
+    _drawSnapGuides(ctx, w, h) {
+      if (!window.activeSnapGuides) return;
+      const baseW = (window.currentProjectState && window.currentProjectState._baseW) || w;
+      const baseH = (window.currentProjectState && window.currentProjectState._baseH) || h;
+      const themePrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#98ce7b';
+
+      ctx.save();
+      ctx.strokeStyle = themePrimary;
+      ctx.setLineDash([8, 4]);
+      ctx.lineWidth = 1;
+
+      if (window.activeSnapGuides.x != null) {
+        const gx = window.activeSnapGuides.x * (w / baseW);
+        ctx.beginPath();
+        ctx.moveTo(gx, 0); ctx.lineTo(gx, h);
+        ctx.stroke();
+      }
+      if (window.activeSnapGuides.y != null) {
+        const gy = window.activeSnapGuides.y * (h / baseH);
+        ctx.beginPath();
+        ctx.moveTo(0, gy); ctx.lineTo(w, gy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+
+    _drawMotionPath(ctx, w, h) {
+      if (window.isTimelinePlaying) return;
+      if (window.activeKeyframeProperty !== 'move') return;
+      if (!(typeof window.isPropertyEditorActive === 'function' && window.isPropertyEditorActive())) return;
+      const state = window.currentProjectState;
+      if (!state) return;
+      const selectedLayer = (state.layers || []).find(l => l.id === window.selectedLayerId);
+      if (!selectedLayer || !selectedLayer.keyframes || !selectedLayer.keyframes.move || selectedLayer.keyframes.move.length < 2) return;
+      if (!window.CanvasWireframe || typeof window.CanvasWireframe.drawMotionPath !== 'function') return;
+
+      const bufferScale = (window._lastBufferScale) || 1;
+      const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+      const currentSec = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : 0;
+
+      window.CanvasWireframe.drawMotionPath(ctx, selectedLayer, { bufferScale, baseW: w, baseH: h, fps, currentSec });
+    },
+
+    _drawWireframes(ctx, w, h) {
+      if (window.isTimelinePlaying && !window._isSelectionMode) return;
+      if (!window.CanvasWireframe) return;
+
+      const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
+        ? Array.from(window.selectedLayerIds)
+        : (window.selectedLayerId ? [window.selectedLayerId] : []);
+      if (allSelectedIds.length === 0) return;
+
+      const isSelectionMode = allSelectedIds.length > 1;
+
+      if (isSelectionMode) {
+        const state = window.currentProjectState;
+        allSelectedIds.forEach(id => {
+          const l = (state && state.layers || []).find(layer => layer.id === id);
+          if (!l || l.hidden || l.type === 'camera' || l.type === 'audio') return;
+          const b = l._canvasBounds;
+          if (b && (!b.isBehindCamera || (b.posZ || 0) < 950)) {
+            window.CanvasWireframe.draw(ctx, b, { showAnchor: false, showHandles: false, isAnchorMode: false });
+          }
+        });
+      } else if (!window.isTimelinePlaying) {
+        const state = window.currentProjectState;
+        const selId = allSelectedIds[0];
+        const selL = (state && state.layers || []).find(l => l.id === selId);
+        if (selL && !selL.hidden && selL.type !== 'camera' && selL.type !== 'audio') {
+          const b = selL._canvasBounds;
+          if (b && (!b.isBehindCamera || (b.posZ || 0) < 950)) {
+            const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
+            window.CanvasWireframe.draw(ctx, b, { showAnchor: true, showHandles: true, isAnchorMode: isAnchor });
+          }
+        }
+      }
+    }
+  };
+
+  window.CanvasOverlay = CanvasOverlay;
+})();

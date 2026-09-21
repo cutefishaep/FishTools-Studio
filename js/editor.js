@@ -24726,55 +24726,90 @@
 
                   // Apply a delta to the layer property and refresh
                   function applyPropDelta(prop, dxPx) {
+                    // Always mutate the LIVE layer from project state (not closure snapshot)
+                    const realLayer = (window.currentProjectState && window.currentProjectState.layers)
+                      ? (window.currentProjectState.layers.find(l => l.id === layer.id) || layer)
+                      : layer;
+
                     const rate = getScrubRate(prop);
                     const delta = dxPx * rate;
+
                     if (prop === 'move') {
-                      if (layer.posX === undefined) layer.posX = 540;
-                      if (layer.posY === undefined) layer.posY = 960;
-                      // Horizontal drag = X axis
-                      layer.posX = Number((layer.posX + delta).toFixed(2));
-                      if (typeof layer.normX !== 'undefined') {
-                        const baseW = (window.currentProjectState && window.currentProjectState.width) || 1080;
-                        layer.normX = (layer.posX - (Math.abs(layer.scaleW || baseW) / 2)) / baseW;
+                      if (realLayer.posX === undefined) realLayer.posX = (window.currentProjectState && window.currentProjectState.width / 2) || 540;
+                      if (realLayer.posY === undefined) realLayer.posY = (window.currentProjectState && window.currentProjectState.height / 2) || 960;
+                      realLayer.posX = Number((realLayer.posX + delta).toFixed(2));
+                      // sync normX if used
+                      const baseW = (window.currentProjectState && window.currentProjectState.width) || 1080;
+                      if (realLayer.normX !== undefined) {
+                        realLayer.normX = (realLayer.posX - (Math.abs(realLayer.scaleW || baseW) / 2)) / baseW;
                       }
                     } else if (prop === 'scale') {
-                      const newW = Math.max(1, (layer.scaleW || 100) + delta);
-                      const newH = (layer.scaleLinked !== false)
-                        ? newW * ((layer.scaleH || 100) / (layer.scaleW || 100))
-                        : Math.max(1, (layer.scaleH || 100) + delta);
-                      layer.scaleW = Number(newW.toFixed(2));
-                      layer.scaleH = Number(newH.toFixed(2));
+                      const curW = realLayer.scaleW !== undefined ? realLayer.scaleW : (realLayer.mediaWidth || 100);
+                      const curH = realLayer.scaleH !== undefined ? realLayer.scaleH : (realLayer.mediaHeight || 100);
+                      const newW = Math.max(1, curW + delta);
+                      const ratio = curW > 0 ? curH / curW : 1;
+                      const newH = (realLayer.scaleLinked !== false) ? newW * ratio : Math.max(1, curH + delta);
+                      realLayer.scaleW = Number(newW.toFixed(2));
+                      realLayer.scaleH = Number(newH.toFixed(2));
                     } else if (prop === 'rotate') {
-                      layer.rotation = Number(((layer.rotation || 0) + delta).toFixed(2));
+                      realLayer.rotation = Number(((realLayer.rotation || 0) + delta).toFixed(2));
+                      if (realLayer.rotZ !== undefined) realLayer.rotZ = realLayer.rotation;
                     } else if (prop === 'opacity') {
-                      layer.opacity = Math.max(0, Math.min(1, ((layer.opacity !== undefined ? layer.opacity : 1) + delta / 100)));
+                      // delta is px * 0.5, divide by 100 for fraction → too slow. Use direct: 1px = 0.5%
+                      const cur = realLayer.opacity !== undefined ? realLayer.opacity : 1;
+                      realLayer.opacity = Math.max(0, Math.min(1, cur + delta / 100));
                     } else if (prop === 'origin') {
-                      layer.anchorX = Number(((layer.anchorX || 0) + delta).toFixed(2));
+                      realLayer.anchorX = Number(((realLayer.anchorX || 0) + delta).toFixed(2));
                     } else if (prop === 'skew') {
-                      layer.skew = Number(((layer.skew || 0) + delta).toFixed(2));
+                      realLayer.skew = Number(((realLayer.skew || 0) + delta).toFixed(2));
+                      if (realLayer.skewX !== undefined) realLayer.skewX = realLayer.skew;
                     } else if (prop === 'volume') {
-                      layer.volume = Math.max(0, Math.min(2, ((layer.volume !== undefined ? layer.volume : 1) + delta / 100)));
-                    } else if (typeof layer[prop] === 'number') {
-                      layer[prop] = Number((layer[prop] + delta).toFixed(2));
+                      const cur = realLayer.volume !== undefined ? realLayer.volume : 1;
+                      realLayer.volume = Math.max(0, Math.min(4, cur + delta / 100));
+                    } else if (prop.includes(':')) {
+                      // Effect param: "fxId:paramId"
+                      const colonIdx = prop.indexOf(':');
+                      const fxId = prop.slice(0, colonIdx);
+                      const pName = prop.slice(colonIdx + 1);
+                      const fx = Array.isArray(realLayer.effects) ? realLayer.effects.find(f => f.id === fxId) : null;
+                      if (fx && fx[pName] !== undefined) {
+                        fx[pName] = typeof fx[pName] === 'number'
+                          ? Number((fx[pName] + delta).toFixed(3))
+                          : fx[pName];
+                      }
+                    } else if (typeof realLayer[prop] === 'number') {
+                      realLayer[prop] = Number((realLayer[prop] + delta).toFixed(2));
                     }
-                    // Insert KF if already keyframed (AE behavior)
-                    if (layer.keyframes && Array.isArray(layer.keyframes[prop]) && layer.keyframes[prop].length > 0) {
-                      const t = (typeof window.currentTimelineSec === 'number') ? window.currentTimelineSec : 0;
-                      const kfs = layer.keyframes[prop];
+
+                    // If property is already keyframed → update/insert KF at playhead (AE behavior)
+                    if (realLayer.keyframes && Array.isArray(realLayer.keyframes[prop]) && realLayer.keyframes[prop].length > 0) {
+                      const pps2 = window.currentPixelsPerSecond || 80;
+                      const panX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+                      const t = Number((Math.abs(panX) / pps2).toFixed(3));
+                      const kfs = realLayer.keyframes[prop];
                       const existIdx = kfs.findIndex(k => Math.abs(k.time - t) < 0.025);
-                      let curVal;
-                      if (typeof getLayerPropertyValue === 'function') curVal = getLayerPropertyValue(layer, prop);
+                      const curVal = typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(realLayer, prop) : realLayer[prop];
                       if (existIdx >= 0) {
                         kfs[existIdx].value = curVal;
                       } else {
-                        kfs.push({ time: t, value: curVal, easing: layer.defaultEasing || 'ease-in-out' });
+                        kfs.push({ time: t, value: curVal, easing: realLayer.defaultEasing || 'ease-in-out' });
                         kfs.sort((a, b) => a.time - b.time);
                       }
                     }
+
+                    // Invalidate render cache for this layer
+                    if (window.PreviewCacheManager && typeof window.PreviewCacheManager.invalidate === 'function') {
+                      window.PreviewCacheManager.invalidate(realLayer.id);
+                    }
+                    if (typeof window.invalidateLayerCache === 'function') window.invalidateLayerCache(realLayer.id);
                   }
 
+
                   function refreshValDisplay() {
-                    const freshRows = (typeof getLayerCategorizedKeyframeRows === 'function') ? getLayerCategorizedKeyframeRows(layer) : [];
+                    const realLayer = (window.currentProjectState && window.currentProjectState.layers)
+                      ? (window.currentProjectState.layers.find(l => l.id === layer.id) || layer)
+                      : layer;
+                    const freshRows = (typeof getLayerCategorizedKeyframeRows === 'function') ? getLayerCategorizedKeyframeRows(realLayer) : [];
                     let freshVal = '';
                     for (const cat of freshRows) {
                       const fp = cat.props.find(pp => pp.prop === p.prop);

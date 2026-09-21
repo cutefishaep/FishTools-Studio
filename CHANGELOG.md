@@ -5,7 +5,27 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.49] - 2026-09-21
+
+### Added
+- **Save Current Frame Export (`desktop.html`, `js/editor.js`)**:
+  - Added "Save Current Frame" button to the export popover menu, positioned above "Image Sequence" and "Export Video".
+  - Clicking it invokes `exportCurrentFrameAsPNG()` — renders the current playhead frame at full project resolution and downloads it as a `.png`.
+
+### Fixed
+- **WebM Fallback in Tier 2 MediaRecorder Export (`js/FishExport-Enggine.js`)**:
+  - Previous `exportViaMediaRecorder` used a single silent `-c:v copy` FFmpeg call that silently failed for VP8/VP9 streams (Chromium/Firefox), leaving output as `.webm`.
+  - Fixed with two-stage repackage: Stage 1 is fast stream copy (H.264 only); Stage 2 is full libx264 transcode (`-preset ultrafast`) for VP8/VP9 → H.264. Only falls back to `.webm` if both stages throw.
+
+- **Copy/Paste Buttons Visible With No Selection (`js/desktop.js`, `js/attributes-clipboard.js`)**:
+  - Fixed race condition where global `click` setTimeout at 30ms re-ran `updateClipboardButtonsVisibility()` after `deselectAllDesktopLayers()` already hid the buttons, restoring stale state.
+  - `syncInspectorState()` now directly force-hides `#desktop-btn-copy` and `#desktop-btn-paste` when `hasActiveLayer = false`.
+  - Global click listener now checks `#desktop-panel-inspector.has-active-layer` class before re-evaluating button visibility.
+
+---
+
 ## [0.5.48] - 2026-09-21
+
 
 ### Fixed
 - **Playhead Needle Position Sync on Panel Resize (`js/desktop.js`)**:

@@ -1622,21 +1622,60 @@
       // In Safari, isMp4 is true (native MP4 container). On Chromium/Firefox, repackage WebM to MP4 via FFmpeg:
       if (!isMp4) {
         try {
-          updateProgress(96, 'Packaging MP4 container...', onProgress);
-          logExportInfo('MediaRecorder:Muxer', 'Repackaging WebM into MP4 via FFmpeg copy...');
+          updateProgress(93, 'Packaging MP4 container...', onProgress);
+          logExportInfo('MediaRecorder:Muxer', 'Repackaging WebM into MP4 via FFmpeg...');
           var ffmpeg = await getFFmpeg();
           try { ffmpeg.FS('unlink', 'rec_in.webm'); } catch (_) {}
           try { ffmpeg.FS('unlink', 'rec_out.mp4'); } catch (_) {}
           ffmpeg.FS('writeFile', 'rec_in.webm', new Uint8Array(await outBlob.arrayBuffer()));
-          await ffmpeg.run('-i', 'rec_in.webm', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', 'rec_out.mp4');
-          var testBytes = ffmpeg.FS('readFile', 'rec_out.mp4');
-          if (testBytes && testBytes.length > 0) {
-            finalBlob = new Blob([testBytes.buffer], { type: 'video/mp4' });
-            logExport('MediaRecorder:Muxer', 'Repackaged to MP4: ' + (finalBlob.size / 1024 / 1024).toFixed(2) + ' MB');
+
+          var remuxOk = false;
+          var isH264Stream = selectedMime.toLowerCase().includes('h264') || selectedMime.toLowerCase().includes('avc');
+
+          // Stage 1: fast stream copy (only when container has H.264 codec — VP8/VP9 cannot be boxed in MP4)
+          if (isH264Stream) {
+            try {
+              updateProgress(95, 'Packaging MP4 container (stream copy)...', onProgress);
+              await ffmpeg.run('-i', 'rec_in.webm', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', 'rec_out.mp4');
+              var copyBytes = ffmpeg.FS('readFile', 'rec_out.mp4');
+              if (copyBytes && copyBytes.length > 0) {
+                finalBlob = new Blob([copyBytes.buffer], { type: 'video/mp4' });
+                remuxOk = true;
+                logExport('MediaRecorder:Muxer', 'Stream copy to MP4 OK: ' + (finalBlob.size / 1024 / 1024).toFixed(2) + ' MB');
+              }
+            } catch (copyErr) {
+              logExportWarn('MediaRecorder:Muxer', 'Stream copy failed, falling back to full transcode:', copyErr);
+              try { ffmpeg.FS('unlink', 'rec_out.mp4'); } catch (_) {}
+            }
           }
+
+          // Stage 2: full libx264 transcode fallback (VP8 / VP9 → H.264)
+          if (!remuxOk) {
+            try {
+              updateProgress(95, 'Transcoding to MP4 (H.264)...', onProgress);
+              var crfVal = (preset === 'detail') ? '18' : ((preset === 'light') ? '23' : '20');
+              await ffmpeg.run(
+                '-i', 'rec_in.webm',
+                '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'fastdecode',
+                '-pix_fmt', 'yuv420p', '-crf', crfVal,
+                '-c:a', 'aac', '-b:a', '192k',
+                'rec_out.mp4'
+              );
+              var transcodeBytes = ffmpeg.FS('readFile', 'rec_out.mp4');
+              if (transcodeBytes && transcodeBytes.length > 0) {
+                finalBlob = new Blob([transcodeBytes.buffer], { type: 'video/mp4' });
+                logExport('MediaRecorder:Muxer', 'VP8/VP9→H.264 transcode OK: ' + (finalBlob.size / 1024 / 1024).toFixed(2) + ' MB');
+              }
+            } catch (transcodeErr) {
+              logExportWarn('MediaRecorder:Muxer', 'libx264 transcode also failed. Saving as WebM:', transcodeErr);
+            }
+          }
+
           try { ffmpeg.FS('unlink', 'rec_in.webm'); } catch (_) {}
           try { ffmpeg.FS('unlink', 'rec_out.mp4'); } catch (_) {}
-        } catch (_) {}
+        } catch (remuxErr) {
+          logExportWarn('MediaRecorder:Muxer', 'FFmpeg repackage failed, saving original format:', remuxErr);
+        }
       }
 
       var ext = finalBlob.type.includes('webm') ? '.webm' : '.mp4';

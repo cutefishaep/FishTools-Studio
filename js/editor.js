@@ -29861,6 +29861,17 @@
         });
       }
 
+      // Popover Action: Save Current Frame
+      const btnExportSaveFrame = document.getElementById('btn-export-save-frame');
+      if (btnExportSaveFrame) {
+        btnExportSaveFrame.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close();
+          exportCurrentFrameAsPNG();
+        });
+      }
+
       const bitrateSwitch = document.getElementById('export-bitrate-switch');
       if (bitrateSwitch) {
         bitrateSwitch.querySelectorAll('.segmented-switch-item').forEach(item => {

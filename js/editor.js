@@ -2827,8 +2827,18 @@
 
               if (engine) {
                 childWorldAnimLayer._currentSec = currentSec;
-                childWorldAnimLayer._canvasBounds = engine.getBounds(childWorldAnimLayer, bufferScale, camEff, w, h);
-                layersToRender.push({ el: childEl, layer: childWorldAnimLayer, animLayer: childWorldAnimLayer });
+                let renderChildAnimLayer = childWorldAnimLayer;
+                if (child.type === 'text' && child._textPadY > 0 && childEl && childEl.width && childEl.height) {
+                  const natW = child._textNaturalW || (childEl.width - 2 * child._textPadX);
+                  const natH = child._textNaturalH || (childEl.height - 2 * child._textPadY);
+                  const padRatioW = childEl.width / Math.max(1, natW);
+                  const padRatioH = childEl.height / Math.max(1, natH);
+                  renderChildAnimLayer = Object.assign({}, childWorldAnimLayer, {
+                    scaleW: childWorldAnimLayer.scaleW * padRatioW,
+                    scaleH: childWorldAnimLayer.scaleH * padRatioH
+                  });
+                }
+                layersToRender.push({ el: childEl, layer: childWorldAnimLayer, animLayer: renderChildAnimLayer });
               } else {
                 ctx.save();
                 if (worldOpacity < 1.0) ctx.globalAlpha = Math.max(0, Math.min(1, worldOpacity));
@@ -3206,10 +3216,22 @@
                 animLayer.effects = layer.effects.map(fx => Object.assign({}, fx));
               }
 
-              // Text renders within natural canvas bounds (no OOB padding).
-              // _textAnimPadY = 0 always → no scaleH/scaleW expansion needed.
+              // 1. Compute wireframe bounds on unpadded animLayer so wireframe stays tight on text metrics (like AE)
               layer._canvasBounds = engine.getBounds(animLayer, bufferScale, camEff, w, h);
-              layersToRender.push({ el, layer, animLayer });
+
+              // 2. Expand render quad for padded canvas so texture renders 1:1 without squish or stretch
+              let renderAnimLayer = animLayer;
+              if (isText && layer._textPadY > 0 && el && el.width && el.height) {
+                const natW = layer._textNaturalW || (el.width - 2 * layer._textPadX);
+                const natH = layer._textNaturalH || (el.height - 2 * layer._textPadY);
+                const padRatioW = el.width / Math.max(1, natW);
+                const padRatioH = el.height / Math.max(1, natH);
+                renderAnimLayer = Object.assign({}, animLayer, {
+                  scaleW: animLayer.scaleW * padRatioW,
+                  scaleH: animLayer.scaleH * padRatioH
+                });
+              }
+              layersToRender.push({ el, layer, animLayer: renderAnimLayer });
 
             } else {
               ctx.save();
@@ -3265,19 +3287,15 @@
                 else if (Array.isArray(layer.effects)) animLayerPost.effects = layer.effects;
 
                 // Text layers with animation padding: draw canvas WITHOUT squishing.
-                // Canvas is taller than scaleH by 2×_textAnimPadY.
-                // We draw at the canvas's native pixel dimensions (scaled by bufferScale ratio)
-                // and offset Y so the text center stays at the layer's posY.
-                const textPad = (isText && layer._textAnimPadY) ? layer._textAnimPadY : 0;
-                if (textPad > 0 && el instanceof HTMLCanvasElement) {
-                  // Scale factor: how canvas pixels → composition pixels
-                  // Natural text = mediaWidth × mediaHeight, canvas = mediaWidth × (mediaHeight + 2×pad)
-                  const scaleRatio = absH / layer.mediaHeight; // scale natural height to display height
-                  const padPx = textPad * scaleRatio;          // pad in display pixels
-                  const drawW = absW;
-                  const drawH = absH + padPx * 2;             // full padded canvas display size
-                  const drawX = -absW / 2 - ax;
-                  const drawY = -absH / 2 - ay - padPx;       // shift up so text center stays centered
+                if (isText && layer._textPadY > 0 && el instanceof HTMLCanvasElement) {
+                  const natW = layer._textNaturalW || (el.width - 2 * layer._textPadX);
+                  const natH = layer._textNaturalH || (el.height - 2 * layer._textPadY);
+                  const padRatioW = el.width / Math.max(1, natW);
+                  const padRatioH = el.height / Math.max(1, natH);
+                  const drawW = absW * padRatioW;
+                  const drawH = absH * padRatioH;
+                  const drawX = -drawW / 2 - ax;
+                  const drawY = -drawH / 2 - ay;
                   if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
                     window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: drawX, y: drawY, w: drawW, h: drawH }, currentSec);
                   } else {

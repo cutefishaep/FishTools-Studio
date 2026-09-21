@@ -294,14 +294,22 @@
       const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
       const fontSize = p.fontSize || 64;
 
-      // Canvas sized to project dimensions (targetH=ph, targetW=pw).
-      // With targetH=1080, center cy=540, spring displacement max = fontSize*animAmp*1.5 ≈ 58px.
-      // Chars at cy±58 = 482–598, well within 1080px canvas. No padding needed.
-      // _textAnimPadY = 0 → compositor does NOT expand scaleH → no size pop or stretch.
-      if (layer) { layer._textAnimPadY = 0; layer._textAnimPadX = 0; }
+      const contentW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width  + padX + shadowPad * 2));
+      const contentH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2));
 
-      const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width  + padX + shadowPad * 2));
-      const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2));
+      // Extra canvas padding so characters can animate/bounce freely outside the text box without clipping (AE style)
+      const animPadX = Math.ceil(Math.max(fontSize * 2, 80));
+      const animPadY = Math.ceil(Math.max(fontSize * 3, 140));
+
+      if (layer) {
+        layer._textPadX = animPadX;
+        layer._textPadY = animPadY;
+        layer._textNaturalW = contentW;
+        layer._textNaturalH = contentH;
+      }
+
+      const reqW = contentW + animPadX * 2;
+      const reqH = contentH + animPadY * 2;
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
         canvas.width  = reqW;

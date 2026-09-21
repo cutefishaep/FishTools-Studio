@@ -292,13 +292,20 @@
       const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
       const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
 
-      // No animation padding on canvas size — the layer dimensions are fixed at creation.
-      // Displaced characters below the canvas are clipped until they spring into view.
-      // This is correct behavior: text "emerges" from the bottom of its bounding box.
-      const animPadY = 0;
+      // Animation padding: extra vertical space so characters can bounce outside text bounds.
+      // Stored on layer._textAnimPadY so compositor can compensate position (no squish).
+      const normInCheck = normalizeAnimIn(p.animIn || p.animation || 'none');
+      const hasAnim = normInCheck === 'bounce_1' || normInCheck === 'bounce_2'
+                   || normInCheck === 'bounce_3' || normInCheck === 'bounce_4';
+      const animAmp = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
+      const fontSize = p.fontSize || 64;
+      const animPadY = hasAnim ? Math.ceil(fontSize * animAmp * 1.5) : 0;
+
+      // Store on layer so compositor knows to offset the draw position
+      if (layer) layer._textAnimPadY = animPadY;
 
       const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width + padX + shadowPad * 2));
-      const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2 + animPadY * 2));
+      const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2)) + animPadY * 2;
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
         canvas.width = reqW;

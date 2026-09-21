@@ -2662,8 +2662,11 @@
             window.FishTextEngine.renderTextToCanvas(layer, layer._textBufferCanvas, pw, ph, localSec, clipDur);
           }
           el = layer._textBufferCanvas;
+          // mediaWidth/Height = natural text size (used for wireframe & transform bounds)
+          // _textAnimPadY is set by renderTextToCanvas — compositor uses it to draw without squish
           layer.mediaWidth = pw;
           layer.mediaHeight = ph;
+
         } else if (isShape) {
           if (!layer._shapeBufferCanvas || !(layer._shapeBufferCanvas instanceof HTMLCanvasElement) || typeof layer._shapeBufferCanvas.getContext !== 'function') {
             layer._shapeBufferCanvas = document.createElement('canvas');
@@ -3257,10 +3260,31 @@
                 if (Array.isArray(effProps.effects)) animLayerPost.effects = effProps.effects;
                 else if (Array.isArray(layer.effects)) animLayerPost.effects = layer.effects;
 
-                if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-                  window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: -absW / 2 - ax, y: -absH / 2 - ay, w: absW, h: absH }, currentSec);
+                // Text layers with animation padding: draw canvas WITHOUT squishing.
+                // Canvas is taller than scaleH by 2×_textAnimPadY.
+                // We draw at the canvas's native pixel dimensions (scaled by bufferScale ratio)
+                // and offset Y so the text center stays at the layer's posY.
+                const textPad = (isText && layer._textAnimPadY) ? layer._textAnimPadY : 0;
+                if (textPad > 0 && el instanceof HTMLCanvasElement) {
+                  // Scale factor: how canvas pixels → composition pixels
+                  // Natural text = mediaWidth × mediaHeight, canvas = mediaWidth × (mediaHeight + 2×pad)
+                  const scaleRatio = absH / layer.mediaHeight; // scale natural height to display height
+                  const padPx = textPad * scaleRatio;          // pad in display pixels
+                  const drawW = absW;
+                  const drawH = absH + padPx * 2;             // full padded canvas display size
+                  const drawX = -absW / 2 - ax;
+                  const drawY = -absH / 2 - ay - padPx;       // shift up so text center stays centered
+                  if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
+                    window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: drawX, y: drawY, w: drawW, h: drawH }, currentSec);
+                  } else {
+                    ctx.drawImage(el, drawX, drawY, drawW, drawH);
+                  }
                 } else {
-                  ctx.drawImage(el, -absW / 2 - ax, -absH / 2 - ay, absW, absH);
+                  if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
+                    window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: -absW / 2 - ax, y: -absH / 2 - ay, w: absW, h: absH }, currentSec);
+                  } else {
+                    ctx.drawImage(el, -absW / 2 - ax, -absH / 2 - ay, absW, absH);
+                  }
                 }
 
                 if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {

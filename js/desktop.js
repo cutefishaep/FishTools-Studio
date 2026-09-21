@@ -2375,15 +2375,18 @@
         const screenStartX = startClientX - (curScrollX - startScrollX);
         const screenStartY = startClientY - (curScrollY - startScrollY);
 
-        // Clamp X to viewport, but NOT Y — let box extend beyond visible area (AE behavior)
+        // Clamp X to viewport
         const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, currentClientX));
-        // Y is unclamped — the marquee box extends wherever the mouse is
+        // Clamp Y VISUALLY to timeline viewport — box stays inside timeline panel
+        const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, currentClientY));
+        // Raw unclamped Y for intersection math — so scrolled-off layers still get hit
         const rawClientY = currentClientY;
 
+        // Visual box — fully clamped to timeline viewport
         const boxLeft   = Math.max(vpRect.left, Math.min(screenStartX, clampedClientX));
-        const boxTop    = Math.min(screenStartY, rawClientY);
+        const boxTop    = Math.max(vpRect.top,  Math.min(screenStartY, clampedClientY));
         const boxRight  = Math.min(vpRect.right, Math.max(screenStartX, clampedClientX));
-        const boxBottom = Math.max(screenStartY, rawClientY);
+        const boxBottom = Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY));
 
         const boxW = Math.max(0, boxRight - boxLeft);
         const boxH = Math.max(0, boxBottom - boxTop);
@@ -2393,12 +2396,14 @@
         marqueeBox.style.width = `${boxW}px`;
         marqueeBox.style.height = `${boxH}px`;
 
-        // Convert marquee to scroll-space so off-screen (scrolled) elements intersect correctly
-        // Use unclamped Y so clips below/above the visible fold are caught
-        const mScrollLeft   = boxLeft   - vpRect.left + curScrollX;
-        const mScrollTop    = boxTop    - vpRect.top  + curScrollY;
-        const mScrollRight  = boxRight  - vpRect.left + curScrollX;
-        const mScrollBottom = boxBottom - vpRect.top  + curScrollY;
+        // Convert marquee to scroll-space for intersection — use UNCLAMPED rawClientY
+        // so clips scrolled below/above the visible viewport are still detected
+        const rawBoxTop    = Math.min(screenStartY, rawClientY);
+        const rawBoxBottom = Math.max(screenStartY, rawClientY);
+        const mScrollLeft   = boxLeft    - vpRect.left + curScrollX;
+        const mScrollTop    = rawBoxTop  - vpRect.top  + curScrollY;
+        const mScrollRight  = boxRight   - vpRect.left + curScrollX;
+        const mScrollBottom = rawBoxBottom - vpRect.top + curScrollY;
 
         const clips = layersViewport.querySelectorAll('.timeline-clip-block');
         clips.forEach(clip => {

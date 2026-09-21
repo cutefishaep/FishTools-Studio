@@ -1649,7 +1649,8 @@
 
     let _lastSyncSec = -1;
     let _lastSyncScrollX = -1;
-    function syncDesktopPlayhead() {
+    let _lastSyncPanelW = -1;
+    function syncDesktopPlayhead(force = false) {
       const curSec = (typeof window.getCurrentPlayheadTime === 'function')
         ? window.getCurrentPlayheadTime()
         : (window.currentPlaybackSec !== undefined ? window.currentPlaybackSec : (window.currentSec || 0));
@@ -1665,20 +1666,21 @@
         }
       }
 
+      const panelW = getDesktopPanelW();
+      const panelChanged = (panelW !== _lastSyncPanelW);
       const scrollChanged = (desktopScrollX !== _lastSyncScrollX);
       const playheadChanged = (Math.abs(curSec - _lastSyncSec) >= 0.0001);
 
-      if (!scrollChanged && !playheadChanged) return;
+      if (!force && !scrollChanged && !playheadChanged && !panelChanged) return;
       _lastSyncSec = curSec;
       _lastSyncScrollX = desktopScrollX;
-
-      const panelW = getDesktopPanelW();
+      _lastSyncPanelW = panelW;
 
       // 1. Direct GPU transform on playhead needle (ZERO :root recalc, ZERO full-page style thrashing)
       needle.style.transform = `translate3d(${(panelW + playheadX - desktopScrollX).toFixed(2)}px, 0, 0)`;
 
       // 2. Only update track transforms when horizontal scroll actually changed
-      if (scrollChanged) {
+      if (scrollChanged || force) {
         const scrollTransform = `translate3d(${(-desktopScrollX).toFixed(2)}px, 0, 0)`;
         layersTrack.style.transform = scrollTransform;
         rulerTrack.style.transform = scrollTransform;

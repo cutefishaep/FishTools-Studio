@@ -5,6 +5,19 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.48] - 2026-09-21
+
+### Fixed
+- **Playhead Needle Position Sync on Panel Resize (`js/desktop.js`)**:
+  - Fixed issue where timeline playhead needle transform did not update while dragging the timeline panel resizer due to unchanged playback time/scroll position guards; added panel width tracking (`_lastSyncPanelW`) and `force` parameter to immediately update needle position.
+
+### Added
+- **Open-Source Project Documentation & Licensing (`README.md`, `LICENSE`)**:
+  - Added clean, non-hyperbolic, professional open-source guide covering architectural overview, prerequisites, quick start, directory structure, and contribution rules.
+  - Added official MIT License file matching `package.json` license definition.
+
+---
+
 ## [0.5.47] - 2026-09-21
 
 ### Added

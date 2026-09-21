@@ -15,7 +15,7 @@
   --desktop-btn-h-sm: 28px;
   --desktop-btn-h: 30px;
   --desktop-btn-h-lg: 40px;
-  --desktop-layer-panel-w: 160px;
+  --desktop-layer-panel-w: 240px;
 }
 
 /* --- Global Desktop Viewport Root --- */
@@ -3584,6 +3584,8 @@
 .svg-icon-motion-blur { -webkit-mask-image: url('../assets/icon-motion-blur.svg'); mask-image: url('../assets/icon-motion-blur.svg'); }
 .svg-icon-copy { -webkit-mask-image: url('../assets/copy.svg'); mask-image: url('../assets/copy.svg'); }
 .svg-icon-paste { -webkit-mask-image: url('../assets/paste.svg'); mask-image: url('../assets/paste.svg'); }
+.svg-icon-pickwhip { -webkit-mask-image: url('../assets/pickwhip.svg'); mask-image: url('../assets/pickwhip.svg'); }
+.svg-icon-null { -webkit-mask-image: url('../assets/layer-null.svg'); mask-image: url('../assets/layer-null.svg'); }
 
 /* Desktop Zoom Stepper in Timeline Toolbar */
 .desktop-zoom-stepper {
@@ -3907,12 +3909,15 @@
   border-bottom: 1px solid var(--border-panel);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 8px;
   box-sizing: border-box;
   z-index: 2;
+  user-select: none;
 }
 
-.desktop-ruler-gutter-label {
+.desktop-ruler-gutter-label,
+.desktop-ruler-col-label {
   font-family: var(--font-brand);
   font-size: 9px;
   font-weight: 700;
@@ -3920,6 +3925,27 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   user-select: none;
+}
+
+.desktop-ruler-col-label.col-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desktop-ruler-col-label.col-mblur {
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.desktop-ruler-col-label.col-parent {
+  width: 76px;
+  text-align: left;
+  padding-left: 2px;
+  flex-shrink: 0;
 }
 
 /* Ruler viewport takes remaining space */
@@ -4145,20 +4171,169 @@
   pointer-events: none;
 }
 
-/* Injected layer type color indicator */
-.desktop-layer-type-dot {
-  width: 4px;
-  height: 18px;
-  border-radius: 2px;
+/* Layer Number Index */
+.desktop-layer-index {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 14px;
+  text-align: center;
   flex-shrink: 0;
-  background-color: var(--color-primary);
+  user-select: none;
+  pointer-events: none;
 }
 
-.desktop-layer-type-dot.type-video { background-color: var(--color-primary); }
-.desktop-layer-type-dot.type-audio { background-color: var(--color-accent); }
-.desktop-layer-type-dot.type-image { background-color: var(--color-primary-hover); }
-.desktop-layer-type-dot.type-text  { background-color: var(--text-secondary); }
-.desktop-layer-type-dot.type-shape { background-color: var(--color-accent); }
+/* Authentic AE Null Layer Icon */
+.desktop-layer-null-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desktop-layer-null-icon .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* Motion Blur Switch (AE 3-Circle Icon) */
+.desktop-layer-mblur-btn {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--desktop-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: color 0.08s ease, opacity 0.08s ease, background-color 0.08s ease;
+}
+
+.desktop-layer-mblur-btn:hover {
+  opacity: 1;
+  color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-layer-mblur-btn.is-active {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+.desktop-layer-mblur-btn .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* Parent & Link Column */
+.desktop-layer-parent-col {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 76px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.desktop-layer-pickwhip-btn {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--desktop-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  padding: 0;
+  color: var(--text-muted);
+  opacity: 0.7;
+  transition: color 0.08s ease, opacity 0.08s ease, background-color 0.08s ease;
+}
+
+.desktop-layer-pickwhip-btn:hover,
+.desktop-layer-pickwhip-btn.is-dragging {
+  opacity: 1;
+  color: var(--color-primary);
+  background-color: var(--bg-panel-hover);
+  cursor: grabbing;
+}
+
+.desktop-layer-pickwhip-btn .svg-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.desktop-layer-parent-badge {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--desktop-radius-sm);
+  padding: 0 4px;
+  font-family: var(--font-brand);
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease;
+}
+
+.desktop-layer-parent-badge:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+}
+
+.desktop-layer-parent-badge.has-parent {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Pickwhip Drag Laser Overlay & Target Highlight */
+.timeline-lane-pill-slot.is-pickwhip-target .timeline-layer-ctrl-pill {
+  background-color: var(--bg-panel-hover) !important;
+  outline: 1px dashed var(--color-primary) !important;
+  outline-offset: -1px;
+}
+
+.desktop-pickwhip-laser-svg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 99999;
+}
+
+/* Suppress mobile link connector arrows on desktop */
+.desktop-timeline-wrapper .timeline-link-connectors-svg {
+  display: none !important;
+}
+
+/* Hide motion blur & link from desktop header in layer mode (now in layer column) */
+.desktop-header .editor-layer-motion-blur-btn,
+.desktop-header .editor-layer-link-btn {
+  display: none !important;
+}
 
 /* Drag ghost row for reorder */
 .desktop-drag-ghost-row {

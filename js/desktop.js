@@ -668,6 +668,99 @@
       layersViewport.appendChild(indicator);
     }
 
+    function initPickwhipDrag(pickwhipBtn, sourceLayerId) {
+      if (pickwhipBtn._pickwhipBound) return;
+      pickwhipBtn._pickwhipBound = true;
+
+      pickwhipBtn.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        e.preventDefault();
+
+        const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+        const sourceLayer = layers.find(l => l.id === sourceLayerId);
+        if (!sourceLayer) return;
+
+        const rect = pickwhipBtn.getBoundingClientRect();
+        const originX = rect.left + rect.width / 2;
+        const originY = rect.top + rect.height / 2;
+
+        pickwhipBtn.classList.add('is-dragging');
+
+        let laserSvg = document.querySelector('.desktop-pickwhip-laser-svg');
+        if (!laserSvg) {
+          laserSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          laserSvg.setAttribute('class', 'desktop-pickwhip-laser-svg');
+          laserSvg.setAttribute('aria-hidden', 'true');
+          laserSvg.innerHTML = `<line x1="${originX}" y1="${originY}" x2="${originX}" y2="${originY}" stroke="var(--color-primary)" stroke-width="2" stroke-dasharray="4 3" stroke-linecap="round"/>`;
+          document.body.appendChild(laserSvg);
+        }
+        const line = laserSvg.querySelector('line');
+
+        let currentHoverSlot = null;
+
+        function onPointerMove(me) {
+          me.preventDefault();
+          if (line) {
+            line.setAttribute('x2', String(me.clientX));
+            line.setAttribute('y2', String(me.clientY));
+          }
+
+          const underEl = document.elementFromPoint(me.clientX, me.clientY);
+          const slot = underEl ? underEl.closest('.timeline-lane-pill-slot') : null;
+          if (slot && slot.dataset.layerId && slot.dataset.layerId !== sourceLayerId) {
+            if (currentHoverSlot !== slot) {
+              if (currentHoverSlot) currentHoverSlot.classList.remove('is-pickwhip-target');
+              currentHoverSlot = slot;
+              currentHoverSlot.classList.add('is-pickwhip-target');
+            }
+          } else {
+            if (currentHoverSlot) {
+              currentHoverSlot.classList.remove('is-pickwhip-target');
+              currentHoverSlot = null;
+            }
+          }
+        }
+
+        function onPointerUp(ue) {
+          window.removeEventListener('pointermove', onPointerMove, { capture: true });
+          window.removeEventListener('pointerup', onPointerUp, { capture: true });
+          window.removeEventListener('pointercancel', onPointerUp, { capture: true });
+
+          pickwhipBtn.classList.remove('is-dragging');
+          if (laserSvg) laserSvg.remove();
+          if (currentHoverSlot) {
+            currentHoverSlot.classList.remove('is-pickwhip-target');
+          }
+
+          const dropEl = document.elementFromPoint(ue.clientX, ue.clientY);
+          const targetSlot = dropEl ? dropEl.closest('.timeline-lane-pill-slot') : null;
+          const targetLayerId = targetSlot ? targetSlot.dataset.layerId : null;
+
+          if (targetLayerId && targetLayerId !== sourceLayerId) {
+            const targetLayer = layers.find(l => l.id === targetLayerId);
+            if (targetLayer && typeof window.linkLayer === 'function') {
+              window.linkLayer(sourceLayer, targetLayer);
+              if (typeof window.showEffectsRackToast === 'function') {
+                window.showEffectsRackToast(`Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
+              }
+            }
+          } else if (ue.altKey) {
+            if (typeof window.unlinkLayer === 'function') {
+              window.unlinkLayer(sourceLayer);
+              if (typeof window.showEffectsRackToast === 'function') {
+                window.showEffectsRackToast(`Unlinked "${sourceLayer.name}"`);
+              }
+            }
+          }
+        }
+
+        window.addEventListener('pointermove', onPointerMove, { passive: false, capture: true });
+        window.addEventListener('pointerup', onPointerUp, { capture: true });
+        window.addEventListener('pointercancel', onPointerUp, { capture: true });
+      });
+    }
+
     function enhanceLaneHeads() {
       const slots = Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot'));
       const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
@@ -714,22 +807,44 @@
           twistie.title = layer && layer._kfExpanded ? 'Collapse Keyframes (U)' : 'Expand Keyframes (U)';
         }
 
-        // Layer type indicator bar
-        let dot = pill.querySelector('.desktop-layer-type-dot');
-        if (!dot) {
-          dot = document.createElement('span');
-          dot.className = `desktop-layer-type-dot type-${layerType}`;
-          const eyeBtn = pill.querySelector('.timeline-layer-eye-btn');
-          if (eyeBtn) {
-            pill.insertBefore(dot, eyeBtn);
-          } else {
-            pill.appendChild(dot);
+        // Clean up any stale layer-type-dot elements
+        pill.querySelectorAll('.desktop-layer-type-dot').forEach(d => d.remove());
+
+        // 1. Layer Index Number or Null Icon
+        let idxEl = pill.querySelector('.desktop-layer-index, .desktop-layer-null-icon');
+        const isNullType = layerType === 'null';
+        if (isNullType) {
+          if (!idxEl || !idxEl.classList.contains('desktop-layer-null-icon')) {
+            if (idxEl) idxEl.remove();
+            idxEl = document.createElement('span');
+            idxEl.className = 'desktop-layer-null-icon';
+            idxEl.title = 'Null Object';
+            idxEl.innerHTML = '<span class="svg-icon svg-icon-null" aria-hidden="true"></span>';
+            const eyeBtn = pill.querySelector('.timeline-layer-eye-btn');
+            if (eyeBtn && eyeBtn.nextSibling) {
+              pill.insertBefore(idxEl, eyeBtn.nextSibling);
+            } else {
+              pill.appendChild(idxEl);
+            }
           }
         } else {
-          dot.className = `desktop-layer-type-dot type-${layerType}`;
+          if (!idxEl || !idxEl.classList.contains('desktop-layer-index')) {
+            if (idxEl) idxEl.remove();
+            idxEl = document.createElement('span');
+            idxEl.className = 'desktop-layer-index';
+            idxEl.textContent = String(slotIdx + 1);
+            const eyeBtn = pill.querySelector('.timeline-layer-eye-btn');
+            if (eyeBtn && eyeBtn.nextSibling) {
+              pill.insertBefore(idxEl, eyeBtn.nextSibling);
+            } else {
+              pill.appendChild(idxEl);
+            }
+          } else {
+            idxEl.textContent = String(slotIdx + 1);
+          }
         }
 
-        // Layer Name Label
+        // 2. Layer Name Label
         let nameEl = pill.querySelector('.desktop-layer-name-text');
         if (!nameEl) {
           nameEl = document.createElement('span');
@@ -740,6 +855,91 @@
         } else if (nameEl.textContent !== layerName) {
           nameEl.textContent = layerName;
           nameEl.title = layerName;
+        }
+
+        // 3. Motion Blur Toggle Switch Button
+        let mblurBtn = pill.querySelector('.desktop-layer-mblur-btn');
+        const isMbOn = !!(layer && layer.motionBlur);
+        if (!mblurBtn) {
+          mblurBtn = document.createElement('button');
+          mblurBtn.type = 'button';
+          mblurBtn.className = 'desktop-layer-mblur-btn' + (isMbOn ? ' is-active' : '');
+          mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+          mblurBtn.setAttribute('aria-label', mblurBtn.title);
+          mblurBtn.innerHTML = '<span class="svg-icon svg-icon-motion-blur" aria-hidden="true"></span>';
+          pill.appendChild(mblurBtn);
+
+          mblurBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+          });
+          mblurBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+            const target = curLayers.find(l => l.id === layerId) || layer;
+            if (target) {
+              target.motionBlur = !target.motionBlur;
+              mblurBtn.classList.toggle('is-active', !!target.motionBlur);
+              mblurBtn.title = target.motionBlur ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+              if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers(true);
+              if (typeof window.redrawComposition === 'function') window.redrawComposition();
+            }
+          });
+        } else {
+          mblurBtn.classList.toggle('is-active', isMbOn);
+          mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+        }
+
+        // 4. Parent & Link Column (Pickwhip + Parent Badge)
+        let parentCol = pill.querySelector('.desktop-layer-parent-col');
+        if (!parentCol) {
+          parentCol = document.createElement('div');
+          parentCol.className = 'desktop-layer-parent-col';
+          parentCol.innerHTML = `
+            <button type="button" class="desktop-layer-pickwhip-btn" title="Parent Pickwhip (drag to layer to link)" aria-label="Parent Pickwhip">
+              <span class="svg-icon svg-icon-pickwhip" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="desktop-layer-parent-badge" title="Parent Layer" aria-label="Select Parent Layer">
+              <span class="parent-label-text">None</span>
+            </button>
+          `;
+          pill.appendChild(parentCol);
+
+          const pickwhipBtn = parentCol.querySelector('.desktop-layer-pickwhip-btn');
+          const parentBadge = parentCol.querySelector('.desktop-layer-parent-badge');
+
+          initPickwhipDrag(pickwhipBtn, layerId);
+
+          parentBadge.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+          });
+          parentBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (typeof window.selectTimelineLayer === 'function') {
+              window.selectTimelineLayer(layerId, false);
+            }
+            if (typeof window.openLayerLinkPopover === 'function') {
+              window.openLayerLinkPopover(parentBadge);
+            }
+          });
+        }
+
+        const parentBadge = parentCol.querySelector('.desktop-layer-parent-badge');
+        const parentLabel = parentBadge && parentBadge.querySelector('.parent-label-text');
+        if (parentLabel) {
+          if (layer && layer.parentId) {
+            const pLayer = layers.find(l => l.id === layer.parentId);
+            const pIdx = pLayer ? layers.indexOf(pLayer) : -1;
+            const pText = pLayer ? `${pIdx + 1}. ${pLayer.name || 'Layer'}` : 'None';
+            parentLabel.textContent = pText;
+            parentBadge.classList.add('has-parent');
+            parentBadge.title = `Parent: ${pText} (Click to change)`;
+          } else {
+            parentLabel.textContent = 'None';
+            parentBadge.classList.remove('has-parent');
+            parentBadge.title = 'Parent: None (Click to assign)';
+          }
         }
 
         // Attach desktop drag reorder to pill if not attached

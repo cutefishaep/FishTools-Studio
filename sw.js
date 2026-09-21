@@ -36,6 +36,8 @@ const CORE_ASSETS = [
   'assets/icon.svg',
   'assets/copy.svg',
   'assets/paste.svg',
+  'assets/pickwhip.svg',
+  'assets/layer-null.svg',
   'assets/icon-192.png',
   'assets/icon-512.png',
   'assets/doodles.svg',

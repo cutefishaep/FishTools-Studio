@@ -2613,10 +2613,10 @@
                 <div class="desktop-toolbar-divider" aria-hidden="true"></div>
 
                 <div class="desktop-toolbar-btn-group" role="group" aria-label="Clipboard & Extra Tools">
-                  <button type="button" class="ctrl-btn" id="desktop-btn-copy" title="Copy Layer / Attributes (Ctrl+C)" aria-label="Copy Layer or Attributes">
+                  <button type="button" class="ctrl-btn" id="desktop-btn-copy" title="Copy Layer / Attributes (Ctrl+C)" aria-label="Copy Layer or Attributes" style="display: none;">
                     <span class="svg-icon svg-icon-copy" aria-hidden="true"></span>
                   </button>
-                  <button type="button" class="ctrl-btn" id="desktop-btn-paste" title="Paste Layer / Attributes (Ctrl+V)" aria-label="Paste Layer or Attributes">
+                  <button type="button" class="ctrl-btn" id="desktop-btn-paste" title="Paste Layer / Attributes (Ctrl+V)" aria-label="Paste Layer or Attributes" style="display: none;">
                     <span class="svg-icon svg-icon-paste" aria-hidden="true"></span>
                   </button>
                   <button type="button" class="ctrl-btn ctrl-btn-fish" id="editor-btn-fishtool-trigger" title="OpenFishTools Panel" aria-label="OpenFishTools Panel">
@@ -2630,7 +2630,9 @@
 
           <header class="timeline-header-ruler">
             <div class="desktop-ruler-gutter">
-              <span class="desktop-ruler-gutter-label">Layers</span>
+              <span class="desktop-ruler-col-label col-name">Layer Name</span>
+              <span class="desktop-ruler-col-label col-mblur" title="Motion Blur">M</span>
+              <span class="desktop-ruler-col-label col-parent" title="Parent & Link">Parent & Link</span>
             </div>
             <div class="timeline-ruler-viewport" id="timeline-ruler-viewport">
               <div class="timeline-ruler-track" id="timeline-ruler-track">

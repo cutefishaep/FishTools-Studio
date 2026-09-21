@@ -21433,6 +21433,9 @@
             btnSettings.setAttribute('aria-label', title);
           }
         }
+        if (typeof window.updateClipboardButtonsVisibility === 'function') {
+          window.updateClipboardButtonsVisibility();
+        }
       }
       window.updateEditorHeaderMode = updateEditorHeaderMode;
 
@@ -25814,6 +25817,13 @@
       window.addEventListener('resize', updateReorderHandlesContrast, { passive: true });
 
       function renderTimelineLinkConnectors() {
+        // Suppress connector lines on desktop workstations (matches After Effects left-column parenting)
+        if (window.isDesktop || (typeof isDesktop !== 'undefined' && isDesktop) || document.querySelector('.desktop-viewport')) {
+          const staleSvg = document.querySelector('.timeline-link-connectors-svg');
+          if (staleSvg) staleSvg.remove();
+          return;
+        }
+
         // Connectors render strictly in the timeline track (to the left of layer clips).
         // Matches professional After Effects timeline hierarchy connectors (Photo 2).
         const layersTrack = document.getElementById('timeline-layers-track');

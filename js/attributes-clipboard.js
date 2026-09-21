@@ -72,16 +72,49 @@
     if (set && set.size > 0) {
       set.forEach(id => { if (!ids.includes(id)) ids.push(id); });
     }
-    return layers.filter(l => ids.includes(l.id));
+    // Fallback: check DOM active elements if state variable was temporarily desynced
+    if (ids.length === 0) {
+      const activePill = document.querySelector('.timeline-layer-ctrl-pill.is-selected, .timeline-lane-pill-slot.is-focused, .timeline-clip-block.is-selected');
+      if (activePill && activePill.dataset && activePill.dataset.layerId) {
+        ids.push(activePill.dataset.layerId);
+      }
+    }
+    const strIds = ids.map(String);
+    return layers.filter(l => strIds.includes(String(l.id)));
   }
 
   /**
-   * Check whether layer is of supported types: shape, video, or photo (image)
+   * Check whether layer is of supported types for selective attributes
    */
   function isSupportedLayerType(layer) {
     if (!layer || !layer.type) return false;
-    return layer.type === 'shape' || layer.type === 'video' || layer.type === 'image';
+    return layer.type === 'shape' || layer.type === 'video' || layer.type === 'image' || layer.type === 'text' || layer.type === 'null';
   }
+
+  /**
+   * Toggles visibility of Copy & Paste buttons: shown ONLY when at least 1 layer is selected
+   */
+  function updateClipboardButtonsVisibility() {
+    const selected = getSelectedLayers();
+    const hasSelection = selected.length > 0;
+    const desktopBtnCopy = document.getElementById('desktop-btn-copy');
+    const desktopBtnPaste = document.getElementById('desktop-btn-paste');
+    if (desktopBtnCopy) {
+      desktopBtnCopy.style.display = hasSelection ? 'inline-flex' : 'none';
+    }
+    if (desktopBtnPaste) {
+      desktopBtnPaste.style.display = hasSelection ? 'inline-flex' : 'none';
+    }
+    const dockCopy = document.getElementById('editor-btn-copy-dock');
+    const dockPaste = document.getElementById('editor-btn-paste-dock');
+    if (dockCopy) {
+      dockCopy.style.display = hasSelection ? 'inline-flex' : 'none';
+    }
+    if (dockPaste) {
+      dockPaste.style.display = hasSelection ? 'inline-flex' : 'none';
+    }
+  }
+  window.updateClipboardButtonsVisibility = updateClipboardButtonsVisibility;
 
   /**
    * Toast notification dispatch helper
@@ -695,6 +728,13 @@
         triggerPaste(desktopBtnPaste);
       });
     }
+
+    updateClipboardButtonsVisibility();
+
+    // Re-check visibility when user interacts with timeline layers
+    document.addEventListener('click', () => {
+      setTimeout(updateClipboardButtonsVisibility, 30);
+    }, { passive: true });
   }
 
   if (document.readyState === 'loading') {
@@ -707,6 +747,7 @@
   window.FishAttributesClipboard = {
     triggerCopy,
     triggerPaste,
-    renderAttributesPopover
+    renderAttributesPopover,
+    updateVisibility: updateClipboardButtonsVisibility
   };
 })();

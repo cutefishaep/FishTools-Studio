@@ -3518,6 +3518,12 @@
   transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
 }
 
+/* Override for clipboard buttons hidden state — beats display:flex !important above */
+.desktop-timeline-toolbar .ctrl-btn.is-clipboard-hidden {
+  display: none !important;
+}
+
+
 .desktop-timeline-toolbar .ctrl-btn .svg-icon,
 .desktop-timeline-toolbar .ctrl-btn svg,
 .desktop-timeline-toolbar .ctrl-btn img {

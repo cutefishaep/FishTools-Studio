@@ -423,15 +423,15 @@
     const _btnCopy = document.getElementById('desktop-btn-copy');
     const _btnPaste = document.getElementById('desktop-btn-paste');
     if (!hasActiveLayer) {
-      // Copy always requires a selection — always hide
-      if (_btnCopy) _btnCopy.style.display = 'none';
+      // Copy always requires a selection — always hide via class (beats CSS !important)
+      if (_btnCopy) { _btnCopy.classList.add('is-clipboard-hidden'); _btnCopy.style.display = ''; }
 
       // Paste is still visible when clipboard has content (layer or attribute clipboard)
       const hasClipboardContent = !!(
         window.internalAttributeClipboard ||
         (window.internalLayerClipboard && window.internalLayerClipboard.length > 0)
       );
-      if (_btnPaste) _btnPaste.style.display = hasClipboardContent ? 'inline-flex' : 'none';
+      if (_btnPaste) { _btnPaste.classList.toggle('is-clipboard-hidden', !hasClipboardContent); _btnPaste.style.display = ''; }
     } else {
       if (typeof window.updateClipboardButtonsVisibility === 'function') {
         window.updateClipboardButtonsVisibility();

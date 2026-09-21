@@ -123,15 +123,17 @@
     const desktopBtnCopy = document.getElementById('desktop-btn-copy');
     const desktopBtnPaste = document.getElementById('desktop-btn-paste');
     if (desktopBtnCopy) {
-      // Copy: only when selection exists
-      desktopBtnCopy.style.display = hasSelection ? 'inline-flex' : 'none';
+      // Copy: only when selection exists — use class to beat CSS !important
+      desktopBtnCopy.classList.toggle('is-clipboard-hidden', !hasSelection);
+      desktopBtnCopy.style.display = '';
     }
     if (desktopBtnPaste) {
-      // Paste: when selection exists OR clipboard has content
-      desktopBtnPaste.style.display = showPaste ? 'inline-flex' : 'none';
+      // Paste: when selection exists OR clipboard has content — use class to beat CSS !important
+      desktopBtnPaste.classList.toggle('is-clipboard-hidden', !showPaste);
+      desktopBtnPaste.style.display = '';
     }
 
-    // Mobile dock buttons — same rules
+    // Mobile dock buttons — inline style is fine (no !important CSS override there)
     const dockCopy = document.getElementById('editor-btn-copy-dock');
     const dockPaste = document.getElementById('editor-btn-paste-dock');
     if (dockCopy) {
@@ -140,6 +142,7 @@
     if (dockPaste) {
       dockPaste.style.display = showPaste ? 'inline-flex' : 'none';
     }
+
   }
   window.updateClipboardButtonsVisibility = updateClipboardButtonsVisibility;
 
@@ -964,13 +967,13 @@
           // Inspector definitively says no selection — copy always hidden, paste depends on clipboard
           const _c = document.getElementById('desktop-btn-copy');
           const _p = document.getElementById('desktop-btn-paste');
-          if (_c) _c.style.display = 'none';
+          if (_c) { _c.classList.add('is-clipboard-hidden'); _c.style.display = ''; }
           // Keep paste visible if clipboard has content
           const hasClipboardContent = !!(
             window.internalAttributeClipboard ||
             (window.internalLayerClipboard && window.internalLayerClipboard.length > 0)
           );
-          if (_p) _p.style.display = hasClipboardContent ? 'inline-flex' : 'none';
+          if (_p) { _p.classList.toggle('is-clipboard-hidden', !hasClipboardContent); _p.style.display = ''; }
         } else {
           updateClipboardButtonsVisibility();
         }

@@ -5313,6 +5313,27 @@
   flex-shrink: 0;
 }
 
+/* Scale constraint proportions toggle (chain icon) */
+.desktop-kf-scale-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.desktop-kf-scale-link.is-linked {
+  color: var(--color-primary);
+}
+
+.desktop-kf-scale-link:hover {
+  color: var(--text-primary);
+}
+
 /* Individual value component — NO box, just colored text like AE */
 .desktop-kf-prop-val-comp {
   font-size: 10.5px;

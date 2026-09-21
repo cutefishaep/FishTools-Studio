@@ -24777,7 +24777,8 @@
                       ];
                     }
                     if (prop === 'rotate') return [
-                      { getVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1) + '°',
+                      { getVal: () => { const deg = getLive().rotation ?? getLive().rotZ ?? 0; const rev = Math.trunc(deg / 360); const rem = deg - rev * 360; return `${rev}x${rem >= 0 ? '+' : ''}${rem.toFixed(1)}°`; },
+                        getEditVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.rotation = Number(((r.rotation ?? 0) + dx*0.5).toFixed(2)); r.rotZ = r.rotation; },
                         set: (v) => { const r = getLive(); r.rotation = parseFloat(v) || 0; r.rotZ = r.rotation; } }
                     ];
@@ -24883,13 +24884,12 @@
                   });
 
                   function openInlineEdit(cs, comp, idx) {
-                    const rawVal = comp.getVal();
-                    // Strip units for input
-                    const numStr = String(rawVal).replace(/[°%]/g, '').trim();
+                    // Use getEditVal if defined (e.g. rotate shows plain degrees, not AE format)
+                    const editVal = typeof comp.getEditVal === 'function' ? comp.getEditVal() : String(comp.getVal()).replace(/[°%]/g, '').trim();
                     const inp = document.createElement('input');
                     inp.type = 'text';
                     inp.className = 'desktop-kf-prop-val-input';
-                    inp.value = numStr;
+                    inp.value = String(editVal);
                     cs.replaceWith(inp);
                     inp.focus();
                     inp.select();
@@ -24912,6 +24912,32 @@
 
                   pRow.appendChild(swBtn);
                   pRow.appendChild(nameSpan);
+
+                  // Scale: constraint proportions toggle (chain icon) — AE style
+                  if (p.prop === 'scale') {
+                    const linkBtn = document.createElement('span');
+                    linkBtn.className = 'desktop-kf-scale-link';
+                    linkBtn.title = 'Constrain proportions';
+                    const syncLinkIcon = () => {
+                      const linked = getLive().scaleLinked !== false;
+                      linkBtn.innerHTML = linked
+                        ? `<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6.5 9.5a3 3 0 0 0 4.24.24l2-2a3 3 0 0 0-4.24-4.24L7.4 4.6"/><path d="M9.5 6.5a3 3 0 0 0-4.24-.24l-2 2a3 3 0 0 0 4.24 4.24l1.06-1.06"/></svg>`
+                        : `<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="3 2"><path d="M6.5 9.5a3 3 0 0 0 4.24.24l2-2a3 3 0 0 0-4.24-4.24L7.4 4.6"/><path d="M9.5 6.5a3 3 0 0 0-4.24-.24l-2 2a3 3 0 0 0 4.24 4.24l1.06-1.06"/></svg>`;
+                      linkBtn.classList.toggle('is-linked', linked);
+                    };
+                    syncLinkIcon();
+                    linkBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+                    linkBtn.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      const r = getLive();
+                      r.scaleLinked = r.scaleLinked === false ? true : false;
+                      syncLinkIcon();
+                      compSpans.forEach((s, i) => { s.textContent = String(components[i].getVal()); });
+                      if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                    });
+                    pRow.appendChild(linkBtn);
+                  }
+
                   pRow.appendChild(valContainer);
 
 

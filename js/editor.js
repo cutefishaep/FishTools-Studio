@@ -4136,6 +4136,120 @@
         }
 
         // E. Click on empty background: keep layer selected per user rule
+        // Drag on empty background: Rectangle Lasso (Canvas Marquee Selection)
+        if (e.button === 0) {
+          const startLassoClientX = e.clientX;
+          const startLassoClientY = e.clientY;
+          let isCanvasMarquee = false;
+          let canvasMarqueeBox = document.querySelector('.canvas-marquee-box');
+          if (!canvasMarqueeBox) {
+            canvasMarqueeBox = document.createElement('div');
+            canvasMarqueeBox.className = 'canvas-marquee-box';
+            document.body.appendChild(canvasMarqueeBox);
+          } else if (canvasMarqueeBox.parentNode !== document.body) {
+            document.body.appendChild(canvasMarqueeBox);
+          }
+
+          function onCanvasMarqueeMove(moveEvent) {
+            const dx = moveEvent.clientX - startLassoClientX;
+            const dy = moveEvent.clientY - startLassoClientY;
+            const dist = Math.hypot(dx, dy);
+
+            if (!isCanvasMarquee && dist > 5) {
+              isCanvasMarquee = true;
+              canvasMarqueeBox.style.display = 'block';
+            }
+
+            if (isCanvasMarquee) {
+              moveEvent.preventDefault();
+              const cRect = activeCanvasEl.getBoundingClientRect();
+              const clampedX = Math.max(cRect.left, Math.min(cRect.right, moveEvent.clientX));
+              const clampedY = Math.max(cRect.top, Math.min(cRect.bottom, moveEvent.clientY));
+
+              const boxL = Math.max(cRect.left, Math.min(startLassoClientX, clampedX));
+              const boxT = Math.max(cRect.top, Math.min(startLassoClientY, clampedY));
+              const boxR = Math.min(cRect.right, Math.max(startLassoClientX, clampedX));
+              const boxB = Math.min(cRect.bottom, Math.max(startLassoClientY, clampedY));
+
+              canvasMarqueeBox.style.left = `${boxL}px`;
+              canvasMarqueeBox.style.top = `${boxT}px`;
+              canvasMarqueeBox.style.width = `${Math.max(0, boxR - boxL)}px`;
+              canvasMarqueeBox.style.height = `${Math.max(0, boxB - boxT)}px`;
+            }
+          }
+
+          function onCanvasMarqueeUp(upEvent) {
+            window.removeEventListener('pointermove', onCanvasMarqueeMove, true);
+            window.removeEventListener('pointerup', onCanvasMarqueeUp, true);
+            window.removeEventListener('pointercancel', onCanvasMarqueeUp, true);
+
+            if (isCanvasMarquee) {
+              isCanvasMarquee = false;
+              canvasMarqueeBox.style.display = 'none';
+
+              const cRect = activeCanvasEl.getBoundingClientRect();
+              const clampedX = Math.max(cRect.left, Math.min(cRect.right, upEvent.clientX));
+              const clampedY = Math.max(cRect.top, Math.min(cRect.bottom, upEvent.clientY));
+
+              const boxL = Math.max(cRect.left, Math.min(startLassoClientX, clampedX));
+              const boxT = Math.max(cRect.top, Math.min(startLassoClientY, clampedY));
+              const boxR = Math.min(cRect.right, Math.max(startLassoClientX, clampedX));
+              const boxB = Math.min(cRect.bottom, Math.max(startLassoClientY, clampedY));
+
+              // Map screen rect to buffer rect
+              const scaleX = activeCanvasEl.width / cRect.width;
+              const scaleY = activeCanvasEl.height / cRect.height;
+              const bufferRect = {
+                left: (boxL - cRect.left) * scaleX,
+                top: (boxT - cRect.top) * scaleY,
+                right: (boxR - cRect.left) * scaleX,
+                bottom: (boxB - cRect.top) * scaleY
+              };
+
+              const allLayers = currentProjectState.layers || [];
+              const matchedLayerIds = [];
+              allLayers.forEach(l => {
+                if (l.hidden || l.locked) return;
+                const b = l._canvasBounds;
+                if (!b) return;
+                const intersects = !(
+                  b.x + b.w < bufferRect.left ||
+                  b.x > bufferRect.right ||
+                  b.y + b.h < bufferRect.top ||
+                  b.y > bufferRect.bottom
+                );
+                if (intersects) {
+                  matchedLayerIds.push(l.id);
+                }
+              });
+
+              const isAdditive = !!(upEvent.shiftKey || upEvent.metaKey || upEvent.ctrlKey);
+              if (matchedLayerIds.length > 0) {
+                if (isAdditive && window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+                  const combined = new Set(window.selectedLayerIds);
+                  matchedLayerIds.forEach(id => combined.add(id));
+                  if (typeof window.setDesktopSelectedLayers === 'function') {
+                    window.setDesktopSelectedLayers(combined, matchedLayerIds[0]);
+                  } else if (typeof window.selectTimelineLayers === 'function') {
+                    window.selectTimelineLayers(Array.from(combined), matchedLayerIds[0]);
+                  }
+                } else {
+                  if (typeof window.setDesktopSelectedLayers === 'function') {
+                    window.setDesktopSelectedLayers(new Set(matchedLayerIds), matchedLayerIds[0]);
+                  } else if (typeof window.selectTimelineLayers === 'function') {
+                    window.selectTimelineLayers(matchedLayerIds, matchedLayerIds[0]);
+                  } else if (typeof window.selectTimelineLayer === 'function') {
+                    window.selectTimelineLayer(matchedLayerIds[0]);
+                  }
+                }
+              }
+            }
+          }
+
+          window.addEventListener('pointermove', onCanvasMarqueeMove, true);
+          window.addEventListener('pointerup', onCanvasMarqueeUp, true);
+          window.addEventListener('pointercancel', onCanvasMarqueeUp, true);
+        }
       });
 
       let canvasRedrawRaf = null;

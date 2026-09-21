@@ -5,6 +5,19 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.46] - 2026-09-21
+
+### Fixed
+- **Timeline & Canvas Rectangle Lasso Marquee Selection (`js/desktop.js`, `js/editor.js`, `css/desktop.css`, `css/editor.css`)**:
+  - Restored visual rectangle lasso selection box (`.desktop-timeline-marquee-box`) when dragging across timeline empty space.
+  - Switched marquee box to `position: fixed` appended to `document.body` with `z-index: 99999`, eliminating clipping and negative scroll offset displacement when timeline is vertically scrolled.
+  - Upgraded marquee box appearance with crisp `1.5px solid var(--color-primary)` border and translucent theme primary fill (`::before`), strictly adhering to theme tokens without gradients or blur.
+  - Added candidate highlight styling on timeline clips (`.timeline-clip-block.is-marquee-candidate`) with primary border while intersecting marquee rectangle.
+  - Added canvas rectangle lasso marquee selection (`.canvas-marquee-box`) when dragging on empty preview canvas space in `editor.js`, selecting all intersecting visible layers on pointer release while strictly preserving empty click behavior.
+  - Prevented pointer cancellation by removing unsafe `setPointerCapture` calls during pointer movement and enforcing `preventDefault()` to prevent unwanted native text/drag selection.
+
+---
+
 ## [0.5.45] - 2026-09-21
 
 ### Fixed

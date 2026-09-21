@@ -2266,11 +2266,13 @@
     if (!layersViewport) return;
     isMarqueeInited = true;
 
-    let marqueeBox = layersViewport.querySelector('.desktop-timeline-marquee-box');
+    let marqueeBox = document.querySelector('.desktop-timeline-marquee-box');
     if (!marqueeBox) {
       marqueeBox = document.createElement('div');
       marqueeBox.className = 'desktop-timeline-marquee-box';
-      layersViewport.appendChild(marqueeBox);
+      document.body.appendChild(marqueeBox);
+    } else if (marqueeBox.parentNode !== document.body) {
+      document.body.appendChild(marqueeBox);
     }
 
     let isMarquee = false;
@@ -2292,12 +2294,15 @@
         }
       }
 
-      // Do NOT intercept if clicking on a clip, layer pill button, needle, keyframe diamond, or active dropzone
+      // Do NOT intercept if clicking on a clip, layer pill button, needle, keyframe diamond, handle, left heads, or active dropzone
       if (
         e.target.closest('.timeline-clip-block') ||
         e.target.closest('.timeline-layer-ctrl-pill') ||
         e.target.closest('.timeline-center-needle') ||
         e.target.closest('.desktop-kf-diamond') ||
+        e.target.closest('.timeline-clip-handle') ||
+        e.target.closest('.timeline-lane-heads-overlay') ||
+        e.target.closest('button, input, select, textarea') ||
         (e.target.closest('.media-dropzone-split') && e.target.closest('.media-dropzone-split').classList.contains('is-active'))
       ) {
         return;
@@ -2305,6 +2310,7 @@
 
       // Intercept so editor.js onPanStart does NOT pan the timeline!
       e.stopImmediatePropagation();
+      e.preventDefault();
 
       startClientX = e.clientX;
       startClientY = e.clientY;
@@ -2313,8 +2319,6 @@
       startScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : (desktopScrollX || 0);
       startScrollY = layersViewport.scrollTop;
       isMarquee = false;
-
-      const pointerId = e.pointerId;
 
       function updateMarqueeGeometry() {
         const vpRect = layersViewport.getBoundingClientRect();
@@ -2328,21 +2332,24 @@
         const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, currentClientX));
         const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, currentClientY));
 
-        const boxL = Math.min(screenStartX, clampedClientX) - vpRect.left;
-        const boxT = Math.min(screenStartY, clampedClientY) - vpRect.top;
-        const boxW = Math.abs(clampedClientX - screenStartX);
-        const boxH = Math.abs(clampedClientY - screenStartY);
+        const boxLeft = Math.max(vpRect.left, Math.min(screenStartX, clampedClientX));
+        const boxTop = Math.max(vpRect.top, Math.min(screenStartY, clampedClientY));
+        const boxRight = Math.min(vpRect.right, Math.max(screenStartX, clampedClientX));
+        const boxBottom = Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY));
 
-        marqueeBox.style.left = `${boxL}px`;
-        marqueeBox.style.top = `${boxT}px`;
+        const boxW = Math.max(0, boxRight - boxLeft);
+        const boxH = Math.max(0, boxBottom - boxTop);
+
+        marqueeBox.style.left = `${boxLeft}px`;
+        marqueeBox.style.top = `${boxTop}px`;
         marqueeBox.style.width = `${boxW}px`;
         marqueeBox.style.height = `${boxH}px`;
 
         const marqueeRect = {
-          left: Math.min(screenStartX, currentClientX),
-          top: Math.min(screenStartY, currentClientY),
-          right: Math.max(screenStartX, currentClientX),
-          bottom: Math.max(screenStartY, currentClientY)
+          left: boxLeft,
+          top: boxTop,
+          right: boxRight,
+          bottom: boxBottom
         };
 
         const clips = layersViewport.querySelectorAll('.timeline-clip-block');
@@ -2426,11 +2433,12 @@
         if (!isMarquee && dist > 4) {
           isMarquee = true;
           marqueeBox.style.display = 'block';
-          try { layersViewport.setPointerCapture(pointerId); } catch (_) {}
+          updateMarqueeGeometry();
           _marqueeRafId = requestAnimationFrame(runAutoScrollLoop);
         }
 
         if (isMarquee) {
+          moveEvent.preventDefault();
           updateMarqueeGeometry();
         }
       }
@@ -2439,7 +2447,6 @@
         window.removeEventListener('pointermove', onPointerMove, true);
         window.removeEventListener('pointerup', onPointerUp, true);
         window.removeEventListener('pointercancel', onPointerUp, true);
-        try { layersViewport.releasePointerCapture(pointerId); } catch (_) {}
 
         if (_marqueeRafId) {
           cancelAnimationFrame(_marqueeRafId);
@@ -2450,16 +2457,20 @@
           isMarquee = false;
           marqueeBox.style.display = 'none';
 
+          const vpRect = layersViewport.getBoundingClientRect();
           const curScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : (desktopScrollX || 0);
           const curScrollY = layersViewport.scrollTop;
           const screenStartX = startClientX - (curScrollX - startScrollX);
           const screenStartY = startClientY - (curScrollY - startScrollY);
 
+          const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, upEvent.clientX));
+          const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, upEvent.clientY));
+
           const marqueeRect = {
-            left: Math.min(screenStartX, upEvent.clientX),
-            top: Math.min(screenStartY, upEvent.clientY),
-            right: Math.max(screenStartX, upEvent.clientX),
-            bottom: Math.max(screenStartY, upEvent.clientY)
+            left: Math.max(vpRect.left, Math.min(screenStartX, clampedClientX)),
+            top: Math.max(vpRect.top, Math.min(screenStartY, clampedClientY)),
+            right: Math.min(vpRect.right, Math.max(screenStartX, clampedClientX)),
+            bottom: Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY))
           };
 
           const matchedDiamonds = [];
@@ -2527,9 +2538,16 @@
             }
           });
 
+          const isAdditive = !!(upEvent.shiftKey || upEvent.metaKey || upEvent.ctrlKey);
           if (matchedIds.size > 0) {
-            setDesktopSelectedLayers(matchedIds, Array.from(matchedIds)[0]);
-          } else {
+            if (isAdditive && window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+              const combined = new Set(window.selectedLayerIds);
+              matchedIds.forEach(id => combined.add(id));
+              setDesktopSelectedLayers(combined, Array.from(matchedIds)[0]);
+            } else {
+              setDesktopSelectedLayers(matchedIds, Array.from(matchedIds)[0]);
+            }
+          } else if (!isAdditive) {
             deselectAllDesktopLayers();
           }
         }
@@ -2539,7 +2557,6 @@
       window.addEventListener('pointerup', onPointerUp, true);
       window.addEventListener('pointercancel', onPointerUp, true);
     }, true);
-
   }
 
   // --- 9. Universal Desktop Empty Click & Escape Key Deselect ---

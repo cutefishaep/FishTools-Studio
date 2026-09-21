@@ -3088,3 +3088,31 @@ body.has-active-drawer .timeline-fab-add {
   cursor: grabbing !important;
 }
 
+/* --- Marquee / Lasso Selection Box (Timeline & Canvas Drag Multi-Select) --- */
+.desktop-timeline-marquee-box,
+.canvas-marquee-box {
+  position: fixed;
+  display: none;
+  border: 1.5px solid var(--color-primary);
+  background-color: transparent;
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.desktop-timeline-marquee-box::before,
+.canvas-marquee-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-primary);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.timeline-clip-block.is-marquee-candidate {
+  border: 1.5px solid var(--color-primary) !important;
+}
+
+

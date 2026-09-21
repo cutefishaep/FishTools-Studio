@@ -218,32 +218,7 @@ async function initProjectsFetcher() {
     loadAndRender();
   });
 
-/**
- * Resolves whether to open desktop.html or editor.html (mobile)
- * Automatically routes mobile/Android/iOS/narrow screens (< 900px) to editor.html.
- */
-function resolveTargetEditorPage() {
-  const ua = navigator.userAgent || '';
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|SM-G/i.test(ua) ||
-    (window.matchMedia && window.matchMedia('(pointer: coarse) and (max-width: 900px)').matches) ||
-    window.innerWidth < 900;
-
-  const preferred = localStorage.getItem('oft_preferred_view');
-
-  if (isMobile) {
-    if (preferred === 'desktop' && window.innerWidth >= 900) {
-      return 'desktop.html';
-    }
-    return 'editor.html';
-  }
-
-  if (preferred === 'mobile') {
-    return 'editor.html';
-  }
-  return 'desktop.html';
-}
-
-// Project item left-click navigation (delegated)
+  // Project item left-click navigation (delegated)
   listContainer.addEventListener('click', (e) => {
     const swipeBox = e.target.closest('.project-swipe-container');
     if (swipeBox && swipeBox._hasSwiped) {
@@ -295,6 +270,32 @@ function resolveTargetEditorPage() {
     });
   }
 }
+
+/**
+ * Resolves whether to open desktop.html or editor.html (mobile)
+ * Automatically routes mobile/Android/iOS/narrow screens (< 900px) to editor.html.
+ */
+function resolveTargetEditorPage() {
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|SM-G/i.test(ua) ||
+    (window.matchMedia && window.matchMedia('(pointer: coarse) and (max-width: 900px)').matches) ||
+    window.innerWidth < 900;
+
+  const preferred = localStorage.getItem('oft_preferred_view');
+
+  if (isMobile) {
+    if (preferred === 'desktop' && window.innerWidth >= 900) {
+      return 'desktop.html';
+    }
+    return 'editor.html';
+  }
+
+  if (preferred === 'mobile') {
+    return 'editor.html';
+  }
+  return 'desktop.html';
+}
+window.resolveTargetEditorPage = resolveTargetEditorPage;
 
 
 
@@ -862,47 +863,56 @@ async function createNewProjectAction() {
     createBtn.style.pointerEvents = 'none';
   }
 
-  const nameInput = document.getElementById('project-input-name');
-  const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'New_Project';
-  
-  const selectedRatio = document.querySelector('#options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
-  const selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
-  const selectedFps = document.getElementById('dropdown-fps')?.dataset.value || '60';
-  const selectedBg = document.querySelector('#options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
-
-  const projectId = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-
   try {
+    const nameInput = document.getElementById('project-input-name');
+    const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'New_Project';
+    
+    const selectedRatio = document.querySelector('#options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
+    const selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
+    const selectedFps = document.getElementById('dropdown-fps')?.dataset.value || '60';
+    const selectedBg = document.querySelector('#options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
+
+    const projectId = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
     if (window.FishDatabase && typeof window.FishDatabase.createProject === 'function') {
-      await window.FishDatabase.createProject({
-        id: projectId,
-        name: name,
-        aspectRatio: selectedRatio,
-        resolution: selectedRes,
-        fps: selectedFps,
-        bgColor: selectedBg
-      });
+      try {
+        await window.FishDatabase.createProject({
+          id: projectId,
+          name: name,
+          aspectRatio: selectedRatio,
+          resolution: selectedRes,
+          fps: selectedFps,
+          bgColor: selectedBg
+        });
+      } catch (err) {
+        console.warn('FishDatabase createProject error, using fallback:', err);
+      }
     }
+
+    // Close modal without triggering history.back (prevents navigation abort in Safari)
+    if (window.Modal) {
+      window.Modal.close(false);
+    }
+
+    const query = new URLSearchParams({
+      id: projectId,
+      name: name,
+      aspect: selectedRatio,
+      resolution: selectedRes,
+      fps: selectedFps,
+      bg: selectedBg
+    });
+
+    const targetPage = typeof resolveTargetEditorPage === 'function' ? resolveTargetEditorPage() : 'editor.html';
+    window.location.href = `${targetPage}?${query.toString()}`;
   } catch (err) {
-    console.warn('FishDatabase createProject error, using fallback:', err);
+    console.error('Failed to create new project:', err);
+    isCreatingNewProject = false;
+    if (createBtn) {
+      createBtn.style.opacity = '1';
+      createBtn.style.pointerEvents = 'auto';
+    }
   }
-
-  // Close modal without triggering history.back (prevents navigation abort in Safari)
-  if (window.Modal) {
-    window.Modal.close(false);
-  }
-
-  const query = new URLSearchParams({
-    id: projectId,
-    name: name,
-    aspect: selectedRatio,
-    resolution: selectedRes,
-    fps: selectedFps,
-    bg: selectedBg
-  });
-
-  const targetPage = resolveTargetEditorPage();
-  window.location.href = `${targetPage}?${query.toString()}`;
 }
 
 /**

@@ -669,16 +669,17 @@
     }
 
     function initPickwhipDrag(pickwhipBtn, sourceLayerId) {
-      if (pickwhipBtn._pickwhipBound) return;
+      if (!pickwhipBtn || pickwhipBtn._pickwhipBound) return;
       pickwhipBtn._pickwhipBound = true;
 
       pickwhipBtn.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0) return;
+        if (e.button !== undefined && e.button !== 0) return;
         e.stopPropagation();
+        e.stopImmediatePropagation();
         e.preventDefault();
 
         const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
-        const sourceLayer = layers.find(l => l.id === sourceLayerId);
+        const sourceLayer = layers.find(l => String(l.id) === String(sourceLayerId));
         if (!sourceLayer) return;
 
         const rect = pickwhipBtn.getBoundingClientRect();
@@ -686,6 +687,7 @@
         const originY = rect.top + rect.height / 2;
 
         pickwhipBtn.classList.add('is-dragging');
+        document.body.style.cursor = 'crosshair';
 
         let laserSvg = document.querySelector('.desktop-pickwhip-laser-svg');
         if (!laserSvg) {
@@ -708,7 +710,7 @@
 
           const underEl = document.elementFromPoint(me.clientX, me.clientY);
           const slot = underEl ? underEl.closest('.timeline-lane-pill-slot') : null;
-          if (slot && slot.dataset.layerId && slot.dataset.layerId !== sourceLayerId) {
+          if (slot && slot.dataset.layerId && String(slot.dataset.layerId) !== String(sourceLayerId)) {
             if (currentHoverSlot !== slot) {
               if (currentHoverSlot) currentHoverSlot.classList.remove('is-pickwhip-target');
               currentHoverSlot = slot;
@@ -728,6 +730,7 @@
           window.removeEventListener('pointercancel', onPointerUp, { capture: true });
 
           pickwhipBtn.classList.remove('is-dragging');
+          document.body.style.cursor = '';
           if (laserSvg) laserSvg.remove();
           if (currentHoverSlot) {
             currentHoverSlot.classList.remove('is-pickwhip-target');
@@ -737,8 +740,9 @@
           const targetSlot = dropEl ? dropEl.closest('.timeline-lane-pill-slot') : null;
           const targetLayerId = targetSlot ? targetSlot.dataset.layerId : null;
 
-          if (targetLayerId && targetLayerId !== sourceLayerId) {
-            const targetLayer = layers.find(l => l.id === targetLayerId);
+          if (targetLayerId && String(targetLayerId) !== String(sourceLayerId)) {
+            const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+            const targetLayer = curLayers.find(l => String(l.id) === String(targetLayerId));
             if (targetLayer && typeof window.linkLayer === 'function') {
               window.linkLayer(sourceLayer, targetLayer);
               if (typeof window.showEffectsRackToast === 'function') {
@@ -770,7 +774,7 @@
         if (!pill) return;
 
         const layerId = slot.dataset.layerId || pill.dataset.layerId;
-        const layer = layers.find(l => l.id === layerId) || layers[slotIdx];
+        const layer = layers.find(l => String(l.id) === String(layerId)) || layers[slotIdx];
 
         const layerType = layer ? layer.type : 'video';
         const layerName = layer ? layer.name : (pill.title ? pill.title.split(' - ')[0] : 'Layer');
@@ -794,7 +798,7 @@
             e.stopPropagation();
             e.preventDefault();
             const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
-            const targetLayer = currentLayers.find(l => l.id === layerId) || layer;
+            const targetLayer = currentLayers.find(l => String(l.id) === String(layerId)) || layer;
             if (targetLayer) {
               targetLayer._kfExpanded = !targetLayer._kfExpanded;
               if (typeof window.renderTimelineLayers === 'function') {
@@ -803,7 +807,7 @@
             }
           });
         } else {
-          twistie.classList.toggle('is-expanded', !!(layer && layer._kfExpanded));
+          twistie.className = `desktop-layer-twistie-btn ${layer && layer._kfExpanded ? 'is-expanded' : ''}`;
           twistie.title = layer && layer._kfExpanded ? 'Collapse Keyframes (U)' : 'Expand Keyframes (U)';
         }
 
@@ -818,7 +822,7 @@
             if (idxEl) idxEl.remove();
             idxEl = document.createElement('span');
             idxEl.className = 'desktop-layer-null-icon';
-            idxEl.title = 'Null Object';
+            idxEl.title = 'Null Object (Drag to link)';
             idxEl.innerHTML = '<span class="svg-icon svg-icon-null" aria-hidden="true"></span>';
             const eyeBtn = pill.querySelector('.timeline-layer-eye-btn');
             if (eyeBtn && eyeBtn.nextSibling) {
@@ -827,6 +831,7 @@
               pill.appendChild(idxEl);
             }
           }
+          initPickwhipDrag(idxEl, layerId);
         } else {
           if (!idxEl || !idxEl.classList.contains('desktop-layer-index')) {
             if (idxEl) idxEl.remove();
@@ -871,12 +876,14 @@
 
           mblurBtn.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
+            e.stopImmediatePropagation();
           });
           mblurBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            e.stopImmediatePropagation();
             e.preventDefault();
             const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
-            const target = curLayers.find(l => l.id === layerId) || layer;
+            const target = curLayers.find(l => String(l.id) === String(layerId)) || layer;
             if (target) {
               target.motionBlur = !target.motionBlur;
               mblurBtn.classList.toggle('is-active', !!target.motionBlur);
@@ -912,15 +919,17 @@
 
           parentBadge.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
+            e.stopImmediatePropagation();
           });
           parentBadge.addEventListener('click', (e) => {
             e.stopPropagation();
+            e.stopImmediatePropagation();
             e.preventDefault();
             if (typeof window.selectTimelineLayer === 'function') {
               window.selectTimelineLayer(layerId, false);
             }
             if (typeof window.openLayerLinkPopover === 'function') {
-              window.openLayerLinkPopover(parentBadge);
+              window.openLayerLinkPopover(parentBadge, layerId);
             }
           });
         }
@@ -929,7 +938,7 @@
         const parentLabel = parentBadge && parentBadge.querySelector('.parent-label-text');
         if (parentLabel) {
           if (layer && layer.parentId) {
-            const pLayer = layers.find(l => l.id === layer.parentId);
+            const pLayer = layers.find(l => String(l.id) === String(layer.parentId));
             const pIdx = pLayer ? layers.indexOf(pLayer) : -1;
             const pText = pLayer ? `${pIdx + 1}. ${pLayer.name || 'Layer'}` : 'None';
             parentLabel.textContent = pText;
@@ -1142,7 +1151,15 @@
           }
 
           pill.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('.timeline-layer-eye-btn') || e.target.closest('.desktop-layer-twistie-btn')) {
+            if (
+              e.target.closest('.timeline-layer-eye-btn') ||
+              e.target.closest('.desktop-layer-twistie-btn') ||
+              e.target.closest('.desktop-layer-mblur-btn') ||
+              e.target.closest('.desktop-layer-parent-col') ||
+              e.target.closest('.desktop-layer-pickwhip-btn') ||
+              e.target.closest('.desktop-layer-parent-badge') ||
+              e.target.closest('.desktop-layer-null-icon')
+            ) {
               return;
             }
             // Stop editor.js mobile hold timer from starting!
@@ -1176,6 +1193,16 @@
     enhanceLaneHeads();
   }
 
+  // Helper to read live panel width without hardcoding
+  function getDesktopPanelW() {
+    const rootVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w'));
+    if (!isNaN(rootVal) && rootVal > 0) return rootVal;
+    const gutter = document.querySelector('.desktop-ruler-gutter');
+    if (gutter && gutter.offsetWidth > 0) return gutter.offsetWidth;
+    return 240;
+  }
+  window.getDesktopPanelW = getDesktopPanelW;
+
   // --- 7. AE-Style Left-Anchored Timeline Engine ---
   let isLeftTimelineInited = false;
   function patchDesktopLeftTimeline() {
@@ -1189,17 +1216,18 @@
     isLeftTimelineInited = true;
 
     let desktopScrollX = 0;
-    const panelW = 160;
 
     // Cache ruler viewport width to eliminate forced synchronous layout (layout thrashing) per frame
     let _cachedViewW = rulerViewport ? rulerViewport.clientWidth : 800;
     window.addEventListener('resize', () => {
       if (rulerViewport) _cachedViewW = rulerViewport.clientWidth;
+      syncDesktopPlayhead();
     }, { passive: true });
 
     let _lastSyncSec = -1;
     let _lastSyncScrollX = -1;
     function syncDesktopPlayhead() {
+      const panelW = getDesktopPanelW();
       const pps = window.currentPixelsPerSecond || 80;
       const curSec = (typeof window.getCurrentPlayheadTime === 'function')
         ? window.getCurrentPlayheadTime()
@@ -1415,7 +1443,7 @@
 
         // Compute time from X position within layers track
         const rect = layersViewport.getBoundingClientRect();
-        const panelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w')) || 160;
+        const panelW = getDesktopPanelW();
         const clickX = e.clientX - rect.left - panelW;
         const pps = window.currentPixelsPerSecond || 80;
         const targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
@@ -1436,7 +1464,7 @@
       layersViewport.addEventListener('pointermove', (e) => {
         if (!isEmptyAreaSeeking) return;
         const rect = layersViewport.getBoundingClientRect();
-        const panelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w')) || 160;
+        const panelW = getDesktopPanelW();
         const clickX = e.clientX - rect.left - panelW;
         const pps = window.currentPixelsPerSecond || 80;
         const targetSec = Math.max(0, (clickX + desktopScrollX) / pps);
@@ -1458,8 +1486,124 @@
       layersViewport.addEventListener('pointerup', stopEmptyAreaSeek, true);
       layersViewport.addEventListener('pointercancel', stopEmptyAreaSeek, true);
     }
+
+    initDesktopTimelineResizers();
   }
 
+  // --- AE-Style Column & Panel Resizing Engine ---
+  let isResizersInited = false;
+  function initDesktopTimelineResizers() {
+    if (isResizersInited) return;
+    isResizersInited = true;
+
+    // 1. Restore saved preferences from localStorage
+    try {
+      const savedPanelW = localStorage.getItem('oft_desktop_layer_panel_w');
+      if (savedPanelW) {
+        document.documentElement.style.setProperty('--desktop-layer-panel-w', `${savedPanelW}px`);
+      }
+      const savedParentW = localStorage.getItem('oft_desktop_parent_col_w');
+      if (savedParentW) {
+        document.documentElement.style.setProperty('--desktop-parent-col-w', `${savedParentW}px`);
+      }
+    } catch (_) {}
+
+    // 2. Full-height Layer Panel Resizer Handle
+    const panelResizer = document.getElementById('desktop-timeline-panel-resizer');
+    const timelineWrapper = document.querySelector('.desktop-timeline-wrapper');
+    if (panelResizer) {
+      let isDragging = false;
+      let startX = 0;
+      let startW = 240;
+
+      function onPointerDown(e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        isDragging = true;
+        startX = e.clientX;
+        startW = getDesktopPanelW();
+        panelResizer.classList.add('is-dragging');
+        try { panelResizer.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.cursor = 'col-resize';
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+
+      function onPointerMove(e) {
+        if (!isDragging) return;
+        const delta = e.clientX - startX;
+        const maxW = timelineWrapper ? Math.max(300, timelineWrapper.clientWidth - 200) : 600;
+        const newW = Math.max(180, Math.min(maxW, Math.round(startW + delta)));
+
+        document.documentElement.style.setProperty('--desktop-layer-panel-w', `${newW}px`);
+        try { localStorage.setItem('oft_desktop_layer_panel_w', newW); } catch (_) {}
+
+        if (typeof window.syncDesktopPlayhead === 'function') {
+          window.syncDesktopPlayhead();
+        }
+      }
+
+      function onPointerUp(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        panelResizer.classList.remove('is-dragging');
+        try { panelResizer.releasePointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.cursor = '';
+        if (typeof window.syncDesktopPlayhead === 'function') {
+          window.syncDesktopPlayhead();
+        }
+      }
+
+      panelResizer.addEventListener('pointerdown', onPointerDown);
+      panelResizer.addEventListener('pointermove', onPointerMove);
+      panelResizer.addEventListener('pointerup', onPointerUp);
+      panelResizer.addEventListener('pointercancel', onPointerUp);
+    }
+
+    // 3. Ruler Gutter Column Resizers (Layer Name vs M vs Parent & Link)
+    const gutter = document.querySelector('.desktop-ruler-gutter');
+    if (gutter) {
+      const colResizers = gutter.querySelectorAll('.desktop-ruler-col-resizer');
+      colResizers.forEach(resizer => {
+        let isDraggingCol = false;
+        let startX = 0;
+        let startParentW = 76;
+
+        resizer.addEventListener('pointerdown', (e) => {
+          if (e.button !== undefined && e.button !== 0) return;
+          isDraggingCol = true;
+          startX = e.clientX;
+          startParentW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-parent-col-w')) || 76;
+          resizer.classList.add('is-dragging');
+          try { resizer.setPointerCapture(e.pointerId); } catch (_) {}
+          document.body.style.cursor = 'col-resize';
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        });
+
+        resizer.addEventListener('pointermove', (e) => {
+          if (!isDraggingCol) return;
+          const delta = e.clientX - startX;
+          // Dragging resizer shrinks/expands Parent & Link column (inverted relative to name)
+          const newParentW = Math.max(50, Math.min(160, Math.round(startParentW - delta)));
+          document.documentElement.style.setProperty('--desktop-parent-col-w', `${newParentW}px`);
+          try { localStorage.setItem('oft_desktop_parent_col_w', newParentW); } catch (_) {}
+        });
+
+        function stopColDrag(e) {
+          if (!isDraggingCol) return;
+          isDraggingCol = false;
+          resizer.classList.remove('is-dragging');
+          try { resizer.releasePointerCapture(e.pointerId); } catch (_) {}
+          document.body.style.cursor = '';
+        }
+
+        resizer.addEventListener('pointerup', stopColDrag);
+        resizer.addEventListener('pointercancel', stopColDrag);
+      });
+    }
+  }
 
   // --- 8. Desktop AE-Style Clip Drag & Move Engine ---
   let isClipDragInited = false;

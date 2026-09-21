@@ -11652,9 +11652,11 @@
     }
     window.unlinkLayer = unlinkLayer;
 
-    function openLayerLinkPopover(triggerEl) {
-      const currentLayerId = window.selectedLayerId || (selectedLayerIds && selectedLayerIds.size === 1 ? Array.from(selectedLayerIds)[0] : null);
-      const currentLayer = (currentProjectState.layers || []).find(l => l.id === currentLayerId);
+    function openLayerLinkPopover(triggerEl, explicitLayerId) {
+      const currentLayerId = (explicitLayerId !== undefined && explicitLayerId !== null)
+        ? explicitLayerId
+        : (window.selectedLayerId || (selectedLayerIds && selectedLayerIds.size === 1 ? Array.from(selectedLayerIds)[0] : null));
+      const currentLayer = (currentProjectState.layers || []).find(l => String(l.id) === String(currentLayerId));
       if (!currentLayer) return;
 
       const listContainer = document.getElementById('layer-link-popover-list');
@@ -11690,13 +11692,13 @@
 
       // Check if candidateId is a descendant of ancestorId to prevent circular dependency
       function isDescendant(candidateId, ancestorId) {
-        let cur = layers.find(l => l.id === candidateId);
+        let cur = layers.find(l => String(l.id) === String(candidateId));
         const visited = new Set();
         while (cur && cur.parentId) {
           if (visited.has(cur.id)) break;
           visited.add(cur.id);
-          if (cur.parentId === ancestorId) return true;
-          cur = layers.find(l => l.id === cur.parentId);
+          if (String(cur.parentId) === String(ancestorId)) return true;
+          cur = layers.find(l => String(l.id) === String(cur.parentId));
         }
         return false;
       }
@@ -11734,9 +11736,9 @@
 
       // Render layer items (excluding currentLayer itself)
       layers.forEach(layerItem => {
-        if (layerItem.id === currentLayer.id) return; // Don't show self
+        if (String(layerItem.id) === String(currentLayer.id)) return; // Don't show self
 
-        const isCurrentParent = (layerItem.id === currentLayer.parentId);
+        const isCurrentParent = (String(layerItem.id) === String(currentLayer.parentId));
         const isCircular = isDescendant(layerItem.id, currentLayer.id);
 
         const itemBtn = document.createElement('button');
@@ -24111,7 +24113,15 @@
             const pillEl = pillSlot.querySelector('.timeline-layer-ctrl-pill');
             if (pillEl) {
               function onPillPointerDown(e) {
-                if (e.target.closest('.timeline-layer-eye-btn') || e.target.closest('.desktop-layer-twistie-btn')) return;
+                if (
+                  e.target.closest('.timeline-layer-eye-btn') ||
+                  e.target.closest('.desktop-layer-twistie-btn') ||
+                  e.target.closest('.desktop-layer-mblur-btn') ||
+                  e.target.closest('.desktop-layer-parent-col') ||
+                  e.target.closest('.desktop-layer-pickwhip-btn') ||
+                  e.target.closest('.desktop-layer-parent-badge') ||
+                  e.target.closest('.desktop-layer-null-icon')
+                ) return;
                 if (e.button !== undefined && e.button !== 0) return;
 
                 // Stop browser default text selection, image drag, and touch scroll

@@ -16,6 +16,7 @@
   --desktop-btn-h: 30px;
   --desktop-btn-h-lg: 40px;
   --desktop-layer-panel-w: 240px;
+  --desktop-parent-col-w: 76px;
 }
 
 /* --- Global Desktop Viewport Root --- */
@@ -3929,7 +3930,7 @@
 
 .desktop-ruler-col-label.col-name {
   flex: 1;
-  min-width: 0;
+  min-width: 30px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3942,10 +3943,71 @@
 }
 
 .desktop-ruler-col-label.col-parent {
-  width: 76px;
+  width: var(--desktop-parent-col-w, 76px);
   text-align: left;
   padding-left: 2px;
   flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ruler Gutter Column Resizers (Layer Name vs M vs Parent) */
+.desktop-ruler-col-resizer {
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 -2px;
+}
+
+.desktop-ruler-col-resizer::after {
+  content: '';
+  width: 1px;
+  height: 14px;
+  background-color: var(--border-subtle);
+  transition: background-color 0.1s ease, width 0.1s ease;
+}
+
+.desktop-ruler-col-resizer:hover::after,
+.desktop-ruler-col-resizer.is-dragging::after {
+  background-color: var(--color-primary);
+  width: 2px;
+}
+
+/* Full-height Timeline Layer Panel Vertical Resizer Handle */
+.desktop-timeline-panel-resizer {
+  position: absolute;
+  top: 36px;
+  bottom: 0;
+  left: var(--desktop-layer-panel-w, 240px);
+  width: 8px;
+  margin-left: -4px;
+  cursor: col-resize;
+  z-index: 42;
+  background: transparent;
+  transition: background-color 0.1s ease;
+}
+
+.desktop-timeline-panel-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background-color 0.1s ease;
+}
+
+.desktop-timeline-panel-resizer:hover::after,
+.desktop-timeline-panel-resizer.is-dragging::after {
+  background-color: var(--color-primary);
 }
 
 /* Ruler viewport takes remaining space */
@@ -4193,6 +4255,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: grab;
+  user-select: none;
+}
+
+.desktop-layer-null-icon:hover {
+  color: var(--color-primary);
+}
+
+.desktop-layer-null-icon:active,
+.desktop-layer-null-icon.is-dragging {
+  cursor: grabbing;
 }
 
 .desktop-layer-null-icon .svg-icon {
@@ -4239,7 +4312,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  width: 76px;
+  width: var(--desktop-parent-col-w, 76px);
   flex-shrink: 0;
   box-sizing: border-box;
 }
@@ -4314,13 +4387,14 @@
   outline-offset: -1px;
 }
 
-.desktop-pickwhip-laser-svg {
+.desktop-pickwhip-laser-svg,
+.desktop-pickwhip-laser-svg * {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  pointer-events: none;
+  pointer-events: none !important;
   z-index: 99999;
 }
 
@@ -4472,7 +4546,7 @@
   cursor: ew-resize;
   z-index: 45;
   will-change: transform;
-  transform: translate3d(var(--desktop-layer-panel-w, 160px), 0, 0);
+  transform: translate3d(var(--desktop-layer-panel-w, 240px), 0, 0);
   transition: none !important;
 }
 

@@ -556,7 +556,7 @@
           <div class="brand-title">FishTool</div>
           <div class="brand-subtitle-row">
             <span class="brand-subtitle">Studio</span>
-            <span class="badge-pre-alpha" id="studio-version-badge">0.5.30</span>
+            <span class="badge-pre-alpha" id="studio-version-badge">0.5.31</span>
           </div>
           <h2 class="projects-title" style="margin-top: 10px;">Your Project</h2>
         </div>
@@ -564,7 +564,7 @@
         <div class="component-box">
           <span class="component-box-title">Badges & Metadata</span>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <span class="badge-pre-alpha">0.5.30</span>
+            <span class="badge-pre-alpha">0.5.31</span>
             <span class="project-count-badge">5</span>
             <span class="project-count-badge">12</span>
             <span class="project-count-badge">99+</span>
@@ -1661,6 +1661,11 @@
                 <!-- Playback Settings (.is-play-settings-popover) Trigger -->
                 <button type="button" class="theme-btn" data-popover-target="demo-popover-play-settings" style="padding: 8px 14px; font-size: 12px;">
                   ⏯️ Play Settings (.is-play-settings-popover)
+                </button>
+
+                <!-- Layer Attributes Matrix (.is-attributes-popover) Trigger -->
+                <button type="button" class="theme-btn" data-popover-target="demo-popover-attributes" style="padding: 8px 14px; font-size: 12px;">
+                  📋 Attributes Matrix (.is-attributes-popover)
                 </button>
               </div>
 
@@ -5261,7 +5266,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.30</span>
+          <span class="welcome-badge">v0.5.31</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -5297,11 +5302,26 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.31 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.31</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 21, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Selective Copy &amp; Paste Layer Attributes Popover (`editor.html`, `desktop.html`, `js/attributes-clipboard.js`, `css/popover.css`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.30 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.30</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 20, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -6616,6 +6636,44 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
     </div>
   </div>
 
+  <!-- Popover 8e: Layer Attributes Popover (.is-attributes-popover) -->
+  <div class="popover-card is-attributes-popover" id="demo-popover-attributes" role="dialog" aria-hidden="true">
+    <div class="popover-tail" aria-hidden="true"></div>
+    <div class="attributes-popover-header">
+      <span class="attributes-popover-title">Copy Attributes</span>
+      <span class="attributes-popover-subtitle">Shape Layer (Rectangle 1)</span>
+    </div>
+    <div class="attributes-toggle-grid">
+      <button type="button" class="attr-toggle-btn is-active" onclick="this.classList.toggle('is-active')">
+        <span class="attr-toggle-icon"><svg viewBox="0 0 24 24"><path d="M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5zM16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21z"/></svg></span>
+        <span class="attr-toggle-label">Fill</span>
+      </button>
+      <button type="button" class="attr-toggle-btn is-active" onclick="this.classList.toggle('is-active')">
+        <span class="attr-toggle-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 9.5h8M4 12h10M5 14.5h8" stroke-width="1.2" stroke-linecap="round"/><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg></span>
+        <span class="attr-toggle-label">Opacity &amp; Blend</span>
+      </button>
+      <button type="button" class="attr-toggle-btn is-active" onclick="this.classList.toggle('is-active')">
+        <span class="attr-toggle-icon"><svg viewBox="0 0 24 24"><path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/></svg></span>
+        <span class="attr-toggle-label">Effects (2)</span>
+      </button>
+      <button type="button" class="attr-toggle-btn is-active" onclick="this.classList.toggle('is-active')">
+        <span class="attr-toggle-icon"><svg viewBox="0 0 24 24"><path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 5h-5v2h7v-7h-2v5z"/></svg></span>
+        <span class="attr-toggle-label">Transform</span>
+      </button>
+      <button type="button" class="attr-toggle-btn is-active" onclick="this.classList.toggle('is-active')">
+        <span class="attr-toggle-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></span>
+        <span class="attr-toggle-label">Border &amp; Shadow</span>
+      </button>
+      <button type="button" class="attr-toggle-btn is-disabled" title="Only for video layers">
+        <span class="attr-toggle-icon"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></span>
+        <span class="attr-toggle-label">Speed &amp; Volume</span>
+      </button>
+    </div>
+    <div class="attributes-popover-footer">
+      <button type="button" class="attr-action-btn" onclick="if(window.Popover) window.Popover.close()">Copy</button>
+    </div>
+  </div>
+
   <!-- Popover 9: Color Picker Popover (.color-picker-popover-card) -->
   <div class="popover-card color-picker-popover-card" id="popover-color-picker" role="dialog" aria-hidden="true" style="padding: 0; width: 326px;">
     <div class="popover-tail" aria-hidden="true"></div>
@@ -6748,7 +6806,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.30"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.31"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>

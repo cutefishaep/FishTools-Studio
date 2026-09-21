@@ -5,6 +5,19 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.31] - 2026-09-21
+
+### Added
+- **Selective Copy & Paste Layer Attributes Popover (`editor.html`, `desktop.html`, `js/attributes-clipboard.js`, `css/popover.css`)**:
+  - Added dedicated **Copy** and **Paste** buttons in Mobile More Settings dock and Desktop timeline toolbar.
+  - Interactive Attributes Popover allowing selective copying and pasting of layer attributes: Fill, Opacity & Blend, Effects, Transform, Border & Shadow, and Speed/Volume.
+  - Single-selection filtering for `shape`, `video`, and `photo` (`image`) layers with transparent fallback to standard layer copy/paste on multi-selection or non-supported layer types (`text`, `audio`, `null`, `camera`, `adjustment`).
+  - Adaptive Paste Popover: only attributes present in the clipboard are enabled for pasting, preventing mismatched property overwrites.
+  - Multi-target paste support allowing 1-to-many attribute propagation across multiple selected timeline layers.
+  - Extracted hardcoded inline SVGs to clean standalone vector assets `assets/copy.svg` and `assets/paste.svg` with unified CSS mask token binding.
+
+---
+
 ## [0.5.30] - 2026-09-20
 
 ### Fixed

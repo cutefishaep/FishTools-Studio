@@ -3582,6 +3582,8 @@
 .svg-icon-lightning { -webkit-mask-image: url('../assets/lightning.svg'); mask-image: url('../assets/lightning.svg'); }
 .svg-icon-grid { -webkit-mask-image: url('../assets/icon-grid.svg'); mask-image: url('../assets/icon-grid.svg'); }
 .svg-icon-motion-blur { -webkit-mask-image: url('../assets/icon-motion-blur.svg'); mask-image: url('../assets/icon-motion-blur.svg'); }
+.svg-icon-copy { -webkit-mask-image: url('../assets/copy.svg'); mask-image: url('../assets/copy.svg'); }
+.svg-icon-paste { -webkit-mask-image: url('../assets/paste.svg'); mask-image: url('../assets/paste.svg'); }
 
 /* Desktop Zoom Stepper in Timeline Toolbar */
 .desktop-zoom-stepper {

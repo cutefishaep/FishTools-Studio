@@ -288,17 +288,10 @@
       const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
       const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
 
-      // Animation vertical padding — prevents character clipping during spring/bounce entry
-      const normIn = normalizeAnimIn(p.animIn || p.animation || 'none');
-      let animPadY = 0;
-      if (normIn === 'bounce_1' || normIn === 'bounce_3') {
-        // Characters start fontSize*4 below their rest position — need that + buffer
-        animPadY = Math.round((p.fontSize || 64) * 4.5);
-      } else if (normIn === 'bounce_2' || normIn === 'bounce_4') {
-        animPadY = Math.round((p.fontSize || 64) * 4.5);
-      } else if (normIn === 'fade_up') {
-        animPadY = 40;
-      }
+      // No animation padding on canvas size — the layer dimensions are fixed at creation.
+      // Displaced characters below the canvas are clipped until they spring into view.
+      // This is correct behavior: text "emerges" from the bottom of its bounding box.
+      const animPadY = 0;
 
       const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width + padX + shadowPad * 2));
       const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2 + animPadY * 2));
@@ -414,8 +407,8 @@
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
 
-            // Start position: ~2.5x fontSize below (matches AE 865px at 94px font = ~9x, scaled to taste)
-            const startOffY = fontSize * 4.0;
+            // Start position: 1.5x fontSize below rest (emerges from bottom of text box)
+            const startOffY = fontSize * 1.5;
             const startScale = 0.0;
             const startRot = charIndex % 2 === 0 ? -30 : 30; // alternating tilt like AE
 
@@ -462,7 +455,7 @@
             const t = localSec - retard;
             const duration = 0.10;
 
-            const startOffY = fontSize * 4.0;
+            const startOffY = fontSize * 1.3;
             const startRot = charIndex % 2 === 0 ? -20 : 20;
 
             if (t <= 0) {
@@ -500,7 +493,7 @@
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
 
-            const startOffY = fontSize * 3.5;
+            const startOffY = fontSize * 1.3;
             const startRot = charIndex % 2 === 0 ? -25 : 25;
 
             if (t <= 0) {
@@ -531,7 +524,7 @@
             const t = localSec - retard;
             const duration = 0.25;
 
-            const startOffY = fontSize * 3.0;
+            const startOffY = fontSize * 1.2;
             const startRot = charIndex % 2 === 0 ? -15 : 15;
 
             if (t <= 0) {

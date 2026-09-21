@@ -400,139 +400,85 @@
           // "Amount" expression creates the stagger timing per character.
 
           if (normIn === 'bounce_1') {
-            // Expression 1: 20ms stagger, freq=3, decay=7
-            // CHAIN model: all chars visible from frame 0, spring sweeps left→right
-            const delay = 0.020;
+            // ── Pure position Y spring, 10ms stagger ────────────────────────
+            // decay=8 (fast settle ~200ms), freq=3, amplitude = 0.6 × fontSize
+            // Scale stays at 1.0 — position only, clean & fast
+            const delay = 0.010;
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
 
-            const startRot = charIndex % 2 === 0 ? -30 : 30;
-
             if (t <= 0) {
-              // Waiting chars: visible, small, tilted — creates the chain
-              scaleX = 0.1;
-              scaleY = 0.1;
-              charRotation = startRot;
-              charAlpha = 0.7;
-              offY = fontSize * 0.3; // slightly below, visible
+              charAlpha = 0;
             } else {
               const freq = 3;
-              const decay = 7.0;
-              // spring: 1 at t=0 → decays to 0 (rest position)
-              const spring = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-
-              // Position: spring from slightly below → rest
-              offY = fontSize * 0.3 * Math.max(0, spring);
-              // Rotation: spring from startRot → 0
-              charRotation = startRot * Math.max(0, spring);
-
-              // Scale: 0.1 → 1.0, driven by spring decay
-              const rise = 1.0 - Math.max(0, spring);  // 0 at t=0, 1 at rest
-              const sc = Math.min(1.4, Math.max(0.1, 0.1 + rise * 1.3 * (1.0 + spring * 0.15)));
-              scaleX = sc * (1.0 + spring * 0.10);
-              scaleY = sc * (1.0 - spring * 0.08);
-
-              charAlpha = Math.min(1.0, 0.7 + rise * 0.3);
+              const decay = 8.0;
+              const amplitude = fontSize * 0.6;
+              // Damped cosine: starts at amplitude, oscillates to 0
+              const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
+              offY = s; // bounce from below (positive = down in canvas coords)
+              charAlpha = Math.min(1.0, t / 0.015); // instant reveal
             }
 
           } else if (normIn === 'bounce_2') {
-            // Expression 2: 2-frame stagger, 0.10s ramp + elastic overshoot
-            // CHAIN model: all chars visible at start, cascade of scale-ups
+            // ── Pure scale spring, 2-frame stagger ──────────────────────────
+            // Scale 0→1 with 30% overshoot bounce. No position change.
             const frameDuration = 1.0 / (fps || 60);
             const retard = charIndex * frameDuration * 2;
             const t = localSec - retard;
-            const duration = 0.10;
-
-            const startRot = charIndex % 2 === 0 ? -20 : 20;
 
             if (t <= 0) {
-              scaleX = 0.1;
-              scaleY = 0.1;
-              charRotation = startRot;
-              charAlpha = 0.7;
-            } else if (t < duration) {
-              const u = t / duration;
-              const eo = 1 - Math.pow(1 - u, 3);
-              scaleX = 0.1 + eo * 0.9;
-              scaleY = 0.1 + eo * 0.9;
-              charRotation = startRot * (1 - eo);
-              charAlpha = Math.min(1.0, 0.7 + u * 0.3);
+              scaleX = 0;
+              scaleY = 0;
+              charAlpha = 0;
             } else {
-              const tPost = t - duration;
-              const w = 2 * Math.PI * 2;
-              const decay = 9;
-              const springAmp = 0.35;
-              const spring = springAmp * Math.sin(tPost * w) / Math.exp(decay * tPost);
-              const sc = Math.max(0.1, Math.min(1.5, 1.0 + spring));
-              scaleX = sc > 1 ? (1.0 + (sc - 1) * 1.5) : sc;
-              scaleY = sc > 1 ? (1.0 + (sc - 1) * 0.5) : sc;
-              charRotation = 0;
-              charAlpha = 1.0;
+              const freq = 3;
+              const decay = 9.0;
+              // Spring: starts at -1 (scale 0), oscillates to 0 (scale 1) with overshoot
+              const s = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
+              // sc: 0 at t=0, oscillates past 1.0 (overshoot), settles at 1.0
+              const sc = Math.max(0, 1.0 - s);
+              scaleX = Math.min(1.4, sc);
+              scaleY = Math.min(1.4, sc);
+              charAlpha = Math.min(1.0, t / 0.015);
             }
 
           } else if (normIn === 'bounce_3') {
-            // Expression 3: 60ms stagger, freq=2, decay=8
-            // CHAIN model: slow wave sweeps across, all chars visible as chain
-            const delay = 0.060;
+            // ── Pure position Y spring, 35ms stagger (visible wave) ─────────
+            // Slower stagger = wider wave sweeping across word
+            const delay = 0.035;
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
 
-            const startRot = charIndex % 2 === 0 ? -25 : 25;
-
             if (t <= 0) {
-              scaleX = 0.1;
-              scaleY = 0.1;
-              charRotation = startRot;
-              charAlpha = 0.7;
-              offY = fontSize * 0.3;
+              charAlpha = 0;
             } else {
-              const freq = 2;
-              const decay = 8.0;
-              const spring = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-
-              offY = fontSize * 0.3 * Math.max(0, spring);
-              charRotation = startRot * Math.max(0, spring);
-
-              const rise = 1.0 - Math.max(0, spring);
-              const sc = Math.min(1.3, Math.max(0.1, 0.1 + rise * 1.2 * (1.0 + spring * 0.12)));
-              scaleX = sc * (1.0 + spring * 0.08);
-              scaleY = sc * (1.0 - spring * 0.06);
-              charAlpha = Math.min(1.0, 0.7 + rise * 0.3);
+              const freq = 2.5;
+              const decay = 6.5;
+              const amplitude = fontSize * 0.55;
+              const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
+              offY = s;
+              charAlpha = Math.min(1.0, t / 0.020);
             }
 
           } else if (normIn === 'bounce_4') {
-            // Expression 4: 3-frame stagger, 0.25s ramp, gentle elastic
-            // CHAIN model: cascade visible from start, slow chain settle
+            // ── Gentle scale spring, 3-frame stagger ────────────────────────
+            // Slower settle, minimal overshoot — calm professional entry
             const frameDuration = 1.0 / (fps || 60);
             const retard = charIndex * frameDuration * 3;
             const t = localSec - retard;
-            const duration = 0.25;
-
-            const startRot = charIndex % 2 === 0 ? -15 : 15;
 
             if (t <= 0) {
-              scaleX = 0.1;
-              scaleY = 0.1;
-              charRotation = startRot;
-              charAlpha = 0.7;
-            } else if (t < duration) {
-              const u = t / duration;
-              const eo = 1 - Math.pow(1 - u, 2.5);
-              scaleX = 0.1 + eo * 0.9;
-              scaleY = 0.1 + eo * 0.9;
-              charRotation = startRot * (1 - eo);
-              charAlpha = Math.min(1.0, 0.7 + u * 0.3);
+              scaleX = 0;
+              scaleY = 0;
+              charAlpha = 0;
             } else {
-              const tPost = t - duration;
-              const w = 1 * Math.PI * 2;
-              const decay = 8;
-              const springAmp = 0.20;
-              const spring = springAmp * Math.sin(tPost * w) / Math.exp(decay * tPost);
-              const sc = Math.max(0.1, Math.min(1.3, 1.0 + spring));
-              scaleX = sc;
-              scaleY = sc;
-              charRotation = 0;
-              charAlpha = 1.0;
+              const freq = 2;
+              const decay = 7.0;
+              const s = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
+              const sc = Math.max(0, 1.0 - s);
+              scaleX = Math.min(1.25, sc);
+              scaleY = Math.min(1.25, sc);
+              charAlpha = Math.min(1.0, t / 0.020);
             }
 
           } else if (normIn === 'wave' || p.animation === 'wave') {

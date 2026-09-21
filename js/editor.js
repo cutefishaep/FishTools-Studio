@@ -24083,7 +24083,14 @@
               return `${Math.round(val.posX)}, ${Math.round(val.posY)}`;
             }
             if (val.scaleW !== undefined && val.scaleH !== undefined) {
-              return `${Math.round(val.scaleW)}, ${Math.round(val.scaleH)}%`;
+              // scaleW/scaleH can be stored as % (e.g. 100) or px (e.g. 1080)
+              // If values look like px (>400), try to normalize to %
+              let w = val.scaleW, h = val.scaleH;
+              const pw = (window.currentProjectState && window.currentProjectState.width) || 1080;
+              const ph = (window.currentProjectState && window.currentProjectState.height) || 1920;
+              if (w > 400 && pw > 0) w = Math.round((w / pw) * 100);
+              if (h > 400 && ph > 0) h = Math.round((h / ph) * 100);
+              return `${Math.round(w)}%, ${Math.round(h)}%`;
             }
             if (val.rotZ !== undefined) {
               return `${val.rotZ.toFixed(1)}°`;
@@ -25822,10 +25829,6 @@
                 const pTrack = document.createElement('div');
                 pTrack.className = 'desktop-kf-track-row';
                 pTrack.dataset.prop = p.prop;
-
-                const trackLine = document.createElement('div');
-                trackLine.className = 'desktop-kf-track-line';
-                pTrack.appendChild(trackLine);
 
                 // Seek playhead on track line click
                 pTrack.addEventListener('click', (ev) => {

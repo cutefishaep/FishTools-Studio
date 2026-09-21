@@ -5363,16 +5363,6 @@
   background-color: var(--bg-panel-hover);
 }
 
-.desktop-kf-track-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background-color: var(--border-panel);
-  pointer-events: none;
-  opacity: 0.7;
-}
 
 /* Diamond Keyframes */
 .desktop-kf-diamond {

@@ -5,6 +5,21 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.47] - 2026-09-21
+
+### Added
+- **After Effects Style Timeline Panel Resizer (`desktop.html`, `css/desktop.css`, `js/desktop.js`)**:
+  - Relocated `#desktop-timeline-panel-resizer` to root of `.editor-timeline` spanning full timeline height (`top: 36px; bottom: 0; z-index: 45`) along boundary right of "Parent & Link" column.
+  - Added vertical pill splitter handle (`.split-handle-pill`) per UI guidelines with theme tokens and interactive hover/active states.
+  - Added header gutter col-resizer (`.desktop-ruler-col-resizer-panel`) for intuitive column resizing directly from timeline header.
+  - Synchronized playhead needle and persisted user width preference to `localStorage` (`oft_desktop_layer_panel_w`).
+
+### Changed
+- **Fluid Layer Name Column Expansion (`js/desktop.js`)**:
+  - Overhauled "Layer Name" divider drag behavior so dragging right expands overall layer panel (`--desktop-layer-panel-w`), preventing the column from hitting a fixed width ceiling ("mentok").
+
+---
+
 ## [0.5.46] - 2026-09-21
 
 ### Fixed

@@ -3984,18 +3984,19 @@
   width: 2px;
 }
 
-/* Full-height Timeline Layer Panel Vertical Resizer Handle */
+/* Full-height Timeline Layer Panel Vertical Resizer Handle (Left Panel vs Right Timeline Tracks) */
 .desktop-timeline-panel-resizer {
   position: absolute;
   top: 36px;
   bottom: 0;
   left: var(--desktop-layer-panel-w, 240px);
-  width: 8px;
-  margin-left: -4px;
+  width: 10px;
+  margin-left: -5px;
   cursor: col-resize;
-  z-index: 42;
+  z-index: 45;
   background: transparent;
-  transition: background-color 0.1s ease;
+  touch-action: none;
+  pointer-events: auto;
 }
 
 .desktop-timeline-panel-resizer::after {
@@ -4003,7 +4004,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 3px;
+  left: 4px;
   width: 2px;
   background: transparent;
   transition: background-color 0.1s ease;
@@ -4012,6 +4013,33 @@
 .desktop-timeline-panel-resizer:hover::after,
 .desktop-timeline-panel-resizer.is-dragging::after {
   background-color: var(--color-primary);
+}
+
+.desktop-timeline-panel-resizer .split-handle-pill {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background-color: var(--border-panel);
+  transition: background-color 0.1s ease, width 0.1s ease, opacity 0.1s ease;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.desktop-timeline-panel-resizer:hover .split-handle-pill,
+.desktop-timeline-panel-resizer.is-dragging .split-handle-pill {
+  background-color: var(--color-primary);
+  width: 6px;
+  opacity: 1;
+}
+
+.desktop-ruler-col-resizer-panel {
+  position: relative;
+  margin-right: -4px;
+  z-index: 15;
 }
 
 /* Ruler viewport takes remaining space */

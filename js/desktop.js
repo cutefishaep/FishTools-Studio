@@ -1846,6 +1846,9 @@
   // --- AE-Style Column & Panel Resizing Engine ---
   let isResizersInited = false;
   function initDesktopTimelineResizers() {
+    const panelResizer = document.getElementById('desktop-timeline-panel-resizer');
+    const gutter = document.querySelector('.desktop-ruler-gutter');
+    if (!panelResizer && !gutter) return;
     if (isResizersInited) return;
     isResizersInited = true;
 
@@ -1853,41 +1856,40 @@
     try {
       const savedPanelW = localStorage.getItem('oft_desktop_layer_panel_w');
       if (savedPanelW) {
-        document.documentElement.style.setProperty('--desktop-layer-panel-w', `${savedPanelW}px`);
-        _cachedDesktopPanelW = parseFloat(savedPanelW) || 240;
+        const val = parseFloat(savedPanelW);
+        if (!isNaN(val) && val >= 160) {
+          document.documentElement.style.setProperty('--desktop-layer-panel-w', `${val}px`);
+          _cachedDesktopPanelW = val;
+        }
       }
       const savedParentW = localStorage.getItem('oft_desktop_parent_col_w');
       if (savedParentW) {
-        document.documentElement.style.setProperty('--desktop-parent-col-w', `${savedParentW}px`);
+        const val = parseFloat(savedParentW);
+        if (!isNaN(val) && val >= 50) {
+          document.documentElement.style.setProperty('--desktop-parent-col-w', `${val}px`);
+        }
       }
     } catch (_) {}
 
-    // 2. Full-height Layer Panel Resizer Handle
-    const panelResizer = document.getElementById('desktop-timeline-panel-resizer');
-    const timelineWrapper = document.querySelector('.desktop-timeline-wrapper');
-    if (panelResizer) {
-      let isDragging = false;
-      let startX = 0;
-      let startW = 240;
-
-      function onPointerDown(e) {
-        if (e.button !== undefined && e.button !== 0) return;
-        isDragging = true;
-        startX = e.clientX;
-        startW = getDesktopPanelW();
-        panelResizer.classList.add('is-dragging');
-        try { panelResizer.setPointerCapture(e.pointerId); } catch (_) {}
-        document.body.style.cursor = 'col-resize';
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
+    // Helper to resize the overall left Layer Panel width (Left Panel vs Right Timeline Tracks)
+    function startLayerPanelResize(startEvent) {
+      if (startEvent.button !== undefined && startEvent.button !== 0) return;
+      const startX = startEvent.clientX;
+      const startW = getDesktopPanelW();
+      const pResizer = document.getElementById('desktop-timeline-panel-resizer');
+      if (pResizer) pResizer.classList.add('is-dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      startEvent.preventDefault();
+      startEvent.stopPropagation();
+      startEvent.stopImmediatePropagation();
 
       function onPointerMove(e) {
-        if (!isDragging) return;
+        e.preventDefault();
         const delta = e.clientX - startX;
-        const maxW = timelineWrapper ? Math.max(300, timelineWrapper.clientWidth - 200) : 600;
-        const newW = Math.max(180, Math.min(maxW, Math.round(startW + delta)));
+        const timelineWrapper = document.querySelector('.desktop-timeline-wrapper');
+        const maxW = timelineWrapper ? Math.max(300, timelineWrapper.clientWidth - 180) : 700;
+        const newW = Math.max(160, Math.min(maxW, Math.round(startW + delta)));
 
         document.documentElement.style.setProperty('--desktop-layer-panel-w', `${newW}px`);
         _cachedDesktopPanelW = newW;
@@ -1898,65 +1900,84 @@
         }
       }
 
-      function onPointerUp(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        panelResizer.classList.remove('is-dragging');
-        try { panelResizer.releasePointerCapture(e.pointerId); } catch (_) {}
+      function onPointerUp() {
+        if (pResizer) pResizer.classList.remove('is-dragging');
         document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('pointermove', onPointerMove, true);
+        window.removeEventListener('pointerup', onPointerUp, true);
+        window.removeEventListener('pointercancel', onPointerUp, true);
+
         _cachedDesktopPanelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w')) || startW;
         if (typeof window.syncDesktopPlayhead === 'function') {
           window.syncDesktopPlayhead();
         }
       }
 
-      panelResizer.addEventListener('pointerdown', onPointerDown);
-      panelResizer.addEventListener('pointermove', onPointerMove);
-      panelResizer.addEventListener('pointerup', onPointerUp);
-      panelResizer.addEventListener('pointercancel', onPointerUp);
+      window.addEventListener('pointermove', onPointerMove, true);
+      window.addEventListener('pointerup', onPointerUp, true);
+      window.addEventListener('pointercancel', onPointerUp, true);
     }
 
-    // 3. Ruler Gutter Column Resizers (Layer Name vs M vs Parent & Link)
-    const gutter = document.querySelector('.desktop-ruler-gutter');
+    // 2. Full-height Layer Panel Resizer Handle (Between Left Panel and Timeline Tracks)
+    if (panelResizer) {
+      panelResizer.addEventListener('pointerdown', startLayerPanelResize);
+    }
+
+    // 3. Ruler Gutter Column Resizers (Layer Name, Parent & Link, and Gutter Panel Border)
     if (gutter) {
       const colResizers = gutter.querySelectorAll('.desktop-ruler-col-resizer');
       colResizers.forEach(resizer => {
-        let isDraggingCol = false;
-        let startX = 0;
-        let startParentW = 76;
+        const type = resizer.dataset.resizer;
+        if (type === 'panel') {
+          // Boundary to the right of Parent & Link: resizes the overall layer panel width
+          resizer.addEventListener('pointerdown', (e) => {
+            resizer.classList.add('is-dragging');
+            startLayerPanelResize(e);
+            window.addEventListener('pointerup', () => resizer.classList.remove('is-dragging'), { once: true });
+          });
+        } else if (type === 'name') {
+          // Dragging Layer Name resizer to the right expands the panel width directly so it never gets stuck ("ga mentok")
+          resizer.addEventListener('pointerdown', (e) => {
+            resizer.classList.add('is-dragging');
+            startLayerPanelResize(e);
+            window.addEventListener('pointerup', () => resizer.classList.remove('is-dragging'), { once: true });
+          });
+        } else if (type === 'parent') {
+          // Resizing Parent & Link column width
+          resizer.addEventListener('pointerdown', (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
+            const startX = e.clientX;
+            const startParentW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-parent-col-w')) || 76;
+            resizer.classList.add('is-dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
 
-        resizer.addEventListener('pointerdown', (e) => {
-          if (e.button !== undefined && e.button !== 0) return;
-          isDraggingCol = true;
-          startX = e.clientX;
-          startParentW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-parent-col-w')) || 76;
-          resizer.classList.add('is-dragging');
-          try { resizer.setPointerCapture(e.pointerId); } catch (_) {}
-          document.body.style.cursor = 'col-resize';
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        });
+            function onColMove(moveEvent) {
+              moveEvent.preventDefault();
+              const delta = moveEvent.clientX - startX;
+              const newParentW = Math.max(50, Math.min(220, Math.round(startParentW - delta)));
+              document.documentElement.style.setProperty('--desktop-parent-col-w', `${newParentW}px`);
+              try { localStorage.setItem('oft_desktop_parent_col_w', newParentW); } catch (_) {}
+            }
 
-        resizer.addEventListener('pointermove', (e) => {
-          if (!isDraggingCol) return;
-          const delta = e.clientX - startX;
-          // Dragging resizer shrinks/expands Parent & Link column (inverted relative to name)
-          const newParentW = Math.max(50, Math.min(160, Math.round(startParentW - delta)));
-          document.documentElement.style.setProperty('--desktop-parent-col-w', `${newParentW}px`);
-          try { localStorage.setItem('oft_desktop_parent_col_w', newParentW); } catch (_) {}
-        });
+            function onColUp() {
+              resizer.classList.remove('is-dragging');
+              document.body.style.cursor = '';
+              document.body.style.userSelect = '';
+              window.removeEventListener('pointermove', onColMove, true);
+              window.removeEventListener('pointerup', onColUp, true);
+              window.removeEventListener('pointercancel', onColUp, true);
+            }
 
-        function stopColDrag(e) {
-          if (!isDraggingCol) return;
-          isDraggingCol = false;
-          resizer.classList.remove('is-dragging');
-          try { resizer.releasePointerCapture(e.pointerId); } catch (_) {}
-          document.body.style.cursor = '';
+            window.addEventListener('pointermove', onColMove, true);
+            window.addEventListener('pointerup', onColUp, true);
+            window.addEventListener('pointercancel', onColUp, true);
+          });
         }
-
-        resizer.addEventListener('pointerup', stopColDrag);
-        resizer.addEventListener('pointercancel', stopColDrag);
       });
     }
   }
@@ -2302,6 +2323,8 @@
         e.target.closest('.desktop-kf-diamond') ||
         e.target.closest('.timeline-clip-handle') ||
         e.target.closest('.timeline-lane-heads-overlay') ||
+        e.target.closest('.desktop-timeline-panel-resizer') ||
+        e.target.closest('.desktop-ruler-col-resizer') ||
         e.target.closest('button, input, select, textarea') ||
         (e.target.closest('.media-dropzone-split') && e.target.closest('.media-dropzone-split').classList.contains('is-active'))
       ) {

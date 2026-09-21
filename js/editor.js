@@ -24179,12 +24179,130 @@
               </div>
             `;
 
-            // Toggle Hide / Show on eye button click (Normal Mode)
+            // Toggle Hide / Show on eye button click (Normal Mode) + Long-press hold to trigger selection
             const eyeBtn = pillSlot.querySelector('.timeline-layer-eye-btn');
             if (eyeBtn) {
+              let eyeHoldTimer = null;
+              let eyeHoldFired = false;
+              let eyeStartX = 0;
+              let eyeStartY = 0;
+              let eyeIsDragging = false;
+              let eyeInitialSelectedIds = null;
+              const currentLayers = currentProjectState.layers || [];
+              const startIdx = currentLayers.findIndex(l => l.id === layer.id);
+
+              function onEyePointerDown(e) {
+                if (e.button !== undefined && e.button !== 0) return;
+                eyeStartX = e.clientX;
+                eyeStartY = e.clientY;
+                eyeHoldFired = false;
+                eyeIsDragging = false;
+                eyeInitialSelectedIds = new Set(selectedLayerIds);
+
+                eyeHoldTimer = setTimeout(() => {
+                  eyeHoldFired = true;
+                  try { eyeBtn.setPointerCapture(e.pointerId); } catch (_) {}
+
+                  if (!isSelectorMode) {
+                    isSelectorMode = true;
+                    window.isSelectorMode = true;
+                  }
+
+                  if (selectedLayerIds.has(layer.id) && selectedLayerIds.size > 1) {
+                    selectedLayerIds.delete(layer.id);
+                    selectedLayerId = selectedLayerIds.size > 0 ? Array.from(selectedLayerIds)[selectedLayerIds.size - 1] : null;
+                  } else {
+                    selectedLayerIds.add(layer.id);
+                    selectedLayerId = layer.id;
+                  }
+                  window.selectedLayerId = selectedLayerId;
+                  window.selectedLayerIds = selectedLayerIds;
+
+                  if (typeof syncSelectionClassesInPlace === 'function') {
+                    syncSelectionClassesInPlace();
+                  }
+                  if (typeof updateEditorHeaderMode === 'function') {
+                    updateEditorHeaderMode();
+                  }
+                  if (navigator.vibrate) navigator.vibrate(25);
+                }, 200);
+
+                function onEyePointerMove(me) {
+                  const distX = Math.abs(me.clientX - eyeStartX);
+                  const distY = Math.abs(me.clientY - eyeStartY);
+                  const dist = Math.hypot(distX, distY);
+
+                  if (!eyeHoldFired && dist > 6) {
+                    clearTimeout(eyeHoldTimer);
+                    eyeHoldTimer = null;
+                  }
+
+                  // If hold already fired, enable vertical drag-to-select!
+                  if (eyeHoldFired) {
+                    eyeIsDragging = true;
+                    me.preventDefault();
+
+                    if (typeof getLayerIndexAtY === 'function') {
+                      const curIdx = getLayerIndexAtY(me.clientY);
+                      if (curIdx !== -1 && startIdx !== -1) {
+                        const minIdx = Math.min(startIdx, curIdx);
+                        const maxIdx = Math.max(startIdx, curIdx);
+                        const nextSelected = new Set(eyeInitialSelectedIds || []);
+                        for (let i = minIdx; i <= maxIdx; i++) {
+                          if (currentLayers[i]) nextSelected.add(currentLayers[i].id);
+                        }
+                        selectedLayerIds = nextSelected;
+                        selectedLayerId = currentLayers[curIdx]?.id || layer.id;
+                        window.selectedLayerIds = selectedLayerIds;
+                        window.selectedLayerId = selectedLayerId;
+
+                        if (typeof syncSelectionClassesInPlace === 'function') {
+                          syncSelectionClassesInPlace();
+                        }
+                        if (typeof updateEditorHeaderMode === 'function') {
+                          updateEditorHeaderMode();
+                        }
+                      }
+                    }
+                  }
+                }
+
+                function onEyePointerUp(ue) {
+                  if (eyeHoldTimer) {
+                    clearTimeout(eyeHoldTimer);
+                    eyeHoldTimer = null;
+                  }
+                  try { eyeBtn.releasePointerCapture(ue.pointerId); } catch (_) {}
+                  window.removeEventListener('pointermove', onEyePointerMove);
+                  window.removeEventListener('pointerup', onEyePointerUp);
+                  window.removeEventListener('pointercancel', onEyePointerUp);
+
+                  if (eyeHoldFired || eyeIsDragging) {
+                    ue.preventDefault();
+                    ue.stopPropagation();
+                    setTimeout(() => {
+                      eyeHoldFired = false;
+                      eyeIsDragging = false;
+                    }, 80);
+                  }
+                }
+
+                window.addEventListener('pointermove', onEyePointerMove, { passive: false });
+                window.addEventListener('pointerup', onEyePointerUp);
+                window.addEventListener('pointercancel', onEyePointerUp);
+              }
+
+              eyeBtn.addEventListener('pointerdown', onEyePointerDown);
+
               eyeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                // If hold fired or was dragging, don't toggle visibility!
+                if (eyeHoldFired || eyeIsDragging) {
+                  eyeHoldFired = false;
+                  eyeIsDragging = false;
+                  return;
+                }
                 if (typeof invalidatePreviewCacheForLayer === 'function') {
                   invalidatePreviewCacheForLayer(layer);
                 }

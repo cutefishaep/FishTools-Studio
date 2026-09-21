@@ -5,6 +5,17 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.43] - 2026-09-21
+
+### Added
+- **Mobile Hold-to-Select on Hide/Show Eye Button (`js/editor.js`, `css/editor.css`)**:
+  - Long-pressing (holding ~200ms) the layer eye button (`.timeline-layer-eye-btn`) triggers multi-selection / enters selector mode for that layer with haptic feedback (`navigator.vibrate(25)`).
+  - Dragging vertically during hold enables continuous drag-to-select range across timeline layers.
+  - Quick tap (<200ms) cleanly toggles layer visibility (`layer.hidden`) without triggering selection.
+  - Added `touch-action: none; -webkit-touch-callout: none;` and guarded click handling to avoid unwanted visibility toggling upon hold release.
+
+---
+
 ## [0.5.42] - 2026-09-21
 
 ### Changed

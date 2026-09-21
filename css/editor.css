@@ -2528,6 +2528,10 @@ body.has-active-drawer .timeline-layers-viewport {
   cursor: pointer;
   color: var(--text-primary);
   transition: transform 0.1s ease, color 0.1s ease;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .timeline-layer-ctrl-pill.is-hidden {

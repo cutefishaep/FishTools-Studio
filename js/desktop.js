@@ -759,12 +759,15 @@
       noneBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        if (typeof window.unlinkLayer === 'function') {
-          targetLayers.forEach(t => {
-            if (t.parentId) window.unlinkLayer(t);
-          });
+        const toUnlink = targetLayers.filter(t => t.parentId);
+        if (toUnlink.length > 0) {
+          if (typeof window.unlinkLayers === 'function') {
+            window.unlinkLayers(toUnlink);
+          } else if (typeof window.unlinkLayer === 'function') {
+            toUnlink.forEach(t => window.unlinkLayer(t));
+          }
           if (typeof window.showEffectsRackToast === 'function') {
-            window.showEffectsRackToast(targetLayers.length > 1 ? `Unlinked ${targetLayers.length} layers` : `Unlinked "${currentLayer.name}"`);
+            window.showEffectsRackToast(targetLayers.length > 1 ? `Unlinked ${toUnlink.length} layers` : `Unlinked "${currentLayer.name}"`);
           }
         }
         closeDesktopParentDropdown();
@@ -805,13 +808,13 @@
           itemBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            if (typeof window.linkLayer === 'function') {
-              targetLayers.forEach(t => {
-                window.linkLayer(t, l);
-              });
-              if (typeof window.showEffectsRackToast === 'function') {
-                window.showEffectsRackToast(targetLayers.length > 1 ? `Linked ${targetLayers.length} layers to "${l.name}"` : `Linked "${currentLayer.name}" to "${l.name}"`);
-              }
+            if (typeof window.linkLayers === 'function') {
+              window.linkLayers(targetLayers, l);
+            } else if (typeof window.linkLayer === 'function') {
+              targetLayers.forEach(t => window.linkLayer(t, l));
+            }
+            if (typeof window.showEffectsRackToast === 'function') {
+              window.showEffectsRackToast(targetLayers.length > 1 ? `Linked ${targetLayers.length} layers to "${l.name}"` : `Linked "${currentLayer.name}" to "${l.name}"`);
             }
             closeDesktopParentDropdown();
           });
@@ -1007,25 +1010,30 @@
 
           if (targetLayerId && !targetIds.has(String(targetLayerId))) {
             const targetLayer = curLayers.find(l => String(l.id) === String(targetLayerId));
-            if (targetLayer && typeof window.linkLayer === 'function') {
+            if (targetLayer) {
               const validTargets = targetLayers.filter(t => !isDescendant(targetLayer.id, t.id));
-              validTargets.forEach(t => window.linkLayer(t, targetLayer));
-              if (typeof window.showEffectsRackToast === 'function') {
-                window.showEffectsRackToast(validTargets.length > 1 ? `Linked ${validTargets.length} layers to "${targetLayer.name}"` : `Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
+              if (validTargets.length > 0) {
+                if (typeof window.linkLayers === 'function') {
+                  window.linkLayers(validTargets, targetLayer);
+                } else if (typeof window.linkLayer === 'function') {
+                  validTargets.forEach(t => window.linkLayer(t, targetLayer));
+                }
+                if (typeof window.showEffectsRackToast === 'function') {
+                  window.showEffectsRackToast(validTargets.length > 1 ? `Linked ${validTargets.length} layers to "${targetLayer.name}"` : `Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
+                }
               }
             }
           } else if (!isReleasedOnSelf && dist >= 8) {
             // Dragged to empty space / outside layer slots / released on empty area: UNLINK!
-            if (typeof window.unlinkLayer === 'function') {
-              let unlinkedCount = 0;
-              targetLayers.forEach(t => {
-                if (t.parentId) {
-                  window.unlinkLayer(t);
-                  unlinkedCount++;
-                }
-              });
-              if (unlinkedCount > 0 && typeof window.showEffectsRackToast === 'function') {
-                window.showEffectsRackToast(targetLayers.length > 1 ? `Unlinked ${unlinkedCount} layers` : `Unlinked "${sourceLayer.name}"`);
+            const toUnlink = targetLayers.filter(t => t.parentId);
+            if (toUnlink.length > 0) {
+              if (typeof window.unlinkLayers === 'function') {
+                window.unlinkLayers(toUnlink);
+              } else if (typeof window.unlinkLayer === 'function') {
+                toUnlink.forEach(t => window.unlinkLayer(t));
+              }
+              if (typeof window.showEffectsRackToast === 'function') {
+                window.showEffectsRackToast(targetLayers.length > 1 ? `Unlinked ${toUnlink.length} layers` : `Unlinked "${sourceLayer.name}"`);
               }
             }
           }

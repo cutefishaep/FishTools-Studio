@@ -117,6 +117,7 @@
           if (l._defaultEasing) c._defaultEasing = JSON.parse(JSON.stringify(l._defaultEasing));
           if (l.effects) c.effects = JSON.parse(JSON.stringify(l.effects));
           if (l.shapeProps) c.shapeProps = JSON.parse(JSON.stringify(l.shapeProps));
+          if (l.parentBind) c.parentBind = JSON.parse(JSON.stringify(l.parentBind));
           if (Array.isArray(l.layers)) c.layers = this._cloneLayersForSnapshot(l.layers);
           return c;
         });
@@ -142,11 +143,18 @@
               if (Array.isArray(defEas[dp])) defEasSig += dp + ':' + defEas[dp].join(',') + ';';
             }
           }
+          const fxSig = (l.effects || []).map(f => {
+            let s = f.id || f.type || '';
+            for (const k in f) {
+              if (!k.startsWith('_') && typeof f[k] !== 'function') s += ',' + k + ':' + f[k];
+            }
+            return s;
+          }).join(';');
           let childSig = '';
           if (Array.isArray(l.layers)) {
             childSig = this._computeFingerprint(l.layers, [], {});
           }
-          return `${l.id}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.opacity}:${l.motionBlur ? 1 : 0}:${l.is3D ? 1 : 0}:${l.collapseTransformations ? 1 : 0}:${kfCount}:${(l.effects || []).length}:${kfSig}:${exprSig}:${defEasSig}:${childSig}`;
+          return `${l.id}:${l.name || ''}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.posZ || 0}:${l.anchorX || 0}:${l.anchorY || 0}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.rotZ || 0}:${l.skew || 0}:${l.opacity}:${l.volume !== undefined ? l.volume : 1}:${l.hidden ? 1 : 0}:${l.locked ? 1 : 0}:${l.blendMode || ''}:${l.parentId || ''}:${l.scaleLinked !== false ? 1 : 0}:${l.motionBlur ? 1 : 0}:${l.is3D ? 1 : 0}:${l.collapseTransformations ? 1 : 0}:${kfCount}:${kfSig}:${fxSig}:${exprSig}:${defEasSig}:${childSig}`;
         }).join(';');
         const bSig = (beatmarks || []).join(',');
         const mSig = (markerNames && typeof markerNames === 'object' && Object.keys(markerNames).length > 0) ? JSON.stringify(markerNames) : '';
@@ -11714,7 +11722,7 @@
     }
     window.initShapeController = initShapeController;
 
-    function linkLayer(childLayer, parentLayer) {
+    function linkLayer(childLayer, parentLayer, skipSave = false) {
       if (!childLayer || !parentLayer || childLayer.id === parentLayer.id) return;
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
@@ -11735,14 +11743,26 @@
       };
 
       if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(childLayer);
+      if (!skipSave) {
+        saveCurrentProjectLayers(true);
+        renderTimelineLayers();
+        redrawComposition();
+        if (typeof updateEditorHeaderMode === 'function') updateEditorHeaderMode();
+      }
+    }
+    window.linkLayer = linkLayer;
+
+    function linkLayers(childLayers, parentLayer) {
+      if (!Array.isArray(childLayers) || childLayers.length === 0 || !parentLayer) return;
+      childLayers.forEach(c => linkLayer(c, parentLayer, true));
       saveCurrentProjectLayers(true);
       renderTimelineLayers();
       redrawComposition();
       if (typeof updateEditorHeaderMode === 'function') updateEditorHeaderMode();
     }
-    window.linkLayer = linkLayer;
+    window.linkLayers = linkLayers;
 
-    function unlinkLayer(layer) {
+    function unlinkLayer(layer, skipSave = false) {
       if (!layer || !layer.parentId) return;
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
@@ -11767,12 +11787,24 @@
       delete layer.parentBind;
 
       if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+      if (!skipSave) {
+        saveCurrentProjectLayers(true);
+        renderTimelineLayers();
+        redrawComposition();
+        if (typeof updateEditorHeaderMode === 'function') updateEditorHeaderMode();
+      }
+    }
+    window.unlinkLayer = unlinkLayer;
+
+    function unlinkLayers(layersToUnlink) {
+      if (!Array.isArray(layersToUnlink) || layersToUnlink.length === 0) return;
+      layersToUnlink.forEach(l => unlinkLayer(l, true));
       saveCurrentProjectLayers(true);
       renderTimelineLayers();
       redrawComposition();
       if (typeof updateEditorHeaderMode === 'function') updateEditorHeaderMode();
     }
-    window.unlinkLayer = unlinkLayer;
+    window.unlinkLayers = unlinkLayers;
 
     function reorderLayersBatch(allLayers, movingIdSet, targetDropIdx) {
       if (!allLayers || allLayers.length <= 1) return allLayers || [];
@@ -11833,9 +11865,10 @@
       `;
       noneBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        targetLayers.forEach(t => {
-          if (t.parentId) unlinkLayer(t);
-        });
+        const toUnlink = targetLayers.filter(t => t.parentId);
+        if (toUnlink.length > 0) {
+          unlinkLayers(toUnlink);
+        }
         if (window.Popover) window.Popover.close();
       });
       listContainer.appendChild(noneBtn);
@@ -11910,9 +11943,10 @@
           itemBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (isCurrentParent) {
-              targetLayers.forEach(t => unlinkLayer(t));
+              const toUnlink = targetLayers.filter(t => t.parentId);
+              if (toUnlink.length > 0) unlinkLayers(toUnlink);
             } else {
-              targetLayers.forEach(t => linkLayer(t, layerItem));
+              linkLayers(targetLayers, layerItem);
             }
             if (window.Popover) window.Popover.close();
           });
@@ -24699,7 +24733,7 @@
                       kfs.push({ time: t, value: curVal, easing: layer.defaultEasing || 'ease-in-out' });
                       kfs.sort((a, b) => a.time - b.time);
                     }
-                    if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                    if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
                     if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
                     updateStopwatchState();
                   });
@@ -24869,7 +24903,7 @@
                           // Short click — open inline editor
                           openInlineEdit(cs, comp, idx);
                         } else {
-                          if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                          if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
                           if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
                         }
                       }
@@ -24900,7 +24934,7 @@
                       inp.replaceWith(cs);
                       cs.textContent = String(comp.getVal());
                       commitMutation(getLive());
-                      if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                      if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
                       if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
                     }
                     inp.addEventListener('blur', applyEdit);
@@ -24933,7 +24967,7 @@
                       r.scaleLinked = r.scaleLinked === false ? true : false;
                       syncLinkIcon();
                       compSpans.forEach((s, i) => { s.textContent = String(components[i].getVal()); });
-                      if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                      if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
                     });
                     pRow.appendChild(linkBtn);
                   }

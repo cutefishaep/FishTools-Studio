@@ -292,24 +292,16 @@
       const padX = p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24;
       const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
       const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
-
-      // Animation padding: extra vertical space so chars can spring outside text bounds.
-      // OUT uses same type keys as IN (bounce_1/2/3/4 etc.) via normalizeAnimIn().
-      const normInCheck  = normalizeAnimIn(p.animIn  || p.animation || 'none');
-      const normOutCheck = normalizeAnimIn(p.animOut  || 'none');
-      const animAmp  = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
       const fontSize = p.fontSize || 64;
 
-      const hasSpringAnim = normInCheck  === 'bounce_1' || normInCheck  === 'bounce_2'
-                         || normInCheck  === 'bounce_3' || normInCheck  === 'bounce_4'
-                         || normOutCheck === 'bounce_1' || normOutCheck === 'bounce_2'
-                         || normOutCheck === 'bounce_3' || normOutCheck === 'bounce_4';
-      const animPadY = hasSpringAnim ? Math.ceil(fontSize * animAmp * 1.5) : 0;
-
-      if (layer) { layer._textAnimPadY = animPadY; layer._textAnimPadX = 0; }
+      // Canvas sized to project dimensions (targetH=ph, targetW=pw).
+      // With targetH=1080, center cy=540, spring displacement max = fontSize*animAmp*1.5 ≈ 58px.
+      // Chars at cy±58 = 482–598, well within 1080px canvas. No padding needed.
+      // _textAnimPadY = 0 → compositor does NOT expand scaleH → no size pop or stretch.
+      if (layer) { layer._textAnimPadY = 0; layer._textAnimPadX = 0; }
 
       const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width  + padX + shadowPad * 2));
-      const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2)) + animPadY * 2;
+      const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2));
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
         canvas.width  = reqW;

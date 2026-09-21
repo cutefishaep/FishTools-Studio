@@ -834,7 +834,11 @@ html, body {
   height: 100%;
   display: block;
   object-fit: fill;
+  touch-action: none;       /* Prevent browser scroll from interrupting pointer drag on mobile */
+  -webkit-touch-callout: none;
+  user-select: none;
 }
+
 
 
 

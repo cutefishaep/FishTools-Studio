@@ -1095,7 +1095,12 @@
       try {
         await Promise.race([
           encoder.flush(),
-          new Promise(function(_, reject) { setTimeout(function() { reject(new Error('encoder.flush() timed out after 10s')); }, 10000); })
+          new Promise(function(_, reject) {
+            // Dynamic timeout: 15s base + 1s per 20 chunks, capped at 90s
+            // Prevents timeout on large encodes (e.g. 661 chunks @ Firefox WebCodecs)
+            var flushTimeoutMs = Math.min(90000, Math.max(15000, 15000 + Math.floor(chunksCount / 20) * 1000));
+            setTimeout(function() { reject(new Error('encoder.flush() timed out after ' + (flushTimeoutMs / 1000).toFixed(0) + 's')); }, flushTimeoutMs);
+          })
         ]);
         logExport('WebCodecs:Flush', 'VideoEncoder queue flushed successfully.');
       } catch (flushErr) {

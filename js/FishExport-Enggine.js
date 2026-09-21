@@ -1090,14 +1090,12 @@
         logExport('WebCodecs:Audio', 'Audio encoding finished.');
       }
 
-      updateProgress(93, 'Flushing encoder (' + chunksCount + ' / ~' + totalFrames + ' chunks)...', onProgress);
+      updateProgress(93, 'Flushing...', onProgress);
       logExportInfo('WebCodecs:Flush', 'Flushing VideoEncoder (' + chunksCount + ' chunks received, totalFrames=' + totalFrames + ')...');
       try {
-        // Track chunksCount at flush start so we can measure drain progress
         var chunksAtFlushStart = chunksCount;
         var chunksExpected = Math.max(totalFrames, chunksAtFlushStart);
 
-        // Poll every 200ms to show real flush progress (93% → 99%)
         var flushDone = false;
         var flushPollInterval = setInterval(function() {
           if (flushDone) { clearInterval(flushPollInterval); return; }
@@ -1106,11 +1104,7 @@
           var flushPct  = remaining > 0
             ? 93 + Math.round((drained / (drained + remaining)) * 6)
             : 99;
-          updateProgress(
-            Math.min(99, flushPct),
-            'Flushing encoder — ' + chunksCount + ' / ~' + chunksExpected + ' chunks...',
-            onProgress
-          );
+          updateProgress(Math.min(99, flushPct), 'Flushing...', onProgress);
         }, 200);
 
         // Safety net: 5 minutes absolute maximum (should never trigger for real encodes)

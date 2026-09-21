@@ -293,41 +293,34 @@
       const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
       const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
 
-      // Animation padding: extra space so chars can spring outside text bounds without clipping.
-      // Covers both IN and OUT animations. Stored on layer for compositor.
-      const normInCheck = normalizeAnimIn(p.animIn || p.animation || 'none');
-      const normOutCheck = p.animOut || 'none';
-      const animAmp = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
+      // Animation padding: extra vertical space so chars can spring outside text bounds.
+      // OUT uses same type keys as IN (bounce_1/2/3/4 etc.) via normalizeAnimIn().
+      const normInCheck  = normalizeAnimIn(p.animIn  || p.animation || 'none');
+      const normOutCheck = normalizeAnimIn(p.animOut  || 'none');
+      const animAmp  = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
       const fontSize = p.fontSize || 64;
 
-      // Y padding: needed for any Y-displacing animation (bounce drop IN or OUT)
-      const hasYAnim = normInCheck === 'bounce_1' || normInCheck === 'bounce_3'
-                    || normOutCheck === 'bounce_out' || normOutCheck === 'wave_out';
-      // Scale padding: pop/shrink can also clip at edges during spring overshoot
-      const hasScaleAnim = normInCheck === 'bounce_2' || normInCheck === 'bounce_4'
-                        || normOutCheck === 'pop_out'  || normOutCheck === 'shrink_drop';
-      // X padding: slide_out displaces horizontally
-      const hasXAnim = normOutCheck === 'slide_out';
+      const hasSpringAnim = normInCheck  === 'bounce_1' || normInCheck  === 'bounce_2'
+                         || normInCheck  === 'bounce_3' || normInCheck  === 'bounce_4'
+                         || normOutCheck === 'bounce_1' || normOutCheck === 'bounce_2'
+                         || normOutCheck === 'bounce_3' || normOutCheck === 'bounce_4';
+      const animPadY = hasSpringAnim ? Math.ceil(fontSize * animAmp * 1.5) : 0;
 
-      const animPadY = (hasYAnim || hasScaleAnim) ? Math.ceil(fontSize * animAmp * 1.5) : 0;
-      const animPadX = hasXAnim ? Math.ceil(fontSize * animAmp * 1.5) : 0;
+      if (layer) { layer._textAnimPadY = animPadY; layer._textAnimPadX = 0; }
 
-      // Store on layer so compositor knows to expand draw dimensions
-      if (layer) { layer._textAnimPadY = animPadY; layer._textAnimPadX = animPadX; }
-
-      const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width + padX + shadowPad * 2)) + animPadX * 2;
+      const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width  + padX + shadowPad * 2));
       const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2)) + animPadY * 2;
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
-        canvas.width = reqW;
+        canvas.width  = reqW;
         canvas.height = reqH;
       }
 
       ctx.clearRect(0, 0, reqW, reqH);
       ctx.save();
 
-      const cx = reqW / 2;  // center of padded canvas (X)
-      const cy = reqH / 2;  // center of padded canvas (Y)
+      const cx = reqW / 2;
+      const cy = reqH / 2;
 
       // 1. Draw Badge Background Pill / Box if enabled
       if (p.badgeEnabled) {
@@ -366,12 +359,26 @@
       const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_pop');
       const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
 
-      // Calculate typewriter progress if active
+      // Typewriter IN progress
       let isTypewriter = (effectiveAnimIn === 'typewriter' || p.animation === 'typewriter');
       let visibleChars = totalChars;
       if (isTypewriter) {
         const prog = Math.min(1.0, Math.max(0, localSec / inDur));
         visibleChars = Math.floor(prog * totalChars);
+      }
+
+      // OUT setup (same keys as IN, normalised the same way)
+      const effectiveAnimOut = p.animOut || 'none';
+      const normOutAnim = normalizeAnimIn(effectiveAnimOut);
+      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+      const outStartSec = Math.max(inDur, clipDur - outDur);
+
+      // Typewriter OUT: chars vanish right-to-left using global progress (no per-char stagger)
+      let isTypewriterOut = (normOutAnim === 'typewriter');
+      let visibleCharsOut = totalChars;
+      if (isTypewriterOut && localSec >= outStartSec) {
+        const outProg = Math.min(1.0, (localSec - outStartSec) / outDur);
+        visibleCharsOut = Math.floor((1 - outProg) * totalChars);
       }
 
       lines.forEach((line, lineIdx) => {
@@ -395,8 +402,13 @@
           const chW = charWidths[i];
           const charIndex = globalCharIndex++;
 
-          // Skip invisible characters in typewriter
+          // Skip invisible characters in typewriter IN
           if (isTypewriter && charIndex > visibleChars) {
+            continue;
+          }
+          // Typewriter OUT: hide chars from end
+          if (isTypewriterOut && charIndex >= visibleCharsOut) {
+            curX += chW;
             continue;
           }
 
@@ -408,69 +420,45 @@
           let charRotation = 0;
 
           const normIn = normalizeAnimIn(effectiveAnimIn);
-          const fps = (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
           const fontSize = p.fontSize || 64;
 
-          // ─── AE Text Animator model ────────────────────────────────────────
-          // All characters are VISIBLE from frame 0 at their displaced positions.
-          // Each character springs from its displaced state → rest with a stagger.
-          // No pop-in. No sudden alpha=0→1. Characters are always "on screen"
-          // but fly into their final positions like AE Text Animator does.
-          //
-          // AE values from screenshot: Position=[0, 865], Scale=[0,0]%, Rotation=-27°
-          // ── Stagger derived from animInDuration ────────────────────────────
-          // User sets animInDuration in UI → controls total cascade speed.
-          // stagger = inDur / totalChars so ALL chars finish within inDur.
-          // Spring physics tuned so each char settles within its remaining time.
-
-          // ── User-tunable spring parameters ─────────────────────────────────
+          // ── Spring parameters (shared by IN and OUT) ────────────────────────
           const animDecay     = Number(p.animDecay)     > 0 ? Number(p.animDecay)     : 7.0;
           const animFreq      = Number(p.animFreq)      > 0 ? Number(p.animFreq)      : 3;
           const animAmplitude = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
-          const animStagger   = Number(p.animStagger) >= 0 ? Number(p.animStagger)    : 0.5;
+          const animStagger   = Number(p.animStagger) >= 0  ? Number(p.animStagger)   : 0.5;
           const animTarget    = p.animTarget || 'character';
 
-          // ── animTarget: compute animation index per character/word/line ──────
-          // character → each char has its own stagger index (charIndex)
-          // word      → all chars in same word share one stagger index
-          // line      → all chars in same line share one stagger index
-          let animIndex = charIndex;
+          // ── animTarget: stagger index per character / word / line ───────────
+          let animIndex  = charIndex;
           let totalUnits = totalChars;
-
           if (animTarget === 'line') {
-            animIndex = lineIdx;
+            animIndex  = lineIdx;
             totalUnits = lines.length;
           } else if (animTarget === 'word') {
-            // Compute word index by counting spaces before this char in the full text
             const fullTextUpToChar = lines.slice(0, lineIdx).join(' ') + (lineIdx > 0 ? ' ' : '') + line.slice(0, i);
-            animIndex = (fullTextUpToChar.match(/\s+/g) || []).length;
-            // Total word count
+            animIndex  = (fullTextUpToChar.match(/\s+/g) || []).length;
             totalUnits = (fullText.replace(/\s+/g, ' ').trim().match(/\s+/g) || []).length + 1;
           }
 
-          // Stagger: last unit starts at localSec = inDur * animStagger
-          const stagger = totalUnits > 1
-            ? (inDur * animStagger) / (totalUnits - 1)
-            : 0;
-          const myDelay = stagger * animIndex;
-          const t       = localSec - myDelay;
+          // ── IN stagger ─────────────────────────────────────────────────────
+          const stagger  = totalUnits > 1 ? (inDur * animStagger) / (totalUnits - 1) : 0;
+          const myDelay  = stagger * animIndex;
+          const t        = localSec - myDelay;
 
-
+          // ── IN ANIMATION ───────────────────────────────────────────────────
           if (normIn === 'bounce_1' || normIn === 'bounce_3') {
-            // Position Y spring — chars enter from below, spring to rest
             if (t <= 0) {
               charAlpha = 0;
             } else {
-              const freq      = normIn === 'bounce_3' ? Math.max(0.5, animFreq  - 1) : animFreq;
-              const decay     = normIn === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
+              const freq  = normIn === 'bounce_3' ? Math.max(0.5, animFreq  - 1) : animFreq;
+              const decay = normIn === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
               const amplitude = fontSize * animAmplitude;
               const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
               offY = s;
               charAlpha = Math.min(1.0, t / Math.max(0.005, stagger > 0 ? stagger * 0.8 : 0.03));
             }
-
           } else if (normIn === 'bounce_2' || normIn === 'bounce_4') {
-            // Scale spring — chars pop from 0 → 1 with elastic overshoot
             if (t <= 0) {
               scaleX = 0; scaleY = 0; charAlpha = 0;
             } else {
@@ -481,14 +469,13 @@
               scaleX = sc; scaleY = sc;
               charAlpha = Math.min(1.0, t / Math.max(0.005, stagger > 0 ? stagger * 0.8 : 0.03));
             }
-
           } else if (normIn === 'wave' || p.animation === 'wave') {
             const wfreq = 5.0 * (p.animSpeed || 1.0);
             const phase = charIndex * 0.45;
             offY = Math.sin(localSec * wfreq + phase) * (fontSize * 0.15);
           } else if (normIn === 'glitch') {
             const quant = Math.floor(localSec * 18);
-            const hash = Math.sin(quant * 9999 + charIndex * 1337);
+            const hash  = Math.sin(quant * 9999 + charIndex * 1337);
             const hash2 = Math.cos(quant * 4321 + charIndex * 777);
             if (Math.abs(hash) > 0.55) {
               offX = hash * fontSize * 0.15;
@@ -496,56 +483,71 @@
               charAlpha = 0.55 + Math.abs(hash) * 0.45;
               scaleX = 1.0 + hash * 0.08;
             }
+          } else if (normIn === 'fade_up') {
+            if (t <= 0) {
+              charAlpha = 0; offY = 36;
+            } else {
+              const prog = Math.min(1.0, t / Math.max(0.005, stagger > 0 ? stagger * 0.8 : inDur));
+              const ease = 1 - Math.pow(1 - prog, 2);
+              offY = (1 - ease) * 36;
+              charAlpha = ease;
+            }
           }
 
-          // ── OUT ANIMATION (per-glyph spring physics) ────────────────────────
-          // Mirror of IN: spring ejects chars from rest → displaced.
-          // Stagger reversed: last unit exits first (highest animIndex exits at outStart).
-          const effectiveAnimOut = p.animOut || 'none';
-          const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
-          const outStartSec = Math.max(inDur, clipDur - outDur);
-
-          if (effectiveAnimOut !== 'none' && localSec >= outStartSec) {
+          // ── OUT ANIMATION (exact time-reverse of IN spring) ─────────────────
+          // OUT uses the SAME type keys as IN (bounce_1/2/3/4, wave, fade_up, glitch).
+          // tReversed = outDur - tOut: evaluating IN spring backwards.
+          //   tOut=0 → tReversed=outDur → spring≈0 (char at rest) ✓
+          //   tOut=outDur → tReversed=0 → spring=full amplitude (char displaced) ✓
+          // Stagger: same order as IN (first unit exits first).
+          if (normOutAnim !== 'none' && normOutAnim !== 'typewriter' && localSec >= outStartSec) {
             const tOutGlobal = localSec - outStartSec;
+            const outStagger = totalUnits > 1 ? (outDur * animStagger) / (totalUnits - 1) : 0;
+            const outMyDelay = animIndex * outStagger;
+            const tOut       = tOutGlobal - outMyDelay;
 
-            // Same stagger order as IN: first unit exits first, cascade flows same direction
-            const outStagger = totalUnits > 1
-              ? (outDur * animStagger) / (totalUnits - 1)
-              : 0;
-            const outMyDelay = animIndex * outStagger; // same order as IN entry
-            const tOut = tOutGlobal - outMyDelay;
+            if (tOut > 0) {
+              const tR = Math.max(0, outDur - tOut); // time-reversed t
 
-            if (tOut <= 0) {
-              // Unit hasn't started exiting yet — hold at rest
-            } else {
-              const normOut = effectiveAnimOut;
-              const freq  = animFreq;
-              const decay = animDecay;
-              const amplitude = fontSize * animAmplitude;
-              // Spring from rest → displaced: s=0 at t=0, rises then decays with oscillation
-              // s = amplitude * (1 - cos(freq*t*2π)/exp(decay*t))
+              if (normOutAnim === 'bounce_1' || normOutAnim === 'bounce_3') {
+                const freq  = normOutAnim === 'bounce_3' ? Math.max(0.5, animFreq  - 1) : animFreq;
+                const decay = normOutAnim === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
+                const amplitude = fontSize * animAmplitude;
+                // Evaluate IN spring at tR → char travels from ~0 back to amplitude
+                const s = amplitude * Math.cos(freq * tR * 2 * Math.PI) / Math.exp(decay * tR);
+                offY = s; // departs in same direction it entered (downward = positive)
+                // Mirror IN alpha fade: IN fades 0→1 on entry, OUT fades 1→0 on exit
+                charAlpha = Math.min(charAlpha, Math.max(0, 1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 0.8 : 0.03))));
 
-              if (normOut === 'bounce_out' || normOut === 'wave_out') {
-                // Y position: chars exit in SAME direction they entered from (downward = positive Y)
-                const spring = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
-                offY = offY + spring; // += = downward, mirrors IN (chars came from below)
-                charAlpha = Math.max(0, charAlpha * (1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 1.2 : 0.08))));
-              } else if (normOut === 'pop_out' || normOut === 'shrink_drop') {
-                // Scale: chars shrink to 0 with spring
-                const spring = 1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut);
-                const sc = Math.max(0, 1.0 - Math.min(1, spring));
-                scaleX = (scaleX || 1.0) * sc;
-                scaleY = (scaleY || 1.0) * sc;
-                charAlpha = Math.max(0, charAlpha * sc);
-              } else if (normOut === 'slide_out') {
-                // X position: chars exit rightward (same axis as slide_in from left)
-                const spring = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
-                offX = offX + spring;
-                charAlpha = Math.max(0, charAlpha * (1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 1.2 : 0.08))));
-              } else if (normOut === 'fade_down') {
+              } else if (normOutAnim === 'bounce_2' || normOutAnim === 'bounce_4') {
+                const freq  = normOutAnim === 'bounce_4' ? Math.max(0.5, animFreq  - 1) : animFreq;
+                const decay = normOutAnim === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
+                // Evaluate IN scale spring at tR → sc goes from ~1 back to 0
+                const s  = Math.cos(freq * tR * 2 * Math.PI) / Math.exp(decay * tR);
+                const sc = Math.max(0, Math.min(1.5, 1.0 - s));
+                scaleX = sc; scaleY = sc;
+                charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, tR / Math.max(0.005, outStagger > 0 ? outStagger * 0.8 : 0.03))));
+
+              } else if (normOutAnim === 'fade_up') {
+                // Reverse of fade_up IN: fall down + fade out
                 const prog = Math.min(1, tOut / Math.max(0.01, outDur - outMyDelay));
-                offY = offY + prog * amplitude * 0.5;
-                charAlpha = Math.max(0, charAlpha * (1 - prog));
+                offY = prog * 36;
+                charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
+
+              } else if (normOutAnim === 'wave') {
+                // Wave continues + global fade out
+                const prog = Math.min(1, tOutGlobal / outDur);
+                charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
+
+              } else if (normOutAnim === 'glitch') {
+                // Glitch intensifies then vanishes
+                const prog  = Math.min(1, tOut / Math.max(0.01, outDur - outMyDelay));
+                const quant = Math.floor(localSec * 18);
+                const hash  = Math.sin(quant * 9999 + charIndex * 1337);
+                const hash2 = Math.cos(quant * 4321 + charIndex * 777);
+                offX += hash  * fontSize * 0.2 * prog;
+                offY += hash2 * fontSize * 0.1 * prog;
+                charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
               }
             }
           }
@@ -584,23 +586,28 @@
                 mbSX = sc2; mbSY = sc2;
               }
 
-              // Also apply OUT animation offset to ghost (same direction as main OUT fix)
-              const effectiveAnimOut = p.animOut || 'none';
-              if (effectiveAnimOut !== 'none') {
-                const outDurMB = Math.max(0.1, Number(p.animOutDuration) || 0.6);
-                const outStartSecMB = Math.max(inDur, clipDur - outDurMB);
-                if (localSec >= outStartSecMB) {
-                  const tOutGlobalMB = (localSec - dt * mbI) - outStartSecMB;
+              // MB ghost OUT: time-reversed spring (mirrors new OUT block)
+              const normOutMB = normalizeAnimIn(p.animOut || 'none');
+              if (normOutMB !== 'none' && normOutMB !== 'typewriter') {
+                const outDurMB     = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+                const outStartMB   = Math.max(inDur, clipDur - outDurMB);
+                if (localSec >= outStartMB) {
+                  const tOutGlobMB = (localSec - dt * mbI) - outStartMB;
                   const outStaggerMB = totalUnits > 1 ? (outDurMB * animStagger) / (totalUnits - 1) : 0;
-                  const tOutMB = tOutGlobalMB - animIndex * outStaggerMB; // same order as IN
+                  const tOutMB     = tOutGlobMB - animIndex * outStaggerMB;
                   if (tOutMB > 0) {
+                    const tRMB = Math.max(0, outDurMB - tOutMB);
                     const amp2 = (p.fontSize || 64) * animAmplitude;
-                    if (effectiveAnimOut === 'bounce_out' || effectiveAnimOut === 'wave_out') {
-                      const sp = amp2 * (1 - Math.cos(animFreq * tOutMB * 2 * Math.PI) / Math.exp(animDecay * tOutMB));
-                      mbOffY += sp; // downward, same as main fix
-                    } else if (effectiveAnimOut === 'slide_out') {
-                      const sp = amp2 * (1 - Math.cos(animFreq * tOutMB * 2 * Math.PI) / Math.exp(animDecay * tOutMB));
-                      mbOffX += sp;
+                    if (normOutMB === 'bounce_1' || normOutMB === 'bounce_3') {
+                      const freq2  = normOutMB === 'bounce_3' ? Math.max(0.5, animFreq - 1) : animFreq;
+                      const decay2 = normOutMB === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
+                      mbOffY = amp2 * Math.cos(freq2 * tRMB * 2 * Math.PI) / Math.exp(decay2 * tRMB);
+                    } else if (normOutMB === 'bounce_2' || normOutMB === 'bounce_4') {
+                      const freq2  = normOutMB === 'bounce_4' ? Math.max(0.5, animFreq - 1) : animFreq;
+                      const decay2 = normOutMB === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
+                      const s2  = Math.cos(freq2 * tRMB * 2 * Math.PI) / Math.exp(decay2 * tRMB);
+                      const sc2 = Math.max(0, Math.min(1.5, 1.0 - s2));
+                      mbSX = sc2; mbSY = sc2;
                     }
                   }
                 }

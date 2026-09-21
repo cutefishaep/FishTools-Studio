@@ -22,6 +22,17 @@
     };
     window.currentProjectState = currentProjectState;
 
+    try {
+      const isEditorPage = !window.location.pathname.includes('desktop.html') && !window.location.pathname.includes('/desktop');
+      const ua = navigator.userAgent || '';
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|SM-G/i.test(ua) ||
+        (window.matchMedia && window.matchMedia('(pointer: coarse) and (max-width: 900px)').matches) ||
+        window.innerWidth < 900;
+      if (isEditorPage && isMobileDevice) {
+        localStorage.setItem('oft_preferred_view', 'mobile');
+      }
+    } catch (_) {}
+
 
 
 
@@ -17828,7 +17839,7 @@
               try {
                 const imported = await window.FishDatabase.importOFTSPackage(file);
                 if (imported && imported.id) {
-                  const isDesktop = window.location.pathname.includes('desktop.html') || window.innerWidth >= 900;
+                  const isDesktop = window.location.pathname.includes('desktop.html') || window.location.pathname.includes('/desktop');
                   const target = isDesktop ? 'desktop.html' : 'editor.html';
                   window.location.href = `${target}?id=${encodeURIComponent(imported.id)}&template=1`;
                   return [];

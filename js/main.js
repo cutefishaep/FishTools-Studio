@@ -218,7 +218,32 @@ async function initProjectsFetcher() {
     loadAndRender();
   });
 
-  // Project item left-click navigation (delegated)
+/**
+ * Resolves whether to open desktop.html or editor.html (mobile)
+ * Automatically routes mobile/Android/iOS/narrow screens (< 900px) to editor.html.
+ */
+function resolveTargetEditorPage() {
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|SM-G/i.test(ua) ||
+    (window.matchMedia && window.matchMedia('(pointer: coarse) and (max-width: 900px)').matches) ||
+    window.innerWidth < 900;
+
+  const preferred = localStorage.getItem('oft_preferred_view');
+
+  if (isMobile) {
+    if (preferred === 'desktop' && window.innerWidth >= 900) {
+      return 'desktop.html';
+    }
+    return 'editor.html';
+  }
+
+  if (preferred === 'mobile') {
+    return 'editor.html';
+  }
+  return 'desktop.html';
+}
+
+// Project item left-click navigation (delegated)
   listContainer.addEventListener('click', (e) => {
     const swipeBox = e.target.closest('.project-swipe-container');
     if (swipeBox && swipeBox._hasSwiped) {
@@ -228,9 +253,7 @@ async function initProjectsFetcher() {
     if (!item) return;
     const projectId = item.dataset.id;
     if (projectId) {
-      const targetPage = (localStorage.getItem('oft_preferred_view') === 'desktop' || window.innerWidth >= 900)
-        ? 'desktop.html'
-        : 'editor.html';
+      const targetPage = resolveTargetEditorPage();
       window.location.href = `${targetPage}?id=${encodeURIComponent(projectId)}`;
     }
   });
@@ -878,9 +901,7 @@ async function createNewProjectAction() {
     bg: selectedBg
   });
 
-  const targetPage = (localStorage.getItem('oft_preferred_view') === 'desktop' || window.innerWidth >= 900)
-    ? 'desktop.html'
-    : 'editor.html';
+  const targetPage = resolveTargetEditorPage();
   window.location.href = `${targetPage}?${query.toString()}`;
 }
 
@@ -1073,9 +1094,7 @@ async function handleImportedFiles(files, dropzone, statusEl) {
     if (statusEl) statusEl.textContent = '';
     
     if (importedProject && importedProject.id) {
-      const targetPage = (localStorage.getItem('oft_preferred_view') === 'desktop' || window.innerWidth >= 900)
-        ? 'desktop.html'
-        : 'editor.html';
+      const targetPage = resolveTargetEditorPage();
       window.location.href = `${targetPage}?id=${encodeURIComponent(importedProject.id)}&template=1`;
     } else {
       loadAndRender();

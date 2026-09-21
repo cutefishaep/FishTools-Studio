@@ -11,7 +11,13 @@
   if (!viewport) return;
 
   try {
-    localStorage.setItem('oft_preferred_view', 'desktop');
+    const ua = navigator.userAgent || '';
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|SM-G/i.test(ua) ||
+      (window.matchMedia && window.matchMedia('(pointer: coarse) and (max-width: 900px)').matches) ||
+      window.innerWidth < 900;
+    if (!isMobileDevice) {
+      localStorage.setItem('oft_preferred_view', 'desktop');
+    }
     const savedUpperH = localStorage.getItem('oft_desktop_upper_height');
     if (savedUpperH) viewport.style.setProperty('--desktop-upper-height', savedUpperH);
 
@@ -2901,6 +2907,9 @@
   }
 
   function proceedToMobileView() {
+    try {
+      localStorage.setItem('oft_preferred_view', 'mobile');
+    } catch (_) {}
     const checkbox = document.getElementById('checkbox-remember-mobile-switch');
     if (checkbox && checkbox.checked) {
       try {

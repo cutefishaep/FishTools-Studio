@@ -5037,12 +5037,15 @@
 .desktop-timeline-wrapper .timeline-lane-pill-slot {
   box-sizing: border-box !important;
   border-bottom: 1px solid var(--border-panel) !important;
-  transition: background-color 0.12s ease, transform 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
-.desktop-timeline-wrapper .timeline-track-lane:hover,
+/* Stable background: Do NOT change background color of empty track lane or slot on hover */
+.desktop-timeline-wrapper .timeline-track-lane:hover {
+  background-color: transparent !important;
+}
 .desktop-timeline-wrapper .timeline-lane-pill-slot:hover {
-  background-color: var(--bg-panel-hover) !important;
+  background-color: var(--bg-panel-inner) !important;
 }
 
 .desktop-timeline-wrapper .timeline-track-lane.is-dragging,

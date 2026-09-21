@@ -5,6 +5,24 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.39] - 2026-09-21
+
+### Fixed
+- **Attribute Clipboard Fill Copy & Paste (`js/attributes-clipboard.js`)**:
+  - Captured complete fill configuration (`fillType`, `fillColor`, `color`, `fillGradType`, `fillGradAngle`, `fillGradStops`, `fillGradColor1`, `fillGradColor2`, `fillMediaId`, `fillMediaUrl`).
+  - Added cache invalidation (`_fillDirty = true`, `_lastFillRenderKey = null`, `_fillBufferCanvas = null`) upon pasting attributes so target layers update immediately.
+  - Added UI synchronization via `window.syncFillControllerUI()` and `window.syncInspectorState()` after paste.
+- **Proportional Keyframe Time-Stretching (`js/attributes-clipboard.js`)**:
+  - Proportional keyframe time mapping (`mapKeyframeTime`) across source and target layer durations ($T_{\text{tgt}} = \text{targetStart} + \alpha \times \text{targetDuration}$), eliminating absolute time overflow when pasting keyframes to layers with differing durations.
+- **Empty Timeline Track Hover Stabilization (`css/desktop.css`)**:
+  - Removed hover background color mutation on empty track lanes (`timeline-track-lane`) and empty slot margins to prevent flickering and unwanted highlight on empty timeline areas.
+- **Wireframe Playback Lookahead Cache Desync (`js/editor.js`)**:
+  - Decoupled wireframe transform bounds computation and canvas overlay redraw (`syncActiveViewerOverlay`) strictly to the active viewer canvas (`#editor-active-canvas`).
+  - Completely blocked background lookahead worker (`triggerSource === 'lookahead-cache'`) and idle cache from updating visible wireframe bounds or triggering overlay redraws.
+  - Added synchronous overlay update in the early RAM preview cache fast-path so wireframe strictly tracks the exact current played frame in real time.
+
+---
+
 ## [0.5.38] - 2026-09-21
 
 ### Added

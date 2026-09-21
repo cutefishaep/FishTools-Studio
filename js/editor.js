@@ -2200,6 +2200,97 @@
       }
     }
 
+    // Sync interactive canvas overlay & wireframe bounds strictly for visible player
+    function syncActiveViewerOverlay(targetSec, w, h, bufferScale = null, camEff = null, activeLayers = null) {
+      const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
+        ? Array.from(window.selectedLayerIds)
+        : (window.selectedLayerId ? [window.selectedLayerId] : []);
+
+      const layers = (currentProjectState && currentProjectState.layers) || [];
+      const pixelsPerSecond = window.currentPixelsPerSecond || 80;
+
+      if (!activeLayers) {
+        activeLayers = layers.filter(layer => {
+          const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
+          const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
+          const end = start + dur;
+          return targetSec >= start && targetSec < end;
+        });
+      }
+
+      if (bufferScale === null) {
+        const aspect = (currentProjectState && currentProjectState.aspectRatio) || '16:9';
+        const res = (currentProjectState && currentProjectState.resolution) || '1080p';
+        let baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        if (currentActivePrecomp) {
+          const cw = Math.round(Math.abs(currentActivePrecomp.mediaWidth || currentActivePrecomp.scaleW || baseDims[0]));
+          const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || baseDims[1]));
+          baseDims = [cw, ch];
+        }
+        bufferScale = w / (baseDims[0] || 1920);
+      }
+
+      if (camEff === null) {
+        const activeCamera = activeLayers.find(l => l.type === 'camera' && !l.hidden);
+        camEff = activeCamera
+          ? ((typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(activeCamera, targetSec) : activeCamera)
+          : null;
+      }
+
+      if (allSelectedIds.length > 0) {
+        const activeIds = new Set(activeLayers.map(al => al.id));
+        const engine = window.FishToolEngine || window.LayerTransform;
+        allSelectedIds.forEach(id => {
+          const selL = layers.find(l => l.id === id);
+          if (!selL || selL.hidden || selL.type === 'audio' || !activeIds.has(id)) {
+            if (selL) selL._canvasBounds = null;
+            return;
+          }
+          if (selL.type === 'camera') {
+            const padX = Math.max(8, Math.round(w * 0.035));
+            const padY = Math.max(8, Math.round(h * 0.035));
+            const frameW = w - padX * 2;
+            const frameH = h - padY * 2;
+            selL._canvasBounds = {
+              x: padX,
+              y: padY,
+              w: frameW,
+              h: frameH,
+              cx: w / 2,
+              cy: h / 2,
+              rotation: 0,
+              isCamera: true,
+              name: selL.name || 'Camera',
+              corners: [
+                { x: padX, y: padY },
+                { x: padX + frameW, y: padY },
+                { x: padX + frameW, y: padY + frameH },
+                { x: padX, y: padY + frameH }
+              ],
+              anchor: { x: w / 2, y: h / 2 }
+            };
+          } else if (engine) {
+            const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
+              ? getLayerEffectivePropsAtTime(selL, targetSec)
+              : selL;
+            if (selL.type === 'precomp' && selL.collapseTransformations && Array.isArray(selL.layers) && selL.layers.length > 0) {
+              selL._canvasBounds = computeCollapsedPrecompBounds(selL, effProps, targetSec, bufferScale, camEff, w, h);
+            } else {
+              selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
+            }
+          }
+        });
+      }
+
+      if (window.CanvasOverlay) {
+        if (window.isTimelinePlaying) {
+          window.CanvasOverlay.redraw();
+        } else {
+          window.CanvasOverlay.scheduleRedraw();
+        }
+      }
+    }
+
     // Render Canvas Content (Background, Time-Filtered Active Layers, Center-Aligned Grid Overlay)
     function renderCanvasFrame(canvas, bg, w, h, triggerSource = '', overrideSec = null) {
       if (!canvas) return;
@@ -2259,6 +2350,9 @@
           ctx.clearRect(0, 0, w, h);
           ctx.drawImage(earlyBitmap, 0, 0, w, h);
           window._lastFrameRenderDuration = 0.5;
+          if (canvas && canvas.id === 'editor-active-canvas' && triggerSource !== 'lookahead-cache' && triggerSource !== 'idle-cache') {
+            syncActiveViewerOverlay(currentSec, w, h);
+          }
           return; // skip full pipeline — ~0.1ms vs ~10ms
         }
       }
@@ -3475,69 +3569,16 @@
       // Motion path → drawn by CanvasOverlay (js/canvas-overlay.js) on separate canvas
 
 
-      // Ensure wireframe bounds are always fresh for all active selected layers
-      const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
-        ? Array.from(window.selectedLayerIds)
-        : (window.selectedLayerId ? [window.selectedLayerId] : []);
-      const isSelectionMode = isSelectorMode || allSelectedIds.length > 1;
-
-      // Ensure wireframe bounds are fresh for all active selected layers (tracks transforms during live playback & scrub)
-      if (!isExport && !isTemplate && allSelectedIds.length > 0) {
-        const activeIds = new Set(activeLayers.map(al => al.id));
-        const engine = window.FishToolEngine || window.LayerTransform;
-        allSelectedIds.forEach(id => {
-          const selL = (currentProjectState.layers || []).find(l => l.id === id);
-          if (!selL || selL.hidden || selL.type === 'audio' || !activeIds.has(id)) {
-            if (selL) selL._canvasBounds = null;
-            return;
-          }
-          if (selL.type === 'camera') {
-            const padX = Math.max(8, Math.round(w * 0.035));
-            const padY = Math.max(8, Math.round(h * 0.035));
-            const frameW = w - padX * 2;
-            const frameH = h - padY * 2;
-            selL._canvasBounds = {
-              x: padX,
-              y: padY,
-              w: frameW,
-              h: frameH,
-              cx: w / 2,
-              cy: h / 2,
-              rotation: 0,
-              isCamera: true,
-              name: selL.name || 'Camera',
-              corners: [
-                { x: padX, y: padY },
-                { x: padX + frameW, y: padY },
-                { x: padX + frameW, y: padY + frameH },
-                { x: padX, y: padY + frameH }
-              ],
-              anchor: { x: w / 2, y: h / 2 }
-            };
-          } else if (engine) {
-            const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
-              ? getLayerEffectivePropsAtTime(selL, currentSec)
-              : selL;
-            if (selL.type === 'precomp' && selL.collapseTransformations && Array.isArray(selL.layers) && selL.layers.length > 0) {
-              selL._canvasBounds = computeCollapsedPrecompBounds(selL, effProps, currentSec, bufferScale, camEff, w, h);
-            } else {
-              selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
-            }
-          }
-        });
-      }
-
-      // Wireframe draw → drawn by CanvasOverlay (js/canvas-overlay.js) on separate canvas
-
-
       window._lastFrameRenderDuration = performance.now() - t0;
-      // Trigger overlay canvas redraw (grid, wireframe, motion path)
-      if (!isExport && !isTemplate && window.CanvasOverlay) {
-        if (window.isTimelinePlaying) {
-          window.CanvasOverlay.redraw();
-        } else {
-          window.CanvasOverlay.scheduleRedraw();
-        }
+
+      // Ensure wireframe bounds and overlay are strictly updated ONLY for the interactive viewer
+      // Lookahead worker, idle cache, templates, and video export must NEVER touch viewer overlay or bounds!
+      const isInteractiveViewer = (canvas && canvas.id === 'editor-active-canvas') &&
+        !isExport && !isTemplate &&
+        triggerSource !== 'lookahead-cache' && triggerSource !== 'idle-cache';
+
+      if (isInteractiveViewer) {
+        syncActiveViewerOverlay(currentSec, w, h, bufferScale, camEff, activeLayers);
       }
       return !hasUnreadyMedia;
     }

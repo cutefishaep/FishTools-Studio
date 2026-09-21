@@ -174,16 +174,32 @@
   }
 
   /**
-   * Apply time-shifted keyframes to a target layer
+   * Proportional keyframe time stretching across layer boundaries:
+   * Maps keyframe at srcTime in source layer [sourceStartSec, sourceStartSec + sourceDur]
+   * to target layer [targetStartSec, targetStartSec + targetDur].
+   * If durations are not available or 0, gracefully falls back to delta shift.
    */
-  function applyShiftedKeyframes(targetLayer, kfMap, deltaSec) {
+  function mapKeyframeTime(srcTime, sourceStartSec, sourceDur, targetStartSec, targetDur) {
+    if (typeof srcTime !== 'number' || isNaN(srcTime)) return targetStartSec;
+    if (sourceDur <= 0.0001 || targetDur <= 0.0001) {
+      return Number(Math.max(0, srcTime + (targetStartSec - sourceStartSec)).toFixed(4));
+    }
+    const progress = (srcTime - sourceStartSec) / sourceDur;
+    const targetTime = targetStartSec + progress * targetDur;
+    return Number(Math.max(0, targetTime).toFixed(4));
+  }
+
+  /**
+   * Apply time-stretched keyframes to a target layer
+   */
+  function applyShiftedKeyframes(targetLayer, kfMap, sourceStartSec, sourceDur, targetStartSec, targetDur) {
     if (!targetLayer || !kfMap) return;
     if (!targetLayer.keyframes) targetLayer.keyframes = {};
     Object.keys(kfMap).forEach(prop => {
       const track = kfMap[prop];
       if (Array.isArray(track)) {
         targetLayer.keyframes[prop] = track.map(kf => ({
-          time: Number(Math.max(0, kf.time + deltaSec).toFixed(4)),
+          time: mapKeyframeTime(kf.time, sourceStartSec, sourceDur, targetStartSec, targetDur),
           value: (kf.value !== undefined) ? JSON.parse(JSON.stringify(kf.value)) : null,
           easing: kf.easing ? [...kf.easing] : [0, 0, 1, 1]
         }));
@@ -197,23 +213,34 @@
   function extractAttributesPayload(layer, categoriesSet) {
     const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
     const startSec = (layer.startSec !== undefined) ? layer.startSec : ((layer.startPx || 0) / pps);
+    const durationSec = (layer.durationSec !== undefined) ? layer.durationSec : ((layer.widthPx || 400) / pps);
 
     const payload = {
       sourceLayerId: layer.id,
       sourceLayerName: layer.name || 'Layer',
       sourceLayerType: layer.type,
       sourceStartSec: startSec,
+      sourceDurationSec: durationSec,
       categories: Array.from(categoriesSet),
       data: {}
     };
 
     // 1. Fill
     if (categoriesSet.has('fill')) {
+      const effectiveFillColor = layer.fillColor || layer.color || '#98ce7b';
+      const effectiveFillType = layer.fillType || (layer.type === 'video' || layer.type === 'image' ? 'media' : 'color');
       payload.data.fill = {
-        fillType: layer.fillType,
-        fillColor: layer.fillColor,
+        fillType: effectiveFillType,
+        fillColor: effectiveFillColor,
+        color: effectiveFillColor,
+        fillGradType: layer.fillGradType || 'linear',
+        fillGradAngle: (layer.fillGradAngle !== undefined) ? layer.fillGradAngle : 90,
+        fillGradStops: Array.isArray(layer.fillGradStops) ? JSON.parse(JSON.stringify(layer.fillGradStops)) : null,
+        fillGradColor1: layer.fillGradColor1 || null,
+        fillGradColor2: layer.fillGradColor2 || null,
         fillGradient: layer.fillGradient ? JSON.parse(JSON.stringify(layer.fillGradient)) : null,
-        fillMediaUrl: layer.fillMediaUrl || null,
+        fillMediaId: layer.fillMediaId || layer.mediaId || null,
+        fillMediaUrl: layer.fillMediaUrl || layer.thumbUrl || layer.dataUrl || null,
         mediaFillMode: layer.mediaFillMode || null,
         fillTint: layer.fillTint || null,
         isSolid: !!layer.isSolid,
@@ -309,7 +336,9 @@
   function applyAttributesToTarget(targetLayer, payload, categoriesSet) {
     const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
     const targetStartSec = (targetLayer.startSec !== undefined) ? targetLayer.startSec : ((targetLayer.startPx || 0) / pps);
-    const deltaSec = targetStartSec - payload.sourceStartSec;
+    const targetDur = (targetLayer.durationSec !== undefined) ? targetLayer.durationSec : ((targetLayer.widthPx || 400) / pps);
+    const sourceStartSec = (payload.sourceStartSec !== undefined) ? payload.sourceStartSec : 0;
+    const sourceDur = (payload.sourceDurationSec !== undefined && payload.sourceDurationSec > 0) ? payload.sourceDurationSec : 0;
 
     if (!targetLayer.keyframes) targetLayer.keyframes = {};
 
@@ -317,13 +346,29 @@
     if (categoriesSet.has('fill') && payload.data.fill) {
       const d = payload.data.fill;
       if (d.fillType !== undefined) targetLayer.fillType = d.fillType;
-      if (d.fillColor !== undefined) targetLayer.fillColor = d.fillColor;
+      if (d.fillColor !== undefined) {
+        targetLayer.fillColor = d.fillColor;
+        targetLayer.color = d.fillColor;
+      }
+      if (d.fillGradType !== undefined) targetLayer.fillGradType = d.fillGradType;
+      if (d.fillGradAngle !== undefined) targetLayer.fillGradAngle = d.fillGradAngle;
+      if (d.fillGradStops) targetLayer.fillGradStops = JSON.parse(JSON.stringify(d.fillGradStops));
+      if (d.fillGradColor1 !== undefined) targetLayer.fillGradColor1 = d.fillGradColor1;
+      if (d.fillGradColor2 !== undefined) targetLayer.fillGradColor2 = d.fillGradColor2;
       if (d.fillGradient) targetLayer.fillGradient = JSON.parse(JSON.stringify(d.fillGradient));
+      if (d.fillMediaId !== undefined) targetLayer.fillMediaId = d.fillMediaId;
       if (d.fillMediaUrl !== undefined) targetLayer.fillMediaUrl = d.fillMediaUrl;
       if (d.mediaFillMode !== undefined) targetLayer.mediaFillMode = d.mediaFillMode;
       if (d.fillTint !== undefined) targetLayer.fillTint = d.fillTint;
       if (d.isSolid !== undefined && targetLayer.type === 'shape') targetLayer.isSolid = d.isSolid;
-      applyShiftedKeyframes(targetLayer, d.keyframes, deltaSec);
+
+      // Invalidate dynamic fill cache canvas
+      targetLayer._fillDirty = true;
+      targetLayer._lastFillRenderKey = null;
+      targetLayer._fillBufferCanvas = null;
+      targetLayer._cachedCanvas = null;
+
+      applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
     // 2. Opacity & Blend
@@ -331,7 +376,7 @@
       const d = payload.data.opacityBlend;
       if (d.opacity !== undefined) targetLayer.opacity = d.opacity;
       if (d.blendMode !== undefined) targetLayer.blendMode = d.blendMode;
-      applyShiftedKeyframes(targetLayer, d.keyframes, deltaSec);
+      applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
     // 3. Effects
@@ -361,7 +406,7 @@
                 const paramName = oldKey.slice(oldId.length + 1);
                 const newKey = `${newId}:${paramName}`;
                 const shifted = (d.keyframes[oldKey] || []).map(kf => ({
-                  time: Number(Math.max(0, kf.time + deltaSec).toFixed(4)),
+                  time: mapKeyframeTime(kf.time, sourceStartSec, sourceDur, targetStartSec, targetDur),
                   value: (kf.value !== undefined) ? JSON.parse(JSON.stringify(kf.value)) : null,
                   easing: kf.easing ? [...kf.easing] : [0, 0, 1, 1]
                 }));
@@ -382,7 +427,7 @@
           targetLayer[prop] = d.values[prop];
         });
       }
-      applyShiftedKeyframes(targetLayer, d.keyframes, deltaSec);
+      applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
     // 5. Border & Shadow
@@ -393,7 +438,7 @@
           targetLayer[prop] = d.values[prop];
         });
       }
-      applyShiftedKeyframes(targetLayer, d.keyframes, deltaSec);
+      applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
     // 6. Speed & Volume
@@ -408,7 +453,7 @@
           return fx;
         });
       }
-      applyShiftedKeyframes(targetLayer, d.keyframes, deltaSec);
+      applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
     if (typeof window.invalidatePreviewCacheForLayer === 'function') {
@@ -589,6 +634,12 @@
       }
       if (typeof window.redrawComposition === 'function') {
         window.redrawComposition('pasteAttributes');
+      }
+      if (typeof window.syncFillControllerUI === 'function') {
+        window.syncFillControllerUI();
+      }
+      if (typeof window.syncInspectorState === 'function') {
+        window.syncInspectorState();
       }
 
       if (window.Popover) window.Popover.close();

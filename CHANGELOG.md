@@ -5,6 +5,12 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.64] - 2026-09-22
+
+### Fixed
+- **Anamorphic Flare Overhaul (`effects/anamorphic_flare.js`)**: Replaced broken whole-frame squash/stretch and contrast filter with genuine optical anamorphic lens flare engine. Implements strict Rec.709 specular highlight extraction with smooth shoulder (midtones and darks zeroed out), 1D directional horizontal streak shader with progressive exponential decay, white-hot specular core hotspot preservation, chromatic dispersion fringe, and universal Canvas2D fallback.
+- **Haze / Flare Overhaul (`effects/haze_flare.js`)**: Replaced flat full-screen milky fog box (`fillRect lighter`) and contrast filter with authentic cinematic diffusion haze and 35mm film halation. Implements soft-shoulder highlight roll-off extraction, Kodak Vision3 5219 red scatter halation rim bleed along highlight boundaries, multi-octave atmospheric diffusion bloom, color temperature warmth control, and zero contrast destruction in unlit shadows.
+
 ## [0.5.51] - 2026-09-22
 
 ### Fixed

@@ -5258,38 +5258,40 @@
   min-height: 24px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 10px 0 6px;
+  padding: 0 8px 0 22px;
   border-bottom: 1px solid var(--border-panel);
   box-sizing: border-box;
   cursor: default;
-  transition: background-color 0.1s ease;
+  gap: 4px;
 }
 
 .desktop-kf-prop-row:hover {
   background-color: var(--bg-panel-hover);
+  opacity: 0.92;
 }
 
 /* Stopwatch icon — left of prop name */
 .desktop-kf-prop-stopwatch {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--text-muted);
-  border-radius: 3px;
-  margin-right: 4px;
-  transition: color 0.12s ease;
+  opacity: 0.55;
+  transition: opacity 0.1s;
+  margin-right: 2px;
 }
 
 .desktop-kf-prop-stopwatch:hover {
-  color: var(--text-primary);
+  opacity: 1;
+  color: var(--text-secondary);
 }
 
 .desktop-kf-prop-stopwatch.is-active {
+  opacity: 1;
   color: var(--color-primary);
 }
 
@@ -5303,27 +5305,23 @@
   min-width: 0;
 }
 
-.desktop-kf-prop-row:hover .desktop-kf-prop-name {
-  color: var(--text-primary);
-}
-
 /* Scrubable value — right side, drag horizontally to change */
 .desktop-kf-prop-val {
-  font-size: 10px;
-  font-family: monospace;
+  font-size: 10.5px;
+  font-family: 'Cal Sans', monospace;
   color: var(--color-primary);
   white-space: nowrap;
   cursor: ew-resize;
   user-select: none;
-  padding: 2px 4px;
-  border-radius: 3px;
+  padding: 1px 3px;
+  border-radius: 2px;
   flex-shrink: 0;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  min-width: 40px;
+  text-align: right;
 }
 
 .desktop-kf-prop-val:hover {
   background-color: var(--bg-panel-inner);
-  color: var(--text-primary);
 }
 
 .desktop-kf-prop-val.is-scrubbing {

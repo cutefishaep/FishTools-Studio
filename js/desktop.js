@@ -2375,13 +2375,15 @@
         const screenStartX = startClientX - (curScrollX - startScrollX);
         const screenStartY = startClientY - (curScrollY - startScrollY);
 
+        // Clamp X to viewport, but NOT Y — let box extend beyond visible area (AE behavior)
         const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, currentClientX));
-        const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, currentClientY));
+        // Y is unclamped — the marquee box extends wherever the mouse is
+        const rawClientY = currentClientY;
 
-        const boxLeft = Math.max(vpRect.left, Math.min(screenStartX, clampedClientX));
-        const boxTop = Math.max(vpRect.top, Math.min(screenStartY, clampedClientY));
-        const boxRight = Math.min(vpRect.right, Math.max(screenStartX, clampedClientX));
-        const boxBottom = Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY));
+        const boxLeft   = Math.max(vpRect.left, Math.min(screenStartX, clampedClientX));
+        const boxTop    = Math.min(screenStartY, rawClientY);
+        const boxRight  = Math.min(vpRect.right, Math.max(screenStartX, clampedClientX));
+        const boxBottom = Math.max(screenStartY, rawClientY);
 
         const boxW = Math.max(0, boxRight - boxLeft);
         const boxH = Math.max(0, boxBottom - boxTop);
@@ -2392,6 +2394,7 @@
         marqueeBox.style.height = `${boxH}px`;
 
         // Convert marquee to scroll-space so off-screen (scrolled) elements intersect correctly
+        // Use unclamped Y so clips below/above the visible fold are caught
         const mScrollLeft   = boxLeft   - vpRect.left + curScrollX;
         const mScrollTop    = boxTop    - vpRect.top  + curScrollY;
         const mScrollRight  = boxRight  - vpRect.left + curScrollX;
@@ -2430,6 +2433,8 @@
           diamond.classList.toggle('is-marquee-candidate', intersects);
         });
       }
+
+
 
 
       function runAutoScrollLoop() {
@@ -2519,12 +2524,12 @@
           const screenStartY = startClientY - (curScrollY - startScrollY);
 
           const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, upEvent.clientX));
-          const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, upEvent.clientY));
+          const rawClientY = upEvent.clientY; // unclamped Y for full scroll-space coverage
 
           const boxLeft   = Math.max(vpRect.left, Math.min(screenStartX, clampedClientX));
-          const boxTop    = Math.max(vpRect.top,  Math.min(screenStartY, clampedClientY));
+          const boxTop    = Math.min(screenStartY, rawClientY);
           const boxRight  = Math.min(vpRect.right, Math.max(screenStartX, clampedClientX));
-          const boxBottom = Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY));
+          const boxBottom = Math.max(screenStartY, rawClientY);
 
           // Marquee in scroll-space for off-screen intersection
           const mLeft   = boxLeft   - vpRect.left + curScrollX;

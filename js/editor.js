@@ -24073,19 +24073,43 @@
         function formatValText(prop, val) {
           if (val === undefined || val === null) return '';
           if (typeof val === 'number') {
-            if (prop === 'opacity') return `${Math.round(val <= 1.0 && val > 0 ? val * 100 : val)}%`;
+            if (prop === 'opacity') return `${Math.round(val <= 1.0 && val >= 0 ? val * 100 : val)}%`;
             if (prop === 'rotate') return `${val.toFixed(1)}°`;
             return val.toFixed(1);
           }
           if (typeof val === 'object') {
+            // Unwrap all shapes returned by getLayerPropertyValue
             if (val.posX !== undefined && val.posY !== undefined) {
-              return `[${Math.round(val.posX)}, ${Math.round(val.posY)}]`;
+              return `${Math.round(val.posX)}, ${Math.round(val.posY)}`;
             }
             if (val.scaleW !== undefined && val.scaleH !== undefined) {
-              return `[${Math.round(val.scaleW)}, ${Math.round(val.scaleH)}]`;
+              return `${Math.round(val.scaleW)}, ${Math.round(val.scaleH)}%`;
+            }
+            if (val.rotZ !== undefined) {
+              return `${val.rotZ.toFixed(1)}°`;
+            }
+            if (val.opacity !== undefined) {
+              const o = val.opacity;
+              return `${Math.round(o <= 1.0 && o >= 0 ? o * 100 : o)}%`;
+            }
+            if (val.volume !== undefined) {
+              return `${Math.round(val.volume * 100)}%`;
+            }
+            if (val.anchorX !== undefined && val.anchorY !== undefined) {
+              return `${Math.round(val.anchorX)}, ${Math.round(val.anchorY)}`;
+            }
+            if (val.skewX !== undefined) {
+              return `${val.skewX.toFixed(1)}°`;
             }
             if (val.x !== undefined && val.y !== undefined) {
-              return `[${Math.round(val.x)}, ${Math.round(val.y)}]`;
+              return `${Math.round(val.x)}, ${Math.round(val.y)}`;
+            }
+            // Effect params — single key object {paramId: value}
+            const keys = Object.keys(val);
+            if (keys.length === 1) {
+              const v = val[keys[0]];
+              if (typeof v === 'number') return v.toFixed(1);
+              return String(v);
             }
           }
           return String(val);
@@ -24755,12 +24779,14 @@
                   valSpan.addEventListener('pointerdown', (e) => {
                     if (e.button !== 0) return;
                     e.stopPropagation();
+                    e.stopImmediatePropagation();
                     e.preventDefault();
                     valSpan.setPointerCapture(e.pointerId);
                     let startX = e.clientX;
                     valSpan.classList.add('is-scrubbing');
 
                     function onValMove(ev) {
+                      if (!valSpan.hasPointerCapture(ev.pointerId)) return;
                       const dx = ev.clientX - startX;
                       startX = ev.clientX;
                       applyPropDelta(p.prop, dx);
@@ -24768,19 +24794,20 @@
                       if (typeof redrawComposition === 'function') redrawComposition();
                     }
 
-                    function onValUp() {
+                    function onValUp(ev) {
                       valSpan.classList.remove('is-scrubbing');
+                      valSpan.removeEventListener('pointermove', onValMove);
+                      valSpan.removeEventListener('pointerup', onValUp);
+                      valSpan.removeEventListener('pointercancel', onValUp);
                       if (typeof saveCurrentProject === 'function') saveCurrentProject();
                       if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
-                      window.removeEventListener('pointermove', onValMove);
-                      window.removeEventListener('pointerup', onValUp);
-                      window.removeEventListener('pointercancel', onValUp);
                     }
 
-                    window.addEventListener('pointermove', onValMove);
-                    window.addEventListener('pointerup', onValUp);
-                    window.addEventListener('pointercancel', onValUp);
+                    valSpan.addEventListener('pointermove', onValMove);
+                    valSpan.addEventListener('pointerup', onValUp);
+                    valSpan.addEventListener('pointercancel', onValUp);
                   });
+
 
                   pRow.appendChild(swBtn);
                   pRow.appendChild(nameSpan);

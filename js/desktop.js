@@ -314,32 +314,26 @@
 
     const firstId = (primaryId && ids.includes(primaryId)) ? primaryId : ids[0];
 
-    // Sync with editor.js's internal selection state
-    if (typeof window.selectTimelineLayer === 'function') {
-      window.selectTimelineLayer(firstId, false);
-      for (let i = 0; i < ids.length; i++) {
-        if (ids[i] !== firstId) {
-          window.selectTimelineLayer(ids[i], true);
-        }
+    if (typeof window.selectTimelineLayers === 'function') {
+      window.selectTimelineLayers(ids, firstId);
+    } else {
+      window.selectedLayerId = firstId;
+      window.lastSelectedLayerId = firstId;
+      if (!window.selectedLayerIds) window.selectedLayerIds = new Set();
+      window.selectedLayerIds.clear();
+      ids.forEach(id => window.selectedLayerIds.add(id));
+      window.isSelectorMode = (ids.length > 1);
+
+      if (typeof window.updateEditorHeaderMode === 'function') {
+        window.updateEditorHeaderMode();
       }
-    }
-
-    window.selectedLayerId = firstId;
-    window.lastSelectedLayerId = firstId;
-    if (!window.selectedLayerIds) window.selectedLayerIds = new Set();
-    window.selectedLayerIds.clear();
-    ids.forEach(id => window.selectedLayerIds.add(id));
-    window.isSelectorMode = (ids.length > 1);
-
-    if (typeof window.updateEditorHeaderMode === 'function') {
-      window.updateEditorHeaderMode();
-    }
-    if (typeof window.syncSelectionClassesInPlace === 'function') {
-      window.syncSelectionClassesInPlace();
-    }
-    syncInspectorState();
-    if (typeof window.redrawComposition === 'function') {
-      window.redrawComposition();
+      if (typeof window.syncSelectionClassesInPlace === 'function') {
+        window.syncSelectionClassesInPlace();
+      }
+      syncInspectorState();
+      if (typeof window.redrawComposition === 'function') {
+        window.redrawComposition();
+      }
     }
   }
   window.setDesktopSelectedLayers = setDesktopSelectedLayers;
@@ -2105,7 +2099,7 @@
     }, true);
   }
 
-  // --- 9. Desktop Marquee Selection Engine (Drag empty space to multi-select) ---
+  // --- 9. Desktop Marquee Selection Engine (Drag empty space to multi-select with AE Auto-Scroll) ---
   let isMarqueeInited = false;
   function initDesktopMarqueeSelection() {
     if (isMarqueeInited) return;
@@ -2123,6 +2117,11 @@
     let isMarquee = false;
     let startClientX = 0;
     let startClientY = 0;
+    let currentClientX = 0;
+    let currentClientY = 0;
+    let startScrollX = 0;
+    let startScrollY = 0;
+    let _marqueeRafId = null;
 
     layersViewport.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
@@ -2150,80 +2149,130 @@
 
       startClientX = e.clientX;
       startClientY = e.clientY;
+      currentClientX = e.clientX;
+      currentClientY = e.clientY;
+      startScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : (desktopScrollX || 0);
+      startScrollY = layersViewport.scrollTop;
       isMarquee = false;
 
-      const vpRect = layersViewport.getBoundingClientRect();
-      const startBoxX = startClientX - vpRect.left + layersViewport.scrollLeft;
-      const startBoxY = startClientY - vpRect.top + layersViewport.scrollTop;
+      const pointerId = e.pointerId;
 
-      let _marqueeRafPending = false;
-      let _marqueeLastEvent = null;
+      function updateMarqueeGeometry() {
+        const vpRect = layersViewport.getBoundingClientRect();
+        const curScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : (desktopScrollX || 0);
+        const curScrollY = layersViewport.scrollTop;
+
+        // Content-anchored start position projected to current screen space
+        const screenStartX = startClientX - (curScrollX - startScrollX);
+        const screenStartY = startClientY - (curScrollY - startScrollY);
+
+        const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, currentClientX));
+        const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, currentClientY));
+
+        const boxL = Math.min(screenStartX, clampedClientX) - vpRect.left;
+        const boxT = Math.min(screenStartY, clampedClientY) - vpRect.top;
+        const boxW = Math.abs(clampedClientX - screenStartX);
+        const boxH = Math.abs(clampedClientY - screenStartY);
+
+        marqueeBox.style.left = `${boxL}px`;
+        marqueeBox.style.top = `${boxT}px`;
+        marqueeBox.style.width = `${boxW}px`;
+        marqueeBox.style.height = `${boxH}px`;
+
+        const marqueeRect = {
+          left: Math.min(screenStartX, currentClientX),
+          top: Math.min(screenStartY, currentClientY),
+          right: Math.max(screenStartX, currentClientX),
+          bottom: Math.max(screenStartY, currentClientY)
+        };
+
+        const clips = layersViewport.querySelectorAll('.timeline-clip-block');
+        clips.forEach(clip => {
+          const cr = clip.getBoundingClientRect();
+          const intersects = !(
+            cr.right < marqueeRect.left ||
+            cr.left > marqueeRect.right ||
+            cr.bottom < marqueeRect.top ||
+            cr.top > marqueeRect.bottom
+          );
+          clip.classList.toggle('is-marquee-candidate', intersects);
+        });
+
+        const diamonds = layersViewport.querySelectorAll('.desktop-kf-diamond');
+        diamonds.forEach(diamond => {
+          const dr = diamond.getBoundingClientRect();
+          const intersects = !(
+            dr.right < marqueeRect.left ||
+            dr.left > marqueeRect.right ||
+            dr.bottom < marqueeRect.top ||
+            dr.top > marqueeRect.bottom
+          );
+          diamond.classList.toggle('is-marquee-candidate', intersects);
+        });
+      }
+
+      function runAutoScrollLoop() {
+        if (!isMarquee) return;
+
+        const vpRect = layersViewport.getBoundingClientRect();
+        const edgeZone = 36;
+        let scrollDx = 0;
+        let scrollDy = 0;
+
+        // Horizontal auto-scroll when near/outside viewport left/right
+        if (currentClientX > vpRect.right - edgeZone) {
+          const dist = currentClientX - (vpRect.right - edgeZone);
+          scrollDx = Math.min(32, Math.max(3, dist * 0.45));
+        } else if (currentClientX < vpRect.left + edgeZone) {
+          const dist = (vpRect.left + edgeZone) - currentClientX;
+          scrollDx = -Math.min(32, Math.max(3, dist * 0.45));
+        }
+
+        // Vertical auto-scroll when near/outside viewport top/bottom
+        if (currentClientY > vpRect.bottom - edgeZone) {
+          const dist = currentClientY - (vpRect.bottom - edgeZone);
+          scrollDy = Math.min(26, Math.max(3, dist * 0.45));
+        } else if (currentClientY < vpRect.top + edgeZone) {
+          const dist = (vpRect.top + edgeZone) - currentClientY;
+          scrollDy = -Math.min(26, Math.max(3, dist * 0.45));
+        }
+
+        if (scrollDx !== 0) {
+          const pps = window.currentPixelsPerSecond || 80;
+          const durSec = (window.currentProjectState && window.currentProjectState.duration) || 30;
+          const totalContentW = durSec * pps;
+          const viewW = layersViewport.clientWidth || 800;
+          const maxScrollX = Math.max(0, totalContentW - viewW + 160);
+          desktopScrollX = Math.max(0, Math.min(maxScrollX, desktopScrollX + scrollDx));
+          syncDesktopPlayhead();
+        }
+
+        if (scrollDy !== 0) {
+          const layersTrack = document.getElementById('timeline-layers-track');
+          const maxScrollY = Math.max(0, (layersTrack ? layersTrack.scrollHeight : 0) - layersViewport.clientHeight);
+          layersViewport.scrollTop = Math.max(0, Math.min(maxScrollY, layersViewport.scrollTop + scrollDy));
+        }
+
+        updateMarqueeGeometry();
+        _marqueeRafId = requestAnimationFrame(runAutoScrollLoop);
+      }
+
       function onPointerMove(moveEvent) {
-        const dx = moveEvent.clientX - startClientX;
-        const dy = moveEvent.clientY - startClientY;
+        currentClientX = moveEvent.clientX;
+        currentClientY = moveEvent.clientY;
+        const dx = currentClientX - startClientX;
+        const dy = currentClientY - startClientY;
         const dist = Math.hypot(dx, dy);
 
         if (!isMarquee && dist > 4) {
           isMarquee = true;
           marqueeBox.style.display = 'block';
+          try { layersViewport.setPointerCapture(pointerId); } catch (_) {}
+          _marqueeRafId = requestAnimationFrame(runAutoScrollLoop);
         }
 
         if (isMarquee) {
-          // rAF-throttle: querySelectorAll + getBCR per clip is O(n) layout thrash — cap at display rate
-          _marqueeLastEvent = moveEvent;
-          if (_marqueeRafPending) return;
-          _marqueeRafPending = true;
-          requestAnimationFrame(() => {
-            _marqueeRafPending = false;
-            const ev = _marqueeLastEvent;
-            if (!ev || !isMarquee) return;
-
-            const curVpRect = layersViewport.getBoundingClientRect();
-            const curBoxX = ev.clientX - curVpRect.left + layersViewport.scrollLeft;
-            const curBoxY = ev.clientY - curVpRect.top + layersViewport.scrollTop;
-
-            const boxL = Math.min(startBoxX, curBoxX);
-            const boxT = Math.min(startBoxY, curBoxY);
-            const boxW = Math.abs(curBoxX - startBoxX);
-            const boxH = Math.abs(curBoxY - startBoxY);
-
-            marqueeBox.style.left = `${boxL}px`;
-            marqueeBox.style.top = `${boxT}px`;
-            marqueeBox.style.width = `${boxW}px`;
-            marqueeBox.style.height = `${boxH}px`;
-
-            // Live highlight candidate clips
-            const marqueeRect = {
-              left: Math.min(startClientX, ev.clientX),
-              top: Math.min(startClientY, ev.clientY),
-              right: Math.max(startClientX, ev.clientX),
-              bottom: Math.max(startClientY, ev.clientY)
-            };
-
-            const clips = layersViewport.querySelectorAll('.timeline-clip-block');
-            clips.forEach(clip => {
-              const cr = clip.getBoundingClientRect();
-              const intersects = !(
-                cr.right < marqueeRect.left ||
-                cr.left > marqueeRect.right ||
-                cr.bottom < marqueeRect.top ||
-                cr.top > marqueeRect.bottom
-              );
-              clip.classList.toggle('is-marquee-candidate', intersects);
-            });
-
-            const diamonds = layersViewport.querySelectorAll('.desktop-kf-diamond');
-            diamonds.forEach(diamond => {
-              const dr = diamond.getBoundingClientRect();
-              const intersects = !(
-                dr.right < marqueeRect.left ||
-                dr.left > marqueeRect.right ||
-                dr.bottom < marqueeRect.top ||
-                dr.top > marqueeRect.bottom
-              );
-              diamond.classList.toggle('is-marquee-candidate', intersects);
-            });
-          });
+          updateMarqueeGeometry();
         }
       }
 
@@ -2231,16 +2280,27 @@
         window.removeEventListener('pointermove', onPointerMove, true);
         window.removeEventListener('pointerup', onPointerUp, true);
         window.removeEventListener('pointercancel', onPointerUp, true);
+        try { layersViewport.releasePointerCapture(pointerId); } catch (_) {}
+
+        if (_marqueeRafId) {
+          cancelAnimationFrame(_marqueeRafId);
+          _marqueeRafId = null;
+        }
 
         if (isMarquee) {
           isMarquee = false;
           marqueeBox.style.display = 'none';
 
+          const curScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : (desktopScrollX || 0);
+          const curScrollY = layersViewport.scrollTop;
+          const screenStartX = startClientX - (curScrollX - startScrollX);
+          const screenStartY = startClientY - (curScrollY - startScrollY);
+
           const marqueeRect = {
-            left: Math.min(startClientX, upEvent.clientX),
-            top: Math.min(startClientY, upEvent.clientY),
-            right: Math.max(startClientX, upEvent.clientX),
-            bottom: Math.max(startClientY, upEvent.clientY)
+            left: Math.min(screenStartX, upEvent.clientX),
+            top: Math.min(screenStartY, upEvent.clientY),
+            right: Math.max(screenStartX, upEvent.clientX),
+            bottom: Math.max(screenStartY, upEvent.clientY)
           };
 
           const matchedDiamonds = [];
@@ -2313,9 +2373,6 @@
           } else {
             deselectAllDesktopLayers();
           }
-        } else {
-          // Simple click without drag on canvas: do NOT deselect layers.
-          // Deselection is strictly scoped to empty space inside the timeline.
         }
       }
 

@@ -5,6 +5,26 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.38] - 2026-09-21
+
+### Added
+- **AE-Style Auto-Scrolling Marquee Selection (`js/desktop.js`)**:
+  - Implemented real-time auto-scroll along both horizontal and vertical axes when dragging marquee selection near or beyond timeline viewport boundaries (`timeline-layers-viewport`).
+  - Anchored marquee origin to timeline track content space so selection box expands and tracks layers accurately as the timeline scrolls.
+  - Added pointer capture for seamless drag selection extending outside the window.
+
+### Changed
+- **Minimalist Attribute Matrix Popover (`desktop.html`, `editor.html`, `demo.html`, `css/popover.css`)**:
+  - Removed "Copy Attributes" text header, layer title, and subtitle to produce a clean, pure button matrix matching the mobile drawer layout.
+  - Refactored `.attributes-toggle-grid` into a balanced 3-column card grid with Cal Sans typography, 64px button height, and full-width action button.
+
+### Performance
+- **Zero-Lag Batch Layer Selection (`js/editor.js`, `js/desktop.js`)**:
+  - Introduced `selectTimelineLayers(ids, primaryId)` in `editor.js` to batch-select multiple layers in a single pass.
+  - Eliminated redundant `selectTimelineLayer()` loops that previously caused repeated DOM rebuilds and multi-selection delay on desktop.
+
+---
+
 ## [0.5.37] - 2026-09-21
 
 ### Added

@@ -21156,6 +21156,44 @@
       }
       window.selectTimelineLayer = selectTimelineLayer;
 
+      function selectTimelineLayers(layerIds, primaryId = null) {
+        const ids = Array.from(layerIds || []);
+        if (ids.length === 0) {
+          deselectTimelineLayer();
+          return;
+        }
+        const firstId = (primaryId && ids.includes(primaryId)) ? primaryId : ids[0];
+        if (typeof window.clearSelectedKeyframes === 'function') {
+          window.clearSelectedKeyframes();
+        }
+        selectedLayerIds.clear();
+        ids.forEach(id => selectedLayerIds.add(id));
+        selectedLayerId = firstId;
+        window.selectedLayerId = firstId;
+        window.selectedLayerIds = selectedLayerIds;
+        window.lastSelectedLayerId = firstId;
+        isSelectorMode = ids.length > 1;
+        window.isSelectorMode = isSelectorMode;
+
+        const layer = (currentProjectState.layers || []).find(l => l.id === firstId);
+        if (layer) {
+          window.selectedMediaId = layer.mediaId;
+        }
+
+        syncSelectionClassesInPlace();
+        if (typeof syncInspectorState === 'function') {
+          syncInspectorState();
+        }
+        if (typeof updateEditorHeaderMode === 'function') {
+          updateEditorHeaderMode();
+        }
+        if (typeof updateCutBarRowState === 'function') {
+          updateCutBarRowState();
+        }
+        redrawComposition();
+      }
+      window.selectTimelineLayers = selectTimelineLayers;
+
       function updateTimelineSpotlight() {}
       window.updateTimelineSpotlight = updateTimelineSpotlight;
 

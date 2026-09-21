@@ -1064,42 +1064,38 @@
    100% Flat Design Tokens | Fast Tactile Selection | Zero Hyperbole
    ========================================================================== */
 .popover-card.is-attributes-popover {
-  width: 260px;
-  padding: 12px;
+  width: 270px;
+  padding: 8px;
   background-color: var(--bg-panel);
-  border: 1px solid var(--color-primary);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
+  box-sizing: border-box;
 }
 
 .attributes-popover-header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--bg-panel-hover);
+  display: none !important;
 }
 
 .attributes-popover-title {
-  font-family: var(--font-brand);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-primary);
-  line-height: 1.2;
+  display: none !important;
 }
 
 .attributes-popover-subtitle {
-  font-family: var(--font-brand);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-  line-height: 1.2;
+  display: none !important;
 }
 
 .attributes-toggle-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  margin: 10px 0 10px 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.attributes-toggle-grid:has(> :first-child:nth-last-child(4)),
+.attributes-toggle-grid:has(> :first-child:nth-last-child(2)) {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .attr-toggle-btn {
@@ -1107,19 +1103,21 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  height: 52px;
-  padding: 6px 4px;
+  min-height: 62px;
+  height: 64px;
+  padding: 8px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   cursor: pointer;
   outline: none !important;
   box-shadow: none !important;
   transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .attr-toggle-btn:hover {
@@ -1140,15 +1138,18 @@
 }
 
 .attr-toggle-btn.is-disabled {
-  opacity: 0.32;
+  opacity: 0.28;
   pointer-events: none;
   cursor: not-allowed;
-  filter: grayscale(0.5);
+  border-style: dashed;
 }
 
 .attr-toggle-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   pointer-events: none;
 }
@@ -1176,27 +1177,29 @@
 
 .attributes-popover-footer {
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid var(--bg-panel-hover);
+  width: 100%;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+  box-sizing: border-box;
 }
 
 .attr-action-btn {
+  width: 100%;
   background-color: var(--color-primary);
   color: var(--bg-canvas);
   font-family: var(--font-brand);
   font-size: 12px;
   font-weight: 700;
-  padding: 6px 18px;
-  border-radius: 6px;
+  padding: 8px 0;
+  border-radius: 8px;
   border: none;
   outline: none !important;
   box-shadow: none !important;
   cursor: pointer;
-  transition: background-color 0.12s ease;
-  min-width: 70px;
+  transition: background-color 0.12s ease, transform 0.08s ease;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .attr-action-btn:hover {
@@ -1205,7 +1208,7 @@
 
 .attr-action-btn:active {
   background-color: var(--color-primary-hover);
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 

@@ -5,7 +5,25 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.50] - 2026-09-21
+
+### Changed
+- **Paste Button Visibility Rules (`js/attributes-clipboard.js`, `js/desktop.js`)**:
+  - **Copy button**: unchanged — only visible when ≥ 1 layer is selected.
+  - **Paste button**: now also visible when clipboard has content (attribute or layer clipboard) even with **no layer selected**. Previously paste was always hidden without selection.
+  - All three enforcement points updated: `updateClipboardButtonsVisibility()`, `syncInspectorState()`, and the global `click` debounce guard.
+
+### Added
+- **Paste as New Layer (`js/attributes-clipboard.js` — `pasteAttributesAsNewLayer()`)**:
+  - When attribute clipboard exists and user clicks Paste with **no layer selected**, a new `shape` layer is created at the current playhead position with the source layer's duration.
+  - All copied attribute categories (fill, transform, effects, opacity, etc.) are applied directly to the new layer — no popover selection needed.
+  - Layer inserted at top of stack; undo snapshot is recorded before insertion.
+  - Toast confirms: `"Pasted as new layer: Fill, Transform, …"`
+
+---
+
 ## [0.5.49] - 2026-09-21
+
 
 ### Added
 - **Save Current Frame Export (`desktop.html`, `js/editor.js`)**:

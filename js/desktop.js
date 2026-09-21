@@ -423,8 +423,15 @@
     const _btnCopy = document.getElementById('desktop-btn-copy');
     const _btnPaste = document.getElementById('desktop-btn-paste');
     if (!hasActiveLayer) {
+      // Copy always requires a selection — always hide
       if (_btnCopy) _btnCopy.style.display = 'none';
-      if (_btnPaste) _btnPaste.style.display = 'none';
+
+      // Paste is still visible when clipboard has content (layer or attribute clipboard)
+      const hasClipboardContent = !!(
+        window.internalAttributeClipboard ||
+        (window.internalLayerClipboard && window.internalLayerClipboard.length > 0)
+      );
+      if (_btnPaste) _btnPaste.style.display = hasClipboardContent ? 'inline-flex' : 'none';
     } else {
       if (typeof window.updateClipboardButtonsVisibility === 'function') {
         window.updateClipboardButtonsVisibility();

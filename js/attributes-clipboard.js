@@ -113,24 +113,36 @@
       }
     }
 
+    // Paste is available when selection exists OR clipboard has any content
+    const hasClipboardContent = !!(
+      window.internalAttributeClipboard ||
+      (window.internalLayerClipboard && window.internalLayerClipboard.length > 0)
+    );
+    const showPaste = hasSelection || hasClipboardContent;
+
     const desktopBtnCopy = document.getElementById('desktop-btn-copy');
     const desktopBtnPaste = document.getElementById('desktop-btn-paste');
     if (desktopBtnCopy) {
+      // Copy: only when selection exists
       desktopBtnCopy.style.display = hasSelection ? 'inline-flex' : 'none';
     }
     if (desktopBtnPaste) {
-      desktopBtnPaste.style.display = hasSelection ? 'inline-flex' : 'none';
+      // Paste: when selection exists OR clipboard has content
+      desktopBtnPaste.style.display = showPaste ? 'inline-flex' : 'none';
     }
+
+    // Mobile dock buttons — same rules
     const dockCopy = document.getElementById('editor-btn-copy-dock');
     const dockPaste = document.getElementById('editor-btn-paste-dock');
     if (dockCopy) {
       dockCopy.style.display = hasSelection ? 'inline-flex' : 'none';
     }
     if (dockPaste) {
-      dockPaste.style.display = hasSelection ? 'inline-flex' : 'none';
+      dockPaste.style.display = showPaste ? 'inline-flex' : 'none';
     }
   }
   window.updateClipboardButtonsVisibility = updateClipboardButtonsVisibility;
+
 
   /**
    * Toast notification dispatch helper
@@ -795,7 +807,8 @@
       const compatibleTargets = selected.filter(isSupportedLayerType);
 
       if (compatibleTargets.length === 0) {
-        notify('Select a shape, video, or photo layer to paste attributes');
+        // No selection → paste as a brand-new layer carrying only the copied attributes
+        pasteAttributesAsNewLayer();
         return;
       }
 
@@ -811,6 +824,81 @@
     } else {
       notify('Clipboard is empty');
     }
+  }
+
+  /**
+   * Create a new shape layer, apply all attribute clipboard categories to it,
+   * and insert at the top of the timeline (index 0).
+   * Used when user clicks Paste with no layer selected but attribute clipboard exists.
+   */
+  function pasteAttributesAsNewLayer() {
+    const clip = window.internalAttributeClipboard;
+    if (!clip) return;
+
+    const ps = window.currentProjectState;
+    if (!ps || !Array.isArray(ps.layers)) return;
+
+    // Resolve playhead position for layer start
+    const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0)
+      ? pixelsPerSecond
+      : (window.currentPixelsPerSecond || 80);
+    const panXVal = (typeof panX === 'number') ? panX : (window.timelinePanX !== undefined ? window.timelinePanX : 0);
+    const playheadSec = Math.max(0, -panXVal / pps);
+
+    const durSec = (clip.sourceDurationSec && clip.sourceDurationSec > 0.1) ? clip.sourceDurationSec : 5;
+
+    // Build a clean default shape layer
+    const newId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + ps.layers.length;
+    const newLayer = {
+      id: newId,
+      type: 'shape',
+      name: 'Pasted Layer',
+      startSec: playheadSec,
+      startPx: Math.round(playheadSec * pps),
+      durationSec: durSec,
+      widthPx: Math.round(durSec * pps),
+      posX: 0,
+      posY: 0,
+      scaleW: 1,
+      scaleH: 1,
+      rotZ: 0,
+      opacity: 1,
+      blendMode: 'normal',
+      fillColor: '#98ce7b',
+      fillType: 'color',
+      isSolid: true,
+      effects: [],
+      keyframes: {},
+      hidden: false,
+      locked: false
+    };
+
+    if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
+      window.UndoRedoManager.recordSnapshot();
+    }
+
+    // Apply all clipboard categories directly — no popover needed
+    const categoriesSet = new Set(clip.categories || []);
+    applyAttributesToTarget(newLayer, clip, categoriesSet);
+
+    // Insert at top (renders above all other layers)
+    ps.layers.unshift(newLayer);
+
+    if (typeof window.saveCurrentProjectLayers === 'function') {
+      window.saveCurrentProjectLayers();
+    }
+    if (typeof window.renderTimelineLayers === 'function') {
+      window.renderTimelineLayers();
+    }
+    if (typeof window.redrawComposition === 'function') {
+      window.redrawComposition('pasteAsNewLayer');
+    }
+    if (typeof window.syncInspectorState === 'function') {
+      window.syncInspectorState();
+    }
+
+    const cats = Array.from(categoriesSet).map(k => (CATEGORY_DEFINITIONS[k] ? CATEGORY_DEFINITIONS[k].label : k));
+    notify('Pasted as new layer' + (cats.length ? ': ' + cats.join(', ') : ''));
   }
 
   // Setup DOM listeners once ready
@@ -873,11 +961,16 @@
         const inspectorEl = document.getElementById('desktop-panel-inspector') || document.getElementById('inspector-panel');
         const inspectorHasLayer = inspectorEl ? inspectorEl.classList.contains('has-active-layer') : null;
         if (inspectorHasLayer === false) {
-          // Inspector definitively says no selection — force-hide without re-reading stale state
+          // Inspector definitively says no selection — copy always hidden, paste depends on clipboard
           const _c = document.getElementById('desktop-btn-copy');
           const _p = document.getElementById('desktop-btn-paste');
           if (_c) _c.style.display = 'none';
-          if (_p) _p.style.display = 'none';
+          // Keep paste visible if clipboard has content
+          const hasClipboardContent = !!(
+            window.internalAttributeClipboard ||
+            (window.internalLayerClipboard && window.internalLayerClipboard.length > 0)
+          );
+          if (_p) _p.style.display = hasClipboardContent ? 'inline-flex' : 'none';
         } else {
           updateClipboardButtonsVisibility();
         }

@@ -677,6 +677,9 @@
       }
       document.removeEventListener('pointerdown', onDropdownDocPointerDown, true);
       document.removeEventListener('keydown', onDropdownDocKeyDown, true);
+      window.removeEventListener('resize', closeDesktopParentDropdown, { passive: true });
+      const vp = document.getElementById('timeline-layers-viewport');
+      if (vp) vp.removeEventListener('scroll', closeDesktopParentDropdown, { passive: true });
     }
 
     function onDropdownDocPointerDown(e) {
@@ -692,6 +695,10 @@
     }
 
     function openDesktopParentDropdown(triggerBadge, layerId) {
+      if (activeDesktopParentDropdown && activeDesktopParentDropdown._targetLayerId === String(layerId)) {
+        closeDesktopParentDropdown();
+        return;
+      }
       closeDesktopParentDropdown();
 
       const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
@@ -716,6 +723,7 @@
       dropdown.className = 'desktop-parent-dropdown';
       dropdown.setAttribute('role', 'menu');
       dropdown.setAttribute('aria-label', 'Select Parent Layer');
+      dropdown._targetLayerId = String(layerId);
 
       // 1. None / Unlink item at top
       const noneBtn = document.createElement('button');
@@ -789,11 +797,54 @@
       activeDesktopParentDropdown = dropdown;
 
       // Position anchored above or below trigger badge
-      const badgeRect = triggerBadge.getBoundingClientRect();
-      const dropdownRect = dropdown.getBoundingClientRect();
+      let targetEl = (triggerBadge && triggerBadge.isConnected) ? triggerBadge : null;
+      if (!targetEl && layerId) {
+        targetEl = document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"] .desktop-layer-parent-badge`) ||
+                   document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"] .desktop-layer-parent-col`) ||
+                   document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"]`);
+      }
+      if (!targetEl && triggerBadge) {
+        targetEl = triggerBadge;
+      }
+
+      let badgeRect = targetEl ? targetEl.getBoundingClientRect() : null;
+      const isValidRect = badgeRect && (badgeRect.width > 0 || badgeRect.height > 0) && (badgeRect.top !== 0 || badgeRect.bottom !== 0 || badgeRect.left !== 0);
+
+      if (!isValidRect && layerId) {
+        const slotEl = document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"]`);
+        if (slotEl && slotEl.isConnected) {
+          badgeRect = slotEl.getBoundingClientRect();
+        }
+      }
+
       const vh = window.innerHeight;
       const vw = window.innerWidth;
 
+      if (!badgeRect || (badgeRect.top === 0 && badgeRect.bottom === 0)) {
+        const overlay = document.getElementById('timeline-lane-heads-overlay') || document.getElementById('main-editor-timeline');
+        if (overlay) {
+          const oRect = overlay.getBoundingClientRect();
+          badgeRect = {
+            top: oRect.top + 40,
+            bottom: oRect.top + 64,
+            left: oRect.left + 140,
+            right: oRect.left + 220,
+            width: 80,
+            height: 24
+          };
+        } else {
+          badgeRect = {
+            top: vh - 180,
+            bottom: vh - 156,
+            left: 200,
+            right: 280,
+            width: 80,
+            height: 24
+          };
+        }
+      }
+
+      const dropdownRect = dropdown.getBoundingClientRect();
       const spaceAbove = badgeRect.top;
       const spaceBelow = vh - badgeRect.bottom;
 
@@ -801,15 +852,28 @@
 
       if (spaceAbove >= dropdownRect.height + 6 || spaceAbove >= spaceBelow) {
         // Pop Upward (standard on bottom timeline)
+        dropdown.style.top = '';
         dropdown.style.bottom = `${vh - badgeRect.top + 4}px`;
         dropdown.style.left = `${left}px`;
-        dropdown.style.maxHeight = `${Math.min(320, spaceAbove - 12)}px`;
+        dropdown.style.maxHeight = `${Math.max(120, Math.min(320, spaceAbove - 12))}px`;
       } else {
         // Pop Downward
+        dropdown.style.bottom = '';
         dropdown.style.top = `${badgeRect.bottom + 4}px`;
         dropdown.style.left = `${left}px`;
-        dropdown.style.maxHeight = `${Math.min(320, spaceBelow - 12)}px`;
+        dropdown.style.maxHeight = `${Math.max(120, Math.min(320, spaceBelow - 12))}px`;
       }
+
+      const activeItem = listWrapper.querySelector('.desktop-parent-dropdown-item.is-active');
+      if (activeItem) {
+        try {
+          activeItem.scrollIntoView({ block: 'nearest' });
+        } catch (_) {}
+      }
+
+      const vp = document.getElementById('timeline-layers-viewport');
+      if (vp) vp.addEventListener('scroll', closeDesktopParentDropdown, { passive: true });
+      window.addEventListener('resize', closeDesktopParentDropdown, { passive: true });
 
       setTimeout(() => {
         document.addEventListener('pointerdown', onDropdownDocPointerDown, true);
@@ -889,6 +953,9 @@
           const dropEl = document.elementFromPoint(ue.clientX, ue.clientY);
           const targetSlot = dropEl ? dropEl.closest('.timeline-lane-pill-slot') : null;
           const targetLayerId = targetSlot ? targetSlot.dataset.layerId : null;
+          const dist = Math.hypot(ue.clientX - originX, ue.clientY - originY);
+          const isReleasedOnSelf = (targetSlot && String(targetLayerId) === String(sourceLayerId)) ||
+                                   (dropEl && dropEl.closest('.desktop-layer-pickwhip-btn') === pickwhipBtn);
 
           if (targetLayerId && String(targetLayerId) !== String(sourceLayerId)) {
             const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
@@ -899,7 +966,7 @@
                 window.showEffectsRackToast(`Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
               }
             }
-          } else {
+          } else if (!isReleasedOnSelf && dist >= 8) {
             // Dragged to empty space / outside layer slots / released on empty area: UNLINK!
             if (sourceLayer.parentId && typeof window.unlinkLayer === 'function') {
               window.unlinkLayer(sourceLayer);
@@ -1076,8 +1143,26 @@
             e.stopPropagation();
             e.stopImmediatePropagation();
             e.preventDefault();
-            if (typeof window.selectTimelineLayer === 'function') {
-              window.selectTimelineLayer(layerId, false);
+            if (window.selectedLayerId !== layerId) {
+              window.selectedLayerId = layerId;
+              if (window.selectedLayerIds) {
+                window.selectedLayerIds.clear();
+                window.selectedLayerIds.add(layerId);
+              }
+              const allSlots = document.querySelectorAll('.timeline-lane-pill-slot');
+              allSlots.forEach(s => {
+                const isSel = String(s.dataset.layerId) === String(layerId);
+                s.classList.toggle('is-selected', isSel);
+                const p = s.querySelector('.timeline-layer-ctrl-pill');
+                if (p) p.classList.toggle('is-selected', isSel);
+              });
+              const allClips = document.querySelectorAll('.timeline-clip-block');
+              allClips.forEach(c => {
+                c.classList.toggle('is-selected', String(c.dataset.layerId) === String(layerId));
+              });
+              if (typeof window.syncInspectorState === 'function') {
+                window.syncInspectorState();
+              }
             }
             openDesktopParentDropdown(parentBadge, layerId);
           });

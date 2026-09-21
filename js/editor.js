@@ -3205,8 +3205,24 @@
               } else if (Array.isArray(layer.effects)) {
                 animLayer.effects = layer.effects.map(fx => Object.assign({}, fx));
               }
-              layer._canvasBounds = engine.getBounds(animLayer, bufferScale, camEff, w, h);
+
+              // Text out-of-bounds animation: expand render dimensions to include animPadY.
+              // _canvasBounds (wireframe) uses natural scaleH — computed BEFORE expanding.
+              // animLayer gets expanded scaleH + posY shift so FishToolEngine renders
+              // the padded canvas at correct size without squishing.
+              const textPad = (isText && layer._textAnimPadY) ? layer._textAnimPadY : 0;
+              if (textPad > 0) {
+                const naturalH = animLayer.scaleH || layer.scaleH || layer.mediaHeight || 100;
+                const scaleRatio = naturalH / (layer.mediaHeight || naturalH);
+                const padInScale = textPad * scaleRatio;
+                animLayer.scaleH = naturalH + padInScale * 2;
+                animLayer.posY = (animLayer.posY || 0) - padInScale; // shift up to keep center
+                layer._canvasBounds = engine.getBounds(Object.assign({}, layer, effProps), bufferScale, camEff, w, h);
+              } else {
+                layer._canvasBounds = engine.getBounds(animLayer, bufferScale, camEff, w, h);
+              }
               layersToRender.push({ el, layer, animLayer });
+
             } else {
               ctx.save();
               if (effProps.opacity !== undefined && effProps.opacity !== null) {

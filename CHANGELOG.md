@@ -5,6 +5,19 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.42] - 2026-09-21
+
+### Changed
+- **Clean Text-Only Export Menu (`editor.html`, `desktop.html`, `demo.html`, `js/template-editor.js`, `css/editor.css`)**:
+  - Simplified export popover menu items to clean, minimal text labels: "Image Sequence" and "Export Video", removing extraneous format extensions in parentheses (`.ZIP`, `.MP4`).
+  - Removed icons from export menu items and tuned `.export-popover-card` min-width to 160px for a clean, distraction-free dropdown.
+
+### Fixed
+- **Popover Menu SVG Solid Background Fix (`css/popover.css`)**:
+  - Removed `background-color: currentColor;` on `.popover-menu-item svg`, separating inline SVG vector styling from masked `.svg-icon` elements to prevent square solid bounding boxes.
+
+---
+
 ## [0.5.41] - 2026-09-21
 
 ### Added

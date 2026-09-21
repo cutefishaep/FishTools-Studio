@@ -133,26 +133,13 @@
               <span>Open Timeline</span>
             </button>
             <div class="popover-menu-divider"></div>
-            <!-- 2. Export Current As .PNG -->
-            <button type="button" class="popover-menu-item" id="btn-template-export-png" title="Export Current Frame as PNG">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-              </svg>
-              <span>Export Current As .PNG</span>
+            <!-- 2. Image Sequence -->
+            <button type="button" class="popover-menu-item" id="btn-template-export-sequence" title="Export Image Sequence">
+              <span>Image Sequence</span>
             </button>
-            <!-- 3. Image Sequence (.ZIP) -->
-            <button type="button" class="popover-menu-item" id="btn-template-export-sequence" title="Export Full Image Sequence as ZIP">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H8v-2h6v2zm4-4H8v-2h10v2z"/>
-              </svg>
-              <span>Image Sequence (.ZIP)</span>
-            </button>
-            <!-- 4. Export Video (.MP4) -->
-            <button type="button" class="popover-menu-item" id="btn-template-export-video" title="Open Video Export Settings">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-              </svg>
-              <span>Export Video (.MP4)</span>
+            <!-- 3. Export Video -->
+            <button type="button" class="popover-menu-item" id="btn-template-export-video" title="Export Video">
+              <span>Export Video</span>
             </button>
           </div>
         `;

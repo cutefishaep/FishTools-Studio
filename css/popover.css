@@ -156,12 +156,17 @@
   color: var(--bg-canvas);
 }
 
-.popover-menu-item svg,
-.popover-menu-item .svg-icon {
+.popover-menu-item svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   fill: currentColor;
+}
+
+.popover-menu-item .svg-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   background-color: currentColor;
 }
 

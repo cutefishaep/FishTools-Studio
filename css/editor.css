@@ -2835,7 +2835,7 @@ body.has-active-drawer .timeline-fab-add {
    EXPORT POPOVER & BITRATE CONTROLS
    ========================================================================== */
 .export-popover-card {
-  min-width: 250px;
+  min-width: 160px;
 }
 
 .export-video-section {

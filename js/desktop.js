@@ -1090,13 +1090,27 @@
             const pLayer = layers.find(l => String(l.id) === String(layer.parentId));
             const pIdx = pLayer ? layers.indexOf(pLayer) : -1;
             const pText = pLayer ? `${pIdx + 1}. ${pLayer.name || 'Layer'}` : 'None';
-            parentLabel.textContent = pText;
-            parentBadge.classList.add('has-parent');
-            parentBadge.title = `Parent: ${pText} (Click to change)`;
+            if (parentLabel.textContent !== pText) {
+              parentLabel.textContent = pText;
+            }
+            if (!parentBadge.classList.contains('has-parent')) {
+              parentBadge.classList.add('has-parent');
+            }
+            const newTitle = `Parent: ${pText} (Click to change)`;
+            if (parentBadge.title !== newTitle) {
+              parentBadge.title = newTitle;
+            }
           } else {
-            parentLabel.textContent = 'None';
-            parentBadge.classList.remove('has-parent');
-            parentBadge.title = 'Parent: None (Click to assign)';
+            if (parentLabel.textContent !== 'None') {
+              parentLabel.textContent = 'None';
+            }
+            if (parentBadge.classList.contains('has-parent')) {
+              parentBadge.classList.remove('has-parent');
+            }
+            const newTitle = 'Parent: None (Click to assign)';
+            if (parentBadge.title !== newTitle) {
+              parentBadge.title = newTitle;
+            }
           }
         }
 
@@ -1328,29 +1342,49 @@
     }
 
     let _enhanceRaf = null;
+    let _isEnhancing = false;
     const observer = new MutationObserver(() => {
+      if (_isEnhancing) return;
+      if (window.isTimelinePlaying) return;
       if (_enhanceRaf) return;
       _enhanceRaf = requestAnimationFrame(() => {
         _enhanceRaf = null;
-        enhanceLaneHeads();
+        if (window.isTimelinePlaying) return;
+        _isEnhancing = true;
+        try {
+          enhanceLaneHeads();
+        } finally {
+          _isEnhancing = false;
+        }
       });
     });
-    observer.observe(overlayContainer, { childList: true, subtree: true });
+    observer.observe(overlayContainer, { childList: true, subtree: false });
 
 
     window.enhanceLaneHeads = enhanceLaneHeads;
     enhanceLaneHeads();
   }
 
-  // Helper to read live panel width without hardcoding
-  function getDesktopPanelW() {
+  // Live panel width with cached layout read to eliminate style thrashing during playback
+  let _cachedDesktopPanelW = 240;
+  function updateCachedDesktopPanelW() {
     const rootVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w'));
-    if (!isNaN(rootVal) && rootVal > 0) return rootVal;
+    if (!isNaN(rootVal) && rootVal > 0) {
+      _cachedDesktopPanelW = rootVal;
+      return;
+    }
     const gutter = document.querySelector('.desktop-ruler-gutter');
-    if (gutter && gutter.offsetWidth > 0) return gutter.offsetWidth;
-    return 240;
+    if (gutter && gutter.offsetWidth > 0) {
+      _cachedDesktopPanelW = gutter.offsetWidth;
+      return;
+    }
+    _cachedDesktopPanelW = 240;
+  }
+  function getDesktopPanelW() {
+    return _cachedDesktopPanelW;
   }
   window.getDesktopPanelW = getDesktopPanelW;
+  window.updateCachedDesktopPanelW = updateCachedDesktopPanelW;
 
   // --- 7. AE-Style Left-Anchored Timeline Engine ---
   let isLeftTimelineInited = false;
@@ -1368,19 +1402,20 @@
 
     // Cache ruler viewport width to eliminate forced synchronous layout (layout thrashing) per frame
     let _cachedViewW = rulerViewport ? rulerViewport.clientWidth : 800;
+    updateCachedDesktopPanelW();
     window.addEventListener('resize', () => {
       if (rulerViewport) _cachedViewW = rulerViewport.clientWidth;
+      updateCachedDesktopPanelW();
       syncDesktopPlayhead();
     }, { passive: true });
 
     let _lastSyncSec = -1;
     let _lastSyncScrollX = -1;
     function syncDesktopPlayhead() {
-      const panelW = getDesktopPanelW();
-      const pps = window.currentPixelsPerSecond || 80;
       const curSec = (typeof window.getCurrentPlayheadTime === 'function')
         ? window.getCurrentPlayheadTime()
         : (window.currentPlaybackSec !== undefined ? window.currentPlaybackSec : (window.currentSec || 0));
+      const pps = window.currentPixelsPerSecond || 80;
       const playheadX = curSec * pps;
 
       // Auto-follow playhead during playback using cached viewport width (zero layout reads)
@@ -1398,6 +1433,8 @@
       if (!scrollChanged && !playheadChanged) return;
       _lastSyncSec = curSec;
       _lastSyncScrollX = desktopScrollX;
+
+      const panelW = getDesktopPanelW();
 
       // 1. Direct GPU transform on playhead needle (ZERO :root recalc, ZERO full-page style thrashing)
       needle.style.transform = `translate3d(${(panelW + playheadX - desktopScrollX).toFixed(2)}px, 0, 0)`;
@@ -1422,7 +1459,9 @@
       window._desktopUpdatePosPatched = true;
       window.updateTimelinePosition = function(newPanX, immediate) {
         originalUpdatePos(newPanX, immediate);
-        syncDesktopPlayhead();
+        if (!immediate) {
+          syncDesktopPlayhead();
+        }
       };
     }
 
@@ -1650,6 +1689,7 @@
       const savedPanelW = localStorage.getItem('oft_desktop_layer_panel_w');
       if (savedPanelW) {
         document.documentElement.style.setProperty('--desktop-layer-panel-w', `${savedPanelW}px`);
+        _cachedDesktopPanelW = parseFloat(savedPanelW) || 240;
       }
       const savedParentW = localStorage.getItem('oft_desktop_parent_col_w');
       if (savedParentW) {
@@ -1685,6 +1725,7 @@
         const newW = Math.max(180, Math.min(maxW, Math.round(startW + delta)));
 
         document.documentElement.style.setProperty('--desktop-layer-panel-w', `${newW}px`);
+        _cachedDesktopPanelW = newW;
         try { localStorage.setItem('oft_desktop_layer_panel_w', newW); } catch (_) {}
 
         if (typeof window.syncDesktopPlayhead === 'function') {
@@ -1698,6 +1739,7 @@
         panelResizer.classList.remove('is-dragging');
         try { panelResizer.releasePointerCapture(e.pointerId); } catch (_) {}
         document.body.style.cursor = '';
+        _cachedDesktopPanelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w')) || startW;
         if (typeof window.syncDesktopPlayhead === 'function') {
           window.syncDesktopPlayhead();
         }

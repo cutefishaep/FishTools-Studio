@@ -38,6 +38,7 @@
 
     /** Request a redraw on next rAF — debounced */
     scheduleRedraw() {
+      if (window.isTimelinePlaying) return;
       this._dirty = true;
       if (this._rafId) return;
       this._rafId = requestAnimationFrame(() => {
@@ -47,6 +48,14 @@
           this.redraw();
         }
       });
+    },
+
+    /** Immediate synchronous clear of overlay elements (preserving grid if enabled) */
+    clear() {
+      if (!this._ctx || !this._canvas) return;
+      this.syncSize();
+      this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+      this._drawGrid(this._ctx, this._canvas.width, this._canvas.height);
     },
 
     /** Immediate synchronous redraw */
@@ -149,7 +158,7 @@
     },
 
     _drawWireframes(ctx, w, h) {
-      if (window.isTimelinePlaying && !window._isSelectionMode) return;
+      if (window.isTimelinePlaying) return;
       if (!window.CanvasWireframe) return;
 
       const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
@@ -169,7 +178,7 @@
             window.CanvasWireframe.draw(ctx, b, { showAnchor: false, showHandles: false, isAnchorMode: false });
           }
         });
-      } else if (!window.isTimelinePlaying) {
+      } else {
         const state = window.currentProjectState;
         const selId = allSelectedIds[0];
         const selL = (state && state.layers || []).find(l => l.id === selId);

@@ -3522,8 +3522,8 @@
         : (window.selectedLayerId ? [window.selectedLayerId] : []);
       const isSelectionMode = isSelectorMode || allSelectedIds.length > 1;
 
-      // In selection mode (multi-select / select-all), keep wireframe bounds fresh even during playback
-      if (!isExport && !isTemplate && (!window.isTimelinePlaying || isSelectionMode) && allSelectedIds.length > 0) {
+      // Ensure wireframe bounds are fresh when paused or scrubbing (skipped during playback for performance)
+      if (!isExport && !isTemplate && !window.isTimelinePlaying && allSelectedIds.length > 0) {
         const engine = window.FishToolEngine || window.LayerTransform;
         allSelectedIds.forEach(id => {
           const selL = (currentProjectState.layers || []).find(l => l.id === id);
@@ -20762,6 +20762,9 @@
             isPlaying = true;
             window.isTimelinePlaying = true;
             updatePlayButtonUI();
+            if (window.CanvasOverlay && typeof window.CanvasOverlay.clear === 'function') {
+              window.CanvasOverlay.clear();
+            }
             if (timelineTweenRaf) {
               cancelAnimationFrame(timelineTweenRaf);
               timelineTweenRaf = null;

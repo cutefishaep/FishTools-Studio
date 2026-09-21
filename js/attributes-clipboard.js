@@ -867,9 +867,20 @@
     updateClipboardButtonsVisibility();
 
     // Re-check visibility when user interacts with timeline layers
+    // Guard: skip if inspector panel explicitly has no active layer (prevents race with syncInspectorState)
     document.addEventListener('click', () => {
       setTimeout(() => {
-        updateClipboardButtonsVisibility();
+        const inspectorEl = document.getElementById('desktop-panel-inspector') || document.getElementById('inspector-panel');
+        const inspectorHasLayer = inspectorEl ? inspectorEl.classList.contains('has-active-layer') : null;
+        if (inspectorHasLayer === false) {
+          // Inspector definitively says no selection — force-hide without re-reading stale state
+          const _c = document.getElementById('desktop-btn-copy');
+          const _p = document.getElementById('desktop-btn-paste');
+          if (_c) _c.style.display = 'none';
+          if (_p) _p.style.display = 'none';
+        } else {
+          updateClipboardButtonsVisibility();
+        }
         if (typeof window.updateCutBarRowState === 'function') {
           window.updateCutBarRowState();
         }

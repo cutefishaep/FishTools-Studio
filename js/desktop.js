@@ -418,9 +418,19 @@
       inspectorPanel.classList.toggle('has-active-layer', hasActiveLayer);
     }
 
-    if (typeof window.updateClipboardButtonsVisibility === 'function') {
-      window.updateClipboardButtonsVisibility();
+    // Force-sync clipboard toolbar buttons directly from here (authoritative truth)
+    // This prevents a 30ms setTimeout race in the global click listener from re-showing buttons
+    const _btnCopy = document.getElementById('desktop-btn-copy');
+    const _btnPaste = document.getElementById('desktop-btn-paste');
+    if (!hasActiveLayer) {
+      if (_btnCopy) _btnCopy.style.display = 'none';
+      if (_btnPaste) _btnPaste.style.display = 'none';
+    } else {
+      if (typeof window.updateClipboardButtonsVisibility === 'function') {
+        window.updateClipboardButtonsVisibility();
+      }
     }
+
     if (typeof window.updateCutBarRowState === 'function') {
       window.updateCutBarRowState();
     }

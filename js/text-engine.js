@@ -422,12 +422,7 @@
             // t = time - (inPoint + retard);
             // startVal = [100,100,100];endVal = [0,0,0];
             // if (t < duration){
-            //   linear(t,0,duration,startVal,endVal);
-            // }else{
-            //   amp = (endVal - startVal)/duration;
-            //   w = freq*Math.PI*2;
-            //   endVal + amp*(Math.sin((t-duration)*w)/Math.exp(decay*(t-duration))/w);
-            // }
+            // Expression 2: frame-stagger scale 0→100% + damped sine overshoot
             const fps = (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
             const frameDuration = 1.0 / (fps || 60);
             const retard = charIndex * frameDuration * 1.0;
@@ -441,67 +436,42 @@
               const u = t / duration;
               scaleX = u;
               scaleY = u;
-              charAlpha = Math.min(1.0, u * 2.5);
+              charAlpha = Math.min(1.0, u * 3);
             } else {
               const freq = 2;
               const decay = 9;
-              const amp = (0 - 100) / duration;
+              const amp = -100 / duration;  // (endVal - startVal) / duration = (0 - 100) / dur
               const w = freq * Math.PI * 2;
               const tPost = t - duration;
-              const val = 0 + amp * (Math.sin(tPost * w) / (Math.exp(decay * tPost) * w));
-              const sc = Math.max(0, (100 - val) / 100);
+              // endVal + amp*(sin(tPost*w)/exp(decay*tPost)/w)
+              const val = amp * (Math.sin(tPost * w) / (Math.exp(decay * tPost) * w));
+              // val in 0-100 space: sc = 1 + val/100 (endVal=0, spring to 0, val is deviation)
+              const sc = Math.max(0, Math.min(1.4, 1.0 + val / 100));
               scaleX = sc;
               scaleY = sc;
               charAlpha = 1.0;
             }
           } else if (normIn === 'bounce_3') {
-            // Expression 3:
-            // delay = .060 ;
-            // myDelay = delay*textIndex;
-            // t = (time - inPoint) - myDelay;
-            // if (t >= 0){
-            //   freq =2;
-            //   amplitude = 50;
-            //   decay = 8.0;
-            //   s = amplitude*Math.cos(freq*t*2*Math.PI)/Math.exp(decay*t);
-            //   [s,s]
-            // }else{
-            //   value
-            // }
+            // Expression 3: delay=60ms, freq=2, amplitude=50, decay=8 — wider stagger
             const delay = 0.060;
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
             if (t < 0) {
-              scaleX = 0;
-              scaleY = 0;
               charAlpha = 0;
+              offY = 60;
             } else {
               const freq = 2;
               const amplitude = 50;
               const decay = 8.0;
               const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-              const rise = Math.min(1.0, t / 0.035);
-              const sc = Math.max(0, rise * (1.0 + (s / 100)));
-              scaleX = sc;
-              scaleY = sc;
-              charAlpha = Math.min(1.0, sc * 2.5);
+              offY = s;
+              charAlpha = Math.min(1.0, t / 0.06);
+              const squash = Math.max(0, s / amplitude);
+              scaleX = 1.0 + squash * 0.10;
+              scaleY = 1.0 - squash * 0.08;
             }
           } else if (normIn === 'bounce_4') {
-            // Expression 4:
-            // freq = 1;
-            // decay = 8;
-            // duration = 0.25;
-            // retard = textIndex*thisComp.frameDuration*1;
-            // t = time - (inPoint + retard);
-            // startVal = [100,100,100];
-            // endVal = [0,0,0];
-            // if (t < duration){
-            //   linear(t,0,duration,startVal,endVal);
-            // }else{
-            //   amp = (endVal - startVal)/duration;
-            //   w = freq*Math.PI*2;
-            //   endVal + amp*(Math.sin((t-duration)*w)/Math.exp(decay*(t-duration))/w);
-            // }
+            // Expression 4: frame-stagger scale, dur=0.25s, freq=1, decay=8 — gentle elastic settle
             const fps = (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
             const frameDuration = 1.0 / (fps || 60);
             const retard = charIndex * frameDuration * 1.0;
@@ -515,15 +485,15 @@
               const u = t / duration;
               scaleX = u;
               scaleY = u;
-              charAlpha = Math.min(1.0, u * 2.5);
+              charAlpha = Math.min(1.0, u * 3);
             } else {
               const freq = 1;
               const decay = 8;
-              const amp = (0 - 100) / duration;
+              const amp = -100 / duration;
               const w = freq * Math.PI * 2;
               const tPost = t - duration;
-              const val = 0 + amp * (Math.sin(tPost * w) / (Math.exp(decay * tPost) * w));
-              const sc = Math.max(0, (100 - val) / 100);
+              const val = amp * (Math.sin(tPost * w) / (Math.exp(decay * tPost) * w));
+              const sc = Math.max(0, Math.min(1.4, 1.0 + val / 100));
               scaleX = sc;
               scaleY = sc;
               charAlpha = 1.0;

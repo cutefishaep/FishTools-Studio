@@ -31,7 +31,7 @@
       neonGlow: false,
       badgeEnabled: false,
       shadowEnabled: false,
-      animIn: 'none',
+      animIn: 'bounce_1',
       animOut: 'none',
       animInDuration: 0.8,
       animOutDuration: 0.6

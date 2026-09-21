@@ -24734,10 +24734,17 @@
                       if (existIdx >= 0) { kfs[existIdx].value = curVal; }
                       else { kfs.push({ time: t, value: curVal, easing: rl.defaultEasing || 'ease-in-out' }); kfs.sort((a, b) => a.time - b.time); }
                     }
-                    if (window.PreviewCacheManager && typeof window.PreviewCacheManager.invalidate === 'function') window.PreviewCacheManager.invalidate(rl.id);
-                    if (typeof window.invalidateLayerCache === 'function') window.invalidateLayerCache(rl.id);
+                    // Invalidate preview cache for this layer (correct API)
+                    if (typeof invalidatePreviewCacheForLayer === 'function') {
+                      invalidatePreviewCacheForLayer(rl);
+                    } else if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+                      window.invalidatePreviewCacheForLayer(rl);
+                    }
+                    // Also invalidate effective props cache (keyframe interpolation cache)
+                    if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
                     if (typeof redrawComposition === 'function') redrawComposition();
                   }
+
 
                   // Define value components per prop
                   function buildComponents(prop) {

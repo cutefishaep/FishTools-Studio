@@ -397,89 +397,88 @@
           // but fly into their final positions like AE Text Animator does.
           //
           // AE values from screenshot: Position=[0, 865], Scale=[0,0]%, Rotation=-27°
-          // "Amount" expression creates the stagger timing per character.
+          // ── Stagger derived from animInDuration ────────────────────────────
+          // User sets animInDuration in UI → controls total cascade speed.
+          // stagger = inDur / totalChars so ALL chars finish within inDur.
+          // Spring physics tuned so each char settles within its remaining time.
 
           if (normIn === 'bounce_1') {
-            // ── Pure position Y spring, 10ms stagger ────────────────────────
-            // decay=8 (fast settle ~200ms), freq=3, amplitude = 0.6 × fontSize
-            // Scale stays at 1.0 — position only, clean & fast
-            const delay = 0.010;
-            const myDelay = delay * charIndex;
+            // Position Y spring, stagger across inDur
+            // AE Expr 1: s = amplitude*cos(freq*t*2π)/exp(decay*t) → position offset
+            const stagger = inDur / Math.max(1, totalChars);
+            const myDelay = stagger * charIndex;
             const t = localSec - myDelay;
 
             if (t <= 0) {
               charAlpha = 0;
             } else {
               const freq = 3;
-              const decay = 8.0;
               const amplitude = fontSize * 0.6;
-              // Damped cosine: starts at amplitude, oscillates to 0
+              // Decay tuned: settle in remaining time = inDur - myDelay
+              const remainSec = Math.max(0.15, inDur - myDelay);
+              const decay = 5.5 / remainSec;
               const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-              offY = s; // bounce from below (positive = down in canvas coords)
-              charAlpha = Math.min(1.0, t / 0.015); // instant reveal
+              offY = s;
+              charAlpha = Math.min(1.0, t / (stagger * 0.5));
             }
 
           } else if (normIn === 'bounce_2') {
-            // ── Pure scale spring, 2-frame stagger ──────────────────────────
-            // Scale 0→1 with 30% overshoot bounce. No position change.
-            const frameDuration = 1.0 / (fps || 60);
-            const retard = charIndex * frameDuration * 2;
-            const t = localSec - retard;
+            // Scale spring, stagger across inDur
+            // AE Expr 2: scale 0→1 with damped sine overshoot
+            const stagger = inDur / Math.max(1, totalChars);
+            const myDelay = stagger * charIndex;
+            const t = localSec - myDelay;
 
             if (t <= 0) {
-              scaleX = 0;
-              scaleY = 0;
-              charAlpha = 0;
+              scaleX = 0; scaleY = 0; charAlpha = 0;
             } else {
               const freq = 3;
-              const decay = 9.0;
-              // Spring: starts at -1 (scale 0), oscillates to 0 (scale 1) with overshoot
+              const remainSec = Math.max(0.15, inDur - myDelay);
+              const decay = 5.5 / remainSec;
               const s = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-              // sc: 0 at t=0, oscillates past 1.0 (overshoot), settles at 1.0
-              const sc = Math.max(0, 1.0 - s);
-              scaleX = Math.min(1.4, sc);
-              scaleY = Math.min(1.4, sc);
-              charAlpha = Math.min(1.0, t / 0.015);
+              const sc = Math.max(0, Math.min(1.4, 1.0 - s));
+              scaleX = sc; scaleY = sc;
+              charAlpha = Math.min(1.0, t / (stagger * 0.5));
             }
 
           } else if (normIn === 'bounce_3') {
-            // ── Pure position Y spring, 35ms stagger (visible wave) ─────────
-            // Slower stagger = wider wave sweeping across word
-            const delay = 0.035;
-            const myDelay = delay * charIndex;
+            // Position Y spring, slower stagger (wave effect)
+            // AE Expr 3: same as bounce_1, wider stagger
+            const stagger = inDur / Math.max(1, totalChars);
+            const myDelay = stagger * charIndex;
             const t = localSec - myDelay;
 
             if (t <= 0) {
               charAlpha = 0;
             } else {
-              const freq = 2.5;
-              const decay = 6.5;
+              const freq = 2;
               const amplitude = fontSize * 0.55;
+              const remainSec = Math.max(0.15, inDur - myDelay);
+              const decay = 4.5 / remainSec;
               const s = amplitude * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
               offY = s;
-              charAlpha = Math.min(1.0, t / 0.020);
+              charAlpha = Math.min(1.0, t / (stagger * 0.5));
             }
 
           } else if (normIn === 'bounce_4') {
-            // ── Gentle scale spring, 3-frame stagger ────────────────────────
-            // Slower settle, minimal overshoot — calm professional entry
-            const frameDuration = 1.0 / (fps || 60);
-            const retard = charIndex * frameDuration * 3;
-            const t = localSec - retard;
+            // Gentle scale spring, stagger across inDur
+            // AE Expr 4: same as bounce_2, slower freq
+            const stagger = inDur / Math.max(1, totalChars);
+            const myDelay = stagger * charIndex;
+            const t = localSec - myDelay;
 
             if (t <= 0) {
-              scaleX = 0;
-              scaleY = 0;
-              charAlpha = 0;
+              scaleX = 0; scaleY = 0; charAlpha = 0;
             } else {
               const freq = 2;
-              const decay = 7.0;
+              const remainSec = Math.max(0.15, inDur - myDelay);
+              const decay = 4.5 / remainSec;
               const s = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-              const sc = Math.max(0, 1.0 - s);
-              scaleX = Math.min(1.25, sc);
-              scaleY = Math.min(1.25, sc);
-              charAlpha = Math.min(1.0, t / 0.020);
+              const sc = Math.max(0, Math.min(1.25, 1.0 - s));
+              scaleX = sc; scaleY = sc;
+              charAlpha = Math.min(1.0, t / (stagger * 0.5));
             }
+
 
           } else if (normIn === 'wave' || p.animation === 'wave') {
             const wfreq = 5.0 * (p.animSpeed || 1.0);

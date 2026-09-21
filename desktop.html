@@ -2303,10 +2303,10 @@
                             </svg>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
-                            <div class="custom-dropdown-item is-selected" role="option" data-val="bounce_1">Bounce 1 (Stagger 20ms)</div>
-                            <div class="custom-dropdown-item" role="option" data-val="bounce_2">Bounce 2 (Inertial 0.10s)</div>
-                            <div class="custom-dropdown-item" role="option" data-val="bounce_3">Bounce 3 (Stagger 60ms)</div>
-                            <div class="custom-dropdown-item" role="option" data-val="bounce_4">Bounce 4 (Inertial 0.25s)</div>
+                            <div class="custom-dropdown-item is-selected" role="option" data-val="bounce_1">Bounce Drop (Y Position)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_2">Bounce Pop (Scale)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_3">Wave Drop (Y Position)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="bounce_4">Wave Pop (Scale)</div>
                             <div class="custom-dropdown-item" role="option" data-val="wave">Kinetic Wave</div>
                             <div class="custom-dropdown-item" role="option" data-val="typewriter">Typewriter</div>
                             <div class="custom-dropdown-item" role="option" data-val="fade_up">Fade Up</div>
@@ -2323,6 +2323,54 @@
                           <span class="shape-val-badge" id="badge-text-anim-in-dur">0.80s</span>
                         </div>
                         <div class="jog-wheel-container is-horizontal" id="jog-text-anim-in-duration" title="Drag to adjust IN Animation Duration">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+
+                      <!-- Spring Decay -->
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Decay</span>
+                          <span class="shape-val-badge" id="badge-text-anim-decay">7.0</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" id="jog-text-anim-decay" title="Spring decay — higher = faster settle, lower = more bouncy">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+
+                      <!-- Spring Frequency -->
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Frequency</span>
+                          <span class="shape-val-badge" id="badge-text-anim-freq">3.0</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" id="jog-text-anim-freq" title="Spring oscillation frequency — higher = faster bounce">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+
+                      <!-- Amplitude -->
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Amplitude</span>
+                          <span class="shape-val-badge" id="badge-text-anim-amplitude">0.60</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" id="jog-text-anim-amplitude" title="Displacement amplitude as fraction of font size">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+
+                      <!-- Stagger -->
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Stagger</span>
+                          <span class="shape-val-badge" id="badge-text-anim-stagger">0.50</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" id="jog-text-anim-stagger" title="Stagger spread — 0=all at once, 1=cascade across full duration">
                           <div class="jog-wheel-ticks"></div>
                           <div class="jog-wheel-needle"></div>
                         </div>

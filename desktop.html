@@ -2289,6 +2289,26 @@
                         </div>
                       </div>
 
+                      <!-- Animate By -->
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Animate By</span>
+                        </div>
+                        <div class="custom-dropdown" id="dropdown-text-anim-target" data-value="character" style="width: 100%;">
+                          <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select animation target" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
+                            <span class="custom-dropdown-label">Character</span>
+                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                          </button>
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 160px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
+                            <div class="custom-dropdown-item is-selected" role="option" data-val="character">Character</div>
+                            <div class="custom-dropdown-item" role="option" data-val="word">Word</div>
+                            <div class="custom-dropdown-item" role="option" data-val="line">Line</div>
+                          </div>
+                        </div>
+                      </div>
+
                       <!-- 4. Text IN Animation Selector (Dropdown) -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
@@ -2297,7 +2317,7 @@
                         </div>
                         <div class="custom-dropdown" id="dropdown-text-anim-in" data-value="bounce_1" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select IN Animation" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
-                            <span class="custom-dropdown-label">Bounce 1 (Stagger 20ms)</span>
+                            <span class="custom-dropdown-label">Bounce Drop (Y Position)</span>
                             <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M7 10l5 5 5-5z"/>
                             </svg>
@@ -2411,15 +2431,6 @@
                         </div>
                       </div>
 
-                      <!-- 5. Quick Presets Switcher -->
-                      <div class="shape-control-row">
-                        <div class="shape-control-header">
-                          <span class="shape-control-label">Switch Preset</span>
-                        </div>
-                        <div class="text-quick-presets-row" id="text-quick-presets-row" style="display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; width: 100%; box-sizing: border-box;">
-                          <!-- Populated via JS -->
-                        </div>
-                      </div>
                     </main>
                   </div>
                 </div>

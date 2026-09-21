@@ -45,6 +45,7 @@
     animFreq: 3,
     animAmplitude: 0.6,
     animStagger: 0.5,
+    animTarget: 'character',    // 'character' | 'word' | 'line'
     animDuration: 0.8,          // legacy alias for animInDuration
     animIn: 'bounce_1',         // 'none' | 'bounce_1' | 'bounce_2' | 'bounce_3' | 'bounce_4' | 'typewriter' | 'wave' | 'fade_up' | 'glitch'
     animInDuration: 0.8,        // in seconds
@@ -418,14 +419,33 @@
           const animFreq      = Number(p.animFreq)      > 0 ? Number(p.animFreq)      : 3;
           const animAmplitude = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
           const animStagger   = Number(p.animStagger) >= 0 ? Number(p.animStagger)    : 0.5;
+          const animTarget    = p.animTarget || 'character';
 
-          // Stagger: last char starts at localSec = inDur * animStagger
-          // animStagger=0 → all at once, animStagger=1 → cascade over full inDur
-          const stagger = totalChars > 1
-            ? (inDur * animStagger) / (totalChars - 1)
+          // ── animTarget: compute animation index per character/word/line ──────
+          // character → each char has its own stagger index (charIndex)
+          // word      → all chars in same word share one stagger index
+          // line      → all chars in same line share one stagger index
+          let animIndex = charIndex;
+          let totalUnits = totalChars;
+
+          if (animTarget === 'line') {
+            animIndex = lineIdx;
+            totalUnits = lines.length;
+          } else if (animTarget === 'word') {
+            // Compute word index by counting spaces before this char in the full text
+            const fullTextUpToChar = lines.slice(0, lineIdx).join(' ') + (lineIdx > 0 ? ' ' : '') + line.slice(0, i);
+            animIndex = (fullTextUpToChar.match(/\s+/g) || []).length;
+            // Total word count
+            totalUnits = (fullText.replace(/\s+/g, ' ').trim().match(/\s+/g) || []).length + 1;
+          }
+
+          // Stagger: last unit starts at localSec = inDur * animStagger
+          const stagger = totalUnits > 1
+            ? (inDur * animStagger) / (totalUnits - 1)
             : 0;
-          const myDelay = stagger * charIndex;
+          const myDelay = stagger * animIndex;
           const t       = localSec - myDelay;
+
 
           if (normIn === 'bounce_1' || normIn === 'bounce_3') {
             // Position Y spring — chars enter from below, spring to rest

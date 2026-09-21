@@ -10509,6 +10509,19 @@
         });
       }
 
+      // Sync Animate By Dropdown
+      const curAnimTarget = tp.animTarget || 'character';
+      const ddAnimTarget = document.getElementById('dropdown-text-anim-target');
+      if (ddAnimTarget) {
+        ddAnimTarget.dataset.value = curAnimTarget;
+        const targetItem = ddAnimTarget.querySelector(`.custom-dropdown-item[data-val="${curAnimTarget}"]`);
+        const label = ddAnimTarget.querySelector('.custom-dropdown-label');
+        if (targetItem && label) label.textContent = targetItem.textContent;
+        ddAnimTarget.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.classList.toggle('is-selected', item.dataset.val === curAnimTarget);
+        });
+      }
+
       // Sync OUT Animation Dropdown
       const ddAnimOut = document.getElementById('dropdown-text-anim-out');
       if (ddAnimOut) {
@@ -10654,6 +10667,30 @@
             layer._textBufferCanvas = null;
             if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
             renderTimelineLayers();
+            redrawComposition();
+            saveCurrentProjectLayers();
+          });
+        });
+      }
+
+      // Animate By Dropdown (character / word / line)
+      const ddAnimTarget = document.getElementById('dropdown-text-anim-target');
+      if (ddAnimTarget) {
+        ddAnimTarget.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const val = item.dataset.val;
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (!layer || layer.type !== 'text') return;
+            if (!layer.textProps) layer.textProps = {};
+            layer.textProps.animTarget = val;
+            ddAnimTarget.dataset.value = val;
+            const label = ddAnimTarget.querySelector('.custom-dropdown-label');
+            if (label) label.textContent = item.textContent;
+            ddAnimTarget.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.toggle('is-selected', i === item));
+            ddAnimTarget.classList.remove('is-open');
+            layer._textBufferCanvas = null;
+            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
             redrawComposition();
             saveCurrentProjectLayers();
           });

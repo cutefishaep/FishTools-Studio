@@ -293,19 +293,29 @@
       const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
       const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
 
-      // Animation padding: extra vertical space so characters can bounce outside text bounds.
-      // Stored on layer._textAnimPadY so compositor can compensate position (no squish).
+      // Animation padding: extra space so chars can spring outside text bounds without clipping.
+      // Covers both IN and OUT animations. Stored on layer for compositor.
       const normInCheck = normalizeAnimIn(p.animIn || p.animation || 'none');
-      const hasAnim = normInCheck === 'bounce_1' || normInCheck === 'bounce_2'
-                   || normInCheck === 'bounce_3' || normInCheck === 'bounce_4';
+      const normOutCheck = p.animOut || 'none';
       const animAmp = Number(p.animAmplitude) > 0 ? Number(p.animAmplitude) : 0.6;
       const fontSize = p.fontSize || 64;
-      const animPadY = hasAnim ? Math.ceil(fontSize * animAmp * 1.5) : 0;
 
-      // Store on layer so compositor knows to offset the draw position
-      if (layer) layer._textAnimPadY = animPadY;
+      // Y padding: needed for any Y-displacing animation (bounce drop IN or OUT)
+      const hasYAnim = normInCheck === 'bounce_1' || normInCheck === 'bounce_3'
+                    || normOutCheck === 'bounce_out' || normOutCheck === 'wave_out';
+      // Scale padding: pop/shrink can also clip at edges during spring overshoot
+      const hasScaleAnim = normInCheck === 'bounce_2' || normInCheck === 'bounce_4'
+                        || normOutCheck === 'pop_out'  || normOutCheck === 'shrink_drop';
+      // X padding: slide_out displaces horizontally
+      const hasXAnim = normOutCheck === 'slide_out';
 
-      const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width + padX + shadowPad * 2));
+      const animPadY = (hasYAnim || hasScaleAnim) ? Math.ceil(fontSize * animAmp * 1.5) : 0;
+      const animPadX = hasXAnim ? Math.ceil(fontSize * animAmp * 1.5) : 0;
+
+      // Store on layer so compositor knows to expand draw dimensions
+      if (layer) { layer._textAnimPadY = animPadY; layer._textAnimPadX = animPadX; }
+
+      const reqW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width + padX + shadowPad * 2)) + animPadX * 2;
       const reqH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2)) + animPadY * 2;
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
@@ -316,9 +326,8 @@
       ctx.clearRect(0, 0, reqW, reqH);
       ctx.save();
 
-      const cx = reqW / 2;
-      // Shift center down by animPadY so upward bouncing chars don't clip at top
-      const cy = reqH / 2;
+      const cx = reqW / 2;  // center of padded canvas (X)
+      const cy = reqH / 2;  // center of padded canvas (Y)
 
       // 1. Draw Badge Background Pill / Box if enabled
       if (p.badgeEnabled) {

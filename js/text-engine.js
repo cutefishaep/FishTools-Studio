@@ -497,47 +497,43 @@
           const outStartSec = Math.max(inDur, clipDur - outDur);
 
           if (effectiveAnimOut !== 'none' && localSec >= outStartSec) {
-            const tOutGlobal = localSec - outStartSec; // time since out phase started
+            const tOutGlobal = localSec - outStartSec;
 
-            // Reversed stagger: unit with highest animIndex exits at tOutGlobal=0
+            // Same stagger order as IN: first unit exits first, cascade flows same direction
             const outStagger = totalUnits > 1
               ? (outDur * animStagger) / (totalUnits - 1)
               : 0;
-            // First unit (animIndex=0) starts last → delay = (totalUnits-1-animIndex)*outStagger
-            const outMyDelay = (totalUnits - 1 - animIndex) * outStagger;
-            const tOut = tOutGlobal - outMyDelay; // time since THIS unit's exit started
+            const outMyDelay = animIndex * outStagger; // same order as IN entry
+            const tOut = tOutGlobal - outMyDelay;
 
             if (tOut <= 0) {
-              // Unit hasn't started exiting yet — stay at rest
+              // Unit hasn't started exiting yet — hold at rest
             } else {
-              // Spring launches from rest (0) toward displaced amplitude, then overshoots
-              // s starts at 0, rises to amplitude, decays with oscillation
-              // Use: s = amplitude * (1 - cos(freq*t*2π)/exp(decay*t))
-              // At t=0: s=0 (at rest). At t=0+: s rises → char launches out.
               const normOut = effectiveAnimOut;
               const freq  = animFreq;
               const decay = animDecay;
               const amplitude = fontSize * animAmplitude;
+              // Spring from rest → displaced: s=0 at t=0, rises then decays with oscillation
+              // s = amplitude * (1 - cos(freq*t*2π)/exp(decay*t))
 
               if (normOut === 'bounce_out' || normOut === 'wave_out') {
-                // Y position: chars fly upward out of frame
+                // Y position: chars exit in SAME direction they entered from (downward = positive Y)
                 const spring = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
-                offY = offY - spring; // subtract = upward
+                offY = offY + spring; // += = downward, mirrors IN (chars came from below)
                 charAlpha = Math.max(0, charAlpha * (1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 1.2 : 0.08))));
               } else if (normOut === 'pop_out' || normOut === 'shrink_drop') {
-                // Scale: chars shrink to 0
+                // Scale: chars shrink to 0 with spring
                 const spring = 1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut);
                 const sc = Math.max(0, 1.0 - Math.min(1, spring));
                 scaleX = (scaleX || 1.0) * sc;
                 scaleY = (scaleY || 1.0) * sc;
                 charAlpha = Math.max(0, charAlpha * sc);
               } else if (normOut === 'slide_out') {
-                // X position: chars slide right out
+                // X position: chars exit rightward (same axis as slide_in from left)
                 const spring = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
                 offX = offX + spring;
                 charAlpha = Math.max(0, charAlpha * (1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 1.2 : 0.08))));
               } else if (normOut === 'fade_down') {
-                // Fade + drop down
                 const prog = Math.min(1, tOut / Math.max(0.01, outDur - outMyDelay));
                 offY = offY + prog * amplitude * 0.5;
                 charAlpha = Math.max(0, charAlpha * (1 - prog));
@@ -548,6 +544,73 @@
           if (charAlpha <= 0.001) {
             curX += chW;
             continue;
+          }
+
+          // ── Per-character motion blur (stroboscopic multi-draw) ──────────────
+          // When layer.motionBlur is on: compute char position at previous frames
+          // from the spring formula, draw N ghost copies with decreasing alpha.
+          // No filter:blur() — pure canvas multi-draw.
+          const hasMB = !!(layer && layer.motionBlur);
+          if (hasMB && (offX !== 0 || offY !== 0 || scaleX !== 1 || scaleY !== 1)) {
+            const mbSamples = 4;
+            const dt = 1 / Math.max(24, (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60);
+            const normInMB = normalizeAnimIn(effectiveAnimIn);
+
+            for (let mbI = mbSamples; mbI >= 1; mbI--) {
+              const tPrev = t - dt * mbI;
+              if (tPrev <= 0) continue;
+
+              let mbOffX = 0, mbOffY = 0, mbSX = 1, mbSY = 1;
+
+              if (normInMB === 'bounce_1' || normInMB === 'bounce_3') {
+                const freq2  = normInMB === 'bounce_3' ? Math.max(0.5, animFreq - 1) : animFreq;
+                const decay2 = normInMB === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
+                const amp2   = (p.fontSize || 64) * animAmplitude;
+                mbOffY = amp2 * Math.cos(freq2 * tPrev * 2 * Math.PI) / Math.exp(decay2 * tPrev);
+              } else if (normInMB === 'bounce_2' || normInMB === 'bounce_4') {
+                const freq2  = normInMB === 'bounce_4' ? Math.max(0.5, animFreq - 1) : animFreq;
+                const decay2 = normInMB === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
+                const s2  = Math.cos(freq2 * tPrev * 2 * Math.PI) / Math.exp(decay2 * tPrev);
+                const sc2 = Math.max(0, Math.min(1.5, 1.0 - s2));
+                mbSX = sc2; mbSY = sc2;
+              }
+
+              // Also apply OUT animation offset to ghost (same direction as main OUT fix)
+              const effectiveAnimOut = p.animOut || 'none';
+              if (effectiveAnimOut !== 'none') {
+                const outDurMB = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+                const outStartSecMB = Math.max(inDur, clipDur - outDurMB);
+                if (localSec >= outStartSecMB) {
+                  const tOutGlobalMB = (localSec - dt * mbI) - outStartSecMB;
+                  const outStaggerMB = totalUnits > 1 ? (outDurMB * animStagger) / (totalUnits - 1) : 0;
+                  const tOutMB = tOutGlobalMB - animIndex * outStaggerMB; // same order as IN
+                  if (tOutMB > 0) {
+                    const amp2 = (p.fontSize || 64) * animAmplitude;
+                    if (effectiveAnimOut === 'bounce_out' || effectiveAnimOut === 'wave_out') {
+                      const sp = amp2 * (1 - Math.cos(animFreq * tOutMB * 2 * Math.PI) / Math.exp(animDecay * tOutMB));
+                      mbOffY += sp; // downward, same as main fix
+                    } else if (effectiveAnimOut === 'slide_out') {
+                      const sp = amp2 * (1 - Math.cos(animFreq * tOutMB * 2 * Math.PI) / Math.exp(animDecay * tOutMB));
+                      mbOffX += sp;
+                    }
+                  }
+                }
+              }
+
+              const mbRenderX = curX + (chW / 2) + mbOffX;
+              const mbRenderY = curY + mbOffY;
+              const mbAlpha = charAlpha * (mbI / (mbSamples + 1)) * 0.35;
+
+              ctx.save();
+              ctx.globalAlpha = mbAlpha;
+              ctx.translate(mbRenderX, mbRenderY);
+              if (charRotation !== 0) ctx.rotate(charRotation * Math.PI / 180);
+              if (mbSX !== 1.0 || mbSY !== 1.0) ctx.scale(mbSX, mbSY);
+              ctx.font = font;
+              ctx.fillStyle = p.textColor || 'var(--text-primary, #e8ffec)';
+              ctx.fillText(ch, -(chW / 2), 0);
+              ctx.restore();
+            }
           }
 
           ctx.save();

@@ -197,59 +197,9 @@
      * Evaluates live scale, squash & stretch, translation offset, and alpha at localSec.
      */
     static getAnimTransform(layer, localSec = 0, clipDur = 5) {
-      const p = Object.assign({}, DEFAULT_TEXT_PROPS, layer.textProps || {});
-      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_pop');
-      const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
-      const effectiveAnimOut = p.animOut || 'none';
-      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
-      const clipDuration = Math.max(0.5, Number(clipDur) || 5.0);
-      const outStartSec = Math.max(inDur, clipDuration - outDur);
-
-      let scaleX = 1.0;
-      let scaleY = 1.0;
-      let offX = 0;
-      let offY = 0;
-      let alpha = 1.0;
-
-      // 1. IN ANIMATION (Intro)
-      if (localSec < inDur && effectiveAnimIn !== 'none') {
-        const pIn = Math.min(1.0, Math.max(0, localSec / inDur));
-        const normalizedIn = normalizeAnimIn(effectiveAnimIn);
-
-        if (normalizedIn === 'fade_up') {
-          const ease = 1 - Math.pow(1 - pIn, 2);
-          offY = (1 - ease) * 36;
-          alpha = ease;
-        } else if (normalizedIn.startsWith('bounce_') || normalizedIn === 'wave' || normalizedIn === 'typewriter' || normalizedIn === 'glitch') {
-          // Staggered character-level animations are evaluated per-glyph inside drawText,
-          // preserving layer layout and typography without whole-box distortion.
-          scaleX = 1.0;
-          scaleY = 1.0;
-          offX = 0;
-          offY = 0;
-          alpha = 1.0;
-        }
-      }
-      // 2. OUT ANIMATION (Outro)
-      else if (localSec >= outStartSec && effectiveAnimOut !== 'none') {
-        const pOut = Math.min(1.0, Math.max(0, (localSec - outStartSec) / outDur));
-        const normalizedOut = normalizeAnimIn(effectiveAnimOut);
-
-        if (normalizedOut === 'fade_up') {
-          offY = Math.pow(pOut, 2) * 50;
-          alpha = Math.max(0, 1 - pOut);
-        } else if (normalizedOut.startsWith('bounce_') || normalizedOut === 'wave' || normalizedOut === 'typewriter' || normalizedOut === 'glitch') {
-          // Staggered character-level animations are evaluated per-glyph inside renderTextToCanvas,
-          // preserving layer layout and typography without whole-box distortion or launching up.
-          scaleX = 1.0;
-          scaleY = 1.0;
-          offX = 0;
-          offY = 0;
-          alpha = 1.0;
-        }
-      }
-
-      return { scaleX, scaleY, offX, offY, alpha };
+      // Staggered character-level animations are evaluated per-glyph inside renderTextToCanvas,
+      // preserving layer layout and typography without whole-box distortion.
+      return { scaleX: 1.0, scaleY: 1.0, offX: 0, offY: 0, alpha: 1.0 };
     }
 
     /**
@@ -306,6 +256,15 @@
         const bx = cx - boxW / 2;
         const by = cy - boxH / 2;
         const rad = Math.min(p.badgeRadius, boxH / 2);
+
+        let badgeAlpha = 1.0;
+        if (effectiveAnimIn !== 'none' && localSec < inDur) {
+          badgeAlpha = Math.min(1.0, Math.max(0, localSec / Math.max(0.05, inDur * 0.4)));
+        } else if (normOutAnim !== 'none' && localSec >= outStartSec) {
+          const outProg = Math.min(1.0, Math.max(0, (localSec - outStartSec) / outDur));
+          badgeAlpha = Math.max(0, 1.0 - Math.pow(outProg, 1.6));
+        }
+        ctx.globalAlpha = badgeAlpha;
 
         ctx.fillStyle = p.badgeColor || '#1a2215';
         ctx.beginPath();
@@ -471,75 +430,79 @@
           }
 
           // ── OUT ANIMATION ──────────────────────────────────────────────────
-          // Uses same spring parameters (animDecay, animFreq, animAmplitude, animStagger)
-          // Plays over charDur so spring bounce is clearly visible, not killed in 0.03s.
+          // Smooth AE-style character exit transitions with natural anticipation & gravity drop
           if (normOutAnim !== 'none' && normOutAnim !== 'typewriter' && localSec >= outStartSec) {
             const tOutGlobal = localSec - outStartSec;
-            const outStagger = totalUnits > 1 ? (outDur * animStagger) / (totalUnits - 1) : 0;
+            const actualTotalStagger = totalUnits > 1 ? outDur * Math.min(0.55, animStagger) : 0;
+            const outStagger = totalUnits > 1 ? actualTotalStagger / (totalUnits - 1) : 0;
             const outMyDelay = animIndex * outStagger;
             const tOut       = tOutGlobal - outMyDelay;
-            const charDur    = Math.max(0.12, outDur - (totalUnits > 1 ? (totalUnits - 1) * outStagger : 0));
+            const charDur    = Math.max(0.24, outDur - actualTotalStagger);
 
             if (tOut >= charDur) {
               charAlpha = 0;
             } else if (tOut > 0) {
-              if (normOutAnim === 'bounce_1' || normOutAnim === 'bounce_3') {
-                const freq  = normOutAnim === 'bounce_3' ? Math.max(0.5, animFreq  - 1) : animFreq;
-                const decay = normOutAnim === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
-                const amplitude = fontSize * animAmplitude;
-                const p = Math.min(1.0, tOut / charDur);
+              const p = Math.min(1.0, tOut / charDur);
 
-                if (p < 0.22) {
-                  // Anticipation windup: glyph curls slightly UP (-Y) before dropping
-                  const uAnt = p / 0.22;
-                  offY = -amplitude * 0.35 * Math.sin(uAnt * Math.PI);
+              if (normOutAnim === 'bounce_1' || normOutAnim === 'bounce_3') {
+                const amplitude = fontSize * animAmplitude;
+                const isWave = (normOutAnim === 'bounce_3');
+                const antHeight = amplitude * (isWave ? 0.30 : 0.42);
+                const dropDist  = fontSize * (isWave ? 1.4 : 1.8);
+
+                // 1. Anticipation: curls smoothly UP (-Y) with zero velocity at start & apex
+                const antProg = Math.min(1.0, p / 0.40);
+                const antY = -antHeight * Math.pow(Math.sin(Math.PI * antProg), 2);
+
+                // 2. Drop: accelerates smoothly DOWN (+Y) starting from apex (p = 0.20)
+                const dropProg = Math.max(0, (p - 0.20) / 0.80);
+                const dropY = dropDist * Math.pow(dropProg, 2.0);
+
+                offY = antY + dropY;
+
+                // 3. Alpha: 100% visible during anticipation, then fades cleanly to 0
+                if (p <= 0.20) {
                   charAlpha = 1.0;
                 } else {
-                  // Release & spring drop: rapid downward acceleration (+Y) with damped harmonic bounce
-                  const u = (p - 0.22) / 0.78;
-                  const drop = (fontSize * 2.2) * Math.pow(u, 2.2);
-                  const bounce = amplitude * (Math.sin(freq * u * 2 * Math.PI) / Math.exp(decay * u));
-                  offY = drop + bounce;
-                  charAlpha = Math.min(charAlpha, Math.max(0, 1 - Math.pow(u, 1.5)));
+                  charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(dropProg, 1.6)));
                 }
 
               } else if (normOutAnim === 'bounce_2' || normOutAnim === 'bounce_4') {
-                const freq  = normOutAnim === 'bounce_4' ? Math.max(0.5, animFreq  - 1) : animFreq;
-                const decay = normOutAnim === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
-                const p = Math.min(1.0, tOut / charDur);
+                const isWave = (normOutAnim === 'bounce_4');
+                const swellAmount = 0.15 * (isWave ? 0.8 : 1.0) * animAmplitude;
 
-                if (p < 0.20) {
-                  // Anticipation windup: expands slightly before collapse
-                  const uAnt = p / 0.20;
-                  const sc = 1.0 + animAmplitude * 0.16 * Math.sin(uAnt * Math.PI);
-                  scaleX = sc; scaleY = sc;
-                  charAlpha = 1.0;
-                } else {
-                  // Snap collapse: shrinks to 0 with harmonic spring overshoot
-                  const u = (p - 0.20) / 0.80;
-                  const wobble = animAmplitude * 0.35 * (Math.sin(freq * u * 2 * Math.PI) / Math.exp(decay * u));
-                  const sc = Math.max(0, (1 - Math.pow(u, 1.8)) + wobble);
-                  scaleX = sc; scaleY = sc;
-                  charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, sc * 1.2)));
-                }
+                // 1. Anticipation pop/swell
+                const antProg = Math.min(1.0, p / 0.25);
+                const antSwell = swellAmount * Math.pow(Math.sin(Math.PI * antProg), 2);
+
+                // 2. Snap collapse to 0 starting from apex
+                const snapProg = Math.max(0, (p - 0.125) / 0.875);
+                const collapse = Math.pow(snapProg, 1.8);
+                const sc = Math.max(0, (1.0 + antSwell) * (1.0 - collapse));
+
+                scaleX = sc;
+                scaleY = sc;
+                charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, sc * 1.3)));
 
               } else if (normOutAnim === 'fade_up') {
-                const prog = Math.min(1, tOut / charDur);
-                offY = prog * 36;
-                charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
+                const dropProg = Math.pow(p, 1.8);
+                offY = dropProg * 40;
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - p));
 
               } else if (normOutAnim === 'wave') {
-                const prog = Math.min(1, tOutGlobal / outDur);
-                charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
+                const wfreq = 5.0 * (p.animSpeed || 1.0);
+                const phase = charIndex * 0.45;
+                const prog = Math.min(1.0, tOutGlobal / outDur);
+                offY = Math.sin(localSec * wfreq + phase) * (fontSize * 0.15) * (1.0 - prog);
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - prog));
 
               } else if (normOutAnim === 'glitch') {
-                const prog  = Math.min(1, tOut / charDur);
                 const quant = Math.floor(localSec * 18);
                 const hash  = Math.sin(quant * 9999 + charIndex * 1337);
                 const hash2 = Math.cos(quant * 4321 + charIndex * 777);
-                offX += hash  * fontSize * 0.2 * prog;
-                offY += hash2 * fontSize * 0.1 * prog;
-                charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
+                offX += hash  * fontSize * 0.2 * p;
+                offY += hash2 * fontSize * 0.1 * p;
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - p));
               }
             }
           }
@@ -578,44 +541,38 @@
                 mbSX = sc2; mbSY = sc2;
               }
 
-              // MB ghost OUT: forward spring (mirrors new OUT block)
+              // MB ghost OUT: matches OUT formulas
               const normOutMB = normalizeAnimIn(p.animOut || 'none');
               if (normOutMB !== 'none' && normOutMB !== 'typewriter') {
                 const outDurMB     = Math.max(0.1, Number(p.animOutDuration) || 0.6);
                 const outStartMB   = Math.max(inDur, clipDur - outDurMB);
                 if (localSec >= outStartMB) {
                   const tOutGlobMB = (localSec - dt * mbI) - outStartMB;
-                  const outStaggerMB = totalUnits > 1 ? (outDurMB * animStagger) / (totalUnits - 1) : 0;
+                  const actualTotalStaggerMB = totalUnits > 1 ? outDurMB * Math.min(0.55, animStagger) : 0;
+                  const outStaggerMB = totalUnits > 1 ? actualTotalStaggerMB / (totalUnits - 1) : 0;
                   const tOutMB     = tOutGlobMB - animIndex * outStaggerMB;
-                  const charDurMB  = Math.max(0.12, outDurMB - (totalUnits > 1 ? (totalUnits - 1) * outStaggerMB : 0));
+                  const charDurMB  = Math.max(0.24, outDurMB - actualTotalStaggerMB);
                   if (tOutMB > 0 && tOutMB < charDurMB) {
                     const pMB = Math.min(1.0, tOutMB / charDurMB);
-                    const amp2 = (p.fontSize || 64) * animAmplitude;
                     if (normOutMB === 'bounce_1' || normOutMB === 'bounce_3') {
-                      const freq2  = normOutMB === 'bounce_3' ? Math.max(0.5, animFreq - 1) : animFreq;
-                      const decay2 = normOutMB === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
-                      if (pMB < 0.22) {
-                        const uAnt = pMB / 0.22;
-                        mbOffY += -amp2 * 0.35 * Math.sin(uAnt * Math.PI);
-                      } else {
-                        const u = (pMB - 0.22) / 0.78;
-                        const drop2 = (p.fontSize || 64) * 2.2 * Math.pow(u, 2.2);
-                        const bounce2 = amp2 * (Math.sin(freq2 * u * 2 * Math.PI) / Math.exp(decay2 * u));
-                        mbOffY += drop2 + bounce2;
-                      }
+                      const amplitude = (p.fontSize || 64) * animAmplitude;
+                      const isWave = (normOutMB === 'bounce_3');
+                      const antHeight = amplitude * (isWave ? 0.30 : 0.42);
+                      const dropDist  = (p.fontSize || 64) * (isWave ? 1.4 : 1.8);
+                      const antProg = Math.min(1.0, pMB / 0.40);
+                      const antY = -antHeight * Math.pow(Math.sin(Math.PI * antProg), 2);
+                      const dropProg = Math.max(0, (pMB - 0.20) / 0.80);
+                      const dropY = dropDist * Math.pow(dropProg, 2.0);
+                      mbOffY += antY + dropY;
                     } else if (normOutMB === 'bounce_2' || normOutMB === 'bounce_4') {
-                      const freq2  = normOutMB === 'bounce_4' ? Math.max(0.5, animFreq - 1) : animFreq;
-                      const decay2 = normOutMB === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
-                      if (pMB < 0.20) {
-                        const uAnt = pMB / 0.20;
-                        const sc2 = 1.0 + animAmplitude * 0.16 * Math.sin(uAnt * Math.PI);
-                        mbSX = sc2; mbSY = sc2;
-                      } else {
-                        const u = (pMB - 0.20) / 0.80;
-                        const wobble2 = animAmplitude * 0.35 * (Math.sin(freq2 * u * 2 * Math.PI) / Math.exp(decay2 * u));
-                        const sc2 = Math.max(0, (1 - Math.pow(u, 1.8)) + wobble2);
-                        mbSX = sc2; mbSY = sc2;
-                      }
+                      const isWave = (normOutMB === 'bounce_4');
+                      const swellAmount = 0.15 * (isWave ? 0.8 : 1.0) * animAmplitude;
+                      const antProg = Math.min(1.0, pMB / 0.25);
+                      const antSwell = swellAmount * Math.pow(Math.sin(Math.PI * antProg), 2);
+                      const snapProg = Math.max(0, (pMB - 0.125) / 0.875);
+                      const collapse = Math.pow(snapProg, 1.8);
+                      const sc2 = Math.max(0, (1.0 + antSwell) * (1.0 - collapse));
+                      mbSX = sc2; mbSY = sc2;
                     }
                   }
                 }

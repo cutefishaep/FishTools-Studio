@@ -1090,19 +1090,44 @@
         logExport('WebCodecs:Audio', 'Audio encoding finished.');
       }
 
-      updateProgress(96, 'Finalizing video...', onProgress);
-      logExportInfo('WebCodecs:Flush', 'Flushing VideoEncoder (' + chunksCount + ' chunks received)...');
+      updateProgress(93, 'Flushing encoder (' + chunksCount + ' / ~' + totalFrames + ' chunks)...', onProgress);
+      logExportInfo('WebCodecs:Flush', 'Flushing VideoEncoder (' + chunksCount + ' chunks received, totalFrames=' + totalFrames + ')...');
       try {
-        await Promise.race([
-          encoder.flush(),
-          new Promise(function(_, reject) {
-            // Dynamic timeout: 15s base + 1s per 20 chunks, capped at 90s
-            // Prevents timeout on large encodes (e.g. 661 chunks @ Firefox WebCodecs)
-            var flushTimeoutMs = Math.min(90000, Math.max(15000, 15000 + Math.floor(chunksCount / 20) * 1000));
-            setTimeout(function() { reject(new Error('encoder.flush() timed out after ' + (flushTimeoutMs / 1000).toFixed(0) + 's')); }, flushTimeoutMs);
-          })
-        ]);
-        logExport('WebCodecs:Flush', 'VideoEncoder queue flushed successfully.');
+        // Track chunksCount at flush start so we can measure drain progress
+        var chunksAtFlushStart = chunksCount;
+        var chunksExpected = Math.max(totalFrames, chunksAtFlushStart);
+
+        // Poll every 200ms to show real flush progress (93% → 99%)
+        var flushDone = false;
+        var flushPollInterval = setInterval(function() {
+          if (flushDone) { clearInterval(flushPollInterval); return; }
+          var drained   = chunksCount - chunksAtFlushStart;
+          var remaining = Math.max(0, chunksExpected - chunksCount);
+          var flushPct  = remaining > 0
+            ? 93 + Math.round((drained / (drained + remaining)) * 6)
+            : 99;
+          updateProgress(
+            Math.min(99, flushPct),
+            'Flushing encoder — ' + chunksCount + ' / ~' + chunksExpected + ' chunks...',
+            onProgress
+          );
+        }, 200);
+
+        // Safety net: 5 minutes absolute maximum (should never trigger for real encodes)
+        var flushSafetyReject;
+        var safetyTimer = new Promise(function(_, reject) {
+          flushSafetyReject = reject;
+          setTimeout(function() { reject(new Error('encoder.flush() safety timeout after 300s')); }, 300000);
+        });
+
+        try {
+          await Promise.race([encoder.flush(), safetyTimer]);
+        } finally {
+          flushDone = true;
+          clearInterval(flushPollInterval);
+        }
+
+        logExport('WebCodecs:Flush', 'VideoEncoder flushed. Total chunks: ' + chunksCount + '.');
       } catch (flushErr) {
         logExportError('WebCodecs:Flush', 'Encoder flush failed:', flushErr);
         try { encoder.close(); } catch (_) {}

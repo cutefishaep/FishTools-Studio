@@ -1991,31 +1991,453 @@
   transform: scale(0.94) !important;
 }
 
-/* 2. Effects Rack Subview */
-.desktop-panel-right .effects-rack-layout {
+/* 2. Effects Rack Subview - Desktop Overhaul */
+.desktop-panel-right .effects-rack-layout,
+#desktop-panel-inspector .effects-rack-layout {
   display: flex !important;
   flex-direction: column !important;
   height: 100% !important;
   min-height: 0 !important;
+  background-color: var(--bg-dashboard) !important;
 }
 
-.desktop-panel-right .effects-rack-main {
+.desktop-panel-right .effects-rack-main,
+#desktop-panel-inspector .effects-rack-main {
   order: 2 !important;
   flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
   overflow-y: auto !important;
-  padding: 10px !important;
+  padding: 6px 8px !important;
+  background-color: var(--bg-dashboard) !important;
   box-sizing: border-box !important;
 }
 
-/* Effects Rack Desktop Overrides */
-.desktop-panel-right .effects-rack-header {
+/* Effects Rack Desktop Header Overrides */
+.desktop-panel-right .effects-rack-header,
+#desktop-panel-inspector .effects-rack-header {
   display: none !important;
 }
 
-.desktop-panel-right .effects-rack-title {
+.desktop-panel-right .effects-rack-title,
+#desktop-panel-inspector .effects-rack-title {
   display: none !important;
+}
+
+.desktop-panel-right .effects-rack-body,
+#desktop-panel-inspector .effects-rack-body {
+  padding: 0 !important;
+  gap: 4px !important;
+}
+
+.desktop-panel-right .effects-rack-list,
+#desktop-panel-inspector .effects-rack-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  width: 100% !important;
+}
+
+/* Effects Card Desktop: Crisp Rectangular with Subtle Rounding ("mengkotak dan rounded dikit") */
+.desktop-panel-right .effects-card,
+#desktop-panel-inspector .effects-card {
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-panel) !important;
+  border-radius: var(--desktop-radius-sm) !important; /* 3px: squared with slight rounding */
+  margin: 0 !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.1s ease, background-color 0.1s ease !important;
+}
+
+.desktop-panel-right .effects-card:hover,
+#desktop-panel-inspector .effects-card:hover {
+  border-color: var(--border-strong) !important;
+}
+
+.desktop-panel-right .effects-card.is-expanded,
+#desktop-panel-inspector .effects-card.is-expanded {
+  border-color: var(--color-primary-subtle, var(--border-strong)) !important;
+}
+
+/* Hide mobile swipe-to-delete layer on desktop */
+.desktop-panel-right .effects-card-swipe-bg,
+#desktop-panel-inspector .effects-card-swipe-bg {
+  display: none !important;
+}
+
+/* Card Header: Compact Pro Desktop NLE Height */
+.desktop-panel-right .effects-card-header,
+#desktop-panel-inspector .effects-card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 6px 0 4px !important;
+  background-color: var(--bg-panel) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  border-bottom: none !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  transition: background-color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-card:hover .effects-card-header,
+#desktop-panel-inspector .effects-card:hover .effects-card-header {
+  background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-panel-right .effects-card.is-expanded .effects-card-header,
+#desktop-panel-inspector .effects-card.is-expanded .effects-card-header {
+  background-color: var(--bg-panel-hover) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.desktop-panel-right .effects-card-header-left,
+#desktop-panel-inspector .effects-card-header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+}
+
+.desktop-panel-right .effects-card-caret-btn,
+#desktop-panel-inspector .effects-card-caret-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 18px !important;
+  height: 18px !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  border: none !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-card-caret-btn:hover,
+#desktop-panel-inspector .effects-card-caret-btn:hover {
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .effects-card-caret,
+#desktop-panel-inspector .effects-card-caret {
+  width: 8px !important;
+  height: 8px !important;
+  fill: currentColor !important;
+  transition: transform 0.12s ease !important;
+}
+
+.desktop-panel-right .effects-card.is-expanded .effects-card-caret,
+#desktop-panel-inspector .effects-card.is-expanded .effects-card-caret {
+  transform: rotate(90deg) !important;
+}
+
+.desktop-panel-right .effects-card-title,
+#desktop-panel-inspector .effects-card-title {
+  font-family: var(--font-brand) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Header Right Actions: Always keep Eye and Drag handle visible */
+.desktop-panel-right .effects-card-actions,
+#desktop-panel-inspector .effects-card-actions,
+.desktop-panel-right .effects-card-collapsed-actions,
+#desktop-panel-inspector .effects-card-collapsed-actions,
+.desktop-panel-right .effects-card-expanded-actions,
+#desktop-panel-inspector .effects-card-expanded-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right .effects-card-eye-btn,
+#desktop-panel-inspector .effects-card-eye-btn,
+.desktop-panel-right .effects-card-kebab-btn,
+#desktop-panel-inspector .effects-card-kebab-btn,
+.desktop-panel-right .effects-card-delete-btn,
+#desktop-panel-inspector .effects-card-delete-btn,
+.desktop-panel-right .effects-card-drag-handle,
+#desktop-panel-inspector .effects-card-drag-handle {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transition: color 0.08s ease, background-color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-card-eye-btn svg,
+#desktop-panel-inspector .effects-card-eye-btn svg,
+.desktop-panel-right .effects-card-kebab-btn svg,
+#desktop-panel-inspector .effects-card-kebab-btn svg,
+.desktop-panel-right .effects-card-delete-btn svg,
+#desktop-panel-inspector .effects-card-delete-btn svg,
+.desktop-panel-right .effects-card-drag-handle svg,
+#desktop-panel-inspector .effects-card-drag-handle svg {
+  width: 13px !important;
+  height: 13px !important;
+  fill: currentColor !important;
+}
+
+.desktop-panel-right .effects-card-eye-btn:hover,
+#desktop-panel-inspector .effects-card-eye-btn:hover {
+  color: var(--color-primary) !important;
+  background-color: var(--bg-panel-inner) !important;
+}
+
+.desktop-panel-right .effects-card-eye-btn.is-active,
+#desktop-panel-inspector .effects-card-eye-btn.is-active {
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .effects-card-eye-btn:not(.is-active),
+#desktop-panel-inspector .effects-card-eye-btn:not(.is-active) {
+  color: var(--text-muted) !important;
+  opacity: 0.35 !important;
+}
+
+.desktop-panel-right .effects-card-kebab-btn:hover,
+#desktop-panel-inspector .effects-card-kebab-btn:hover {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-panel-inner) !important;
+}
+
+.desktop-panel-right .effects-card-delete-btn,
+#desktop-panel-inspector .effects-card-delete-btn {
+  color: var(--text-muted) !important;
+}
+
+.desktop-panel-right .effects-card:not(.is-expanded) .effects-card-delete-btn,
+#desktop-panel-inspector .effects-card:not(.is-expanded) .effects-card-delete-btn {
+  display: none !important;
+}
+
+.desktop-panel-right .effects-card.is-expanded .effects-card-delete-btn,
+#desktop-panel-inspector .effects-card.is-expanded .effects-card-delete-btn {
+  display: inline-flex !important;
+}
+
+.desktop-panel-right .effects-card-delete-btn:hover,
+#desktop-panel-inspector .effects-card-delete-btn:hover {
+  color: var(--color-danger, #ef4444) !important;
+  background-color: var(--color-danger-bg, rgba(239, 68, 68, 0.15)) !important;
+}
+
+.desktop-panel-right .effects-card-drag-handle,
+#desktop-panel-inspector .effects-card-drag-handle {
+  cursor: grab !important;
+  touch-action: none !important;
+  user-select: none !important;
+}
+
+.desktop-panel-right .effects-card-drag-handle:hover,
+#desktop-panel-inspector .effects-card-drag-handle:hover {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-panel-inner) !important;
+}
+
+.desktop-panel-right .effects-card-drag-handle:active,
+#desktop-panel-inspector .effects-card-drag-handle:active {
+  cursor: grabbing !important;
+  color: var(--color-primary) !important;
+}
+
+/* Controls Area inside Expanded Card: Recessed Darker Surface */
+.desktop-panel-right .effects-card-controls,
+#desktop-panel-inspector .effects-card-controls {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 6px 8px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border-bottom-left-radius: var(--desktop-radius-sm) !important;
+  border-bottom-right-radius: var(--desktop-radius-sm) !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .effects-control-row,
+#desktop-panel-inspector .effects-control-row {
+  display: grid !important;
+  grid-template-columns: minmax(80px, 34%) 1fr !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 24px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .effects-param-label-col,
+#desktop-panel-inspector .effects-param-label-col {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.desktop-panel-right .effects-param-label,
+#desktop-panel-inspector .effects-param-label,
+.desktop-panel-right .effects-param-select-btn,
+#desktop-panel-inspector .effects-param-select-btn {
+  font-family: var(--font-brand) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-param-label:hover,
+#desktop-panel-inspector .effects-param-label:hover,
+.desktop-panel-right .effects-control-row:hover .effects-param-label,
+#desktop-panel-inspector .effects-control-row:hover .effects-param-label {
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .effects-param-label.is-active,
+#desktop-panel-inspector .effects-param-label.is-active,
+.desktop-panel-right .effects-param-select-btn.is-active,
+#desktop-panel-inspector .effects-param-select-btn.is-active {
+  color: var(--color-primary) !important;
+  font-weight: 700 !important;
+}
+
+/* Scrub Pill: "mengkotak dan rounded dikit" with sharp canvas background */
+.desktop-panel-right .effects-param-pill,
+#desktop-panel-inspector .effects-param-pill {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  height: 22px !important;
+  max-height: 22px !important;
+  background-color: var(--bg-canvas) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important; /* 3px: squared with subtle rounding */
+  padding: 0 6px !important;
+  cursor: ew-resize !important;
+  user-select: none !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.08s ease, background-color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-param-pill:hover,
+#desktop-panel-inspector .effects-param-pill:hover {
+  border-color: var(--color-primary) !important;
+  background-color: var(--bg-panel-hover) !important;
+}
+
+.desktop-panel-right .effects-param-pill:active,
+#desktop-panel-inspector .effects-param-pill:active {
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .effects-pill-track,
+#desktop-panel-inspector .effects-pill-track {
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  background-color: var(--color-primary) !important;
+  opacity: 0.16 !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right .effects-param-pill-val,
+#desktop-panel-inspector .effects-param-pill-val {
+  position: relative !important;
+  z-index: 1 !important;
+  font-family: var(--font-brand) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  font-variant-numeric: tabular-nums !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Select dropdowns and Custom Dropdowns in Controls */
+.desktop-panel-right .effects-select,
+#desktop-panel-inspector .effects-select,
+.desktop-panel-right .effects-custom-dropdown,
+#desktop-panel-inspector .effects-custom-dropdown {
+  height: 22px !important;
+  min-height: 22px !important;
+  background-color: var(--bg-canvas) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-brand) !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  padding: 0 6px !important;
+  box-sizing: border-box !important;
+}
+
+/* Swatches & Switches */
+.desktop-panel-right .effects-color-swatch,
+#desktop-panel-inspector .effects-color-swatch {
+  height: 20px !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+.desktop-panel-right .effects-switch,
+#desktop-panel-inspector .effects-switch {
+  border-radius: var(--desktop-radius-sm) !important;
+}
+
+/* Kebab Popover Menu on Desktop */
+.desktop-panel-right .effects-kebab-menu,
+#desktop-panel-inspector .effects-kebab-menu {
+  top: 26px !important;
+  right: 6px !important;
+  width: 160px !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+}
+
+.desktop-panel-right .effects-kebab-item,
+#desktop-panel-inspector .effects-kebab-item {
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 11px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
 }
 
 .desktop-panel-right #btn-add-effect,

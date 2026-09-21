@@ -1132,27 +1132,20 @@
               <span class="effects-card-title">${fx.name || def.name}</span>
             </div>
 
-            <!-- Collapsed state actions: Eye toggle + Kebab menu + Drag handle -->
-            <div class="effects-card-collapsed-actions">
+            <!-- Header Right Actions: Eye toggle, Kebab menu, Delete, and Drag handle (always visible) -->
+            <div class="effects-card-actions">
               <button type="button" class="effects-card-eye-btn ${isDisabled ? '' : 'is-active'}" title="Enable/Disable Effect" aria-label="Toggle Effect">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
               </button>
               <button type="button" class="effects-card-kebab-btn" title="Effect Options" aria-label="Effect Options">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
               </button>
-              <span class="effects-card-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
-              </span>
-            </div>
-
-            <!-- Expanded state actions: Kebab menu + Trash delete -->
-            <div class="effects-card-expanded-actions">
-              <button type="button" class="effects-card-kebab-btn" title="Effect Options" aria-label="Effect Options">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-              </button>
               <button type="button" class="effects-card-delete-btn" title="Remove Effect" aria-label="Delete">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
               </button>
+              <span class="effects-card-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+              </span>
             </div>
           </div>
 

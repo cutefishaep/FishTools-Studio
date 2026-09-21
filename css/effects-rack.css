@@ -421,20 +421,29 @@
 }
 
 /* Header Right Actions */
+.effects-card-actions,
 .effects-card-collapsed-actions,
 .effects-card-expanded-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
-.effects-card:not(.is-expanded) .effects-card-expanded-actions {
+/* Eye toggle, Kebab menu, and Drag handle are ALWAYS visible in both collapsed and expanded states */
+.effects-card-eye-btn,
+.effects-card-kebab-btn,
+.effects-card-drag-handle {
+  display: inline-flex !important;
+}
+
+/* Delete button visibility */
+.effects-card:not(.is-expanded) .effects-card-delete-btn {
   display: none !important;
 }
 
-.effects-card.is-expanded .effects-card-collapsed-actions {
-  display: none !important;
+.effects-card.is-expanded .effects-card-delete-btn {
+  display: inline-flex !important;
 }
 
 .effects-card:not(.is-expanded) .effects-card-controls {

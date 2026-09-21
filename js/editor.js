@@ -14455,6 +14455,7 @@
           let activePointerId = null;
 
           function onHeaderPointerDown(e) {
+            if (window.innerWidth > 600) return;
             if (card.classList.contains('is-expanded')) return;
             if (e.target.closest('button, .effects-card-drag-handle, .effects-kebab-menu')) return;
 

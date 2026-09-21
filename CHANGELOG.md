@@ -5,6 +5,12 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.65] - 2026-09-22
+
+### Fixed
+- **Effects Rack Actions Persistence (`js/effects.js`, `css/effects-rack.css`)**: Hide/show effect toggle (eye button) and reorder drag handle no longer disappear when an effect card is expanded. Both buttons remain permanently accessible in both collapsed and expanded states, alongside kebab menu and quick delete.
+- **Desktop Inspector Effects Rack Theme Overhaul (`css/desktop.css`, `css/effects-rack.css`, `js/editor.js`)**: Overhauled effect cards for desktop mode to sync with desktop inspector design language ("mengkotak dan rounded dikit"). Cards now feature `border-radius: var(--desktop-radius-sm)` (3px), elevated surface contrast (`--bg-panel` on `--bg-dashboard`), compact 28px header height, and 20px squared action buttons. Controls area inside cards now features recessed interior (`--bg-panel-inner`), compact 22px rows, and squared scrubbers (`--bg-canvas` with 3px radius) replacing rounded mobile pills. Mobile swipe-to-delete is disabled on desktop.
+
 ## [0.5.64] - 2026-09-22
 
 ### Fixed

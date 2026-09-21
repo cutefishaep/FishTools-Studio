@@ -95,8 +95,11 @@
    * Toggles visibility of Copy & Paste buttons: shown ONLY when at least 1 layer is selected
    */
   function updateClipboardButtonsVisibility() {
-    const selected = getSelectedLayers();
-    const hasSelection = selected.length > 0;
+    const hasSelection = !!(
+      (window.selectedLayerId && window.selectedLayerId !== '') ||
+      (window.selectedLayerIds && window.selectedLayerIds.size > 0) ||
+      (typeof selectedLayerId !== 'undefined' && selectedLayerId && selectedLayerId !== '')
+    );
     const desktopBtnCopy = document.getElementById('desktop-btn-copy');
     const desktopBtnPaste = document.getElementById('desktop-btn-paste');
     if (desktopBtnCopy) {
@@ -503,9 +506,6 @@
         btn.dataset.category = catKey;
 
         let labelText = def.label;
-        if (catKey === 'effects' && Array.isArray(currentSourceLayer.effects) && currentSourceLayer.effects.length > 0) {
-          labelText = `Effects (${currentSourceLayer.effects.length})`;
-        }
 
         btn.innerHTML = `
           <span class="attr-toggle-icon">${def.icon}</span>
@@ -550,10 +550,6 @@
         btn.dataset.category = catKey;
 
         let labelText = def.label;
-        if (catKey === 'effects' && clip && clip.data && clip.data.effects && clip.data.effects.effects) {
-          const fxCount = clip.data.effects.effects.length;
-          if (fxCount > 0) labelText = `Effects (${fxCount})`;
-        }
 
         if (hasInClipboard) {
           // Available from clipboard: enabled & active by default

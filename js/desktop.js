@@ -418,6 +418,10 @@
       inspectorPanel.classList.toggle('has-active-layer', hasActiveLayer);
     }
 
+    if (typeof window.updateClipboardButtonsVisibility === 'function') {
+      window.updateClipboardButtonsVisibility();
+    }
+
     if (hasActiveLayer) {
       if (inspectorEmpty) inspectorEmpty.style.display = 'none';
       if (layerDrawer) layerDrawer.style.display = 'flex';

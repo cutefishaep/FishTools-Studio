@@ -5,6 +5,22 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.40] - 2026-09-21
+
+### Changed
+- **Balanced Attributes Matrix Grid (`css/popover.css`)**:
+  - Replaced flexible grid tracks with strict `minmax(0, 1fr)` columns and `min-width: 0` button wrappers, preventing long labels ("Opacity & Blend") from expanding the center column.
+  - Implemented 6-column balanced layout for 5-item configurations (`:has(> :first-child:nth-last-child(5))`): 3 equal items on the top row (span 2 each) and 2 equal items on the bottom row (span 3 each) spanning edge-to-edge seamlessly without empty right-hand gaps.
+- **Pure Effect Category Label (`js/attributes-clipboard.js`, `demo.html`)**:
+  - Removed effect count numbers (e.g. `(1)`, `(2)`) from the button label, maintaining a minimal, distraction-free "Effects" title across both Copy and Paste popovers.
+
+### Fixed
+- **Clean Selection-Bound Copy & Paste Toolbar Buttons (`js/attributes-clipboard.js`, `js/desktop.js`)**:
+  - Switched `updateClipboardButtonsVisibility` to inspect state truth (`window.selectedLayerId` and `window.selectedLayerIds`) directly rather than DOM class leftovers, guaranteeing copy and paste buttons reliably hide when no layer is selected.
+  - Wired visibility synchronization into `syncInspectorState` in `desktop.js`.
+
+---
+
 ## [0.5.39] - 2026-09-21
 
 ### Fixed

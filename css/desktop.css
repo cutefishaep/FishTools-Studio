@@ -5305,28 +5305,51 @@
   min-width: 0;
 }
 
-/* Scrubable value — right side, drag horizontally to change */
-.desktop-kf-prop-val {
+/* Value group — contains one span per component (e.g. X | Y for position) */
+.desktop-kf-prop-val-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* Individual value component span */
+.desktop-kf-prop-val-comp {
   font-size: 10.5px;
   font-family: 'Cal Sans', monospace;
   color: var(--color-primary);
   white-space: nowrap;
   cursor: ew-resize;
   user-select: none;
-  padding: 1px 3px;
+  padding: 1px 5px;
   border-radius: 2px;
-  flex-shrink: 0;
-  min-width: 40px;
-  text-align: right;
-}
-
-.desktop-kf-prop-val:hover {
   background-color: var(--bg-panel-inner);
+  min-width: 32px;
+  text-align: center;
 }
 
-.desktop-kf-prop-val.is-scrubbing {
+.desktop-kf-prop-val-comp:hover {
+  background-color: var(--bg-panel-hover);
+}
+
+.desktop-kf-prop-val-comp.is-scrubbing {
   background-color: var(--color-primary);
   color: var(--bg-canvas);
+}
+
+/* Inline input when editing a component value */
+.desktop-kf-prop-val-input {
+  font-size: 10.5px;
+  font-family: 'Cal Sans', monospace;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--color-primary);
+  border-radius: 2px;
+  padding: 0 4px;
+  width: 52px;
+  height: 18px;
+  text-align: center;
+  outline: none;
 }
 
 

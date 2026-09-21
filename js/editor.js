@@ -24710,155 +24710,198 @@
                   nameSpan.title = p.label;
                   nameSpan.textContent = p.label;
 
-                  // --- Scrubable value ---
-                  const valSpan = document.createElement('span');
-                  valSpan.className = 'desktop-kf-prop-val';
-                  valSpan.textContent = p.curValue || '';
+                  // --- Per-component value container ---
+                  const valContainer = document.createElement('span');
+                  valContainer.className = 'desktop-kf-prop-val-group';
 
-                  // Scrub rate by prop type
-                  function getScrubRate(prop) {
-                    if (prop === 'rotate') return 0.5;
-                    if (prop === 'opacity') return 0.5;
-                    if (prop === 'scale') return 0.3;
-                    if (prop === 'volume') return 0.5;
-                    return 1.0; // position, anchor, etc.
-                  }
-
-                  // Apply a delta to the layer property and refresh
-                  function applyPropDelta(prop, dxPx) {
-                    // Always mutate the LIVE layer from project state (not closure snapshot)
-                    const realLayer = (window.currentProjectState && window.currentProjectState.layers)
+                  // Get live layer reference
+                  function getLive() {
+                    return (window.currentProjectState && window.currentProjectState.layers)
                       ? (window.currentProjectState.layers.find(l => l.id === layer.id) || layer)
                       : layer;
+                  }
 
-                    const rate = getScrubRate(prop);
-                    const delta = dxPx * rate;
-
-                    if (prop === 'move') {
-                      if (realLayer.posX === undefined) realLayer.posX = (window.currentProjectState && window.currentProjectState.width / 2) || 540;
-                      if (realLayer.posY === undefined) realLayer.posY = (window.currentProjectState && window.currentProjectState.height / 2) || 960;
-                      realLayer.posX = Number((realLayer.posX + delta).toFixed(2));
-                      // sync normX if used
-                      const baseW = (window.currentProjectState && window.currentProjectState.width) || 1080;
-                      if (realLayer.normX !== undefined) {
-                        realLayer.normX = (realLayer.posX - (Math.abs(realLayer.scaleW || baseW) / 2)) / baseW;
-                      }
-                    } else if (prop === 'scale') {
-                      const curW = realLayer.scaleW !== undefined ? realLayer.scaleW : (realLayer.mediaWidth || 100);
-                      const curH = realLayer.scaleH !== undefined ? realLayer.scaleH : (realLayer.mediaHeight || 100);
-                      const newW = Math.max(1, curW + delta);
-                      const ratio = curW > 0 ? curH / curW : 1;
-                      const newH = (realLayer.scaleLinked !== false) ? newW * ratio : Math.max(1, curH + delta);
-                      realLayer.scaleW = Number(newW.toFixed(2));
-                      realLayer.scaleH = Number(newH.toFixed(2));
-                    } else if (prop === 'rotate') {
-                      realLayer.rotation = Number(((realLayer.rotation || 0) + delta).toFixed(2));
-                      if (realLayer.rotZ !== undefined) realLayer.rotZ = realLayer.rotation;
-                    } else if (prop === 'opacity') {
-                      // delta is px * 0.5, divide by 100 for fraction → too slow. Use direct: 1px = 0.5%
-                      const cur = realLayer.opacity !== undefined ? realLayer.opacity : 1;
-                      realLayer.opacity = Math.max(0, Math.min(1, cur + delta / 100));
-                    } else if (prop === 'origin') {
-                      realLayer.anchorX = Number(((realLayer.anchorX || 0) + delta).toFixed(2));
-                    } else if (prop === 'skew') {
-                      realLayer.skew = Number(((realLayer.skew || 0) + delta).toFixed(2));
-                      if (realLayer.skewX !== undefined) realLayer.skewX = realLayer.skew;
-                    } else if (prop === 'volume') {
-                      const cur = realLayer.volume !== undefined ? realLayer.volume : 1;
-                      realLayer.volume = Math.max(0, Math.min(4, cur + delta / 100));
-                    } else if (prop.includes(':')) {
-                      // Effect param: "fxId:paramId"
-                      const colonIdx = prop.indexOf(':');
-                      const fxId = prop.slice(0, colonIdx);
-                      const pName = prop.slice(colonIdx + 1);
-                      const fx = Array.isArray(realLayer.effects) ? realLayer.effects.find(f => f.id === fxId) : null;
-                      if (fx && fx[pName] !== undefined) {
-                        fx[pName] = typeof fx[pName] === 'number'
-                          ? Number((fx[pName] + delta).toFixed(3))
-                          : fx[pName];
-                      }
-                    } else if (typeof realLayer[prop] === 'number') {
-                      realLayer[prop] = Number((realLayer[prop] + delta).toFixed(2));
-                    }
-
-                    // If property is already keyframed → update/insert KF at playhead (AE behavior)
-                    if (realLayer.keyframes && Array.isArray(realLayer.keyframes[prop]) && realLayer.keyframes[prop].length > 0) {
+                  // After any mutation: redraw + sync KF if keyframed
+                  function commitMutation(rl) {
+                    // KF update if already keyframed
+                    if (rl.keyframes && Array.isArray(rl.keyframes[p.prop]) && rl.keyframes[p.prop].length > 0) {
                       const pps2 = window.currentPixelsPerSecond || 80;
                       const panX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
                       const t = Number((Math.abs(panX) / pps2).toFixed(3));
-                      const kfs = realLayer.keyframes[prop];
+                      const kfs = rl.keyframes[p.prop];
                       const existIdx = kfs.findIndex(k => Math.abs(k.time - t) < 0.025);
-                      const curVal = typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(realLayer, prop) : realLayer[prop];
-                      if (existIdx >= 0) {
-                        kfs[existIdx].value = curVal;
-                      } else {
-                        kfs.push({ time: t, value: curVal, easing: realLayer.defaultEasing || 'ease-in-out' });
-                        kfs.sort((a, b) => a.time - b.time);
+                      const curVal = typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(rl, p.prop) : rl[p.prop];
+                      if (existIdx >= 0) { kfs[existIdx].value = curVal; }
+                      else { kfs.push({ time: t, value: curVal, easing: rl.defaultEasing || 'ease-in-out' }); kfs.sort((a, b) => a.time - b.time); }
+                    }
+                    if (window.PreviewCacheManager && typeof window.PreviewCacheManager.invalidate === 'function') window.PreviewCacheManager.invalidate(rl.id);
+                    if (typeof window.invalidateLayerCache === 'function') window.invalidateLayerCache(rl.id);
+                    if (typeof redrawComposition === 'function') redrawComposition();
+                  }
+
+                  // Define value components per prop
+                  function buildComponents(prop) {
+                    const pw = (window.currentProjectState && window.currentProjectState.width) || 1080;
+                    const ph = (window.currentProjectState && window.currentProjectState.height) || 1920;
+                    const rl = getLive();
+                    if (prop === 'move') return [
+                      { getVal: () => Math.round(getLive().posX ?? pw/2),
+                        scrub: (dx) => { const r = getLive(); r.posX = Number(((r.posX ?? pw/2) + dx).toFixed(2)); },
+                        set: (v) => { getLive().posX = parseFloat(v) || 0; } },
+                      { getVal: () => Math.round(getLive().posY ?? ph/2),
+                        scrub: (dx) => { const r = getLive(); r.posY = Number(((r.posY ?? ph/2) + dx).toFixed(2)); },
+                        set: (v) => { getLive().posY = parseFloat(v) || 0; } }
+                    ];
+                    if (prop === 'scale') {
+                      const normW = (v) => { const r = getLive(); return v > 400 ? Math.round(v/pw*100) : Math.round(v); };
+                      const normH = (v) => { const r = getLive(); return v > 400 ? Math.round(v/ph*100) : Math.round(v); };
+                      const denormW = (pct) => { const r = getLive(); return (r.scaleW > 400) ? (pct/100*pw) : pct; };
+                      const denormH = (pct) => { const r = getLive(); return (r.scaleH > 400) ? (pct/100*ph) : pct; };
+                      return [
+                        { getVal: () => normW(getLive().scaleW ?? rl.mediaWidth ?? 100) + '%',
+                          scrub: (dx) => { const r = getLive(); const cW = r.scaleW ?? r.mediaWidth ?? 100; const cH = r.scaleH ?? r.mediaHeight ?? 100; const nW = Math.max(1, cW + dx*0.3); r.scaleW = Number(nW.toFixed(2)); if (r.scaleLinked !== false) r.scaleH = Number((nW * (cH/Math.max(1,cW))).toFixed(2)); },
+                          set: (v) => { const r = getLive(); r.scaleW = denormW(parseFloat(v) || 100); } },
+                        { getVal: () => normH(getLive().scaleH ?? rl.mediaHeight ?? 100) + '%',
+                          scrub: (dx) => { const r = getLive(); const cW = r.scaleW ?? r.mediaWidth ?? 100; const cH = r.scaleH ?? r.mediaHeight ?? 100; const nH = Math.max(1, cH + dx*0.3); r.scaleH = Number(nH.toFixed(2)); if (r.scaleLinked !== false) r.scaleW = Number((nH * (cW/Math.max(1,cH))).toFixed(2)); },
+                          set: (v) => { const r = getLive(); r.scaleH = denormH(parseFloat(v) || 100); } }
+                      ];
+                    }
+                    if (prop === 'rotate') return [
+                      { getVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1) + '°',
+                        scrub: (dx) => { const r = getLive(); r.rotation = Number(((r.rotation ?? 0) + dx*0.5).toFixed(2)); r.rotZ = r.rotation; },
+                        set: (v) => { const r = getLive(); r.rotation = parseFloat(v) || 0; r.rotZ = r.rotation; } }
+                    ];
+                    if (prop === 'opacity') return [
+                      { getVal: () => Math.round((getLive().opacity ?? 1) * 100) + '%',
+                        scrub: (dx) => { const r = getLive(); r.opacity = Math.max(0, Math.min(1, (r.opacity ?? 1) + dx*0.005)); },
+                        set: (v) => { getLive().opacity = Math.max(0, Math.min(1, parseFloat(v)/100)); } }
+                    ];
+                    if (prop === 'origin') return [
+                      { getVal: () => Math.round(getLive().anchorX ?? 0),
+                        scrub: (dx) => { const r = getLive(); r.anchorX = Number(((r.anchorX ?? 0) + dx).toFixed(2)); },
+                        set: (v) => { getLive().anchorX = parseFloat(v) || 0; } },
+                      { getVal: () => Math.round(getLive().anchorY ?? 0),
+                        scrub: (dx) => { const r = getLive(); r.anchorY = Number(((r.anchorY ?? 0) + dx).toFixed(2)); },
+                        set: (v) => { getLive().anchorY = parseFloat(v) || 0; } }
+                    ];
+                    if (prop === 'skew') return [
+                      { getVal: () => (getLive().skew ?? getLive().skewX ?? 0).toFixed(1) + '°',
+                        scrub: (dx) => { const r = getLive(); r.skew = Number(((r.skew ?? 0) + dx*0.5).toFixed(2)); r.skewX = r.skew; },
+                        set: (v) => { const r = getLive(); r.skew = parseFloat(v) || 0; r.skewX = r.skew; } }
+                    ];
+                    if (prop === 'volume') return [
+                      { getVal: () => Math.round((getLive().volume ?? 1) * 100) + '%',
+                        scrub: (dx) => { const r = getLive(); r.volume = Math.max(0, Math.min(4, (r.volume ?? 1) + dx*0.005)); },
+                        set: (v) => { getLive().volume = Math.max(0, Math.min(4, parseFloat(v)/100)); } }
+                    ];
+                    if (prop.includes(':')) {
+                      const [fxId, pName] = prop.split(':');
+                      return [
+                        { getVal: () => { const r = getLive(); const fx = Array.isArray(r.effects) ? r.effects.find(f => f.id === fxId) : null; const v = fx ? (fx[pName] ?? 0) : 0; return typeof v === 'number' ? v.toFixed(2) : String(v); },
+                          scrub: (dx) => { const r = getLive(); const fx = Array.isArray(r.effects) ? r.effects.find(f => f.id === fxId) : null; if (fx && typeof fx[pName] === 'number') fx[pName] = Number((fx[pName] + dx).toFixed(3)); },
+                          set: (v) => { const r = getLive(); const fx = Array.isArray(r.effects) ? r.effects.find(f => f.id === fxId) : null; if (fx) fx[pName] = parseFloat(v) || 0; } }
+                      ];
+                    }
+                    const rv = rl[prop];
+                    return [
+                      { getVal: () => { const v = getLive()[prop]; return typeof v === 'number' ? v.toFixed(1) : String(v ?? ''); },
+                        scrub: (dx) => { const r = getLive(); if (typeof r[prop] === 'number') r[prop] = Number((r[prop] + dx).toFixed(2)); },
+                        set: (v) => { getLive()[prop] = parseFloat(v) || 0; } }
+                    ];
+                  }
+
+                  const components = buildComponents(p.prop);
+                  const compSpans = [];
+
+                  components.forEach((comp, idx) => {
+                    const cs = document.createElement('span');
+                    cs.className = 'desktop-kf-prop-val-comp';
+                    cs.textContent = String(comp.getVal());
+                    cs.title = 'Drag to scrub, click to edit';
+
+                    let dragOccurred = false;
+
+                    cs.addEventListener('pointerdown', (e) => {
+                      if (e.button !== 0) return;
+                      e.stopPropagation();
+                      e.stopImmediatePropagation();
+                      e.preventDefault();
+                      cs.setPointerCapture(e.pointerId);
+                      let startX = e.clientX;
+                      dragOccurred = false;
+                      cs.classList.add('is-scrubbing');
+
+                      function onCompMove(ev) {
+                        if (!cs.hasPointerCapture(ev.pointerId)) return;
+                        const dx = ev.clientX - startX;
+                        if (Math.abs(dx) >= 1) dragOccurred = true;
+                        startX = ev.clientX;
+                        comp.scrub(dx);
+                        // Refresh all comp spans in this row
+                        compSpans.forEach((s, i) => { s.textContent = String(components[i].getVal()); });
+                        commitMutation(getLive());
                       }
-                    }
 
-                    // Invalidate render cache for this layer
-                    if (window.PreviewCacheManager && typeof window.PreviewCacheManager.invalidate === 'function') {
-                      window.PreviewCacheManager.invalidate(realLayer.id);
-                    }
-                    if (typeof window.invalidateLayerCache === 'function') window.invalidateLayerCache(realLayer.id);
-                  }
+                      function onCompUp(ev) {
+                        cs.classList.remove('is-scrubbing');
+                        cs.removeEventListener('pointermove', onCompMove);
+                        cs.removeEventListener('pointerup', onCompUp);
+                        cs.removeEventListener('pointercancel', onCompUp);
+                        if (!dragOccurred) {
+                          // Short click — open inline editor
+                          openInlineEdit(cs, comp, idx);
+                        } else {
+                          if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+                        }
+                      }
 
+                      cs.addEventListener('pointermove', onCompMove);
+                      cs.addEventListener('pointerup', onCompUp);
+                      cs.addEventListener('pointercancel', onCompUp);
+                    });
 
-                  function refreshValDisplay() {
-                    const realLayer = (window.currentProjectState && window.currentProjectState.layers)
-                      ? (window.currentProjectState.layers.find(l => l.id === layer.id) || layer)
-                      : layer;
-                    const freshRows = (typeof getLayerCategorizedKeyframeRows === 'function') ? getLayerCategorizedKeyframeRows(realLayer) : [];
-                    let freshVal = '';
-                    for (const cat of freshRows) {
-                      const fp = cat.props.find(pp => pp.prop === p.prop);
-                      if (fp) { freshVal = fp.curValue || ''; break; }
-                    }
-                    valSpan.textContent = freshVal;
-                  }
+                    valContainer.appendChild(cs);
+                    compSpans.push(cs);
+                  });
 
-                  valSpan.addEventListener('pointerdown', (e) => {
-                    if (e.button !== 0) return;
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    e.preventDefault();
-                    valSpan.setPointerCapture(e.pointerId);
-                    let startX = e.clientX;
-                    valSpan.classList.add('is-scrubbing');
+                  function openInlineEdit(cs, comp, idx) {
+                    const rawVal = comp.getVal();
+                    // Strip units for input
+                    const numStr = String(rawVal).replace(/[°%]/g, '').trim();
+                    const inp = document.createElement('input');
+                    inp.type = 'text';
+                    inp.className = 'desktop-kf-prop-val-input';
+                    inp.value = numStr;
+                    cs.replaceWith(inp);
+                    inp.focus();
+                    inp.select();
 
-                    function onValMove(ev) {
-                      if (!valSpan.hasPointerCapture(ev.pointerId)) return;
-                      const dx = ev.clientX - startX;
-                      startX = ev.clientX;
-                      applyPropDelta(p.prop, dx);
-                      refreshValDisplay();
-                      if (typeof redrawComposition === 'function') redrawComposition();
-                    }
-
-                    function onValUp(ev) {
-                      valSpan.classList.remove('is-scrubbing');
-                      valSpan.removeEventListener('pointermove', onValMove);
-                      valSpan.removeEventListener('pointerup', onValUp);
-                      valSpan.removeEventListener('pointercancel', onValUp);
+                    function applyEdit() {
+                      comp.set(inp.value);
+                      compSpans.forEach((s, i) => { s.textContent = String(components[i].getVal()); });
+                      inp.replaceWith(cs);
+                      cs.textContent = String(comp.getVal());
+                      commitMutation(getLive());
                       if (typeof saveCurrentProject === 'function') saveCurrentProject();
                       if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
                     }
-
-                    valSpan.addEventListener('pointermove', onValMove);
-                    valSpan.addEventListener('pointerup', onValUp);
-                    valSpan.addEventListener('pointercancel', onValUp);
-                  });
-
+                    inp.addEventListener('blur', applyEdit);
+                    inp.addEventListener('keydown', (ev) => {
+                      if (ev.key === 'Enter') { ev.preventDefault(); inp.blur(); }
+                      if (ev.key === 'Escape') { inp.replaceWith(cs); }
+                    });
+                  }
 
                   pRow.appendChild(swBtn);
                   pRow.appendChild(nameSpan);
-                  pRow.appendChild(valSpan);
+                  pRow.appendChild(valContainer);
+
 
                   // Click prop row (not on stopwatch or val) = select all KFs for this prop
                   pRow.addEventListener('click', (e) => {
                     if (e.target === swBtn || swBtn.contains(e.target)) return;
-                    if (e.target === valSpan) return;
+                    if (e.target === valContainer || valContainer.contains(e.target)) return;
                     e.stopPropagation();
                     window.activeKeyframeProperty = p.prop;
                     if (typeof window.syncDesktopInspectorProperty === 'function') {

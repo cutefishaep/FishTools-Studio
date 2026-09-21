@@ -668,6 +668,156 @@
       layersViewport.appendChild(indicator);
     }
 
+    let activeDesktopParentDropdown = null;
+
+    function closeDesktopParentDropdown() {
+      if (activeDesktopParentDropdown) {
+        activeDesktopParentDropdown.remove();
+        activeDesktopParentDropdown = null;
+      }
+      document.removeEventListener('pointerdown', onDropdownDocPointerDown, true);
+      document.removeEventListener('keydown', onDropdownDocKeyDown, true);
+    }
+
+    function onDropdownDocPointerDown(e) {
+      if (activeDesktopParentDropdown && !activeDesktopParentDropdown.contains(e.target)) {
+        closeDesktopParentDropdown();
+      }
+    }
+
+    function onDropdownDocKeyDown(e) {
+      if (e.key === 'Escape') {
+        closeDesktopParentDropdown();
+      }
+    }
+
+    function openDesktopParentDropdown(triggerBadge, layerId) {
+      closeDesktopParentDropdown();
+
+      const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+      const currentLayer = layers.find(l => String(l.id) === String(layerId));
+      if (!currentLayer) return;
+
+      const hasParent = !!currentLayer.parentId;
+
+      function isDescendant(candidateId, ancestorId) {
+        let cur = layers.find(l => String(l.id) === String(candidateId));
+        const visited = new Set();
+        while (cur && cur.parentId) {
+          if (visited.has(cur.id)) break;
+          visited.add(cur.id);
+          if (String(cur.parentId) === String(ancestorId)) return true;
+          cur = layers.find(l => String(l.id) === String(cur.parentId));
+        }
+        return false;
+      }
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'desktop-parent-dropdown';
+      dropdown.setAttribute('role', 'menu');
+      dropdown.setAttribute('aria-label', 'Select Parent Layer');
+
+      // 1. None / Unlink item at top
+      const noneBtn = document.createElement('button');
+      noneBtn.type = 'button';
+      noneBtn.className = `desktop-parent-dropdown-item item-none ${!hasParent ? 'is-active' : ''}`;
+      noneBtn.innerHTML = `
+        <span class="dropdown-item-text">None</span>
+        ${!hasParent ? '<span class="dropdown-item-check" aria-hidden="true">✓</span>' : ''}
+      `;
+      noneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (hasParent && typeof window.unlinkLayer === 'function') {
+          window.unlinkLayer(currentLayer);
+          if (typeof window.showEffectsRackToast === 'function') {
+            window.showEffectsRackToast(`Unlinked "${currentLayer.name}"`);
+          }
+        }
+        closeDesktopParentDropdown();
+      });
+      dropdown.appendChild(noneBtn);
+
+      // Separator
+      const divider = document.createElement('div');
+      divider.className = 'desktop-parent-dropdown-divider';
+      dropdown.appendChild(divider);
+
+      // 2. Pure text layer list (1. Layer Name, 2. Layer Name, etc.)
+      const listWrapper = document.createElement('div');
+      listWrapper.className = 'desktop-parent-dropdown-list';
+
+      layers.forEach((l, idx) => {
+        const isSelf = String(l.id) === String(currentLayer.id);
+        const isCurrentParent = hasParent && String(l.id) === String(currentLayer.parentId);
+        const isCircular = !isSelf && isDescendant(l.id, currentLayer.id);
+        const isDisabled = isSelf || isCircular;
+
+        const itemBtn = document.createElement('button');
+        itemBtn.type = 'button';
+        itemBtn.className = `desktop-parent-dropdown-item ${isCurrentParent ? 'is-active' : ''} ${isDisabled ? 'is-disabled' : ''}`;
+        if (isDisabled) {
+          itemBtn.disabled = true;
+          itemBtn.title = isSelf ? 'Current layer' : 'Descendant layer (circular)';
+        }
+
+        itemBtn.innerHTML = `
+          <span class="dropdown-item-num">${idx + 1}.</span>
+          <span class="dropdown-item-text">${l.name || 'Untitled Layer'}</span>
+          ${isCurrentParent ? '<span class="dropdown-item-check" aria-hidden="true">✓</span>' : ''}
+        `;
+
+        if (!isDisabled) {
+          itemBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (typeof window.linkLayer === 'function') {
+              window.linkLayer(currentLayer, l);
+              if (typeof window.showEffectsRackToast === 'function') {
+                window.showEffectsRackToast(`Linked "${currentLayer.name}" to "${l.name}"`);
+              }
+            }
+            closeDesktopParentDropdown();
+          });
+        }
+
+        listWrapper.appendChild(itemBtn);
+      });
+
+      dropdown.appendChild(listWrapper);
+      document.body.appendChild(dropdown);
+      activeDesktopParentDropdown = dropdown;
+
+      // Position anchored above or below trigger badge
+      const badgeRect = triggerBadge.getBoundingClientRect();
+      const dropdownRect = dropdown.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+
+      const spaceAbove = badgeRect.top;
+      const spaceBelow = vh - badgeRect.bottom;
+
+      let left = Math.max(8, Math.min(vw - dropdownRect.width - 8, badgeRect.left));
+
+      if (spaceAbove >= dropdownRect.height + 6 || spaceAbove >= spaceBelow) {
+        // Pop Upward (standard on bottom timeline)
+        dropdown.style.bottom = `${vh - badgeRect.top + 4}px`;
+        dropdown.style.left = `${left}px`;
+        dropdown.style.maxHeight = `${Math.min(320, spaceAbove - 12)}px`;
+      } else {
+        // Pop Downward
+        dropdown.style.top = `${badgeRect.bottom + 4}px`;
+        dropdown.style.left = `${left}px`;
+        dropdown.style.maxHeight = `${Math.min(320, spaceBelow - 12)}px`;
+      }
+
+      setTimeout(() => {
+        document.addEventListener('pointerdown', onDropdownDocPointerDown, true);
+        document.addEventListener('keydown', onDropdownDocKeyDown, true);
+      }, 10);
+    }
+    window.openDesktopParentDropdown = openDesktopParentDropdown;
+
     function initPickwhipDrag(pickwhipBtn, sourceLayerId) {
       if (!pickwhipBtn || pickwhipBtn._pickwhipBound) return;
       pickwhipBtn._pickwhipBound = true;
@@ -749,8 +899,9 @@
                 window.showEffectsRackToast(`Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
               }
             }
-          } else if (ue.altKey) {
-            if (typeof window.unlinkLayer === 'function') {
+          } else {
+            // Dragged to empty space / outside layer slots / released on empty area: UNLINK!
+            if (sourceLayer.parentId && typeof window.unlinkLayer === 'function') {
               window.unlinkLayer(sourceLayer);
               if (typeof window.showEffectsRackToast === 'function') {
                 window.showEffectsRackToast(`Unlinked "${sourceLayer.name}"`);
@@ -928,9 +1079,7 @@
             if (typeof window.selectTimelineLayer === 'function') {
               window.selectTimelineLayer(layerId, false);
             }
-            if (typeof window.openLayerLinkPopover === 'function') {
-              window.openLayerLinkPopover(parentBadge, layerId);
-            }
+            openDesktopParentDropdown(parentBadge, layerId);
           });
         }
 

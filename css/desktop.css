@@ -4398,6 +4398,115 @@
   z-index: 99999;
 }
 
+/* ==========================================================================
+   AE-STYLE DESKTOP PARENT & LINK DROPDOWN
+   Strict Flat Design, 100% Theme Tokens, No blur, No shadow, Pure Typography
+   ========================================================================== */
+.desktop-parent-dropdown {
+  position: fixed;
+  z-index: 99999;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--desktop-radius-sm);
+  padding: 3px;
+  min-width: 140px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: var(--font-brand);
+}
+
+.desktop-parent-dropdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.desktop-parent-dropdown-divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: 3px 0;
+  flex-shrink: 0;
+}
+
+.desktop-parent-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.08s ease, color 0.08s ease;
+  white-space: nowrap;
+}
+
+.desktop-parent-dropdown-item .dropdown-item-num {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 14px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.desktop-parent-dropdown-item .dropdown-item-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-parent-dropdown-item .dropdown-item-check {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Hover State with Simultaneous Foreground Adaptation */
+.desktop-parent-dropdown-item:hover:not(.is-disabled) {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.desktop-parent-dropdown-item:hover:not(.is-disabled) .dropdown-item-num {
+  color: var(--bg-canvas);
+  opacity: 0.8;
+}
+
+.desktop-parent-dropdown-item:hover:not(.is-disabled) .dropdown-item-check {
+  color: var(--bg-canvas);
+}
+
+/* Active / Current Parent Selected State */
+.desktop-parent-dropdown-item.is-active {
+  color: var(--color-primary);
+}
+
+/* Disabled State (Self or Circular Descendant) */
+.desktop-parent-dropdown-item.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Suppress mobile link connector arrows on desktop */
 .desktop-timeline-wrapper .timeline-link-connectors-svg {
   display: none !important;

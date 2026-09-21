@@ -5768,6 +5768,11 @@
       currentDrawerSubview = subviewName;
       window.currentDrawerSubview = subviewName;
 
+      const drawerEl = document.getElementById('timeline-layer-drawer');
+      if (drawerEl) {
+        drawerEl.setAttribute('data-subview', subviewName);
+      }
+
       // Deselect any selected keyframes when switching or navigating back (preserve selection between transform and graph)
       if (subviewName !== 'graph' && prevSubview !== 'graph') {
         if (typeof window.clearSelectedKeyframes === 'function') {
@@ -18783,10 +18788,17 @@
       // --- Desktop Vertical Split Handle (>= 601px) ---
       if (handle) {
         let isDragging = false;
+        let mainBodyW = 0;
+        let mainBodyLeft = 0;
+        let currentPercent = 50;
+        let desktopRAF = null;
 
         function onPointerDown(e) {
           if (window.innerWidth <= 600) return; // Handled by mobileHandle
           isDragging = true;
+          const rect = mainBody.getBoundingClientRect();
+          mainBodyW = rect.width || 1;
+          mainBodyLeft = rect.left || 0;
           handle.classList.add('is-dragging');
           handle.setPointerCapture(e.pointerId);
           document.body.style.cursor = 'col-resize';
@@ -18795,27 +18807,35 @@
 
         function onPointerMove(e) {
           if (!isDragging) return;
-          const rect = mainBody.getBoundingClientRect();
-          const offsetX = e.clientX - rect.left;
-          let percent = (offsetX / rect.width) * 100;
-          
-          // Clamp between 20% and 80% to keep both panes functional
-          percent = Math.max(20, Math.min(80, percent));
-          mainBody.style.setProperty('--left-pane-width', percent + '%');
-          try {
-            localStorage.setItem('oft_left_pane_width', percent + '%');
-          } catch (_) {}
-          syncTimelineAfterSplitResize();
+          const offsetX = e.clientX - mainBodyLeft;
+          currentPercent = Math.max(20, Math.min(80, (offsetX / mainBodyW) * 100));
+
+          if (!desktopRAF) {
+            desktopRAF = requestAnimationFrame(() => {
+              desktopRAF = null;
+              if (!isDragging) return;
+              mainBody.style.setProperty('--left-pane-width', currentPercent.toFixed(2) + '%');
+            });
+          }
         }
 
         function onPointerUp(e) {
           if (!isDragging) return;
           isDragging = false;
+          if (desktopRAF) {
+            cancelAnimationFrame(desktopRAF);
+            desktopRAF = null;
+          }
           handle.classList.remove('is-dragging');
           try {
             handle.releasePointerCapture(e.pointerId);
           } catch (_) {}
           document.body.style.cursor = '';
+
+          mainBody.style.setProperty('--left-pane-width', currentPercent.toFixed(2) + '%');
+          try {
+            localStorage.setItem('oft_left_pane_width', currentPercent.toFixed(2) + '%');
+          } catch (_) {}
           syncTimelineAfterSplitResize();
         }
 
@@ -18855,13 +18875,18 @@
         let isMobileDragging = false;
         let startY = 0;
         let startH = 0;
+        let mainBodyH = 0;
+        let currentPercent = 48;
+        let mobileRAF = null;
 
         function onMobilePointerDown(e) {
           if (window.innerWidth > 600) return;
           isMobileDragging = true;
           startY = e.clientY;
+          const bodyRect = mainBody.getBoundingClientRect();
+          mainBodyH = bodyRect.height || 1;
           const currentRect = leftPane ? leftPane.getBoundingClientRect() : null;
-          startH = currentRect ? currentRect.height : (mainBody.getBoundingClientRect().height * 0.48);
+          startH = currentRect ? currentRect.height : (mainBodyH * 0.48);
           mobileHandle.classList.add('is-dragging');
           mobileHandle.setPointerCapture(e.pointerId);
           document.body.style.cursor = 'row-resize';
@@ -18871,26 +18896,40 @@
         function onMobilePointerMove(e) {
           if (!isMobileDragging) return;
           const deltaY = e.clientY - startY;
-          const rect = mainBody.getBoundingClientRect();
           const minH = 120;
-          const maxH = Math.max(minH, rect.height - 140);
+          const maxH = Math.max(minH, mainBodyH - 140);
           const clampedH = Math.max(minH, Math.min(maxH, startH + deltaY));
-          const percent = (clampedH / rect.height) * 100;
-          mainBody.style.setProperty('--mobile-preview-height', percent.toFixed(2) + '%');
-          try {
-            localStorage.setItem('oft_mobile_preview_height', percent.toFixed(2) + '%');
-          } catch (_) {}
-          syncTimelineAfterSplitResize();
+          currentPercent = (clampedH / mainBodyH) * 100;
+
+          if (!mobileRAF) {
+            mobileRAF = requestAnimationFrame(() => {
+              mobileRAF = null;
+              if (!isMobileDragging) return;
+              mainBody.style.setProperty('--mobile-preview-height', currentPercent.toFixed(2) + '%');
+            });
+          }
         }
 
         function onMobilePointerUp(e) {
           if (!isMobileDragging) return;
           isMobileDragging = false;
+          if (mobileRAF) {
+            cancelAnimationFrame(mobileRAF);
+            mobileRAF = null;
+          }
           mobileHandle.classList.remove('is-dragging');
           try {
             mobileHandle.releasePointerCapture(e.pointerId);
           } catch (_) {}
           document.body.style.cursor = '';
+
+          // Apply final height & commit to localStorage once
+          mainBody.style.setProperty('--mobile-preview-height', currentPercent.toFixed(2) + '%');
+          try {
+            localStorage.setItem('oft_mobile_preview_height', currentPercent.toFixed(2) + '%');
+          } catch (_) {}
+
+          // Final sync of canvas buffers and timeline layout
           syncTimelineAfterSplitResize();
         }
 
@@ -23414,8 +23453,11 @@
             updateTimelineKeyframeMarkersHighlight();
           }
           if (typeof centerSelectedTimelineLayer === 'function') {
-            centerSelectedTimelineLayer(true);
-            setTimeout(() => centerSelectedTimelineLayer(false), 280);
+            setTimeout(() => {
+              if (window.Drawer && window.Drawer.isOpen('timeline-layer-drawer')) {
+                centerSelectedTimelineLayer(true);
+              }
+            }, 270);
           }
         }
       });

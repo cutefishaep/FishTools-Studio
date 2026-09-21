@@ -3939,9 +3939,7 @@
 .desktop-timeline-wrapper .timeline-layers-viewport.has-drawer-open,
 .desktop-timeline-wrapper .editor-timeline.has-drawer-open .timeline-layers-viewport,
 .desktop-timeline-wrapper .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
-.desktop-timeline-wrapper .editor-timeline:has(.drawer-container.is-active) .timeline-layers-viewport,
-.desktop-timeline-wrapper .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport,
-.desktop-timeline-wrapper .editor-timeline:has(#timeline-add-drawer.is-active) .timeline-layers-viewport {
+.desktop-timeline-wrapper body.has-active-drawer .timeline-layers-viewport {
   padding-left: var(--desktop-layer-panel-w) !important;
   padding-top: 2px !important;
   padding-bottom: 0px !important;

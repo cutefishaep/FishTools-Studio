@@ -973,8 +973,7 @@ html, body {
   .timeline-layers-viewport.has-drawer-open,
   .editor-timeline.has-drawer-open .timeline-layers-viewport,
   .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
-  .editor-timeline:has(.drawer-container.is-active) .timeline-layers-viewport,
-  .editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
+  body.has-active-drawer .timeline-layers-viewport {
     padding-bottom: max(75vh, calc(var(--timeline-drawer-height, 380px) + 240px));
     padding-bottom: max(75vh, calc(var(--timeline-drawer-height, 380px) + 240px + env(safe-area-inset-bottom, 0px)));
   }
@@ -994,9 +993,6 @@ html, body {
 
   .editor-timeline.has-drawer-open .timeline-fab-add,
   .editor-timeline.has-layer-drawer-open .timeline-fab-add,
-  .editor-timeline:has(.drawer-container.is-active) .timeline-fab-add,
-  .showcase-live-widget:has(.drawer-container.is-active) .timeline-fab-add,
-  :root:has(.drawer-container.is-active) .timeline-fab-add,
   body.has-active-drawer .timeline-fab-add {
     opacity: 0 !important;
     pointer-events: none !important;
@@ -1515,7 +1511,7 @@ html, body {
 .timeline-layers-viewport.has-drawer-open,
 .editor-timeline.has-drawer-open .timeline-layers-viewport,
 .editor-timeline.has-layer-drawer-open .timeline-layers-viewport,
-.editor-timeline:has(#timeline-layer-drawer.is-active) .timeline-layers-viewport {
+body.has-active-drawer .timeline-layers-viewport {
   padding-bottom: max(75vh, calc(var(--timeline-drawer-height, 380px) + 240px));
 }
 
@@ -2268,27 +2264,27 @@ html, body {
   pointer-events: auto;
 }
 
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-transform-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-graph-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-blend-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-effects-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-effects-gallery-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-fill-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-shape-view.is-active) .drawer-body,
+#timeline-layer-drawer[data-subview="transform"] .drawer-body,
+#timeline-layer-drawer[data-subview="graph"] .drawer-body,
+#timeline-layer-drawer[data-subview="blend"] .drawer-body,
+#timeline-layer-drawer[data-subview="effects"] .drawer-body,
+#timeline-layer-drawer[data-subview="effects-gallery"] .drawer-body,
+#timeline-layer-drawer[data-subview="fill"] .drawer-body,
+#timeline-layer-drawer[data-subview="shape"] .drawer-body,
 #timeline-layer-drawer .drawer-card.is-effects-gallery .drawer-body {
   padding: 0;
   overflow: hidden;
 }
 
 #timeline-layer-drawer .drawer-card.is-effects-gallery,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-effects-gallery-view.is-active) {
+#timeline-layer-drawer[data-subview="effects-gallery"] .drawer-card {
   height: min(480px, calc(100% - 12px));
   max-height: calc(100% - 12px);
   transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #timeline-layer-drawer .drawer-card.is-effects-gallery .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-effects-gallery-view.is-active) .drawer-body {
+#timeline-layer-drawer[data-subview="effects-gallery"] .drawer-body {
   height: 100%;
   flex: 1;
 }
@@ -2300,13 +2296,13 @@ html, body {
 }
 
 /* Graph Drawer Sizing - Matches Move Panel (Transform View) Dimensions */
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-shape-view.is-active) {
+#timeline-layer-drawer[data-subview="shape"] .drawer-card {
   min-height: 250px;
 }
 
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-graph-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-fill-view.is-active) .drawer-body,
-#timeline-layer-drawer .drawer-card:has(#layer-drawer-shape-view.is-active) .drawer-body {
+#timeline-layer-drawer[data-subview="graph"] .drawer-body,
+#timeline-layer-drawer[data-subview="fill"] .drawer-body,
+#timeline-layer-drawer[data-subview="shape"] .drawer-body {
   height: 100%;
   flex: 1;
   display: flex;
@@ -2775,9 +2771,6 @@ html, body {
 /* Hide FAB when ANY drawer is open to prevent overlap */
 .editor-timeline.has-drawer-open .timeline-fab-add,
 .editor-timeline.has-layer-drawer-open .timeline-fab-add,
-.editor-timeline:has(.drawer-container.is-active) .timeline-fab-add,
-.showcase-live-widget:has(.drawer-container.is-active) .timeline-fab-add,
-:root:has(.drawer-container.is-active) .timeline-fab-add,
 body.has-active-drawer .timeline-fab-add {
   opacity: 0 !important;
   pointer-events: none !important;
@@ -2826,9 +2819,6 @@ body.has-active-drawer .timeline-fab-add {
 
   .editor-timeline.has-drawer-open .timeline-fab-add,
   .editor-timeline.has-layer-drawer-open .timeline-fab-add,
-  .editor-timeline:has(.drawer-container.is-active) .timeline-fab-add,
-  .showcase-live-widget:has(.drawer-container.is-active) .timeline-fab-add,
-  :root:has(.drawer-container.is-active) .timeline-fab-add,
   body.has-active-drawer .timeline-fab-add {
     opacity: 0 !important;
     pointer-events: none !important;

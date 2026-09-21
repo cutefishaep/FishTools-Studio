@@ -94,6 +94,7 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   overflow: hidden;
+  contain: paint layout;
 }
 
 .drawer-container.is-active .drawer-card {

@@ -489,6 +489,62 @@
             }
           }
 
+          // ── OUT ANIMATION (per-glyph spring physics) ────────────────────────
+          // Mirror of IN: spring ejects chars from rest → displaced.
+          // Stagger reversed: last unit exits first (highest animIndex exits at outStart).
+          const effectiveAnimOut = p.animOut || 'none';
+          const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+          const outStartSec = Math.max(inDur, clipDur - outDur);
+
+          if (effectiveAnimOut !== 'none' && localSec >= outStartSec) {
+            const tOutGlobal = localSec - outStartSec; // time since out phase started
+
+            // Reversed stagger: unit with highest animIndex exits at tOutGlobal=0
+            const outStagger = totalUnits > 1
+              ? (outDur * animStagger) / (totalUnits - 1)
+              : 0;
+            // First unit (animIndex=0) starts last → delay = (totalUnits-1-animIndex)*outStagger
+            const outMyDelay = (totalUnits - 1 - animIndex) * outStagger;
+            const tOut = tOutGlobal - outMyDelay; // time since THIS unit's exit started
+
+            if (tOut <= 0) {
+              // Unit hasn't started exiting yet — stay at rest
+            } else {
+              // Spring launches from rest (0) toward displaced amplitude, then overshoots
+              // s starts at 0, rises to amplitude, decays with oscillation
+              // Use: s = amplitude * (1 - cos(freq*t*2π)/exp(decay*t))
+              // At t=0: s=0 (at rest). At t=0+: s rises → char launches out.
+              const normOut = effectiveAnimOut;
+              const freq  = animFreq;
+              const decay = animDecay;
+              const amplitude = fontSize * animAmplitude;
+
+              if (normOut === 'bounce_out' || normOut === 'wave_out') {
+                // Y position: chars fly upward out of frame
+                const spring = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
+                offY = offY - spring; // subtract = upward
+                charAlpha = Math.max(0, charAlpha * (1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 1.2 : 0.08))));
+              } else if (normOut === 'pop_out' || normOut === 'shrink_drop') {
+                // Scale: chars shrink to 0
+                const spring = 1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut);
+                const sc = Math.max(0, 1.0 - Math.min(1, spring));
+                scaleX = (scaleX || 1.0) * sc;
+                scaleY = (scaleY || 1.0) * sc;
+                charAlpha = Math.max(0, charAlpha * sc);
+              } else if (normOut === 'slide_out') {
+                // X position: chars slide right out
+                const spring = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
+                offX = offX + spring;
+                charAlpha = Math.max(0, charAlpha * (1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 1.2 : 0.08))));
+              } else if (normOut === 'fade_down') {
+                // Fade + drop down
+                const prog = Math.min(1, tOut / Math.max(0.01, outDur - outMyDelay));
+                offY = offY + prog * amplitude * 0.5;
+                charAlpha = Math.max(0, charAlpha * (1 - prog));
+              }
+            }
+          }
+
           if (charAlpha <= 0.001) {
             curX += chW;
             continue;

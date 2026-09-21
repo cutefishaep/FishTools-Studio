@@ -486,54 +486,49 @@
             }
           }
 
-          // ── OUT ANIMATION (exact time-reverse of IN spring) ─────────────────
-          // OUT uses the SAME type keys as IN (bounce_1/2/3/4, wave, fade_up, glitch).
-          // tReversed = outDur - tOut: evaluating IN spring backwards.
-          //   tOut=0 → tReversed=outDur → spring≈0 (char at rest) ✓
-          //   tOut=outDur → tReversed=0 → spring=full amplitude (char displaced) ✓
-          // Stagger: same order as IN (first unit exits first).
+          // ── OUT ANIMATION ──────────────────────────────────────────────────
+          // Uses same spring parameters (animDecay, animFreq, animAmplitude, animStagger)
+          // Plays over charDur so spring bounce is clearly visible, not killed in 0.03s.
           if (normOutAnim !== 'none' && normOutAnim !== 'typewriter' && localSec >= outStartSec) {
             const tOutGlobal = localSec - outStartSec;
             const outStagger = totalUnits > 1 ? (outDur * animStagger) / (totalUnits - 1) : 0;
             const outMyDelay = animIndex * outStagger;
             const tOut       = tOutGlobal - outMyDelay;
+            const charDur    = Math.max(0.12, outDur - (totalUnits > 1 ? (totalUnits - 1) * outStagger : 0));
 
-            if (tOut > 0) {
-              const tR = Math.max(0, outDur - tOut); // time-reversed t
-
+            if (tOut >= charDur) {
+              charAlpha = 0;
+            } else if (tOut > 0) {
               if (normOutAnim === 'bounce_1' || normOutAnim === 'bounce_3') {
                 const freq  = normOutAnim === 'bounce_3' ? Math.max(0.5, animFreq  - 1) : animFreq;
                 const decay = normOutAnim === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
                 const amplitude = fontSize * animAmplitude;
-                // Evaluate IN spring at tR → char travels from ~0 back to amplitude
-                const s = amplitude * Math.cos(freq * tR * 2 * Math.PI) / Math.exp(decay * tR);
-                offY = s; // departs in same direction it entered (downward = positive)
-                // Mirror IN alpha fade: IN fades 0→1 on entry, OUT fades 1→0 on exit
-                charAlpha = Math.min(charAlpha, Math.max(0, 1 - Math.min(1, tOut / Math.max(0.005, outStagger > 0 ? outStagger * 0.8 : 0.03))));
+                // Bounce down from 0 to +amplitude with spring oscillations
+                const s = amplitude * (1 - Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut));
+                offY = s; // downward drop with spring bounce
+                // Keep visible while bouncing, fade out near charDur
+                charAlpha = Math.min(charAlpha, Math.max(0, 1 - Math.pow(tOut / charDur, 2)));
 
               } else if (normOutAnim === 'bounce_2' || normOutAnim === 'bounce_4') {
                 const freq  = normOutAnim === 'bounce_4' ? Math.max(0.5, animFreq  - 1) : animFreq;
                 const decay = normOutAnim === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
-                // Evaluate IN scale spring at tR → sc goes from ~1 back to 0
-                const s  = Math.cos(freq * tR * 2 * Math.PI) / Math.exp(decay * tR);
-                const sc = Math.max(0, Math.min(1.5, 1.0 - s));
+                // Pop shrink from 1.0 to 0 with spring bounce
+                const s  = Math.cos(freq * tOut * 2 * Math.PI) / Math.exp(decay * tOut);
+                const sc = Math.max(0, s);
                 scaleX = sc; scaleY = sc;
-                charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, tR / Math.max(0.005, outStagger > 0 ? outStagger * 0.8 : 0.03))));
+                charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, sc * 1.2)));
 
               } else if (normOutAnim === 'fade_up') {
-                // Reverse of fade_up IN: fall down + fade out
-                const prog = Math.min(1, tOut / Math.max(0.01, outDur - outMyDelay));
+                const prog = Math.min(1, tOut / charDur);
                 offY = prog * 36;
                 charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
 
               } else if (normOutAnim === 'wave') {
-                // Wave continues + global fade out
                 const prog = Math.min(1, tOutGlobal / outDur);
                 charAlpha = Math.min(charAlpha, Math.max(0, 1 - prog));
 
               } else if (normOutAnim === 'glitch') {
-                // Glitch intensifies then vanishes
-                const prog  = Math.min(1, tOut / Math.max(0.01, outDur - outMyDelay));
+                const prog  = Math.min(1, tOut / charDur);
                 const quant = Math.floor(localSec * 18);
                 const hash  = Math.sin(quant * 9999 + charIndex * 1337);
                 const hash2 = Math.cos(quant * 4321 + charIndex * 777);
@@ -578,7 +573,7 @@
                 mbSX = sc2; mbSY = sc2;
               }
 
-              // MB ghost OUT: time-reversed spring (mirrors new OUT block)
+              // MB ghost OUT: forward spring (mirrors new OUT block)
               const normOutMB = normalizeAnimIn(p.animOut || 'none');
               if (normOutMB !== 'none' && normOutMB !== 'typewriter') {
                 const outDurMB     = Math.max(0.1, Number(p.animOutDuration) || 0.6);
@@ -587,18 +582,19 @@
                   const tOutGlobMB = (localSec - dt * mbI) - outStartMB;
                   const outStaggerMB = totalUnits > 1 ? (outDurMB * animStagger) / (totalUnits - 1) : 0;
                   const tOutMB     = tOutGlobMB - animIndex * outStaggerMB;
-                  if (tOutMB > 0) {
-                    const tRMB = Math.max(0, outDurMB - tOutMB);
+                  const charDurMB  = Math.max(0.12, outDurMB - (totalUnits > 1 ? (totalUnits - 1) * outStaggerMB : 0));
+                  if (tOutMB > 0 && tOutMB < charDurMB) {
                     const amp2 = (p.fontSize || 64) * animAmplitude;
                     if (normOutMB === 'bounce_1' || normOutMB === 'bounce_3') {
                       const freq2  = normOutMB === 'bounce_3' ? Math.max(0.5, animFreq - 1) : animFreq;
                       const decay2 = normOutMB === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
-                      mbOffY = amp2 * Math.cos(freq2 * tRMB * 2 * Math.PI) / Math.exp(decay2 * tRMB);
+                      const sp = amp2 * (1 - Math.cos(freq2 * tOutMB * 2 * Math.PI) / Math.exp(decay2 * tOutMB));
+                      mbOffY += sp;
                     } else if (normOutMB === 'bounce_2' || normOutMB === 'bounce_4') {
                       const freq2  = normOutMB === 'bounce_4' ? Math.max(0.5, animFreq - 1) : animFreq;
                       const decay2 = normOutMB === 'bounce_4' ? Math.max(0.5, animDecay - 2) : animDecay;
-                      const s2  = Math.cos(freq2 * tRMB * 2 * Math.PI) / Math.exp(decay2 * tRMB);
-                      const sc2 = Math.max(0, Math.min(1.5, 1.0 - s2));
+                      const s2  = Math.cos(freq2 * tOutMB * 2 * Math.PI) / Math.exp(decay2 * tOutMB);
+                      const sc2 = Math.max(0, s2);
                       mbSX = sc2; mbSY = sc2;
                     }
                   }

@@ -5,6 +5,18 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.51] - 2026-09-22
+
+### Fixed
+- **Lasso Scroll Bug (`js/desktop.js`)**: Lasso marquee now correctly selects layers that have been scrolled out of the visible viewport area. Both `updateMarqueeGeometry()` and `onPointerUp()` now convert all `getBoundingClientRect()` hits to **scroll-space coordinates** (`rect - vpRect.origin + scrollTop/scrollX`) before intersection — clips above/below the fold now intersect correctly during scroll.
+- **Lasso Trigger on Layer Name (`js/desktop.js`)**: Clicking `.desktop-kf-prop-row`, `.desktop-kf-cat-row`, or `.desktop-kf-prop-stopwatch` elements in the left timeline panel no longer accidentally initiates lasso marquee drag.
+
+### Added
+- **AE-Style Prop Row Scrubbing (`js/editor.js`, `css/desktop.css`)**: Timeline property rows (when layer is expanded via `_kfExpanded`) now support:
+  - **Stopwatch icon** (left of prop name): Click to add/remove keyframe at current playhead. Solid when a KF exists at playhead (`is-active` → `var(--color-primary)`), outline otherwise.
+  - **Scrubable value** (right of prop row): Horizontal drag on the value span changes the property live with `ew-resize` cursor. Rates: Position 1px/px, Scale 0.3%/px, Rotation 0.5°/px, Opacity 0.5%/px. If property is already keyframed, scrub auto-inserts/updates a KF at the playhead (AE behavior).
+  - Canvas redraws live during scrub; project saves on release.
+
 ## [0.5.50] - 2026-09-21
 
 ### Changed

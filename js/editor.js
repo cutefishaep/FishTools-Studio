@@ -24623,11 +24623,173 @@
                   const pRow = document.createElement('div');
                   pRow.className = 'desktop-kf-prop-row';
                   pRow.dataset.prop = p.prop;
-                  pRow.innerHTML = `
-                    <span class="desktop-kf-prop-name" title="${p.label}">${p.label}</span>
-                    <span class="desktop-kf-prop-val">${p.curValue || ''}</span>
-                  `;
+
+                  // --- Stopwatch icon (SVG outline = no KF, solid = has KF at playhead) ---
+                  const swBtn = document.createElement('span');
+                  swBtn.className = 'desktop-kf-prop-stopwatch';
+                  swBtn.title = 'Add / remove keyframe at playhead';
+
+                  // Helper: check if there's a KF at current playhead time for this prop
+                  function hasKfAtPlayhead() {
+                    const t = (typeof window.currentTimelineSec === 'number') ? window.currentTimelineSec : 0;
+                    const kfs = layer.keyframes && layer.keyframes[p.prop];
+                    return Array.isArray(kfs) && kfs.some(k => Math.abs(k.time - t) < 0.025);
+                  }
+
+                  function updateStopwatchState() {
+                    const active = hasKfAtPlayhead();
+                    swBtn.classList.toggle('is-active', active);
+                    // Solid stopwatch SVG when active, outline when not
+                    swBtn.innerHTML = active
+                      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a9 9 0 1 0 0 18A9 9 0 0 0 12 2Zm.75 9.25V7.5a.75.75 0 0 0-1.5 0v4.25c0 .2.08.39.22.53l2.5 2.5a.75.75 0 1 0 1.06-1.06l-2.28-2.28ZM8.5 1.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 8.5 1.5Z"/></svg>`
+                      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5M12 2.5V5"/></svg>`;
+                  }
+                  updateStopwatchState();
+
+                  swBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const t = (typeof window.currentTimelineSec === 'number') ? window.currentTimelineSec : 0;
+                    if (!layer.keyframes) layer.keyframes = {};
+                    if (!Array.isArray(layer.keyframes[p.prop])) layer.keyframes[p.prop] = [];
+                    const kfs = layer.keyframes[p.prop];
+                    const existIdx = kfs.findIndex(k => Math.abs(k.time - t) < 0.025);
+                    if (existIdx >= 0) {
+                      // Remove KF at playhead
+                      kfs.splice(existIdx, 1);
+                      if (kfs.length === 0) delete layer.keyframes[p.prop];
+                    } else {
+                      // Add KF at playhead with current value
+                      let curVal;
+                      if (typeof getLayerPropertyValue === 'function') {
+                        curVal = getLayerPropertyValue(layer, p.prop);
+                      } else {
+                        curVal = layer[p.prop];
+                      }
+                      kfs.push({ time: t, value: curVal, easing: layer.defaultEasing || 'ease-in-out' });
+                      kfs.sort((a, b) => a.time - b.time);
+                    }
+                    if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                    if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+                    updateStopwatchState();
+                  });
+
+                  // --- Prop name ---
+                  const nameSpan = document.createElement('span');
+                  nameSpan.className = 'desktop-kf-prop-name';
+                  nameSpan.title = p.label;
+                  nameSpan.textContent = p.label;
+
+                  // --- Scrubable value ---
+                  const valSpan = document.createElement('span');
+                  valSpan.className = 'desktop-kf-prop-val';
+                  valSpan.textContent = p.curValue || '';
+
+                  // Scrub rate by prop type
+                  function getScrubRate(prop) {
+                    if (prop === 'rotate') return 0.5;
+                    if (prop === 'opacity') return 0.5;
+                    if (prop === 'scale') return 0.3;
+                    if (prop === 'volume') return 0.5;
+                    return 1.0; // position, anchor, etc.
+                  }
+
+                  // Apply a delta to the layer property and refresh
+                  function applyPropDelta(prop, dxPx) {
+                    const rate = getScrubRate(prop);
+                    const delta = dxPx * rate;
+                    if (prop === 'move') {
+                      if (layer.posX === undefined) layer.posX = 540;
+                      if (layer.posY === undefined) layer.posY = 960;
+                      // Horizontal drag = X axis
+                      layer.posX = Number((layer.posX + delta).toFixed(2));
+                      if (typeof layer.normX !== 'undefined') {
+                        const baseW = (window.currentProjectState && window.currentProjectState.width) || 1080;
+                        layer.normX = (layer.posX - (Math.abs(layer.scaleW || baseW) / 2)) / baseW;
+                      }
+                    } else if (prop === 'scale') {
+                      const newW = Math.max(1, (layer.scaleW || 100) + delta);
+                      const newH = (layer.scaleLinked !== false)
+                        ? newW * ((layer.scaleH || 100) / (layer.scaleW || 100))
+                        : Math.max(1, (layer.scaleH || 100) + delta);
+                      layer.scaleW = Number(newW.toFixed(2));
+                      layer.scaleH = Number(newH.toFixed(2));
+                    } else if (prop === 'rotate') {
+                      layer.rotation = Number(((layer.rotation || 0) + delta).toFixed(2));
+                    } else if (prop === 'opacity') {
+                      layer.opacity = Math.max(0, Math.min(1, ((layer.opacity !== undefined ? layer.opacity : 1) + delta / 100)));
+                    } else if (prop === 'origin') {
+                      layer.anchorX = Number(((layer.anchorX || 0) + delta).toFixed(2));
+                    } else if (prop === 'skew') {
+                      layer.skew = Number(((layer.skew || 0) + delta).toFixed(2));
+                    } else if (prop === 'volume') {
+                      layer.volume = Math.max(0, Math.min(2, ((layer.volume !== undefined ? layer.volume : 1) + delta / 100)));
+                    } else if (typeof layer[prop] === 'number') {
+                      layer[prop] = Number((layer[prop] + delta).toFixed(2));
+                    }
+                    // Insert KF if already keyframed (AE behavior)
+                    if (layer.keyframes && Array.isArray(layer.keyframes[prop]) && layer.keyframes[prop].length > 0) {
+                      const t = (typeof window.currentTimelineSec === 'number') ? window.currentTimelineSec : 0;
+                      const kfs = layer.keyframes[prop];
+                      const existIdx = kfs.findIndex(k => Math.abs(k.time - t) < 0.025);
+                      let curVal;
+                      if (typeof getLayerPropertyValue === 'function') curVal = getLayerPropertyValue(layer, prop);
+                      if (existIdx >= 0) {
+                        kfs[existIdx].value = curVal;
+                      } else {
+                        kfs.push({ time: t, value: curVal, easing: layer.defaultEasing || 'ease-in-out' });
+                        kfs.sort((a, b) => a.time - b.time);
+                      }
+                    }
+                  }
+
+                  function refreshValDisplay() {
+                    const freshRows = (typeof getLayerCategorizedKeyframeRows === 'function') ? getLayerCategorizedKeyframeRows(layer) : [];
+                    let freshVal = '';
+                    for (const cat of freshRows) {
+                      const fp = cat.props.find(pp => pp.prop === p.prop);
+                      if (fp) { freshVal = fp.curValue || ''; break; }
+                    }
+                    valSpan.textContent = freshVal;
+                  }
+
+                  valSpan.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    valSpan.setPointerCapture(e.pointerId);
+                    let startX = e.clientX;
+                    valSpan.classList.add('is-scrubbing');
+
+                    function onValMove(ev) {
+                      const dx = ev.clientX - startX;
+                      startX = ev.clientX;
+                      applyPropDelta(p.prop, dx);
+                      refreshValDisplay();
+                      if (typeof redrawComposition === 'function') redrawComposition();
+                    }
+
+                    function onValUp() {
+                      valSpan.classList.remove('is-scrubbing');
+                      if (typeof saveCurrentProject === 'function') saveCurrentProject();
+                      if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+                      window.removeEventListener('pointermove', onValMove);
+                      window.removeEventListener('pointerup', onValUp);
+                      window.removeEventListener('pointercancel', onValUp);
+                    }
+
+                    window.addEventListener('pointermove', onValMove);
+                    window.addEventListener('pointerup', onValUp);
+                    window.addEventListener('pointercancel', onValUp);
+                  });
+
+                  pRow.appendChild(swBtn);
+                  pRow.appendChild(nameSpan);
+                  pRow.appendChild(valSpan);
+
+                  // Click prop row (not on stopwatch or val) = select all KFs for this prop
                   pRow.addEventListener('click', (e) => {
+                    if (e.target === swBtn || swBtn.contains(e.target)) return;
+                    if (e.target === valSpan) return;
                     e.stopPropagation();
                     window.activeKeyframeProperty = p.prop;
                     if (typeof window.syncDesktopInspectorProperty === 'function') {
@@ -24636,7 +24798,6 @@
                     if (window.selectedLayerId !== layer.id && typeof selectTimelineLayer === 'function') {
                       selectTimelineLayer(layer.id, false, true);
                     }
-                    // AE Workflow: Clicking property track header selects all keyframes of that property
                     if (Array.isArray(p.keyframes) && p.keyframes.length > 0) {
                       const isShift = !!(e.shiftKey || e.metaKey || e.ctrlKey);
                       if (!isShift && typeof window.clearSelectedKeyframes === 'function') {
@@ -24659,8 +24820,10 @@
                       });
                     }
                   });
+
                   treeEl.appendChild(pRow);
                 });
+
               });
 
               pillSlot.appendChild(treeEl);

@@ -2344,11 +2344,15 @@
         e.target.closest('.timeline-lane-heads-overlay') ||
         e.target.closest('.desktop-timeline-panel-resizer') ||
         e.target.closest('.desktop-ruler-col-resizer') ||
+        e.target.closest('.desktop-kf-prop-row') ||
+        e.target.closest('.desktop-kf-cat-row') ||
+        e.target.closest('.desktop-kf-prop-stopwatch') ||
         e.target.closest('button, input, select, textarea') ||
         (e.target.closest('.media-dropzone-split') && e.target.closest('.media-dropzone-split').classList.contains('is-active'))
       ) {
         return;
       }
+
 
       // Intercept so editor.js onPanStart does NOT pan the timeline!
       e.stopImmediatePropagation();
@@ -2387,21 +2391,25 @@
         marqueeBox.style.width = `${boxW}px`;
         marqueeBox.style.height = `${boxH}px`;
 
-        const marqueeRect = {
-          left: boxLeft,
-          top: boxTop,
-          right: boxRight,
-          bottom: boxBottom
-        };
+        // Convert marquee to scroll-space so off-screen (scrolled) elements intersect correctly
+        const mScrollLeft   = boxLeft   - vpRect.left + curScrollX;
+        const mScrollTop    = boxTop    - vpRect.top  + curScrollY;
+        const mScrollRight  = boxRight  - vpRect.left + curScrollX;
+        const mScrollBottom = boxBottom - vpRect.top  + curScrollY;
 
         const clips = layersViewport.querySelectorAll('.timeline-clip-block');
         clips.forEach(clip => {
           const cr = clip.getBoundingClientRect();
+          // Convert clip rect to scroll-space
+          const crLeft   = cr.left   - vpRect.left + curScrollX;
+          const crTop    = cr.top    - vpRect.top  + curScrollY;
+          const crRight  = cr.right  - vpRect.left + curScrollX;
+          const crBottom = cr.bottom - vpRect.top  + curScrollY;
           const intersects = !(
-            cr.right < marqueeRect.left ||
-            cr.left > marqueeRect.right ||
-            cr.bottom < marqueeRect.top ||
-            cr.top > marqueeRect.bottom
+            crRight  < mScrollLeft  ||
+            crLeft   > mScrollRight ||
+            crBottom < mScrollTop   ||
+            crTop    > mScrollBottom
           );
           clip.classList.toggle('is-marquee-candidate', intersects);
         });
@@ -2409,15 +2417,20 @@
         const diamonds = layersViewport.querySelectorAll('.desktop-kf-diamond');
         diamonds.forEach(diamond => {
           const dr = diamond.getBoundingClientRect();
+          const drLeft   = dr.left   - vpRect.left + curScrollX;
+          const drTop    = dr.top    - vpRect.top  + curScrollY;
+          const drRight  = dr.right  - vpRect.left + curScrollX;
+          const drBottom = dr.bottom - vpRect.top  + curScrollY;
           const intersects = !(
-            dr.right < marqueeRect.left ||
-            dr.left > marqueeRect.right ||
-            dr.bottom < marqueeRect.top ||
-            dr.top > marqueeRect.bottom
+            drRight  < mScrollLeft  ||
+            drLeft   > mScrollRight ||
+            drBottom < mScrollTop   ||
+            drTop    > mScrollBottom
           );
           diamond.classList.toggle('is-marquee-candidate', intersects);
         });
       }
+
 
       function runAutoScrollLoop() {
         if (!isMarquee) return;
@@ -2508,24 +2521,27 @@
           const clampedClientX = Math.max(vpRect.left, Math.min(vpRect.right, upEvent.clientX));
           const clampedClientY = Math.max(vpRect.top, Math.min(vpRect.bottom, upEvent.clientY));
 
-          const marqueeRect = {
-            left: Math.max(vpRect.left, Math.min(screenStartX, clampedClientX)),
-            top: Math.max(vpRect.top, Math.min(screenStartY, clampedClientY)),
-            right: Math.min(vpRect.right, Math.max(screenStartX, clampedClientX)),
-            bottom: Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY))
-          };
+          const boxLeft   = Math.max(vpRect.left, Math.min(screenStartX, clampedClientX));
+          const boxTop    = Math.max(vpRect.top,  Math.min(screenStartY, clampedClientY));
+          const boxRight  = Math.min(vpRect.right, Math.max(screenStartX, clampedClientX));
+          const boxBottom = Math.min(vpRect.bottom, Math.max(screenStartY, clampedClientY));
+
+          // Marquee in scroll-space for off-screen intersection
+          const mLeft   = boxLeft   - vpRect.left + curScrollX;
+          const mTop    = boxTop    - vpRect.top  + curScrollY;
+          const mRight  = boxRight  - vpRect.left + curScrollX;
+          const mBottom = boxBottom - vpRect.top  + curScrollY;
 
           const matchedDiamonds = [];
           const diamonds = layersViewport.querySelectorAll('.desktop-kf-diamond');
           diamonds.forEach(diamond => {
             diamond.classList.remove('is-marquee-candidate');
             const dr = diamond.getBoundingClientRect();
-            const intersects = !(
-              dr.right < marqueeRect.left ||
-              dr.left > marqueeRect.right ||
-              dr.bottom < marqueeRect.top ||
-              dr.top > marqueeRect.bottom
-            );
+            const drLeft   = dr.left   - vpRect.left + curScrollX;
+            const drTop    = dr.top    - vpRect.top  + curScrollY;
+            const drRight  = dr.right  - vpRect.left + curScrollX;
+            const drBottom = dr.bottom - vpRect.top  + curScrollY;
+            const intersects = !(drRight < mLeft || drLeft > mRight || drBottom < mTop || drTop > mBottom);
             if (intersects) {
               matchedDiamonds.push(diamond);
             }
@@ -2569,12 +2585,11 @@
           clips.forEach(clip => {
             clip.classList.remove('is-marquee-candidate');
             const cr = clip.getBoundingClientRect();
-            const intersects = !(
-              cr.right < marqueeRect.left ||
-              cr.left > marqueeRect.right ||
-              cr.bottom < marqueeRect.top ||
-              cr.top > marqueeRect.bottom
-            );
+            const crLeft   = cr.left   - vpRect.left + curScrollX;
+            const crTop    = cr.top    - vpRect.top  + curScrollY;
+            const crRight  = cr.right  - vpRect.left + curScrollX;
+            const crBottom = cr.bottom - vpRect.top  + curScrollY;
+            const intersects = !(crRight < mLeft || crLeft > mRight || crBottom < mTop || crTop > mBottom);
             if (intersects && clip.dataset.layerId) {
               matchedIds.add(clip.dataset.layerId);
             }
@@ -2593,6 +2608,7 @@
             deselectAllDesktopLayers();
           }
         }
+
       }
 
       window.addEventListener('pointermove', onPointerMove, true);

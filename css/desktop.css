@@ -5259,15 +5259,38 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px 0 24px;
+  padding: 0 10px 0 6px;
   border-bottom: 1px solid var(--border-panel);
   box-sizing: border-box;
-  cursor: pointer;
+  cursor: default;
   transition: background-color 0.1s ease;
 }
 
 .desktop-kf-prop-row:hover {
   background-color: var(--bg-panel-hover);
+}
+
+/* Stopwatch icon — left of prop name */
+.desktop-kf-prop-stopwatch {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 3px;
+  margin-right: 4px;
+  transition: color 0.12s ease;
+}
+
+.desktop-kf-prop-stopwatch:hover {
+  color: var(--text-primary);
+}
+
+.desktop-kf-prop-stopwatch.is-active {
+  color: var(--color-primary);
 }
 
 .desktop-kf-prop-name {
@@ -5276,18 +5299,38 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .desktop-kf-prop-row:hover .desktop-kf-prop-name {
   color: var(--text-primary);
 }
 
+/* Scrubable value — right side, drag horizontally to change */
 .desktop-kf-prop-val {
   font-size: 10px;
   font-family: monospace;
-  color: var(--text-muted);
+  color: var(--color-primary);
   white-space: nowrap;
+  cursor: ew-resize;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: background-color 0.1s ease, color 0.1s ease;
 }
+
+.desktop-kf-prop-val:hover {
+  background-color: var(--bg-panel-inner);
+  color: var(--text-primary);
+}
+
+.desktop-kf-prop-val.is-scrubbing {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
 
 /* 4. Right Keyframe Tracks */
 .desktop-kf-tracks-wrapper {

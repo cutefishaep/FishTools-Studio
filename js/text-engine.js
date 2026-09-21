@@ -400,157 +400,138 @@
           // "Amount" expression creates the stagger timing per character.
 
           if (normIn === 'bounce_1') {
-            // Expression 1: delay=20ms stagger, freq=3, amplitude=50, decay=7
-            // AE-exact: characters fall FROM BELOW (Position Y=+865 equivalent)
-            // while simultaneously scaling 0→1 and rotating into place
+            // Expression 1: 20ms stagger, freq=3, decay=7
+            // CHAIN model: all chars visible from frame 0, spring sweeps left→right
             const delay = 0.020;
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
 
-            // Start position: 1.5x fontSize below rest (emerges from bottom of text box)
-            const startOffY = fontSize * 1.5;
-            const startScale = 0.0;
-            const startRot = charIndex % 2 === 0 ? -30 : 30; // alternating tilt like AE
+            const startRot = charIndex % 2 === 0 ? -30 : 30;
 
             if (t <= 0) {
-              // Not yet arrived — frozen at displaced state (visible but displaced)
-              offY = startOffY;
-              scaleX = startScale;
-              scaleY = startScale;
+              // Waiting chars: visible, small, tilted — creates the chain
+              scaleX = 0.1;
+              scaleY = 0.1;
               charRotation = startRot;
-              charAlpha = 0.0; // just below threshold visible
+              charAlpha = 0.7;
+              offY = fontSize * 0.3; // slightly below, visible
             } else {
-              // Spring factor: 1 at t=0 → decays to 0 (rest)
               const freq = 3;
               const decay = 7.0;
+              // spring: 1 at t=0 → decays to 0 (rest position)
               const spring = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
-              // spring starts at 1, oscillates, settles to 0
 
-              offY = startOffY * Math.max(0, spring);
+              // Position: spring from slightly below → rest
+              offY = fontSize * 0.3 * Math.max(0, spring);
+              // Rotation: spring from startRot → 0
               charRotation = startRot * Math.max(0, spring);
 
-              // Scale: fast rise (0→1) driven by spring progress
-              const rise = 1.0 - Math.max(0, spring); // 0 at start, 1 at rest
-              const scaleSpring = freq === 3
-                ? (1.0 + (spring * 0.2)) // slight overshoot on scale when position bounces back
-                : 1.0;
-              const sc = Math.min(1.4, Math.max(0, rise * scaleSpring));
-              scaleX = sc;
-              scaleY = sc;
+              // Scale: 0.1 → 1.0, driven by spring decay
+              const rise = 1.0 - Math.max(0, spring);  // 0 at t=0, 1 at rest
+              const sc = Math.min(1.4, Math.max(0.1, 0.1 + rise * 1.3 * (1.0 + spring * 0.15)));
+              scaleX = sc * (1.0 + spring * 0.10);
+              scaleY = sc * (1.0 - spring * 0.08);
 
-              // Squash & stretch: wider when flying up, taller when low
-              if (sc > 0.3) {
-                scaleX = sc * (1.0 + spring * 0.12);
-                scaleY = sc * (1.0 - spring * 0.10);
-              }
-
-              charAlpha = Math.min(1.0, t / 0.025);
+              charAlpha = Math.min(1.0, 0.7 + rise * 0.3);
             }
 
           } else if (normIn === 'bounce_2') {
-            // Expression 2: 1-frame stagger, 0.10s ramp then damped sine overshoot
-            // AE: scale 0→100% fast, bounce overshoot with squash & stretch
+            // Expression 2: 2-frame stagger, 0.10s ramp + elastic overshoot
+            // CHAIN model: all chars visible at start, cascade of scale-ups
             const frameDuration = 1.0 / (fps || 60);
             const retard = charIndex * frameDuration * 2;
             const t = localSec - retard;
             const duration = 0.10;
 
-            const startOffY = fontSize * 1.3;
             const startRot = charIndex % 2 === 0 ? -20 : 20;
 
             if (t <= 0) {
-              offY = startOffY;
-              scaleX = 0;
-              scaleY = 0;
+              scaleX = 0.1;
+              scaleY = 0.1;
               charRotation = startRot;
-              charAlpha = 0.0;
+              charAlpha = 0.7;
             } else if (t < duration) {
               const u = t / duration;
-              const eo = 1 - Math.pow(1 - u, 3); // cubic ease-out
-              scaleX = eo;
-              scaleY = eo;
-              offY = startOffY * (1 - eo);
+              const eo = 1 - Math.pow(1 - u, 3);
+              scaleX = 0.1 + eo * 0.9;
+              scaleY = 0.1 + eo * 0.9;
               charRotation = startRot * (1 - eo);
-              charAlpha = Math.min(1.0, u * 5);
+              charAlpha = Math.min(1.0, 0.7 + u * 0.3);
             } else {
               const tPost = t - duration;
               const w = 2 * Math.PI * 2;
               const decay = 9;
               const springAmp = 0.35;
               const spring = springAmp * Math.sin(tPost * w) / Math.exp(decay * tPost);
-              const sc = Math.max(0, Math.min(1.5, 1.0 + spring));
-              scaleX = sc > 1 ? (1.0 + (sc - 1) * 1.5) : sc; // wider overshoot
-              scaleY = sc > 1 ? (1.0 + (sc - 1) * 0.5) : sc; // squash
-              offY = 0;
+              const sc = Math.max(0.1, Math.min(1.5, 1.0 + spring));
+              scaleX = sc > 1 ? (1.0 + (sc - 1) * 1.5) : sc;
+              scaleY = sc > 1 ? (1.0 + (sc - 1) * 0.5) : sc;
               charRotation = 0;
               charAlpha = 1.0;
             }
 
           } else if (normIn === 'bounce_3') {
-            // Expression 3: delay=60ms stagger, freq=2, decay=8
-            // Wide wave stagger — all chars visible, wave sweeps across
+            // Expression 3: 60ms stagger, freq=2, decay=8
+            // CHAIN model: slow wave sweeps across, all chars visible as chain
             const delay = 0.060;
             const myDelay = delay * charIndex;
             const t = localSec - myDelay;
 
-            const startOffY = fontSize * 1.3;
             const startRot = charIndex % 2 === 0 ? -25 : 25;
 
             if (t <= 0) {
-              offY = startOffY;
-              scaleX = 0;
-              scaleY = 0;
+              scaleX = 0.1;
+              scaleY = 0.1;
               charRotation = startRot;
-              charAlpha = 0.0;
+              charAlpha = 0.7;
+              offY = fontSize * 0.3;
             } else {
               const freq = 2;
               const decay = 8.0;
               const spring = Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t);
 
-              offY = startOffY * Math.max(0, spring);
+              offY = fontSize * 0.3 * Math.max(0, spring);
               charRotation = startRot * Math.max(0, spring);
 
               const rise = 1.0 - Math.max(0, spring);
-              const sc = Math.min(1.3, Math.max(0, rise * (1.0 + spring * 0.15)));
-              scaleX = sc * (1.0 + spring * 0.10);
-              scaleY = sc * (1.0 - spring * 0.08);
-              charAlpha = Math.min(1.0, t / 0.04);
+              const sc = Math.min(1.3, Math.max(0.1, 0.1 + rise * 1.2 * (1.0 + spring * 0.12)));
+              scaleX = sc * (1.0 + spring * 0.08);
+              scaleY = sc * (1.0 - spring * 0.06);
+              charAlpha = Math.min(1.0, 0.7 + rise * 0.3);
             }
 
           } else if (normIn === 'bounce_4') {
-            // Expression 4: 3-frame stagger, 0.25s ramp, freq=1, decay=8 — gentle cascade
+            // Expression 4: 3-frame stagger, 0.25s ramp, gentle elastic
+            // CHAIN model: cascade visible from start, slow chain settle
             const frameDuration = 1.0 / (fps || 60);
             const retard = charIndex * frameDuration * 3;
             const t = localSec - retard;
             const duration = 0.25;
 
-            const startOffY = fontSize * 1.2;
             const startRot = charIndex % 2 === 0 ? -15 : 15;
 
             if (t <= 0) {
-              offY = startOffY;
-              scaleX = 0;
-              scaleY = 0;
+              scaleX = 0.1;
+              scaleY = 0.1;
               charRotation = startRot;
-              charAlpha = 0.0;
+              charAlpha = 0.7;
             } else if (t < duration) {
               const u = t / duration;
               const eo = 1 - Math.pow(1 - u, 2.5);
-              scaleX = eo;
-              scaleY = eo;
-              offY = startOffY * (1 - eo);
+              scaleX = 0.1 + eo * 0.9;
+              scaleY = 0.1 + eo * 0.9;
               charRotation = startRot * (1 - eo);
-              charAlpha = Math.min(1.0, u * 4);
+              charAlpha = Math.min(1.0, 0.7 + u * 0.3);
             } else {
               const tPost = t - duration;
               const w = 1 * Math.PI * 2;
               const decay = 8;
               const springAmp = 0.20;
               const spring = springAmp * Math.sin(tPost * w) / Math.exp(decay * tPost);
-              const sc = Math.max(0, Math.min(1.3, 1.0 + spring));
+              const sc = Math.max(0.1, Math.min(1.3, 1.0 + spring));
               scaleX = sc;
               scaleY = sc;
-              offY = 0;
+              charRotation = 0;
               charAlpha = 1.0;
             }
 

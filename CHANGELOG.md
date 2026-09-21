@@ -5,6 +5,23 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.37] - 2026-09-21
+
+### Added
+- **Live Wireframe Animation During Timeline Playback (`js/canvas-overlay.js`, `js/editor.js`, `js/wireframe.js`)**:
+  - Maintained dynamic wireframe bounding box updates during active timeline playback (`window.isTimelinePlaying === true`) for single and multi-selected ("Select All") layers.
+  - Active layer boundary detection: bounding boxes only render when the current playhead is within the layer's in/out range (`activeLayers`).
+  - Overlay canvas redraw executes synchronously on every frame during playback, ensuring zero-lag synchronization between layers and bounding box wireframes.
+  - Persistent Preview Grid: composition grid remains visible during playback if enabled via `#editor-icon-grid`.
+
+### Performance
+- **Zero Forced Reflows & Style Recalculations During Playback**:
+  - Cached theme color tokens (`--color-primary`, `--bg-canvas`) in `CanvasOverlay` to eliminate redundant `getComputedStyle()` calls across multiple selected layers.
+  - Cached device pixel ratio scale (`dprScale`) to avoid repeated `getBoundingClientRect()` invocations on the overlay canvas.
+  - Bound preview grid lines directly to `--color-primary` theme tokens using `ctx.globalAlpha`.
+
+---
+
 ## [0.5.31] - 2026-09-21
 
 ### Added

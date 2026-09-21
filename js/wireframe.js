@@ -105,9 +105,9 @@
       const { w, h } = bounds;
       if (w <= 0 || h <= 0) return;
 
-      const style = getComputedStyle(document.documentElement);
-      const primaryColor = options.color || style.getPropertyValue('--color-primary').trim() || '#98ce7b';
-      const canvasBg = options.bgColor || style.getPropertyValue('--bg-canvas').trim() || '#0d1109';
+      const style = (!options.color || !options.bgColor) && document.documentElement ? getComputedStyle(document.documentElement) : null;
+      const primaryColor = options.color || (style ? style.getPropertyValue('--color-primary').trim() : '') || '#98ce7b';
+      const canvasBg = options.bgColor || (style ? style.getPropertyValue('--bg-canvas').trim() : '') || '#0d1109';
 
       let dprScale = 1;
       if (ctx.canvas) {
@@ -406,9 +406,9 @@
       const fps = Math.max(1, Math.min(240, parseInt(rawFps, 10) || 60));
 
       // Theme tokens
-      const style = getComputedStyle(document.documentElement);
-      const primaryColor = options.color || style.getPropertyValue('--color-primary').trim() || '#98ce7b';
-      const canvasBg = options.bgColor || style.getPropertyValue('--bg-canvas').trim() || '#0d1109';
+      const style = (!options.color || !options.bgColor) && document.documentElement ? getComputedStyle(document.documentElement) : null;
+      const primaryColor = options.color || (style ? style.getPropertyValue('--color-primary').trim() : '') || '#98ce7b';
+      const canvasBg = options.bgColor || (style ? style.getPropertyValue('--bg-canvas').trim() : '') || '#0d1109';
 
       let dprScale = options.dprScale || 1;
       if (!options.dprScale && ctx.canvas && typeof ctx.canvas.getBoundingClientRect === 'function') {

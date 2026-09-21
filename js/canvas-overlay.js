@@ -26,19 +26,36 @@
       window.addEventListener('resize', () => this.syncSize(), { passive: true });
     },
 
+    _lastTheme: null,
+    _cachedPrimary: null,
+    _cachedBgCanvas: null,
+    _dprScale: 1,
+
+    _getThemeColors() {
+      const curTheme = (document.documentElement && document.documentElement.getAttribute('data-theme')) || 'default';
+      if (this._lastTheme !== curTheme || !this._cachedPrimary || !this._cachedBgCanvas) {
+        this._lastTheme = curTheme;
+        const style = getComputedStyle(document.documentElement);
+        this._cachedPrimary = style.getPropertyValue('--color-primary').trim() || '#98ce7b';
+        this._cachedBgCanvas = style.getPropertyValue('--bg-canvas').trim() || '#0d1109';
+      }
+      return { primary: this._cachedPrimary, bg: this._cachedBgCanvas };
+    },
+
     syncSize() {
       if (!this._canvas) return;
       const main = document.getElementById('editor-active-canvas');
       if (!main) return;
-      if (this._canvas.width !== main.width || this._canvas.height !== main.height) {
+      if (this._canvas.width !== main.width || this._canvas.height !== main.height || !this._dprScale) {
         this._canvas.width = main.width;
         this._canvas.height = main.height;
+        const rect = this._canvas.getBoundingClientRect ? this._canvas.getBoundingClientRect() : null;
+        this._dprScale = (rect && rect.width > 0) ? (this._canvas.width / rect.width) : (window.devicePixelRatio || 1);
       }
     },
 
     /** Request a redraw on next rAF — debounced */
     scheduleRedraw() {
-      if (window.isTimelinePlaying) return;
       this._dirty = true;
       if (this._rafId) return;
       this._rafId = requestAnimationFrame(() => {
@@ -83,10 +100,12 @@
       const cx = w / 2;
       const cy = h / 2;
       const baseLineWidth = Math.max(1, Math.round(w / 1200));
+      const themePrimary = this._getThemeColors().primary;
 
       // Quarter grid lines
       ctx.lineWidth = baseLineWidth;
-      ctx.strokeStyle = 'rgba(152, 206, 123, 0.2)';
+      ctx.strokeStyle = themePrimary;
+      ctx.globalAlpha = 0.2;
       ctx.beginPath();
       ctx.moveTo(w * 0.25, 0); ctx.lineTo(w * 0.25, h);
       ctx.moveTo(w * 0.75, 0); ctx.lineTo(w * 0.75, h);
@@ -96,7 +115,8 @@
 
       // Center axes
       ctx.lineWidth = Math.max(1.5, baseLineWidth * 1.6);
-      ctx.strokeStyle = 'rgba(152, 206, 123, 0.6)';
+      ctx.strokeStyle = themePrimary;
+      ctx.globalAlpha = 0.6;
       ctx.beginPath();
       ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
       ctx.moveTo(0, cy); ctx.lineTo(w, cy);
@@ -105,7 +125,8 @@
       // Center crosshair
       const crossSize = Math.max(12, Math.round(Math.min(w, h) * 0.035));
       ctx.lineWidth = Math.max(2, baseLineWidth * 2.2);
-      ctx.strokeStyle = 'rgba(152, 206, 123, 0.95)';
+      ctx.strokeStyle = themePrimary;
+      ctx.globalAlpha = 0.95;
       ctx.beginPath();
       ctx.moveTo(cx - crossSize, cy); ctx.lineTo(cx + crossSize, cy);
       ctx.moveTo(cx, cy - crossSize); ctx.lineTo(cx, cy + crossSize);
@@ -118,7 +139,7 @@
       if (!window.activeSnapGuides) return;
       const baseW = (window.currentProjectState && window.currentProjectState._baseW) || w;
       const baseH = (window.currentProjectState && window.currentProjectState._baseH) || h;
-      const themePrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#98ce7b';
+      const themePrimary = this._getThemeColors().primary;
 
       ctx.save();
       ctx.strokeStyle = themePrimary;
@@ -141,7 +162,6 @@
     },
 
     _drawMotionPath(ctx, w, h) {
-      if (window.isTimelinePlaying) return;
       if (window.activeKeyframeProperty !== 'move') return;
       if (!(typeof window.isPropertyEditorActive === 'function' && window.isPropertyEditorActive())) return;
       const state = window.currentProjectState;
@@ -150,15 +170,24 @@
       if (!selectedLayer || !selectedLayer.keyframes || !selectedLayer.keyframes.move || selectedLayer.keyframes.move.length < 2) return;
       if (!window.CanvasWireframe || typeof window.CanvasWireframe.drawMotionPath !== 'function') return;
 
+      const colors = this._getThemeColors();
       const bufferScale = (window._lastBufferScale) || 1;
       const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
       const currentSec = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : 0;
 
-      window.CanvasWireframe.drawMotionPath(ctx, selectedLayer, { bufferScale, baseW: w, baseH: h, fps, currentSec });
+      window.CanvasWireframe.drawMotionPath(ctx, selectedLayer, {
+        bufferScale,
+        baseW: w,
+        baseH: h,
+        fps,
+        currentSec,
+        color: colors.primary,
+        bgColor: colors.bg,
+        dprScale: this._dprScale || 1
+      });
     },
 
     _drawWireframes(ctx, w, h) {
-      if (window.isTimelinePlaying) return;
       if (!window.CanvasWireframe) return;
 
       const allSelectedIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
@@ -166,6 +195,8 @@
         : (window.selectedLayerId ? [window.selectedLayerId] : []);
       if (allSelectedIds.length === 0) return;
 
+      const colors = this._getThemeColors();
+      const dprScale = this._dprScale || 1;
       const isSelectionMode = allSelectedIds.length > 1;
 
       if (isSelectionMode) {
@@ -175,7 +206,14 @@
           if (!l || l.hidden || l.type === 'camera' || l.type === 'audio') return;
           const b = l._canvasBounds;
           if (b && (!b.isBehindCamera || (b.posZ || 0) < 950)) {
-            window.CanvasWireframe.draw(ctx, b, { showAnchor: false, showHandles: false, isAnchorMode: false });
+            window.CanvasWireframe.draw(ctx, b, {
+              showAnchor: false,
+              showHandles: false,
+              isAnchorMode: false,
+              color: colors.primary,
+              bgColor: colors.bg,
+              dprScale
+            });
           }
         });
       } else {
@@ -186,7 +224,14 @@
           const b = selL._canvasBounds;
           if (b && (!b.isBehindCamera || (b.posZ || 0) < 950)) {
             const isAnchor = typeof window.isAnchorMode === 'function' ? window.isAnchorMode() : (window.moveAnchorSubmode === 'anchor');
-            window.CanvasWireframe.draw(ctx, b, { showAnchor: true, showHandles: true, isAnchorMode: isAnchor });
+            window.CanvasWireframe.draw(ctx, b, {
+              showAnchor: true,
+              showHandles: true,
+              isAnchorMode: isAnchor,
+              color: colors.primary,
+              bgColor: colors.bg,
+              dprScale
+            });
           }
         }
       }

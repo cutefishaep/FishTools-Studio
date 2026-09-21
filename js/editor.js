@@ -2334,47 +2334,6 @@
       if (cachedBitmap) {
         ctx.clearRect(0, 0, w, h);
         ctx.drawImage(cachedBitmap, 0, 0, w, h);
-        if (!isExport && !window.isTimelinePlaying) {
-          const allIds = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
-            ? Array.from(window.selectedLayerIds)
-            : (window.selectedLayerId ? [window.selectedLayerId] : []);
-          const engine = window.FishToolEngine || window.LayerTransform;
-          allIds.forEach(id => {
-            const selL = (currentProjectState.layers || []).find(l => l.id === id);
-            if (!selL || selL.hidden || selL.type === 'audio') return;
-            if (selL.type === 'camera') {
-              const padX = Math.max(8, Math.round(w * 0.035));
-              const padY = Math.max(8, Math.round(h * 0.035));
-              const frameW = w - padX * 2;
-              const frameH = h - padY * 2;
-              selL._canvasBounds = {
-                x: padX,
-                y: padY,
-                w: frameW,
-                h: frameH,
-                cx: w / 2,
-                cy: h / 2,
-                rotation: 0,
-                isCamera: true,
-                name: selL.name || 'Camera',
-                corners: [
-                  { x: padX, y: padY },
-                  { x: padX + frameW, y: padY },
-                  { x: padX + frameW, y: padY + frameH },
-                  { x: padX, y: padY + frameH }
-                ],
-                anchor: { x: w / 2, y: h / 2 }
-              };
-            } else if (engine) {
-              const effProps = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(selL, currentSec) : selL;
-              if (selL.type === 'precomp' && selL.collapseTransformations && Array.isArray(selL.layers) && selL.layers.length > 0) {
-                selL._canvasBounds = computeCollapsedPrecompBounds(selL, effProps, currentSec, bufferScale, camEff, w, h);
-              } else {
-                selL._canvasBounds = engine.getBounds(Object.assign({}, selL, effProps), bufferScale, camEff, w, h);
-              }
-            }
-          });
-        }
       } else {
         ctx.clearRect(0, 0, w, h);
 
@@ -3522,12 +3481,16 @@
         : (window.selectedLayerId ? [window.selectedLayerId] : []);
       const isSelectionMode = isSelectorMode || allSelectedIds.length > 1;
 
-      // Ensure wireframe bounds are fresh when paused or scrubbing (skipped during playback for performance)
-      if (!isExport && !isTemplate && !window.isTimelinePlaying && allSelectedIds.length > 0) {
+      // Ensure wireframe bounds are fresh for all active selected layers (tracks transforms during live playback & scrub)
+      if (!isExport && !isTemplate && allSelectedIds.length > 0) {
+        const activeIds = new Set(activeLayers.map(al => al.id));
         const engine = window.FishToolEngine || window.LayerTransform;
         allSelectedIds.forEach(id => {
           const selL = (currentProjectState.layers || []).find(l => l.id === id);
-          if (!selL || selL.hidden || selL.type === 'audio') return;
+          if (!selL || selL.hidden || selL.type === 'audio' || !activeIds.has(id)) {
+            if (selL) selL._canvasBounds = null;
+            return;
+          }
           if (selL.type === 'camera') {
             const padX = Math.max(8, Math.round(w * 0.035));
             const padY = Math.max(8, Math.round(h * 0.035));
@@ -3570,7 +3533,11 @@
       window._lastFrameRenderDuration = performance.now() - t0;
       // Trigger overlay canvas redraw (grid, wireframe, motion path)
       if (!isExport && !isTemplate && window.CanvasOverlay) {
-        window.CanvasOverlay.scheduleRedraw();
+        if (window.isTimelinePlaying) {
+          window.CanvasOverlay.redraw();
+        } else {
+          window.CanvasOverlay.scheduleRedraw();
+        }
       }
       return !hasUnreadyMedia;
     }
@@ -20761,9 +20728,6 @@
             isPlaying = true;
             window.isTimelinePlaying = true;
             updatePlayButtonUI();
-            if (window.CanvasOverlay && typeof window.CanvasOverlay.clear === 'function') {
-              window.CanvasOverlay.clear();
-            }
             if (timelineTweenRaf) {
               cancelAnimationFrame(timelineTweenRaf);
               timelineTweenRaf = null;

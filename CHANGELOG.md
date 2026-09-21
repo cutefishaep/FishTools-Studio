@@ -5,6 +5,23 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.44] - 2026-09-21
+
+### Added
+- **Desktop After Effects-Style Context Menu (`js/popover.js`, `css/popover.css`, `js/editor.js`, `editor.html`, `desktop.html`)**:
+  - Transformed desktop right-click menu into a sleek flat rectangular context menu inspired by Adobe After Effects and native OS design.
+  - Eliminated popover pointy tail on right-click, positioning menu directly at the cursor coordinates `(clientX, clientY)` with smart quadrant edge flipping.
+  - Added clean right-aligned keyboard shortcut hints (`Ctrl+C`, `Ctrl+V`, `Ctrl+D`, `Ctrl+G` / `Ctrl+Shift+C`, `Ctrl+A`) with automatic foreground inversion on hover.
+  - Added right-click context menu triggers across track list pills and empty overlay surface.
+- **Desktop Parent Dropdown Entrance Animation (`css/desktop.css`, `js/desktop.js`)**:
+  - Implemented crisp `desktopDropdownPop` scale & fade entrance animation (`scale(0.94) -> scale(1)`) with dynamic `transformOrigin` springing directly from trigger badge.
+
+### Fixed
+- **Mobile Parent & Playback Popover Primary Outline (`css/popover.css`)**:
+  - Updated `.is-layer-link-popover` and `.is-play-settings-popover` border definitions to standard high-contrast `1px solid var(--color-primary)`, harmonizing outline aesthetics across all popover cards.
+
+---
+
 ## [0.5.43] - 2026-09-21
 
 ### Added

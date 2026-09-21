@@ -217,6 +217,97 @@
 }
 
 /* ==========================================================================
+   DESKTOP RIGHT-CLICK CONTEXT MENU (AFTER EFFECTS / NATIVE OS STYLE)
+   Clean flat rectangular surface, no tail, crisp border, instant response.
+   ========================================================================== */
+.popover-card.is-context-menu {
+  border-radius: 8px !important;
+  border: 1px solid var(--border-panel) !important;
+  background-color: var(--bg-panel-inner) !important;
+  padding: 4px !important;
+  min-width: 172px !important;
+  max-width: 260px !important;
+  box-shadow: none !important;
+  transform: scale(0.96);
+  opacity: 0;
+  transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.08s ease-out !important;
+}
+
+.popover-card.is-context-menu.is-open {
+  transform: scale(1) !important;
+  opacity: 1 !important;
+}
+
+.popover-card.is-context-menu > .popover-tail {
+  display: none !important;
+}
+
+.popover-card.is-context-menu .popover-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.popover-card.is-context-menu .popover-menu-item {
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 4px;
+  color: var(--text-primary);
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  transition: background-color 0.08s ease, color 0.08s ease;
+}
+
+.popover-card.is-context-menu .popover-menu-item:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.popover-card.is-context-menu .popover-menu-item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background-color: transparent !important;
+  color: var(--text-muted) !important;
+}
+
+.popover-card.is-context-menu .popover-menu-divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: 3px 0;
+  border: none;
+}
+
+/* Context Menu Keyboard Shortcut Hint */
+.context-menu-shortcut {
+  margin-left: auto;
+  padding-left: 14px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  opacity: 0.8;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+.popover-menu-item:hover:not(:disabled) .context-menu-shortcut {
+  color: var(--bg-canvas);
+  opacity: 0.9;
+}
+
+@media (max-width: 600px) {
+  .context-menu-shortcut {
+    display: none;
+  }
+}
+
+
+/* ==========================================================================
    VERTICAL MORE SETTINGS POPOVER MODULES
    ========================================================================== */
 .popover-settings-list {
@@ -686,7 +777,7 @@
   padding: 8px;
   border-radius: 10px;
   background-color: var(--bg-panel);
-  border: 1px solid var(--border-panel);
+  border: 1px solid var(--color-primary);
   box-shadow: none;
 }
 
@@ -1013,7 +1104,7 @@
   flex-direction: column;
   gap: 8px;
   background-color: var(--bg-panel);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-primary);
   border-radius: 10px;
   box-shadow: none;
 }

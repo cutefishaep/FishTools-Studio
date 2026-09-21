@@ -864,12 +864,14 @@
         dropdown.style.bottom = `${vh - badgeRect.top + 4}px`;
         dropdown.style.left = `${left}px`;
         dropdown.style.maxHeight = `${Math.max(120, Math.min(320, spaceAbove - 12))}px`;
+        dropdown.style.transformOrigin = 'bottom left';
       } else {
         // Pop Downward
         dropdown.style.bottom = '';
         dropdown.style.top = `${badgeRect.bottom + 4}px`;
         dropdown.style.left = `${left}px`;
         dropdown.style.maxHeight = `${Math.max(120, Math.min(320, spaceBelow - 12))}px`;
+        dropdown.style.transformOrigin = 'top left';
       }
 
       const activeItem = listWrapper.querySelector('.desktop-parent-dropdown-item.is-active');

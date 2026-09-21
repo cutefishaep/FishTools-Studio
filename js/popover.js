@@ -87,6 +87,49 @@ const Popover = (function () {
     const isEmbedPanel = activePopover && activePopover.classList.contains('is-embed-panel');
     const explicitPlacement = (activeTrigger && activeTrigger.dataset ? activeTrigger.dataset.popoverPlacement : null) || activePopover.dataset.popoverPlacement;
 
+    // Special Case: Desktop Right-Click Context Menu (After Effects / Native OS Style)
+    // Clean flat rectangular card, no tail, anchored directly at pointer (clientX, clientY)
+    const isContextMenu = !!(activeTrigger && (activeTrigger.isContextMenu || (activeTrigger.isVirtual && !isMobile)));
+    if (isContextMenu) {
+      activePopover.classList.add('is-context-menu');
+      if (tailEl) tailEl.style.display = 'none';
+
+      const clickX = effectiveTriggerRect.left;
+      const clickY = effectiveTriggerRect.top;
+
+      let left = clickX;
+      let top = clickY;
+      let originX = '0%';
+      let originY = '0%';
+
+      // Horizontal flip / clamp
+      if (clickX + popoverWidth > vw - MARGIN) {
+        left = Math.max(MARGIN, clickX - popoverWidth);
+        originX = '100%';
+      } else {
+        left = Math.max(MARGIN, clickX);
+        originX = '0%';
+      }
+
+      // Vertical flip / clamp
+      if (clickY + popoverHeight > vh - MARGIN) {
+        top = Math.max(MARGIN, clickY - popoverHeight);
+        originY = '100%';
+      } else {
+        top = Math.max(MARGIN, clickY);
+        originY = '0%';
+      }
+
+      activePopover.style.transformOrigin = `${originX} ${originY}`;
+      activePopover.style.left = `${Math.round(left)}px`;
+      activePopover.style.top = `${Math.round(top)}px`;
+      activePopover.style.maxHeight = `${vh - MARGIN * 2}px`;
+      return;
+    } else {
+      activePopover.classList.remove('is-context-menu');
+      if (tailEl) tailEl.style.display = '';
+    }
+
     // Special Case: On Mobile, OpenFishTools embed panel pops UPWARD to completely fill upper preview area
     if (isMobile && isEmbedPanel) {
       const availableTopHeight = Math.max(160, Math.floor(effectiveTriggerRect.top - OFFSET - MARGIN));
@@ -238,6 +281,13 @@ const Popover = (function () {
       return;
     }
 
+    // If already open with same popover but different trigger (e.g. rapid right-clicks):
+    if (activePopover === popoverEl) {
+      activeTrigger = triggerEl;
+      updatePosition();
+      return;
+    }
+
     // Close any currently active popover first
     if (activePopover && activePopover !== popoverEl) {
       close(false);
@@ -300,6 +350,11 @@ const Popover = (function () {
         elToClose.style.height = '';
         elToClose.style.width = '';
         elToClose.style.transformOrigin = '';
+        if (elToClose.classList.contains('is-context-menu')) {
+          elToClose.classList.remove('is-context-menu');
+          const tail = elToClose.querySelector('.popover-tail');
+          if (tail) tail.style.display = '';
+        }
       }
     }, 200);
 

@@ -17719,7 +17719,20 @@
           tile.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            openMediaItemPopover(tile);
+            const mouseAnchor = {
+              isVirtual: true,
+              isContextMenu: true,
+              getBoundingClientRect: () => ({
+                left: e.clientX,
+                top: e.clientY,
+                right: e.clientX,
+                bottom: e.clientY,
+                width: 0,
+                height: 0
+              }),
+              dataset: {}
+            };
+            openMediaItemPopover(mouseAnchor);
           });
 
           // 2. Mobile & Touch: Long-Press (500ms)
@@ -20229,6 +20242,7 @@
         if (window.Popover) {
           const mouseAnchor = {
             isVirtual: true,
+            isContextMenu: true,
             getBoundingClientRect: () => ({
               left: clickX,
               top: clickY,
@@ -20264,6 +20278,7 @@
         if (window.Popover) {
           const mouseAnchor = {
             isVirtual: true,
+            isContextMenu: true,
             getBoundingClientRect: () => ({
               left: clickX,
               top: clickY,
@@ -20582,6 +20597,18 @@
         layersViewport.addEventListener('contextmenu', (e) => {
           // If right-clicked on a clip or pill slot, their dedicated contextmenu listener handled it
           if (e.target.closest('.timeline-clip-block') || e.target.closest('.timeline-lane-pill-slot') || e.target.closest('.timeline-layer-ctrl-pill')) {
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          triggerEmptyTimelineContextMenu(e.clientX, e.clientY);
+        });
+      }
+
+      const laneHeadsOverlay = document.getElementById('timeline-lane-heads-overlay');
+      if (laneHeadsOverlay) {
+        laneHeadsOverlay.addEventListener('contextmenu', (e) => {
+          if (e.target.closest('.timeline-lane-pill-slot') || e.target.closest('.timeline-layer-ctrl-pill')) {
             return;
           }
           e.preventDefault();
@@ -23872,6 +23899,7 @@
               if (window.Popover) {
                 const mouseAnchor = {
                   isVirtual: true,
+                  isContextMenu: true,
                   getBoundingClientRect: () => ({
                     left: e.clientX,
                     top: e.clientY,
@@ -24449,6 +24477,11 @@
               }
 
               pillEl.addEventListener('pointerdown', onPillPointerDown);
+              pillEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                triggerClipContextMenu(layer, e.clientX, e.clientY);
+              });
             }
 
             if (isDesktop && layer._kfExpanded) {
@@ -25721,6 +25754,7 @@
                     if (window.Popover) {
                       const mouseAnchor = {
                         isVirtual: true,
+                        isContextMenu: true,
                         getBoundingClientRect: () => ({
                           left: e.clientX,
                           top: e.clientY,

@@ -24746,28 +24746,31 @@
                   }
 
 
-                  // Define value components per prop
+                  // Define value components per prop — AE-style format (1 decimal)
                   function buildComponents(prop) {
                     const pw = (window.currentProjectState && window.currentProjectState.width) || 1080;
                     const ph = (window.currentProjectState && window.currentProjectState.height) || 1920;
                     const rl = getLive();
                     if (prop === 'move') return [
-                      { getVal: () => Math.round(getLive().posX ?? pw/2),
+                      { getVal: () => (getLive().posX ?? pw/2).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.posX = Number(((r.posX ?? pw/2) + dx).toFixed(2)); },
                         set: (v) => { getLive().posX = parseFloat(v) || 0; } },
-                      { getVal: () => Math.round(getLive().posY ?? ph/2),
+                      { getVal: () => (getLive().posY ?? ph/2).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.posY = Number(((r.posY ?? ph/2) + dx).toFixed(2)); },
                         set: (v) => { getLive().posY = parseFloat(v) || 0; } }
                     ];
                     if (prop === 'scale') {
-                      const normW = (v) => { const r = getLive(); return v > 400 ? Math.round(v/pw*100) : Math.round(v); };
-                      const normH = (v) => { const r = getLive(); return v > 400 ? Math.round(v/ph*100) : Math.round(v); };
+                      // normalize px→% if stored as px
+                      const normW = (v) => v > 400 ? (v/pw*100).toFixed(1) : Number(v).toFixed(1);
+                      const normH = (v) => v > 400 ? (v/ph*100).toFixed(1) : Number(v).toFixed(1);
                       const denormW = (pct) => { const r = getLive(); return (r.scaleW > 400) ? (pct/100*pw) : pct; };
                       const denormH = (pct) => { const r = getLive(); return (r.scaleH > 400) ? (pct/100*ph) : pct; };
                       return [
-                        { getVal: () => normW(getLive().scaleW ?? rl.mediaWidth ?? 100) + '%',
+                        // scaleW — no suffix, % added as static text after scaleH
+                        { getVal: () => normW(getLive().scaleW ?? rl.mediaWidth ?? 100),
                           scrub: (dx) => { const r = getLive(); const cW = r.scaleW ?? r.mediaWidth ?? 100; const cH = r.scaleH ?? r.mediaHeight ?? 100; const nW = Math.max(1, cW + dx*0.3); r.scaleW = Number(nW.toFixed(2)); if (r.scaleLinked !== false) r.scaleH = Number((nW * (cH/Math.max(1,cW))).toFixed(2)); },
                           set: (v) => { const r = getLive(); r.scaleW = denormW(parseFloat(v) || 100); } },
+                        // scaleH — with % suffix (AE puts % at very end: 100.0,100.0%)
                         { getVal: () => normH(getLive().scaleH ?? rl.mediaHeight ?? 100) + '%',
                           scrub: (dx) => { const r = getLive(); const cW = r.scaleW ?? r.mediaWidth ?? 100; const cH = r.scaleH ?? r.mediaHeight ?? 100; const nH = Math.max(1, cH + dx*0.3); r.scaleH = Number(nH.toFixed(2)); if (r.scaleLinked !== false) r.scaleW = Number((nH * (cW/Math.max(1,cH))).toFixed(2)); },
                           set: (v) => { const r = getLive(); r.scaleH = denormH(parseFloat(v) || 100); } }
@@ -24784,10 +24787,10 @@
                         set: (v) => { getLive().opacity = Math.max(0, Math.min(1, parseFloat(v)/100)); } }
                     ];
                     if (prop === 'origin') return [
-                      { getVal: () => Math.round(getLive().anchorX ?? 0),
+                      { getVal: () => (getLive().anchorX ?? 0).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.anchorX = Number(((r.anchorX ?? 0) + dx).toFixed(2)); },
                         set: (v) => { getLive().anchorX = parseFloat(v) || 0; } },
-                      { getVal: () => Math.round(getLive().anchorY ?? 0),
+                      { getVal: () => (getLive().anchorY ?? 0).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.anchorY = Number(((r.anchorY ?? 0) + dx).toFixed(2)); },
                         set: (v) => { getLive().anchorY = parseFloat(v) || 0; } }
                     ];
@@ -24809,7 +24812,6 @@
                           set: (v) => { const r = getLive(); const fx = Array.isArray(r.effects) ? r.effects.find(f => f.id === fxId) : null; if (fx) fx[pName] = parseFloat(v) || 0; } }
                       ];
                     }
-                    const rv = rl[prop];
                     return [
                       { getVal: () => { const v = getLive()[prop]; return typeof v === 'number' ? v.toFixed(1) : String(v ?? ''); },
                         scrub: (dx) => { const r = getLive(); if (typeof r[prop] === 'number') r[prop] = Number((r[prop] + dx).toFixed(2)); },
@@ -24821,6 +24823,14 @@
                   const compSpans = [];
 
                   components.forEach((comp, idx) => {
+                    // Add comma separator between components (AE style: "540.0,960.0")
+                    if (idx > 0) {
+                      const sep = document.createElement('span');
+                      sep.className = 'desktop-kf-prop-val-sep';
+                      sep.textContent = ',';
+                      valContainer.appendChild(sep);
+                    }
+
                     const cs = document.createElement('span');
                     cs.className = 'desktop-kf-prop-val-comp';
                     cs.textContent = String(comp.getVal());

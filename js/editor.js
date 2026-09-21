@@ -3207,19 +3207,26 @@
               }
 
               // Text OOB animation: expand render dimensions to match padded canvas.
-              // _textAnimPadY = Y padding (bounce/wave/scale springs)
-              // _textAnimPadX = X padding (slide_out horizontal displacement)
-              // No posY/posX shift needed — canvas center = text center ✓
-              // Wireframe (_canvasBounds) = natural size, computed before expansion.
+              // Canvas: reqH = textH + 2*animPadY → FishToolEngine maps canvas→scaleH.
+              // Correct mapping: scaleH_render = naturalH × mediaHeight / textH
+              //   where textH = mediaHeight - 2*animPadY (unpaddded canvas height)
+              // This ensures text portion renders at exactly naturalH scene units.
+              // posY/posX unchanged — canvas center = text center ✓
               const textPadY = (isText && layer._textAnimPadY) ? layer._textAnimPadY : 0;
               const textPadX = (isText && layer._textAnimPadX) ? layer._textAnimPadX : 0;
               if (textPadY > 0 || textPadX > 0) {
                 const naturalH = animLayer.scaleH || layer.scaleH || layer.mediaHeight || 100;
                 const naturalW = animLayer.scaleW || layer.scaleW || layer.mediaWidth  || 200;
-                const scaleRatioH = naturalH / (layer.mediaHeight || naturalH);
-                const scaleRatioW = naturalW / (layer.mediaWidth  || naturalW);
-                if (textPadY > 0) animLayer.scaleH = naturalH + textPadY * scaleRatioH * 2;
-                if (textPadX > 0) animLayer.scaleW = naturalW + textPadX * scaleRatioW * 2;
+                const mediaH   = layer.mediaHeight || naturalH;
+                const mediaW   = layer.mediaWidth  || naturalW;
+                if (textPadY > 0) {
+                  const textH = Math.max(1, mediaH - 2 * textPadY);
+                  animLayer.scaleH = naturalH * mediaH / textH;
+                }
+                if (textPadX > 0) {
+                  const textW = Math.max(1, mediaW - 2 * textPadX);
+                  animLayer.scaleW = naturalW * mediaW / textW;
+                }
                 layer._canvasBounds = engine.getBounds(Object.assign({}, layer, effProps), bufferScale, camEff, w, h);
               } else {
                 layer._canvasBounds = engine.getBounds(animLayer, bufferScale, camEff, w, h);

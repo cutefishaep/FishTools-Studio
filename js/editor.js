@@ -19603,7 +19603,7 @@
           item.innerHTML = `
             <div class="timeline-beatmark-pin">
               <svg viewBox="0 0 10 12" width="10" height="12" class="timeline-beatmark-svg" aria-hidden="true">
-                <path d="M 0 0 L 10 0 L 10 7 L 5 12 L 0 7 Z" fill="currentColor"/>
+                <path d="M 0 11 L 10 11 L 10 5 L 5 0 L 0 5 Z" fill="currentColor"/>
               </svg>
             </div>
             <div class="timeline-beatmark-stem"></div>
@@ -19615,8 +19615,7 @@
           item.innerHTML = `
             <div class="timeline-beatmark-pin">
               <svg viewBox="0 0 10 12" width="10" height="12" class="timeline-beatmark-svg" aria-hidden="true">
-                <circle cx="5" cy="5" r="4.5" fill="currentColor"/>
-                <circle cx="5" cy="5" r="1.8" fill="var(--bg-panel)"/>
+                <path d="M 0 11 L 10 11 L 10 5 L 5 0 L 0 5 Z" fill="currentColor"/>
               </svg>
             </div>
             <div class="timeline-beatmark-stem"></div>

@@ -3892,22 +3892,26 @@
    Targets: After Effects / Premiere Pro compact desktop NLE look
    ========================================================================== */
 
-/* --- Compact Ruler (22px) with Flex Row for Gutter --- */
+/* --- AE-Style 2-Tier Header: Time Ruler (20px) + Composition Marker Bar (16px) = 36px total --- */
 .desktop-timeline-wrapper .timeline-header-ruler {
-  height: 22px !important;
-  min-height: 22px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   display: flex !important;
   overflow: visible !important;
+  background-color: var(--bg-panel-inner);
+  border-bottom: 1px solid var(--border-panel) !important;
+  box-sizing: border-box !important;
 }
 
 /* Ruler left gutter — aligns with layer name panel */
 .desktop-ruler-gutter {
   width: var(--desktop-layer-panel-w);
   min-width: var(--desktop-layer-panel-w);
+  height: 100% !important;
   flex-shrink: 0;
   background-color: var(--bg-panel-inner);
   border-right: 1px solid var(--border-panel);
-  border-bottom: 1px solid var(--border-panel);
+  border-bottom: none !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4014,14 +4018,86 @@
 .desktop-timeline-wrapper .timeline-ruler-viewport {
   flex: 1 !important;
   min-width: 0 !important;
+  height: 100% !important;
   overflow: hidden !important;
   position: relative !important;
-  border-bottom: 1px solid var(--border-panel) !important;
+  border-bottom: none !important;
   cursor: col-resize !important;
 }
 
 .desktop-timeline-wrapper .timeline-ruler-viewport.is-dragging {
   cursor: col-resize !important;
+}
+
+.desktop-timeline-wrapper .timeline-ruler-track {
+  height: 100% !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  will-change: transform;
+}
+
+/* --- Tier 1: Time Ruler (20px) with Ticks & Timecode --- */
+.desktop-timeline-wrapper .timeline-ruler-marks {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 20px !important;
+  border-bottom: 1px solid var(--border-panel) !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+}
+
+.desktop-timeline-wrapper .ruler-second-mark {
+  height: 20px !important;
+}
+
+.desktop-timeline-wrapper .ruler-second-text {
+  top: 2px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary) !important;
+}
+
+.desktop-timeline-wrapper .ruler-ticks-row {
+  height: 7px !important;
+}
+
+.desktop-timeline-wrapper .ruler-tick.major {
+  height: 7px !important;
+}
+
+.desktop-timeline-wrapper .ruler-tick.medium {
+  height: 4.5px !important;
+}
+
+.desktop-timeline-wrapper .ruler-tick.minor {
+  height: 2.5px !important;
+}
+
+/* --- Tier 2: Dedicated AE-Style Composition Marker Bar (16px) --- */
+.desktop-timeline-wrapper .timeline-ruler-beatmarks {
+  position: absolute !important;
+  top: 20px !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 16px !important;
+  background-color: var(--bg-panel-inner) !important;
+  pointer-events: none !important;
+  z-index: 20 !important;
+  box-sizing: border-box !important;
+}
+
+/* RAM Preview Cache Line at bottom of Marker Bar */
+.desktop-timeline-wrapper .timeline-cache-ruler-bar {
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  height: 2px !important;
+  z-index: 30 !important;
+  pointer-events: none !important;
 }
 
 /* --- Timeline Viewport — left padding creates space for AE label panel --- */
@@ -4710,19 +4786,32 @@
    DESKTOP BEATMARK / MARKER ENGINE (Interactive Drag, Name Tag & Popover)
    ========================================================================== */
 
-/* Timeline Beatmark Item on Ruler */
-.timeline-beatmark-item {
+/* Timeline Beatmark Item on Ruler (AE-Style Composition Marker) */
+.desktop-timeline-wrapper .timeline-beatmark-item {
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 16px !important;
+  width: 10px !important;
+  margin-left: -5px !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding-bottom: 1px !important;
+  box-sizing: border-box !important;
+  color: var(--text-secondary) !important;
+  pointer-events: auto !important;
   cursor: grab !important;
   user-select: none !important;
   touch-action: none;
+  transition: color 0.08s ease, transform 0.08s ease !important;
 }
 
-.timeline-beatmark-item:hover {
+.desktop-timeline-wrapper .timeline-beatmark-item:hover {
   color: var(--color-primary-hover) !important;
   transform: scale(1.15) !important;
 }
 
-.timeline-beatmark-item.is-dragging {
+.desktop-timeline-wrapper .timeline-beatmark-item.is-dragging {
   cursor: grabbing !important;
   color: var(--color-primary) !important;
   transform: scale(1.2) !important;
@@ -4730,28 +4819,39 @@
   transition: none !important;
 }
 
+.desktop-timeline-wrapper .timeline-beatmark-pin {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+}
+
+.desktop-timeline-wrapper .timeline-beatmark-stem {
+  display: none !important;
+}
+
 /* Name Tag / Label next to Beatmark pin on ruler */
-.timeline-beatmark-label {
-  position: absolute;
-  top: 1px;
-  left: 8px;
-  font-family: var(--font-brand);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 12px;
-  white-space: nowrap;
-  color: var(--text-primary);
-  background-color: var(--bg-panel);
-  border: 1px solid var(--border-subtle);
-  padding: 0 4px;
-  border-radius: 2px;
-  pointer-events: none;
-  user-select: none;
-  letter-spacing: 0.2px;
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  z-index: 10;
+.desktop-timeline-wrapper .timeline-beatmark-label {
+  position: absolute !important;
+  top: 1px !important;
+  left: 11px !important;
+  font-family: var(--font-brand) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  line-height: 12px !important;
+  white-space: nowrap !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  padding: 0 4px !important;
+  border-radius: 2px !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  letter-spacing: 0.2px !important;
+  max-width: 100px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  z-index: 10 !important;
 }
 
 /* Modular Beatmark / Marker Popover (.is-beatmark-popover) */

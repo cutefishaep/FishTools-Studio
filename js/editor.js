@@ -3206,17 +3206,18 @@
                 animLayer.effects = layer.effects.map(fx => Object.assign({}, fx));
               }
 
-              // Text out-of-bounds animation: expand render dimensions to include animPadY.
-              // _canvasBounds (wireframe) uses natural scaleH — computed BEFORE expanding.
-              // animLayer gets expanded scaleH + posY shift so FishToolEngine renders
-              // the padded canvas at correct size without squishing.
+              // Text out-of-bounds animation: expand render height to include animPadY.
+              // Text engine centers text at cy = canvasH/2 (middle of padded canvas).
+              // FishToolEngine centers canvas at animLayer.posY.
+              // → No posY shift needed. Just expand scaleH to match padded canvas height.
+              // _canvasBounds (wireframe) = natural scaleH, unchanged.
               const textPad = (isText && layer._textAnimPadY) ? layer._textAnimPadY : 0;
               if (textPad > 0) {
                 const naturalH = animLayer.scaleH || layer.scaleH || layer.mediaHeight || 100;
                 const scaleRatio = naturalH / (layer.mediaHeight || naturalH);
                 const padInScale = textPad * scaleRatio;
                 animLayer.scaleH = naturalH + padInScale * 2;
-                animLayer.posY = (animLayer.posY || 0) - padInScale; // shift up to keep center
+                // posY stays unchanged — canvas center = text center = layer posY ✓
                 layer._canvasBounds = engine.getBounds(Object.assign({}, layer, effProps), bufferScale, camEff, w, h);
               } else {
                 layer._canvasBounds = engine.getBounds(animLayer, bufferScale, camEff, w, h);

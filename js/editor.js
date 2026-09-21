@@ -11660,20 +11660,48 @@
     }
     window.unlinkLayer = unlinkLayer;
 
+    function reorderLayersBatch(allLayers, movingIdSet, targetDropIdx) {
+      if (!allLayers || allLayers.length <= 1) return allLayers || [];
+      const strSet = new Set(Array.from(movingIdSet).map(String));
+      const movingLayers = allLayers.filter(l => strSet.has(String(l.id)));
+      if (movingLayers.length === 0) return allLayers;
+      const remainingLayers = allLayers.filter(l => !strSet.has(String(l.id)));
+
+      let insertIdx = remainingLayers.length;
+      for (let i = targetDropIdx; i < allLayers.length; i++) {
+        const l = allLayers[i];
+        if (!strSet.has(String(l.id))) {
+          const idxInRemaining = remainingLayers.indexOf(l);
+          if (idxInRemaining !== -1) {
+            insertIdx = idxInRemaining;
+            break;
+          }
+        }
+      }
+
+      return [...remainingLayers.slice(0, insertIdx), ...movingLayers, ...remainingLayers.slice(insertIdx)];
+    }
+    window.reorderLayersBatch = reorderLayersBatch;
+
     function openLayerLinkPopover(triggerEl, explicitLayerId) {
       const currentLayerId = (explicitLayerId !== undefined && explicitLayerId !== null)
         ? explicitLayerId
         : (window.selectedLayerId || (selectedLayerIds && selectedLayerIds.size === 1 ? Array.from(selectedLayerIds)[0] : null));
-      const currentLayer = (currentProjectState.layers || []).find(l => String(l.id) === String(currentLayerId));
+      const layers = currentProjectState.layers || [];
+      const currentLayer = layers.find(l => String(l.id) === String(currentLayerId));
       if (!currentLayer) return;
+
+      const isMulti = selectedLayerIds && selectedLayerIds.size > 1;
+      const targetIds = isMulti ? new Set(Array.from(selectedLayerIds).map(String)) : new Set([String(currentLayer.id)]);
+      const targetLayers = layers.filter(l => targetIds.has(String(l.id)));
+      if (targetLayers.length === 0) targetLayers.push(currentLayer);
 
       const listContainer = document.getElementById('layer-link-popover-list');
       if (!listContainer) return;
 
       listContainer.innerHTML = '';
 
-      const layers = currentProjectState.layers || [];
-      const hasParent = !!currentLayer.parentId;
+      const hasParent = targetLayers.some(l => !!l.parentId);
 
       // 1. "None" (Unlink) option at top
       const noneBtn = document.createElement('button');
@@ -11691,9 +11719,9 @@
       `;
       noneBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (hasParent) {
-          unlinkLayer(currentLayer);
-        }
+        targetLayers.forEach(t => {
+          if (t.parentId) unlinkLayer(t);
+        });
         if (window.Popover) window.Popover.close();
       });
       listContainer.appendChild(noneBtn);
@@ -11742,18 +11770,20 @@
         return `<span class="layer-link-preview-box is-media" aria-hidden="true">${iconSvg}</span>`;
       }
 
-      // Render layer items (excluding currentLayer itself)
+      // Render layer items
       layers.forEach(layerItem => {
-        if (String(layerItem.id) === String(currentLayer.id)) return; // Don't show self
-
-        const isCurrentParent = (String(layerItem.id) === String(currentLayer.parentId));
-        const isCircular = isDescendant(layerItem.id, currentLayer.id);
+        const isSelf = String(layerItem.id) === String(currentLayer.id);
+        const isSelected = targetIds.has(String(layerItem.id));
+        const isCurrentParent = targetLayers.some(t => String(t.parentId) === String(layerItem.id));
+        const isCircular = !isSelected && targetLayers.some(t => isDescendant(layerItem.id, t.id));
+        const isDisabled = isSelected || isCircular;
 
         const itemBtn = document.createElement('button');
         itemBtn.type = 'button';
-        itemBtn.className = `layer-link-item ${isCurrentParent ? 'is-selected' : ''} ${isCircular ? 'is-disabled' : ''}`;
-        if (isCircular) {
-          itemBtn.title = 'Anak layer ini (Mencegah circular loop)';
+        itemBtn.className = `layer-link-item ${isCurrentParent ? 'is-selected' : ''} ${isDisabled ? 'is-disabled' : ''}`;
+        if (isDisabled) {
+          itemBtn.disabled = true;
+          itemBtn.title = isSelf ? 'Layer ini' : (isSelected ? 'Layer yang terpilih' : 'Anak layer ini (Mencegah circular loop)');
         }
 
         itemBtn.innerHTML = `
@@ -11762,17 +11792,17 @@
           ${isCurrentParent ? '<span class="layer-link-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>' : ''}
         `;
 
-        itemBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (isCircular) return;
-
-          if (isCurrentParent) {
-            unlinkLayer(currentLayer);
-          } else {
-            linkLayer(currentLayer, layerItem);
-          }
-          if (window.Popover) window.Popover.close();
-        });
+        if (!isDisabled) {
+          itemBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isCurrentParent) {
+              targetLayers.forEach(t => unlinkLayer(t));
+            } else {
+              targetLayers.forEach(t => linkLayer(t, layerItem));
+            }
+            if (window.Popover) window.Popover.close();
+          });
+        }
 
         listContainer.appendChild(itemBtn);
       });
@@ -21645,6 +21675,20 @@
             });
 
             btnLayerMotionBlur.classList.toggle('is-active', nextState);
+
+            targetIds.forEach(id => {
+              const overlay = document.getElementById('timeline-lane-heads-overlay');
+              const pillSlot = overlay ? overlay.querySelector(`.timeline-lane-pill-slot[data-layer-id="${id}"]`) : null;
+              if (pillSlot) {
+                const b = pillSlot.querySelector('.desktop-layer-mblur-btn');
+                if (b) {
+                  b.classList.toggle('is-active', nextState);
+                  b.title = nextState ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+                  b.setAttribute('aria-label', b.title);
+                }
+              }
+            });
+
             saveCurrentProjectLayers();
             redrawComposition();
           });
@@ -25592,8 +25636,8 @@
           reorderOverlay.innerHTML = '';
           reorderOverlay.classList.toggle('is-selector-mode', isSelectorMode);
 
-          // Jika tidak dalam selector mode, render handle untuk setiap layer
-          if (!isSelectorMode && layers.length > 0) {
+          // Render handle untuk setiap layer (bahkan saat multi-select agar bisa batch reorder)
+          if (layers.length > 0) {
             const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
             const vpWidth = layersViewport ? layersViewport.clientWidth : 800;
             const curPan = (window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0));
@@ -25630,16 +25674,28 @@
               pill.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                pill.setPointerCapture(e.pointerId);
-                pill.classList.add('is-dragging');
+                try { pill.setPointerCapture(e.pointerId); } catch (_) {}
                 isDragging = true;
 
-                // Grab corresponding track lane and left pill slot
-                const targetLane = layersTrack.querySelector(`.timeline-track-lane[data-layer-id="${layer.id}"]`);
-                const leftSlot = overlayContainer ? overlayContainer.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layer.id}"]`) : null;
+                const curLayers = (currentProjectState.layers || []);
+                const isMulti = selectedLayerIds && selectedLayerIds.has(layer.id) && selectedLayerIds.size > 1;
+                const movingIdSet = isMulti ? new Set(selectedLayerIds) : new Set([layer.id]);
+                const movingLayers = curLayers.filter(l => movingIdSet.has(l.id));
+                const movingIndices = movingLayers.map(l => curLayers.findIndex(x => x.id === l.id)).sort((a,b) => a - b);
+                const movingCount = movingLayers.length;
 
-                if (targetLane) targetLane.classList.add('is-dragging');
-                if (leftSlot) leftSlot.classList.add('is-dragging');
+                // Collect moving elements
+                const movingPills = [];
+                const movingLanes = [];
+                const movingLeftSlots = [];
+                movingIdSet.forEach(id => {
+                  const p = reorderOverlay.querySelector(`.timeline-layer-reorder-pill[data-layer-id="${id}"]`);
+                  const l = layersTrack.querySelector(`.timeline-track-lane[data-layer-id="${id}"]`);
+                  const s = overlayContainer ? overlayContainer.querySelector(`.timeline-lane-pill-slot[data-layer-id="${id}"]`) : null;
+                  if (p) { p.classList.add('is-dragging'); movingPills.push(p); }
+                  if (l) { l.classList.add('is-dragging'); movingLanes.push(l); }
+                  if (s) { s.classList.add('is-dragging'); movingLeftSlots.push(s); }
+                });
 
                 const allLanes = Array.from(layersTrack.querySelectorAll('.timeline-track-lane'));
                 const allLeftSlots = overlayContainer ? Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot')) : [];
@@ -25647,8 +25703,7 @@
 
                 const startY = e.clientY;
                 const originalIndex = layerIdx;
-                let currentIdx = (currentProjectState.layers || []).findIndex(l => l.id === layer.id);
-                if (currentIdx < 0) currentIdx = originalIndex;
+                let currentDropIdx = originalIndex;
 
                 let lastPointerClientY = e.clientY;
                 const startScrollTop = layersViewport ? layersViewport.scrollTop : 0;
@@ -25664,11 +25719,9 @@
                   const maxScroll = Math.max(0, layersViewport.scrollHeight - layersViewport.clientHeight);
 
                   if (lastPointerClientY < vpRect.top + edgeZone) {
-                    // Near top: scroll up gently (max 6px/frame, min 1px/frame)
                     const intensity = Math.max(0, Math.min(1, 1 - (lastPointerClientY - vpRect.top) / edgeZone));
                     scrollSpeed = -Math.max(1, Math.round(intensity * 6));
                   } else if (lastPointerClientY > vpRect.bottom - edgeZone) {
-                    // Near bottom: scroll down gently only if below maxScroll
                     if (layersViewport.scrollTop < maxScroll) {
                       const intensity = Math.max(0, Math.min(1, 1 - (vpRect.bottom - lastPointerClientY) / edgeZone));
                       scrollSpeed = Math.max(1, Math.round(intensity * 6));
@@ -25693,38 +25746,48 @@
                   let rawDeltaY = (lastPointerClientY - startY) + scrollDelta;
 
                   // Constrain deltaY strictly within existing layer boundaries:
-                  // Min: cannot drag higher than top layer index 0 (-originalIndex * 54)
-                  // Max: cannot drag lower than bottom layer index layers.length - 1 ((layers.length - 1 - originalIndex) * 54)
-                  const minDeltaY = -originalIndex * 54;
-                  const maxDeltaY = (layers.length - 1 - originalIndex) * 54;
+                  const minMovingIdx = movingIndices.length > 0 ? movingIndices[0] : originalIndex;
+                  const maxMovingIdx = movingIndices.length > 0 ? movingIndices[movingIndices.length - 1] : originalIndex;
+                  const minDeltaY = -minMovingIdx * 54;
+                  const maxDeltaY = (layers.length - 1 - maxMovingIdx) * 54;
                   const clampedDeltaY = Math.max(minDeltaY - 10, Math.min(maxDeltaY + 10, rawDeltaY));
 
-                  // 1. Visually translate dragging pill, track lane, and left pill slot simultaneously
-                  pill.style.transform = `translateY(${clampedDeltaY}px)`;
-                  if (targetLane) targetLane.style.transform = `translateY(${clampedDeltaY}px)`;
-                  if (leftSlot) leftSlot.style.transform = `translateY(${clampedDeltaY}px)`;
+                  // 1. Visually translate all moving pills, track lanes, and left pill slots simultaneously
+                  movingPills.forEach(p => p.style.transform = `translateY(${clampedDeltaY}px)`);
+                  movingLanes.forEach(l => l.style.transform = `translateY(${clampedDeltaY}px)`);
+                  movingLeftSlots.forEach(s => s.style.transform = `translateY(${clampedDeltaY}px)`);
 
-                  // 2. Calculate targeted layer index based on 54px pitch
-                  const step = Math.round(clampedDeltaY / 54);
-                  const targetIdx = Math.max(0, Math.min(layers.length - 1, originalIndex + step));
+                  // 2. Calculate targeted drop position:
+                  const vpRect = layersViewport ? layersViewport.getBoundingClientRect() : { top: 0 };
+                  const vpY = lastPointerClientY - vpRect.top + (layersViewport ? layersViewport.scrollTop : 0);
+                  const dropIdx = Math.max(0, Math.min(layers.length, Math.round(vpY / 54)));
+                  currentDropIdx = dropIdx;
 
                   // 3. Animate other lanes sliding up or down to make room
-                  allLanes.forEach((otherLane, idx) => {
-                    if (idx === originalIndex) return;
-                    let shift = 0;
-                    if (originalIndex < targetIdx && idx > originalIndex && idx <= targetIdx) {
-                      shift = -54; // Slide up
-                    } else if (originalIndex > targetIdx && idx < originalIndex && idx >= targetIdx) {
-                      shift = 54; // Slide down
+                  const remainingLayers = curLayers.filter(l => !movingIdSet.has(l.id));
+                  let insertIdx = remainingLayers.length;
+                  for (let j = dropIdx; j < curLayers.length; j++) {
+                    if (!movingIdSet.has(curLayers[j].id)) {
+                      const rIdx = remainingLayers.indexOf(curLayers[j]);
+                      if (rIdx !== -1) {
+                        insertIdx = rIdx;
+                        break;
+                      }
                     }
+                  }
+
+                  allLanes.forEach((otherLane, idx) => {
+                    const lObj = curLayers[idx];
+                    if (!lObj || movingIdSet.has(lObj.id)) return;
+                    const movingAbove = movingIndices.filter(mIdx => mIdx < idx).length;
+                    const remIdx = idx - movingAbove;
+                    const shiftRows = (remIdx < insertIdx) ? -movingAbove : (movingCount - movingAbove);
+                    const shift = shiftRows * 54;
+
                     otherLane.style.transform = shift ? `translateY(${shift}px)` : '';
                     if (allLeftSlots[idx]) allLeftSlots[idx].style.transform = shift ? `translateY(${shift}px)` : '';
                     if (allRightSlots[idx]) allRightSlots[idx].style.transform = shift ? `translateY(${shift}px)` : '';
                   });
-
-                  if (targetIdx !== currentIdx) {
-                    currentIdx = targetIdx;
-                  }
                 }
 
                 let reorderRaf = null;
@@ -25753,17 +25816,20 @@
                     cancelAnimationFrame(autoScrollRaf);
                     autoScrollRaf = null;
                   }
-                  pill.releasePointerCapture(upEvent.pointerId);
-                  pill.classList.remove('is-dragging');
-                  pill.style.transform = '';
-                  if (targetLane) {
-                    targetLane.classList.remove('is-dragging');
-                    targetLane.style.transform = '';
-                  }
-                  if (leftSlot) {
-                    leftSlot.classList.remove('is-dragging');
-                    leftSlot.style.transform = '';
-                  }
+                  try { pill.releasePointerCapture(upEvent.pointerId); } catch (_) {}
+
+                  movingPills.forEach(p => {
+                    p.classList.remove('is-dragging');
+                    p.style.transform = '';
+                  });
+                  movingLanes.forEach(l => {
+                    l.classList.remove('is-dragging');
+                    l.style.transform = '';
+                  });
+                  movingLeftSlots.forEach(s => {
+                    s.classList.remove('is-dragging');
+                    s.style.transform = '';
+                  });
 
                   // Clear shifts on all lanes
                   allLanes.forEach(l => l.style.transform = '');
@@ -25774,13 +25840,27 @@
                   window.removeEventListener('pointerup', onPointerUp);
                   window.removeEventListener('pointercancel', onPointerUp);
 
-                  // Commit reorder if index changed
-                  const actualFromIdx = (currentProjectState.layers || []).findIndex(l => l.id === layer.id);
-                  if (actualFromIdx >= 0 && currentIdx >= 0 && actualFromIdx !== currentIdx) {
-                    const movedItem = currentProjectState.layers.splice(actualFromIdx, 1)[0];
-                    currentProjectState.layers.splice(currentIdx, 0, movedItem);
-                    invalidatePreviewCacheForLayer(movedItem);
-                    saveCurrentProjectLayers();
+                  // Commit batch reorder if order changed
+                  if (currentProjectState.layers && currentDropIdx >= 0) {
+                    const reordered = (typeof window.reorderLayersBatch === 'function')
+                      ? window.reorderLayersBatch(currentProjectState.layers, movingIdSet, currentDropIdx)
+                      : reorderLayersBatch(currentProjectState.layers, movingIdSet, currentDropIdx);
+                    const changed = reordered.some((l, idx) => l.id !== currentProjectState.layers[idx].id);
+                    if (changed) {
+                      currentProjectState.layers = reordered;
+                      movingLayers.forEach(movedItem => {
+                        invalidatePreviewCacheForLayer(movedItem);
+                      });
+                      saveCurrentProjectLayers();
+                    }
+                  }
+
+                  // Preserve multi-selection
+                  if (movingIdSet.size > 1) {
+                    selectedLayerIds = new Set(movingIdSet);
+                    window.selectedLayerIds = selectedLayerIds;
+                    selectedLayerId = movingLayers[movingLayers.length - 1].id;
+                    window.selectedLayerId = selectedLayerId;
                   }
 
                   renderTimelineLayers();

@@ -703,7 +703,12 @@
       const currentLayer = layers.find(l => String(l.id) === String(layerId));
       if (!currentLayer) return;
 
-      const hasParent = !!currentLayer.parentId;
+      const isMulti = window.selectedLayerIds && (window.selectedLayerIds.has(layerId) || window.selectedLayerIds.has(String(layerId))) && window.selectedLayerIds.size > 1;
+      const targetIds = isMulti ? new Set(Array.from(window.selectedLayerIds).map(String)) : new Set([String(layerId)]);
+      const targetLayers = layers.filter(l => targetIds.has(String(l.id)));
+      if (targetLayers.length === 0) targetLayers.push(currentLayer);
+
+      const hasParent = targetLayers.some(l => !!l.parentId);
 
       function isDescendant(candidateId, ancestorId) {
         let cur = layers.find(l => String(l.id) === String(candidateId));
@@ -734,10 +739,12 @@
       noneBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        if (hasParent && typeof window.unlinkLayer === 'function') {
-          window.unlinkLayer(currentLayer);
+        if (typeof window.unlinkLayer === 'function') {
+          targetLayers.forEach(t => {
+            if (t.parentId) window.unlinkLayer(t);
+          });
           if (typeof window.showEffectsRackToast === 'function') {
-            window.showEffectsRackToast(`Unlinked "${currentLayer.name}"`);
+            window.showEffectsRackToast(targetLayers.length > 1 ? `Unlinked ${targetLayers.length} layers` : `Unlinked "${currentLayer.name}"`);
           }
         }
         closeDesktopParentDropdown();
@@ -755,16 +762,17 @@
 
       layers.forEach((l, idx) => {
         const isSelf = String(l.id) === String(currentLayer.id);
-        const isCurrentParent = hasParent && String(l.id) === String(currentLayer.parentId);
-        const isCircular = !isSelf && isDescendant(l.id, currentLayer.id);
-        const isDisabled = isSelf || isCircular;
+        const isSelected = targetIds.has(String(l.id));
+        const isCurrentParent = targetLayers.some(t => String(t.parentId) === String(l.id));
+        const isCircular = !isSelected && targetLayers.some(t => isDescendant(l.id, t.id));
+        const isDisabled = isSelf || isSelected || isCircular;
 
         const itemBtn = document.createElement('button');
         itemBtn.type = 'button';
         itemBtn.className = `desktop-parent-dropdown-item ${isCurrentParent ? 'is-active' : ''} ${isDisabled ? 'is-disabled' : ''}`;
         if (isDisabled) {
           itemBtn.disabled = true;
-          itemBtn.title = isSelf ? 'Current layer' : 'Descendant layer (circular)';
+          itemBtn.title = isSelf ? 'Current layer' : (isSelected ? 'Selected layer' : 'Descendant layer (circular)');
         }
 
         itemBtn.innerHTML = `
@@ -778,9 +786,11 @@
             e.stopPropagation();
             e.preventDefault();
             if (typeof window.linkLayer === 'function') {
-              window.linkLayer(currentLayer, l);
+              targetLayers.forEach(t => {
+                window.linkLayer(t, l);
+              });
               if (typeof window.showEffectsRackToast === 'function') {
-                window.showEffectsRackToast(`Linked "${currentLayer.name}" to "${l.name}"`);
+                window.showEffectsRackToast(targetLayers.length > 1 ? `Linked ${targetLayers.length} layers to "${l.name}"` : `Linked "${currentLayer.name}" to "${l.name}"`);
               }
             }
             closeDesktopParentDropdown();
@@ -955,21 +965,45 @@
           const isReleasedOnSelf = (targetSlot && String(targetLayerId) === String(sourceLayerId)) ||
                                    (dropEl && dropEl.closest('.desktop-layer-pickwhip-btn') === pickwhipBtn);
 
-          if (targetLayerId && String(targetLayerId) !== String(sourceLayerId)) {
-            const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+          const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+          const isMulti = window.selectedLayerIds && (window.selectedLayerIds.has(sourceLayerId) || window.selectedLayerIds.has(String(sourceLayerId))) && window.selectedLayerIds.size > 1;
+          const targetIds = isMulti ? new Set(Array.from(window.selectedLayerIds).map(String)) : new Set([String(sourceLayerId)]);
+          const targetLayers = curLayers.filter(l => targetIds.has(String(l.id)));
+          if (targetLayers.length === 0) targetLayers.push(sourceLayer);
+
+          function isDescendant(candidateId, ancestorId) {
+            let cur = curLayers.find(l => String(l.id) === String(candidateId));
+            const visited = new Set();
+            while (cur && cur.parentId) {
+              if (visited.has(cur.id)) break;
+              visited.add(cur.id);
+              if (String(cur.parentId) === String(ancestorId)) return true;
+              cur = curLayers.find(l => String(l.id) === String(cur.parentId));
+            }
+            return false;
+          }
+
+          if (targetLayerId && !targetIds.has(String(targetLayerId))) {
             const targetLayer = curLayers.find(l => String(l.id) === String(targetLayerId));
             if (targetLayer && typeof window.linkLayer === 'function') {
-              window.linkLayer(sourceLayer, targetLayer);
+              const validTargets = targetLayers.filter(t => !isDescendant(targetLayer.id, t.id));
+              validTargets.forEach(t => window.linkLayer(t, targetLayer));
               if (typeof window.showEffectsRackToast === 'function') {
-                window.showEffectsRackToast(`Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
+                window.showEffectsRackToast(validTargets.length > 1 ? `Linked ${validTargets.length} layers to "${targetLayer.name}"` : `Linked "${sourceLayer.name}" to "${targetLayer.name}"`);
               }
             }
           } else if (!isReleasedOnSelf && dist >= 8) {
             // Dragged to empty space / outside layer slots / released on empty area: UNLINK!
-            if (sourceLayer.parentId && typeof window.unlinkLayer === 'function') {
-              window.unlinkLayer(sourceLayer);
-              if (typeof window.showEffectsRackToast === 'function') {
-                window.showEffectsRackToast(`Unlinked "${sourceLayer.name}"`);
+            if (typeof window.unlinkLayer === 'function') {
+              let unlinkedCount = 0;
+              targetLayers.forEach(t => {
+                if (t.parentId) {
+                  window.unlinkLayer(t);
+                  unlinkedCount++;
+                }
+              });
+              if (unlinkedCount > 0 && typeof window.showEffectsRackToast === 'function') {
+                window.showEffectsRackToast(targetLayers.length > 1 ? `Unlinked ${unlinkedCount} layers` : `Unlinked "${sourceLayer.name}"`);
               }
             }
           }
@@ -1099,14 +1133,38 @@
             e.stopImmediatePropagation();
             e.preventDefault();
             const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+            const isMulti = window.selectedLayerIds && (window.selectedLayerIds.has(layerId) || window.selectedLayerIds.has(String(layerId))) && window.selectedLayerIds.size > 1;
+            const targetIds = isMulti ? new Set(Array.from(window.selectedLayerIds).map(String)) : new Set([String(layerId)]);
             const target = curLayers.find(l => String(l.id) === String(layerId)) || layer;
-            if (target) {
-              target.motionBlur = !target.motionBlur;
-              mblurBtn.classList.toggle('is-active', !!target.motionBlur);
-              mblurBtn.title = target.motionBlur ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
-              if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers(true);
-              if (typeof window.redrawComposition === 'function') window.redrawComposition();
-            }
+            const nextState = target ? !target.motionBlur : true;
+
+            curLayers.forEach(l => {
+              if (targetIds.has(String(l.id))) {
+                l.motionBlur = nextState;
+                if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+                  window.invalidatePreviewCacheForLayer(l);
+                }
+              }
+            });
+
+            // Update all corresponding pill buttons in DOM
+            targetIds.forEach(id => {
+              const pillSlot = overlayContainer ? overlayContainer.querySelector(`.timeline-lane-pill-slot[data-layer-id="${id}"]`) : null;
+              if (pillSlot) {
+                const b = pillSlot.querySelector('.desktop-layer-mblur-btn');
+                if (b) {
+                  b.classList.toggle('is-active', nextState);
+                  b.title = nextState ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+                  b.setAttribute('aria-label', b.title);
+                }
+              }
+            });
+
+            const topHeaderMb = document.getElementById('btn-layer-header-motion-blur');
+            if (topHeaderMb) topHeaderMb.classList.toggle('is-active', nextState);
+
+            if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers(true);
+            if (typeof window.redrawComposition === 'function') window.redrawComposition();
           });
         } else {
           mblurBtn.classList.toggle('is-active', isMbOn);
@@ -1207,6 +1265,10 @@
           let dragGhost = null;
           let fromIdx = -1;
           let targetDropIdx = -1;
+          let movingIdSet = new Set();
+          let movingLayers = [];
+          let movingSlots = [];
+          let movingLanes = [];
 
           let _layerDragRafPending = false;
           let _layerDragLastE = null;
@@ -1216,20 +1278,37 @@
               isDragging = true;
               pill.classList.add('is-dragging');
 
+              const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+              const isMulti = window.selectedLayerIds && (window.selectedLayerIds.has(layerId) || window.selectedLayerIds.has(String(layerId))) && window.selectedLayerIds.size > 1;
+              movingIdSet = isMulti ? new Set(Array.from(window.selectedLayerIds).map(String)) : new Set([String(layerId)]);
+              movingLayers = curLayers.filter(l => movingIdSet.has(String(l.id)));
+              const movingIndices = movingLayers.map(l => curLayers.findIndex(x => String(x.id) === String(l.id))).sort((a, b) => a - b);
+              const movingCount = movingLayers.length;
+
+              // Collect moving lanes and slots
+              movingSlots = [];
+              movingLanes = [];
+              const track = document.getElementById('timeline-layers-track');
+              movingIdSet.forEach(id => {
+                const s = overlayContainer.querySelector(`.timeline-lane-pill-slot[data-layer-id="${id}"]`);
+                const l = track ? track.querySelector(`.timeline-track-lane[data-layer-id="${id}"]`) : null;
+                if (s) { s.classList.add('is-dragging'); movingSlots.push(s); }
+                if (l) { l.classList.add('is-dragging'); movingLanes.push(l); }
+              });
+
               dragGhost = document.createElement('div');
               dragGhost.className = 'desktop-drag-ghost-row';
-              dragGhost.textContent = layerName;
+              dragGhost.textContent = movingCount > 1 ? `${movingCount} layers` : layerName;
               document.body.appendChild(dragGhost);
 
-              fromIdx = (window.currentProjectState && window.currentProjectState.layers)
-                ? window.currentProjectState.layers.findIndex(l => l.id === layerId)
-                : slotIdx;
+              fromIdx = curLayers.findIndex(l => String(l.id) === String(layerId));
+              if (fromIdx < 0) fromIdx = slotIdx;
 
               indicator.style.display = 'block';
             }
 
             if (isDragging && dragGhost) {
-              // rAF-throttle: cap DOM reads/writes at display refresh rate (not every raw pointer event)
+              // rAF-throttle: cap DOM reads/writes at display refresh rate
               _layerDragLastE = e;
               if (_layerDragRafPending) return;
               _layerDragRafPending = true;
@@ -1242,6 +1321,9 @@
                 dragGhost.style.top = (ev.clientY - 17) + 'px';
 
                 const curSlots = Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot'));
+                const track = document.getElementById('timeline-layers-track');
+                const curLanes = track ? Array.from(track.querySelectorAll('.timeline-track-lane')) : [];
+                const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
                 let dropIdx = curSlots.length;
 
                 for (let i = 0; i < curSlots.length; i++) {
@@ -1263,6 +1345,44 @@
                   const lastSlotRect = curSlots[curSlots.length - 1].getBoundingClientRect();
                   indicator.style.top = (lastSlotRect.bottom - vpRect.top + layersViewport.scrollTop) + 'px';
                 }
+
+                // 1. Live translate all moving slots & lanes smoothly with pointer
+                const pitch = 34;
+                const deltaY = ev.clientY - startY;
+                const movingIndices = movingLayers.map(l => curLayers.findIndex(x => String(x.id) === String(l.id))).sort((a, b) => a - b);
+                const movingCount = movingLayers.length;
+                const minMovingIdx = movingIndices.length > 0 ? movingIndices[0] : fromIdx;
+                const maxMovingIdx = movingIndices.length > 0 ? movingIndices[movingIndices.length - 1] : fromIdx;
+                const minDeltaY = -minMovingIdx * pitch;
+                const maxDeltaY = (curLayers.length - 1 - maxMovingIdx) * pitch;
+                const clampedDeltaY = Math.max(minDeltaY - 10, Math.min(maxDeltaY + 10, deltaY));
+
+                movingSlots.forEach(s => s.style.transform = `translateY(${clampedDeltaY}px)`);
+                movingLanes.forEach(l => l.style.transform = `translateY(${clampedDeltaY}px)`);
+
+                // 2. Live smooth shift on all non-moving slots & lanes to open a gap
+                const remainingLayers = curLayers.filter(l => !movingIdSet.has(String(l.id)));
+                let insertIdx = remainingLayers.length;
+                for (let j = dropIdx; j < curLayers.length; j++) {
+                  if (!movingIdSet.has(String(curLayers[j].id))) {
+                    const rIdx = remainingLayers.indexOf(curLayers[j]);
+                    if (rIdx !== -1) {
+                      insertIdx = rIdx;
+                      break;
+                    }
+                  }
+                }
+
+                curSlots.forEach((slot, i) => {
+                  const sLayer = curLayers[i];
+                  if (!sLayer || movingIdSet.has(String(sLayer.id))) return;
+                  const movingAbove = movingIndices.filter(mIdx => mIdx < i).length;
+                  const remIdx = i - movingAbove;
+                  const shiftRows = (remIdx < insertIdx) ? -movingAbove : (movingCount - movingAbove);
+                  const shiftPx = shiftRows * pitch;
+                  slot.style.transform = shiftPx ? `translateY(${shiftPx}px)` : '';
+                  if (curLanes[i]) curLanes[i].style.transform = shiftPx ? `translateY(${shiftPx}px)` : '';
+                });
               });
             }
           }
@@ -1282,76 +1402,106 @@
               dragGhost = null;
             }
 
+            // Remove dragging class and clear transforms on moving elements
+            movingSlots.forEach(s => {
+              s.classList.remove('is-dragging');
+              s.style.transform = '';
+            });
+            movingLanes.forEach(l => {
+              l.classList.remove('is-dragging');
+              l.style.transform = '';
+            });
+
+            // Clear shifts on all slots and lanes
+            const allCurSlots = overlayContainer ? Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot')) : [];
+            const track = document.getElementById('timeline-layers-track');
+            const allCurLanes = track ? Array.from(track.querySelectorAll('.timeline-track-lane')) : [];
+            allCurSlots.forEach(s => s.style.transform = '');
+            allCurLanes.forEach(l => l.style.transform = '');
+
             if (isDragging) {
               isDragging = false;
               e.stopPropagation();
               e.preventDefault();
 
-              if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
-                let actualFrom = fromIdx;
-                let actualTo = targetDropIdx;
-                if (actualFrom >= 0 && actualTo >= 0 && actualFrom !== actualTo) {
-                  if (actualFrom < actualTo) actualTo--;
-                  if (actualFrom !== actualTo) {
-                    // FLIP Step 1: Record FIRST positions
-                    const track = document.getElementById('timeline-layers-track');
-                    const firstTops = new Map();
-                    if (track) {
-                      track.querySelectorAll('.timeline-track-lane').forEach(lane => {
-                        if (lane.dataset.layerId) firstTops.set(lane.dataset.layerId, lane.getBoundingClientRect().top);
-                      });
-                    }
-                    if (overlayContainer) {
-                      overlayContainer.querySelectorAll('.timeline-lane-pill-slot').forEach(slot => {
-                        const sId = slot.dataset.layerId || (slot.querySelector('.timeline-layer-ctrl-pill') && slot.querySelector('.timeline-layer-ctrl-pill').dataset.layerId);
-                        if (sId) firstTops.set('slot_' + sId, slot.getBoundingClientRect().top);
-                      });
-                    }
+              if (window.currentProjectState && Array.isArray(window.currentProjectState.layers) && targetDropIdx >= 0) {
+                const curLayers = window.currentProjectState.layers;
+                const reordered = (typeof window.reorderLayersBatch === 'function')
+                  ? window.reorderLayersBatch(curLayers, movingIdSet, targetDropIdx)
+                  : curLayers;
 
-                    const moved = window.currentProjectState.layers.splice(actualFrom, 1)[0];
-                    window.currentProjectState.layers.splice(actualTo, 0, moved);
+                const changed = reordered.some((l, idx) => String(l.id) !== String(curLayers[idx].id));
+                if (changed) {
+                  // FLIP Step 1: Record FIRST positions
+                  const firstTops = new Map();
+                  if (track) {
+                    track.querySelectorAll('.timeline-track-lane').forEach(lane => {
+                      if (lane.dataset.layerId) firstTops.set(lane.dataset.layerId, lane.getBoundingClientRect().top);
+                    });
+                  }
+                  if (overlayContainer) {
+                    overlayContainer.querySelectorAll('.timeline-lane-pill-slot').forEach(slot => {
+                      const sId = slot.dataset.layerId || (slot.querySelector('.timeline-layer-ctrl-pill') && slot.querySelector('.timeline-layer-ctrl-pill').dataset.layerId);
+                      if (sId) firstTops.set('slot_' + sId, slot.getBoundingClientRect().top);
+                    });
+                  }
+
+                  window.currentProjectState.layers = reordered;
+                  movingLayers.forEach(moved => {
                     if (typeof window.invalidatePreviewCacheForLayer === 'function') {
                       window.invalidatePreviewCacheForLayer(moved);
                     }
-                    if (typeof window.saveCurrentProjectLayers === 'function') {
-                      window.saveCurrentProjectLayers();
-                    }
-                    if (typeof window.renderTimelineLayers === 'function') {
-                      window.renderTimelineLayers();
-                    }
-                    if (typeof window.redrawComposition === 'function') {
-                      window.redrawComposition();
-                    }
+                  });
+                  if (typeof window.saveCurrentProjectLayers === 'function') {
+                    window.saveCurrentProjectLayers();
+                  }
+                  if (typeof window.renderTimelineLayers === 'function') {
+                    window.renderTimelineLayers();
+                  }
+                  if (typeof window.redrawComposition === 'function') {
+                    window.redrawComposition();
+                  }
 
-                    // FLIP Step 2 & 3: INVERT & PLAY smooth animation
-                    requestAnimationFrame(() => {
-                      const newLanes = track ? Array.from(track.querySelectorAll('.timeline-track-lane')) : [];
-                      const newSlots = overlayContainer ? Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot')) : [];
-                      const animatedEls = [];
+                  // Restore multi-selection
+                  if (movingIdSet.size > 1) {
+                    window.selectedLayerIds = new Set(movingIdSet);
+                    window.selectedLayerId = movingLayers[movingLayers.length - 1].id;
+                  } else {
+                    window.selectedLayerIds = new Set([layerId]);
+                    window.selectedLayerId = layerId;
+                  }
+                  if (typeof window.updateTimelineLayerSelectionState === 'function') {
+                    window.updateTimelineLayerSelectionState();
+                  }
 
-                      [...newLanes, ...newSlots].forEach(el => {
-                        const isSlot = el.classList.contains('timeline-lane-pill-slot');
-                        const sId = el.dataset.layerId || (el.querySelector('.timeline-layer-ctrl-pill') && el.querySelector('.timeline-layer-ctrl-pill').dataset.layerId);
-                        const key = isSlot ? ('slot_' + (sId || '')) : (el.dataset.layerId || '');
-                        const oldTop = firstTops.get(key);
-                        if (oldTop !== undefined) {
-                          const deltaY = oldTop - el.getBoundingClientRect().top;
-                          if (Math.abs(deltaY) > 0.5) {
-                            el.style.transform = `translateY(${deltaY}px)`;
-                            el.style.transition = 'none';
-                            animatedEls.push(el);
-                          }
+                  // FLIP Step 2 & 3: INVERT & PLAY smooth animation
+                  requestAnimationFrame(() => {
+                    const newLanes = track ? Array.from(track.querySelectorAll('.timeline-track-lane')) : [];
+                    const newSlots = overlayContainer ? Array.from(overlayContainer.querySelectorAll('.timeline-lane-pill-slot')) : [];
+                    const animatedEls = [];
+
+                    [...newLanes, ...newSlots].forEach(el => {
+                      const isSlot = el.classList.contains('timeline-lane-pill-slot');
+                      const sId = el.dataset.layerId || (el.querySelector('.timeline-layer-ctrl-pill') && el.querySelector('.timeline-layer-ctrl-pill').dataset.layerId);
+                      const key = isSlot ? ('slot_' + (sId || '')) : (el.dataset.layerId || '');
+                      const oldTop = firstTops.get(key);
+                      if (oldTop !== undefined) {
+                        const deltaY = oldTop - el.getBoundingClientRect().top;
+                        if (Math.abs(deltaY) > 0.5) {
+                          el.style.transform = `translateY(${deltaY}px)`;
+                          el.style.transition = 'none';
+                          animatedEls.push(el);
                         }
-                      });
+                      }
+                    });
 
-                      requestAnimationFrame(() => {
-                        animatedEls.forEach(el => {
-                          el.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)';
-                          el.style.transform = '';
-                        });
+                    requestAnimationFrame(() => {
+                      animatedEls.forEach(el => {
+                        el.style.transition = 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)';
+                        el.style.transform = '';
                       });
                     });
-                  }
+                  });
                 }
               }
             } else {

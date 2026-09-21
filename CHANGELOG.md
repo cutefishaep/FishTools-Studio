@@ -5,6 +5,28 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.41] - 2026-09-21
+
+### Added
+- **Multi-Selection Batch Layer Reordering (`js/editor.js`, `js/desktop.js`, `css/editor.css`)**:
+  - Implemented `reorderLayersBatch(allLayers, movingIdSet, targetDropIdx)` supporting multi-selected batch dragging while strictly preserving relative layer order.
+  - Enabled mobile reorder handles in selector mode so multi-layer batches can be reordered directly via right-floating grip pills.
+- **Smooth Animated Row Shifting on Desktop & Mobile (`js/desktop.js`, `js/editor.js`)**:
+  - Added live mathematical row shifting (`translateY(shiftPx)` with 34px pitch on desktop and 54px on mobile) during drag operations.
+  - Non-moving lanes, slots, and handle pills slide up or down smoothly (`0.22s cubic-bezier(0.2, 0, 0, 1)`) to open an exact visual slot for the dragging batch.
+  - Moving rows translate smoothly with pointer capture and settle via FLIP animation on drop.
+
+### Fixed
+- **Multi-Selection Batch Motion Blur Toggle (`js/desktop.js`, `js/editor.js`)**:
+  - Toggling motion blur on any selected layer pill or top header now toggles and matches motion blur for all selected layers simultaneously.
+  - Synchronizes active visual state across all `.desktop-layer-mblur-btn` buttons in DOM and `#btn-layer-header-motion-blur`.
+- **Multi-Selection Batch Parent & Self-Parent Guard (`js/desktop.js`, `js/editor.js`)**:
+  - Selected layers in parent dropdowns are now automatically disabled (`is-disabled`, `title="Selected layer"`) to prevent self-parenting and circular dependencies across the entire selection batch.
+  - Assigning a parent or selecting "None" (unlink) from any selected layer links or unlinks all selected layers simultaneously.
+  - Pickwhip drag now batch-links all selected layers to valid drop targets or batch-unlinks when dragged into empty space.
+
+---
+
 ## [0.5.40] - 2026-09-21
 
 ### Changed

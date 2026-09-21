@@ -2450,10 +2450,10 @@ body.has-active-drawer .timeline-layers-viewport {
   transform: scale(1.28);
 }
 
-/* Hide right reorder pill completely in Selector Mode */
+/* Enable right reorder pill in Selector Mode for multi-layer batch reordering */
 .timeline-layers-viewport.is-selector-mode .timeline-lane-reorder-overlay,
 .timeline-lane-reorder-overlay.is-selector-mode {
-  display: none !important;
+  display: flex !important;
 }
 
 .timeline-layer-ctrl-pill {

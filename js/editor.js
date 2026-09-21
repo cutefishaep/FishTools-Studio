@@ -21251,6 +21251,9 @@
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
         }
+        if (typeof updateClipboardButtonsVisibility === 'function') {
+          updateClipboardButtonsVisibility();
+        }
       }
       window.selectTimelineLayer = selectTimelineLayer;
 
@@ -21287,6 +21290,9 @@
         }
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
+        }
+        if (typeof updateClipboardButtonsVisibility === 'function') {
+          updateClipboardButtonsVisibility();
         }
         redrawComposition();
       }
@@ -21389,6 +21395,9 @@
         }
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
+        }
+        if (typeof updateClipboardButtonsVisibility === 'function') {
+          updateClipboardButtonsVisibility();
         }
       }
       window.deselectTimelineLayer = deselectTimelineLayer;
@@ -27849,12 +27858,20 @@
           });
         }
 
+        const cutRow = document.querySelector('.desktop-timeline-toolbar-left .layer-cut-bar-row');
+        const cutDivider = document.getElementById('desktop-cut-divider') || document.querySelector('.desktop-timeline-toolbar-left .desktop-toolbar-divider');
+
         if (!info || !info.layer) {
-          groupNormal.style.display = 'flex';
+          if (cutRow) cutRow.style.display = 'none';
+          if (cutDivider) cutDivider.style.display = 'none';
+          groupNormal.style.display = cutRow ? 'none' : 'flex';
           groupAfter.style.display = 'none';
           groupBefore.style.display = 'none';
           return;
         }
+
+        if (cutRow) cutRow.style.display = '';
+        if (cutDivider) cutDivider.style.display = '';
 
         const { layer, playheadPx, startPx, endPx } = info;
         const isAfter = playheadPx > endPx + 1;

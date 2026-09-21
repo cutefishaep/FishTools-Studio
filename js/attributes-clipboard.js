@@ -95,11 +95,24 @@
    * Toggles visibility of Copy & Paste buttons: shown ONLY when at least 1 layer is selected
    */
   function updateClipboardButtonsVisibility() {
-    const hasSelection = !!(
-      (window.selectedLayerId && window.selectedLayerId !== '') ||
-      (window.selectedLayerIds && window.selectedLayerIds.size > 0) ||
-      (typeof selectedLayerId !== 'undefined' && selectedLayerId && selectedLayerId !== '')
-    );
+    let hasSelection = false;
+    if (window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+      if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
+        hasSelection = window.currentProjectState.layers.some(l => window.selectedLayerIds.has(l.id));
+      } else {
+        hasSelection = true;
+      }
+    } else {
+      const sId = window.selectedLayerId || (typeof selectedLayerId !== 'undefined' ? selectedLayerId : null);
+      if (sId && sId !== '') {
+        if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
+          hasSelection = window.currentProjectState.layers.some(l => l.id === sId);
+        } else {
+          hasSelection = true;
+        }
+      }
+    }
+
     const desktopBtnCopy = document.getElementById('desktop-btn-copy');
     const desktopBtnPaste = document.getElementById('desktop-btn-paste');
     if (desktopBtnCopy) {
@@ -232,6 +245,9 @@
     if (categoriesSet.has('fill')) {
       const effectiveFillColor = layer.fillColor || layer.color || '#98ce7b';
       const effectiveFillType = layer.fillType || (layer.type === 'video' || layer.type === 'image' ? 'media' : 'color');
+      const effectiveMediaUrl = layer.dataUrl || layer.fillMediaUrl || layer.thumbUrl || null;
+      const effectiveMediaId = layer.mediaId || layer.fillMediaId || null;
+
       payload.data.fill = {
         fillType: effectiveFillType,
         fillColor: effectiveFillColor,
@@ -242,11 +258,17 @@
         fillGradColor1: layer.fillGradColor1 || null,
         fillGradColor2: layer.fillGradColor2 || null,
         fillGradient: layer.fillGradient ? JSON.parse(JSON.stringify(layer.fillGradient)) : null,
-        fillMediaId: layer.fillMediaId || layer.mediaId || null,
-        fillMediaUrl: layer.fillMediaUrl || layer.thumbUrl || layer.dataUrl || null,
+        fillMediaId: effectiveMediaId,
+        fillMediaUrl: effectiveMediaUrl,
+        dataUrl: layer.dataUrl || effectiveMediaUrl,
+        thumbUrl: layer.thumbUrl || null,
+        mediaId: effectiveMediaId,
+        mediaWidth: layer.mediaWidth || null,
+        mediaHeight: layer.mediaHeight || null,
         mediaFillMode: layer.mediaFillMode || null,
         fillTint: layer.fillTint || null,
         isSolid: !!layer.isSolid,
+        sourceType: layer.type,
         keyframes: extractKeyframesForProps(layer, ['fillColor', 'color', 'fillGradient'])
       };
     }
@@ -365,11 +387,77 @@
       if (d.fillTint !== undefined) targetLayer.fillTint = d.fillTint;
       if (d.isSolid !== undefined && targetLayer.type === 'shape') targetLayer.isSolid = d.isSolid;
 
+      const newMediaDataUrl = d.dataUrl || d.fillMediaUrl || null;
+      if (newMediaDataUrl) {
+        // Clear media cache for target layer so canvas immediately reloads and renders new image
+        if (window.layerMediaCache) {
+          window.layerMediaCache.delete(targetLayer.id);
+          if (targetLayer.mediaId) window.layerMediaCache.delete(targetLayer.mediaId);
+          if (targetLayer.fillMediaId) window.layerMediaCache.delete(targetLayer.fillMediaId);
+        }
+
+        if (targetLayer.type === 'image' || targetLayer.type === 'video') {
+          targetLayer.dataUrl = newMediaDataUrl;
+          if (d.thumbUrl) targetLayer.thumbUrl = d.thumbUrl;
+          if (d.mediaId) targetLayer.mediaId = d.mediaId;
+          if (d.mediaWidth) targetLayer.mediaWidth = d.mediaWidth;
+          if (d.mediaHeight) targetLayer.mediaHeight = d.mediaHeight;
+
+          if (targetLayer.type === 'image' && typeof window.getOrLoadLayerMedia === 'function') {
+            const mediaEntry = window.getOrLoadLayerMedia(targetLayer);
+            const img = new Image();
+            if (targetLayer.dataUrl && !targetLayer.dataUrl.startsWith('blob:')) {
+              img.crossOrigin = 'anonymous';
+            }
+            img.onload = () => {
+              if (mediaEntry) {
+                mediaEntry.isReady = true;
+                mediaEntry.el = img;
+                mediaEntry.type = 'image';
+              }
+              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                targetLayer.mediaWidth = img.naturalWidth;
+                targetLayer.mediaHeight = img.naturalHeight;
+                if (!targetLayer._userResized && typeof window.fitLayerToComposition === 'function') {
+                  window.fitLayerToComposition(targetLayer, img.naturalWidth, img.naturalHeight);
+                }
+              }
+              if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+                window.invalidatePreviewCacheForLayer(targetLayer);
+              }
+              if (typeof window.redrawComposition === 'function') {
+                window.redrawComposition('paste-fill-img-loaded');
+              }
+            };
+            img.src = targetLayer.dataUrl;
+            if (mediaEntry) {
+              mediaEntry.el = img;
+              mediaEntry.type = 'image';
+            }
+          } else if (targetLayer.type === 'video' && typeof window.getOrLoadLayerMedia === 'function') {
+            const mediaEntry = window.getOrLoadLayerMedia(targetLayer);
+            if (mediaEntry && mediaEntry.el) {
+              mediaEntry.el.src = targetLayer.dataUrl;
+              mediaEntry.el.load();
+            }
+          }
+        } else if (targetLayer.type === 'shape') {
+          targetLayer.fillType = 'media';
+          targetLayer.fillMediaUrl = newMediaDataUrl;
+          if (d.mediaId || d.fillMediaId) targetLayer.fillMediaId = d.mediaId || d.fillMediaId;
+        }
+      }
+
       // Invalidate dynamic fill cache canvas
       targetLayer._fillDirty = true;
       targetLayer._lastFillRenderKey = null;
       targetLayer._fillBufferCanvas = null;
       targetLayer._cachedCanvas = null;
+      targetLayer._fillMediaImg = null;
+
+      if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+        window.invalidatePreviewCacheForLayer(targetLayer);
+      }
 
       applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
@@ -780,7 +868,12 @@
 
     // Re-check visibility when user interacts with timeline layers
     document.addEventListener('click', () => {
-      setTimeout(updateClipboardButtonsVisibility, 30);
+      setTimeout(() => {
+        updateClipboardButtonsVisibility();
+        if (typeof window.updateCutBarRowState === 'function') {
+          window.updateCutBarRowState();
+        }
+      }, 30);
     }, { passive: true });
   }
 

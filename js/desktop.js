@@ -421,6 +421,9 @@
     if (typeof window.updateClipboardButtonsVisibility === 'function') {
       window.updateClipboardButtonsVisibility();
     }
+    if (typeof window.updateCutBarRowState === 'function') {
+      window.updateCutBarRowState();
+    }
 
     if (hasActiveLayer) {
       if (inspectorEmpty) inspectorEmpty.style.display = 'none';

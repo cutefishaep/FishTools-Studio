@@ -5,6 +5,20 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.45] - 2026-09-21
+
+### Fixed
+- **Paste Fill Image Replacement (`js/attributes-clipboard.js`)**:
+  - Fixed issue where pasting copied "Fill" attribute from an image/media layer to another image layer did not update the target's image source.
+  - Corrected extraction to preserve high-res `dataUrl`, `mediaId`, `thumbUrl`, `mediaWidth`, and `mediaHeight` in payload.
+  - Assigned replacement media attributes to target layer, cleared `window.layerMediaCache`, preloaded replacement image via `new Image()`, updated compositor `mediaEntry`, and immediately triggered canvas redraw.
+- **Desktop Toolbar Contextual Visibility (`desktop.html`, `js/attributes-clipboard.js`, `js/editor.js`, `js/desktop.js`)**:
+  - Hidden `#desktop-btn-copy` and `#desktop-btn-paste` buttons when no layer is selected; buttons now dynamically appear only when layers are selected.
+  - Hidden desktop cut bar row (`.layer-cut-bar-row`) and cut divider (`#desktop-cut-divider`) when no layer is selected, ensuring a clean divider between history controls and timeline transport.
+  - Wired visibility updates to `selectTimelineLayer`, `selectTimelineLayers`, `deselectTimelineLayer`, and `syncInspectorState`.
+
+---
+
 ## [0.5.44] - 2026-09-21
 
 ### Added

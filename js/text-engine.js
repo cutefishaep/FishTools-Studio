@@ -260,7 +260,7 @@
         let badgeAlpha = 1.0;
         if (effectiveAnimIn !== 'none' && localSec < inDur) {
           badgeAlpha = Math.min(1.0, Math.max(0, localSec / Math.max(0.05, inDur * 0.4)));
-        } else if (normOutAnim !== 'none' && localSec >= outStartSec) {
+        } else if (effectiveAnimOut !== 'none' && localSec >= outStartSec) {
           const outProg = Math.min(1.0, Math.max(0, (localSec - outStartSec) / outDur));
           badgeAlpha = Math.max(0, 1.0 - Math.pow(outProg, 1.6));
         }
@@ -304,12 +304,12 @@
 
       // OUT setup (same keys as IN, normalised the same way)
       const effectiveAnimOut = p.animOut || 'none';
-      const normOutAnim = normalizeAnimIn(effectiveAnimOut);
+
       const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
       const outStartSec = Math.max(inDur, clipDur - outDur);
 
       // Typewriter OUT: chars vanish right-to-left using global progress (no per-char stagger)
-      let isTypewriterOut = (normOutAnim === 'typewriter');
+      let isTypewriterOut = (effectiveAnimOut === 'typewriter');
       let visibleCharsOut = totalChars;
       if (isTypewriterOut && localSec >= outStartSec) {
         const outProg = Math.min(1.0, (localSec - outStartSec) / outDur);
@@ -430,79 +430,87 @@
           }
 
           // ── OUT ANIMATION ──────────────────────────────────────────────────
-          // Smooth AE-style character exit transitions with natural anticipation & gravity drop
-          if (normOutAnim !== 'none' && normOutAnim !== 'typewriter' && localSec >= outStartSec) {
+          // AE-quality character exit transitions with damped spring anticipation
+          if (effectiveAnimOut !== 'none' && effectiveAnimOut !== 'typewriter' && localSec >= outStartSec) {
             const tOutGlobal = localSec - outStartSec;
             const actualTotalStagger = totalUnits > 1 ? outDur * Math.min(0.55, animStagger) : 0;
             const outStagger = totalUnits > 1 ? actualTotalStagger / (totalUnits - 1) : 0;
-            const outMyDelay = animIndex * outStagger;
+            // Reverse stagger: last character exits first
+            const outMyDelay = (totalUnits - 1 - animIndex) * outStagger;
             const tOut       = tOutGlobal - outMyDelay;
             const charDur    = Math.max(0.24, outDur - actualTotalStagger);
 
             if (tOut >= charDur) {
               charAlpha = 0;
             } else if (tOut > 0) {
-              const p = Math.min(1.0, tOut / charDur);
+              const prog = Math.min(1.0, tOut / charDur);
 
-              if (normOutAnim === 'bounce_1' || normOutAnim === 'bounce_3') {
+              if (effectiveAnimOut === 'bounce_out') {
+                // Mirror of bounce_1 IN: damped cosine spring, reversed
+                // Phase 1 (0→30%): anticipation windup — slight bounce UP using spring
+                // Phase 2 (30→100%): accelerating gravity drop DOWN
                 const amplitude = fontSize * animAmplitude;
-                const isWave = (normOutAnim === 'bounce_3');
-                const antHeight = amplitude * (isWave ? 0.30 : 0.42);
-                const dropDist  = fontSize * (isWave ? 1.4 : 1.8);
+                const antPhase = Math.min(1.0, prog / 0.30);
+                // Damped spring anticipation: small upward bounce
+                const antT = antPhase * 0.5; // compress spring time
+                const springUp = amplitude * 0.35 * Math.cos(animFreq * antT * 2 * Math.PI) / Math.exp(animDecay * 0.6 * antT);
+                const antY = -Math.abs(springUp) * Math.pow(Math.sin(Math.PI * antPhase), 2);
 
-                // 1. Anticipation: curls smoothly UP (-Y) with zero velocity at start & apex
-                const antProg = Math.min(1.0, p / 0.40);
-                const antY = -antHeight * Math.pow(Math.sin(Math.PI * antProg), 2);
-
-                // 2. Drop: accelerates smoothly DOWN (+Y) starting from apex (p = 0.20)
-                const dropProg = Math.max(0, (p - 0.20) / 0.80);
-                const dropY = dropDist * Math.pow(dropProg, 2.0);
+                // Gravity drop with exponential acceleration
+                const dropProg = Math.max(0, (prog - 0.25) / 0.75);
+                const dropY = fontSize * 1.8 * Math.pow(dropProg, 2.2);
 
                 offY = antY + dropY;
 
-                // 3. Alpha: 100% visible during anticipation, then fades cleanly to 0
-                if (p <= 0.20) {
+                // Alpha: fully visible during anticipation, smooth exponential fade during drop
+                if (prog <= 0.25) {
                   charAlpha = 1.0;
                 } else {
-                  charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(dropProg, 1.6)));
+                  charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(dropProg, 1.4)));
                 }
 
-              } else if (normOutAnim === 'bounce_2' || normOutAnim === 'bounce_4') {
-                const isWave = (normOutAnim === 'bounce_4');
-                const swellAmount = 0.15 * (isWave ? 0.8 : 1.0) * animAmplitude;
+              } else if (effectiveAnimOut === 'shrink_drop') {
+                // Mirror of bounce_2/bounce_4 IN: scale collapse with spring anticipation
+                // Phase 1 (0→25%): anticipation swell — character briefly inflates
+                // Phase 2 (25→100%): spring-driven snap collapse to zero
+                const swellAmount = 0.18 * animAmplitude;
 
-                // 1. Anticipation pop/swell
-                const antProg = Math.min(1.0, p / 0.25);
-                const antSwell = swellAmount * Math.pow(Math.sin(Math.PI * antProg), 2);
+                // Swell: damped spring overshoot
+                const antPhase = Math.min(1.0, prog / 0.25);
+                const antT = antPhase * 0.3;
+                const springPop = swellAmount * Math.cos(animFreq * antT * 2 * Math.PI) / Math.exp(animDecay * 0.5 * antT);
+                const swell = Math.abs(springPop) * Math.pow(Math.sin(Math.PI * antPhase), 2);
 
-                // 2. Snap collapse to 0 starting from apex
-                const snapProg = Math.max(0, (p - 0.125) / 0.875);
-                const collapse = Math.pow(snapProg, 1.8);
-                const sc = Math.max(0, (1.0 + antSwell) * (1.0 - collapse));
+                // Collapse: exponential snap matching IN spring character
+                const snapProg = Math.max(0, (prog - 0.15) / 0.85);
+                const collapse = 1.0 - Math.cos(Math.min(1.0, snapProg) * Math.PI * 0.5); // smooth cosine collapse
+                const sc = Math.max(0, (1.0 + swell) * (1.0 - collapse));
 
                 scaleX = sc;
                 scaleY = sc;
-                charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, sc * 1.3)));
+                // Drop offset during collapse
+                offY = fontSize * 0.3 * Math.pow(snapProg, 2.0);
+                charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, sc * 1.5)));
 
-              } else if (normOutAnim === 'fade_up') {
-                const dropProg = Math.pow(p, 1.8);
-                offY = dropProg * 40;
-                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - p));
+              } else if (effectiveAnimOut === 'fade_down') {
+                // Smooth gravity-eased vertical drop with cosine fade
+                // Matches fade_up IN quality with proper easing curve
+                const easeProg = 1.0 - Math.cos(prog * Math.PI * 0.5); // cosine ease-in
+                offY = easeProg * fontSize * 0.6;
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(prog, 1.5)));
 
-              } else if (normOutAnim === 'wave') {
-                const wfreq = 5.0 * (p.animSpeed || 1.0);
-                const phase = charIndex * 0.45;
-                const prog = Math.min(1.0, tOutGlobal / outDur);
-                offY = Math.sin(localSec * wfreq + phase) * (fontSize * 0.15) * (1.0 - prog);
-                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - prog));
+              } else if (effectiveAnimOut === 'slide_out') {
+                // Snappy inertia horizontal slide exit with spring windup
+                // Phase 1 (0→20%): slight counter-slide (anticipation)
+                // Phase 2 (20→100%): accelerating slide out
+                const antPhase = Math.min(1.0, prog / 0.20);
+                const counterSlide = -fontSize * 0.12 * Math.pow(Math.sin(Math.PI * antPhase), 2);
 
-              } else if (normOutAnim === 'glitch') {
-                const quant = Math.floor(localSec * 18);
-                const hash  = Math.sin(quant * 9999 + charIndex * 1337);
-                const hash2 = Math.cos(quant * 4321 + charIndex * 777);
-                offX += hash  * fontSize * 0.2 * p;
-                offY += hash2 * fontSize * 0.1 * p;
-                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - p));
+                const slideProg = Math.max(0, (prog - 0.15) / 0.85);
+                const slideX = fontSize * 2.0 * Math.pow(slideProg, 2.0);
+
+                offX = counterSlide + slideX;
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(slideProg, 1.3)));
               }
             }
           }
@@ -542,37 +550,47 @@
               }
 
               // MB ghost OUT: matches OUT formulas
-              const normOutMB = normalizeAnimIn(p.animOut || 'none');
-              if (normOutMB !== 'none' && normOutMB !== 'typewriter') {
+              const animOutMB = p.animOut || 'none';
+              if (animOutMB !== 'none' && animOutMB !== 'typewriter') {
                 const outDurMB     = Math.max(0.1, Number(p.animOutDuration) || 0.6);
                 const outStartMB   = Math.max(inDur, clipDur - outDurMB);
                 if (localSec >= outStartMB) {
                   const tOutGlobMB = (localSec - dt * mbI) - outStartMB;
                   const actualTotalStaggerMB = totalUnits > 1 ? outDurMB * Math.min(0.55, animStagger) : 0;
                   const outStaggerMB = totalUnits > 1 ? actualTotalStaggerMB / (totalUnits - 1) : 0;
-                  const tOutMB     = tOutGlobMB - animIndex * outStaggerMB;
+                  const tOutMB     = tOutGlobMB - (totalUnits - 1 - animIndex) * outStaggerMB;
                   const charDurMB  = Math.max(0.24, outDurMB - actualTotalStaggerMB);
                   if (tOutMB > 0 && tOutMB < charDurMB) {
                     const pMB = Math.min(1.0, tOutMB / charDurMB);
-                    if (normOutMB === 'bounce_1' || normOutMB === 'bounce_3') {
+                    if (animOutMB === 'bounce_out') {
                       const amplitude = (p.fontSize || 64) * animAmplitude;
-                      const isWave = (normOutMB === 'bounce_3');
-                      const antHeight = amplitude * (isWave ? 0.30 : 0.42);
-                      const dropDist  = (p.fontSize || 64) * (isWave ? 1.4 : 1.8);
-                      const antProg = Math.min(1.0, pMB / 0.40);
-                      const antY = -antHeight * Math.pow(Math.sin(Math.PI * antProg), 2);
-                      const dropProg = Math.max(0, (pMB - 0.20) / 0.80);
-                      const dropY = dropDist * Math.pow(dropProg, 2.0);
+                      const antPhase = Math.min(1.0, pMB / 0.30);
+                      const antT = antPhase * 0.5;
+                      const springUp = amplitude * 0.35 * Math.cos(animFreq * antT * 2 * Math.PI) / Math.exp(animDecay * 0.6 * antT);
+                      const antY = -Math.abs(springUp) * Math.pow(Math.sin(Math.PI * antPhase), 2);
+                      const dropProg = Math.max(0, (pMB - 0.25) / 0.75);
+                      const dropY = (p.fontSize || 64) * 1.8 * Math.pow(dropProg, 2.2);
                       mbOffY += antY + dropY;
-                    } else if (normOutMB === 'bounce_2' || normOutMB === 'bounce_4') {
-                      const isWave = (normOutMB === 'bounce_4');
-                      const swellAmount = 0.15 * (isWave ? 0.8 : 1.0) * animAmplitude;
-                      const antProg = Math.min(1.0, pMB / 0.25);
-                      const antSwell = swellAmount * Math.pow(Math.sin(Math.PI * antProg), 2);
-                      const snapProg = Math.max(0, (pMB - 0.125) / 0.875);
-                      const collapse = Math.pow(snapProg, 1.8);
-                      const sc2 = Math.max(0, (1.0 + antSwell) * (1.0 - collapse));
+                    } else if (animOutMB === 'shrink_drop') {
+                      const swellAmount = 0.18 * animAmplitude;
+                      const antPhase = Math.min(1.0, pMB / 0.25);
+                      const antT = antPhase * 0.3;
+                      const springPop = swellAmount * Math.cos(animFreq * antT * 2 * Math.PI) / Math.exp(animDecay * 0.5 * antT);
+                      const swell = Math.abs(springPop) * Math.pow(Math.sin(Math.PI * antPhase), 2);
+                      const snapProg = Math.max(0, (pMB - 0.15) / 0.85);
+                      const collapse = 1.0 - Math.cos(Math.min(1.0, snapProg) * Math.PI * 0.5);
+                      const sc2 = Math.max(0, (1.0 + swell) * (1.0 - collapse));
                       mbSX = sc2; mbSY = sc2;
+                      mbOffY += (p.fontSize || 64) * 0.3 * Math.pow(snapProg, 2.0);
+                    } else if (animOutMB === 'slide_out') {
+                      const antPhase = Math.min(1.0, pMB / 0.20);
+                      const counterSlide = -(p.fontSize || 64) * 0.12 * Math.pow(Math.sin(Math.PI * antPhase), 2);
+                      const slideProg = Math.max(0, (pMB - 0.15) / 0.85);
+                      const slideX = (p.fontSize || 64) * 2.0 * Math.pow(slideProg, 2.0);
+                      mbOffX += counterSlide + slideX;
+                    } else if (animOutMB === 'fade_down') {
+                      const easeProg = 1.0 - Math.cos(pMB * Math.PI * 0.5);
+                      mbOffY += easeProg * (p.fontSize || 64) * 0.6;
                     }
                   }
                 }

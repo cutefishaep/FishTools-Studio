@@ -5,6 +5,12 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.69] - 2026-09-22
+
+### Fixed
+- **Keyframe Deselection in Expand Layer (`js/editor.js`, `js/desktop.js`)**: Clicking on empty track space (`.desktop-kf-track-row`, `.desktop-kf-tracks-wrapper`) or clicking on an already-selected single diamond now reliably deselects keyframes. Empty timeline clicks now prioritize deselecting keyframes before closing/deselecting layers.
+- **AE-Style Dual-Tone Keyframe Diamonds (`css/desktop.css`)**: Overhauled keyframe diamonds to precisely match Adobe After Effects visual hierarchy. Unselected keyframes now render as subtle 8px dual-tone silver/gray diamonds (`::before` split). Selected keyframes expand to 12px with a prominent 2px solid primary selection border and dark perimeter outline, eliminating visual confusion between selected and unselected states.
+
 ## [0.5.68] - 2026-09-22
 
 ### Added

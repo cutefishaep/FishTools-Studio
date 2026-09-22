@@ -2623,7 +2623,13 @@
               setDesktopSelectedLayers(matchedIds, Array.from(matchedIds)[0]);
             }
           } else if (!isAdditive) {
-            deselectAllDesktopLayers();
+            if (!isMarquee && Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+              if (typeof window.clearSelectedKeyframes === 'function') {
+                window.clearSelectedKeyframes();
+              }
+            } else {
+              deselectAllDesktopLayers();
+            }
           }
         }
 
@@ -2706,6 +2712,12 @@
       emptyClickStart = null;
 
       if (wasClick) {
+        if (Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0) {
+          if (typeof window.clearSelectedKeyframes === 'function') {
+            window.clearSelectedKeyframes();
+          }
+          return;
+        }
         const hasSelection = !!(
           (window.selectedLayerId && window.selectedLayerId !== '') ||
           (window.selectedLayerIds && window.selectedLayerIds.size > 0) ||

@@ -26018,6 +26018,15 @@
             const tracksEl = document.createElement('div');
             tracksEl.className = 'desktop-kf-tracks-wrapper';
 
+            tracksEl.addEventListener('click', (ev) => {
+              if (ev.target.closest('.desktop-kf-diamond')) return;
+              if (!ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
+                if (typeof window.clearSelectedKeyframes === 'function') {
+                  window.clearSelectedKeyframes();
+                }
+              }
+            });
+
             catRows.forEach(cat => {
               const catTrack = document.createElement('div');
               catTrack.className = 'desktop-kf-track-cat-row';
@@ -26028,9 +26037,14 @@
                 pTrack.className = 'desktop-kf-track-row';
                 pTrack.dataset.prop = p.prop;
 
-                // Seek playhead on track line click
+                // Seek playhead on track line click & deselect keyframes
                 pTrack.addEventListener('click', (ev) => {
                   if (ev.target.closest('.desktop-kf-diamond')) return;
+                  if (!ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
+                    if (typeof window.clearSelectedKeyframes === 'function') {
+                      window.clearSelectedKeyframes();
+                    }
+                  }
                   const rect = pTrack.getBoundingClientRect();
                   const deskScrollX = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : 0;
                   const clickX = ev.clientX - rect.left + deskScrollX;
@@ -26227,15 +26241,25 @@
                             );
                           }
                         } else {
-                          // Single select
-                          if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
-                          diamond.classList.add('is-selected-kf');
-                          window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
-                          if (typeof seekTimelineToTime === 'function') {
-                            seekTimelineToTime(kf.time, true);
-                          }
-                          if (typeof window.syncDesktopPlayhead === 'function') {
-                            window.syncDesktopPlayhead();
+                          // Single click without shift
+                          const wasSoleSelected = wasAlreadySelected && 
+                            Array.isArray(window.selectedKeyframes) && 
+                            window.selectedKeyframes.length === 1 && 
+                            (window.selectedKeyframes[0].kf === kf || (window.selectedKeyframes[0].layerId === layer.id && window.selectedKeyframes[0].prop === p.prop && Math.abs(window.selectedKeyframes[0].time - kf.time) < 0.002));
+
+                          if (wasSoleSelected) {
+                            // Toggle off
+                            if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                          } else {
+                            if (typeof window.clearSelectedKeyframes === 'function') window.clearSelectedKeyframes();
+                            diamond.classList.add('is-selected-kf');
+                            window.selectedKeyframes = [{ layerId: layer.id, layer, prop: p.prop, time: kf.time, kf, marker: diamond }];
+                            if (typeof seekTimelineToTime === 'function') {
+                              seekTimelineToTime(kf.time, true);
+                            }
+                            if (typeof window.syncDesktopPlayhead === 'function') {
+                              window.syncDesktopPlayhead();
+                            }
                           }
                         }
                       }

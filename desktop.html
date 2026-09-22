@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="css/color-picker.css">
   <link rel="stylesheet" href="css/template-editor.css">
   <link rel="stylesheet" href="css/safari.css">
-  <link rel="stylesheet" href="css/desktop.css?v=0.5.68">
+  <link rel="stylesheet" href="css/desktop.css?v=0.5.69">
   <script src="js/sync-height.js"></script>
   <script>
     window.DEBUG = true;
@@ -3450,7 +3450,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.68</span>
+          <span class="welcome-badge">v0.5.69</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3486,11 +3486,33 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.69 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.69</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 22, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Keyframe Deselection in Expand Layer (`js/editor.js`, `js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Clicking on empty track space (`.desktop-kf-track-row`, `.desktop-kf-tracks-wrapper`) or clicking on an already-selected single diamond now reliably deselects keyframes. Empty timeline clicks now prioritize deselecting keyframes before closing/deselecting layers.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">AE-Style Dual-Tone Keyframe Diamonds (`css/desktop.css`)</span>
+                  <span class="changelog-item-desc">Overhauled keyframe diamonds to precisely match Adobe After Effects visual hierarchy. Unselected keyframes now render as subtle 8px dual-tone silver/gray diamonds (`::before` split). Selected keyframes expand to 12px with a prominent 2px solid primary selection border and dark perimeter outline, eliminating visual confusion between selected and unselected states.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.68 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.68</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 22, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -5017,7 +5039,7 @@
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.68"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.69"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>
@@ -5068,11 +5090,11 @@
   <script src="text/ae-presets.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.68"></script>
-  <script src="js/editor.js?v=0.5.68"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.69"></script>
+  <script src="js/editor.js?v=0.5.69"></script>
   <script src="js/attributes-clipboard.js"></script>
   <script src="js/openfishtools-generators3d.js"></script>
   <script src="js/openfishtools-controller.js"></script>
-  <script src="js/desktop.js?v=0.5.68"></script>
+  <script src="js/desktop.js?v=0.5.69"></script>
 </body>
 </html>

@@ -314,6 +314,16 @@
   color: var(--color-primary-hover);
 }
 
+.se-create-thumb {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
 /* ================================================================
    3. BODY (3-COLUMN LAYOUT)
    ================================================================ */
@@ -929,7 +939,7 @@ canvas.se-viewport-canvas:active {
 }
 
 .se-primitive-card {
-  height: 52px;
+  height: 68px;
   background-color: var(--bg-panel);
   border: 1px solid var(--border-panel);
   border-radius: 3px;
@@ -937,10 +947,11 @@ canvas.se-viewport-canvas:active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   user-select: none;
+  padding: 4px;
 }
 
 .se-primitive-card:hover {
@@ -948,23 +959,25 @@ canvas.se-viewport-canvas:active {
   border-color: var(--color-primary);
 }
 
-.se-primitive-icon {
-  width: 22px;
-  height: 22px;
+.se-primitive-thumb-wrap {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary);
-  transition: color 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
 }
 
-.se-primitive-icon svg {
-  width: 20px;
-  height: 20px;
+.se-primitive-thumb {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  transition: transform 0.15s ease;
 }
 
-.se-primitive-card:hover .se-primitive-icon {
-  color: var(--color-primary-hover);
+.se-primitive-card:hover .se-primitive-thumb {
   transform: scale(1.08);
 }
 

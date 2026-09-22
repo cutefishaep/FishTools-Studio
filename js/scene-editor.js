@@ -13,14 +13,15 @@
   'use strict';
 
   /* ================================================================
-     CRISP 3D PRIMITIVE VECTOR ICONS (100% SVG, ZERO EMOJIS)
+     RENDERED 3D PRIMITIVE THUMBNAILS (NATIVE WEBGL 3D RENDERS)
      ================================================================ */
-  const PRIMITIVE_SVGS = {
-    box: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5L20.5 7.5V16.5L12 21.5L3.5 16.5V7.5L12 2.5Z"/><path d="M12 2.5V11.5L20.5 7.5"/><path d="M12 11.5L3.5 7.5"/><path d="M12 11.5V21.5"/></svg>',
-    sphere: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="9.5" ry="3.5"/><ellipse cx="12" cy="12" rx="3.5" ry="9.5"/></svg>',
-    cylinder: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 6V18C4 19.8 7.6 21.2 12 21.2C16.4 21.2 20 19.8 20 18V6"/></svg>',
-    plane: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,4 22,12 12,20 2,12"/><line x1="7" y1="8" x2="17" y2="16"/><line x1="17" y1="8" x2="7" y2="16"/></svg>',
-    torus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/><ellipse cx="12" cy="12" rx="4.5" ry="2.6"/></svg>'
+  const PRIMITIVE_THUMBS = {
+    box: 'assets/primitives/box.png',
+    cone: 'assets/primitives/cone.png',
+    cylinder: 'assets/primitives/cylinder.png',
+    plane: 'assets/primitives/plane.png',
+    sphere: 'assets/primitives/sphere.png',
+    torus: 'assets/primitives/torus.png'
   };
 
   /* ================================================================
@@ -273,23 +274,27 @@
             </button>
             <div class="se-create-dropdown">
               <div class="se-create-item" data-primitive="box">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5L20.5 7.5V16.5L12 21.5L3.5 16.5V7.5L12 2.5Z"/><path d="M12 2.5V11.5L20.5 7.5"/><path d="M12 11.5L3.5 7.5"/><path d="M12 11.5V21.5"/></svg>
+                <img class="se-create-thumb" src="${PRIMITIVE_THUMBS.box}" alt="Box" draggable="false">
                 <span>Box (Cube)</span>
               </div>
               <div class="se-create-item" data-primitive="sphere">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="9.5" ry="3.5"/><ellipse cx="12" cy="12" rx="3.5" ry="9.5"/></svg>
+                <img class="se-create-thumb" src="${PRIMITIVE_THUMBS.sphere}" alt="Sphere" draggable="false">
                 <span>Sphere</span>
               </div>
               <div class="se-create-item" data-primitive="cylinder">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 6V18C4 19.8 7.6 21.2 12 21.2C16.4 21.2 20 19.8 20 18V6"/></svg>
+                <img class="se-create-thumb" src="${PRIMITIVE_THUMBS.cylinder}" alt="Cylinder" draggable="false">
                 <span>Cylinder</span>
               </div>
+              <div class="se-create-item" data-primitive="cone">
+                <img class="se-create-thumb" src="${PRIMITIVE_THUMBS.cone}" alt="Cone" draggable="false">
+                <span>Cone</span>
+              </div>
               <div class="se-create-item" data-primitive="plane">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,4 22,12 12,20 2,12"/><line x1="7" y1="8" x2="17" y2="16"/><line x1="17" y1="8" x2="7" y2="16"/></svg>
+                <img class="se-create-thumb" src="${PRIMITIVE_THUMBS.plane}" alt="Plane" draggable="false">
                 <span>Plane (Floor)</span>
               </div>
               <div class="se-create-item" data-primitive="torus">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/><ellipse cx="12" cy="12" rx="4.5" ry="2.6"/></svg>
+                <img class="se-create-thumb" src="${PRIMITIVE_THUMBS.torus}" alt="Torus" draggable="false">
                 <span>Torus (Donut)</span>
               </div>
             </div>
@@ -794,11 +799,12 @@
       if (!this._browserBody) return;
 
       const primitives = [
-        { type: 'box', name: 'Box', svg: PRIMITIVE_SVGS.box },
-        { type: 'sphere', name: 'Sphere', svg: PRIMITIVE_SVGS.sphere },
-        { type: 'cylinder', name: 'Cylinder', svg: PRIMITIVE_SVGS.cylinder },
-        { type: 'plane', name: 'Plane', svg: PRIMITIVE_SVGS.plane },
-        { type: 'torus', name: 'Torus', svg: PRIMITIVE_SVGS.torus }
+        { type: 'box', name: 'Box', thumb: PRIMITIVE_THUMBS.box },
+        { type: 'cone', name: 'Cone', thumb: PRIMITIVE_THUMBS.cone },
+        { type: 'cylinder', name: 'Cylinder', thumb: PRIMITIVE_THUMBS.cylinder },
+        { type: 'plane', name: 'Plane', thumb: PRIMITIVE_THUMBS.plane },
+        { type: 'sphere', name: 'Sphere', thumb: PRIMITIVE_THUMBS.sphere },
+        { type: 'torus', name: 'Torus', thumb: PRIMITIVE_THUMBS.torus }
       ].filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery));
 
       let importedList = [];
@@ -818,7 +824,9 @@
           <div class="se-primitives-grid">
             ${primitives.map(p => `
               <div class="se-primitive-card" data-primitive="${p.type}" title="Click to spawn ${p.name}">
-                <span class="se-primitive-icon">${p.svg}</span>
+                <div class="se-primitive-thumb-wrap">
+                  <img class="se-primitive-thumb" src="${p.thumb}" alt="${p.name}" draggable="false" />
+                </div>
                 <span class="se-primitive-name">${p.name}</span>
               </div>
             `).join('')}

@@ -236,6 +236,34 @@ function handleRequest(req, res) {
     return;
   }
 
+  // API: Save generated 3D primitive thumbnail renders
+  if (req.method === 'POST' && pathname === '/api/save-primitives') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        const primDir = path.join(ROOT, 'assets', 'primitives');
+        if (!fs.existsSync(primDir)) fs.mkdirSync(primDir, { recursive: true });
+        for (const [name, dataUrl] of Object.entries(data)) {
+          if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/png;base64,')) {
+            const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+            fs.writeFileSync(path.join(primDir, `${name}.png`), Buffer.from(base64, 'base64'));
+          }
+        }
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   // Resolve target file
   const relativePath = pathname.replace(/^\/+/, '');
   let filePath = path.join(ROOT, relativePath);

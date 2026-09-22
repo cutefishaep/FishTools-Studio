@@ -5,6 +5,12 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.73] - 2026-09-22
+
+### Added
+- **Native 3D Rendered Primitive Thumbnails (`assets/primitives/`, `js/scene-editor.js`, `css/scene-editor.css`)**: Replaced flat vector SVGs with true Three.js WebGL 3D rendered thumbnails (`box.png`, `sphere.png`, `cylinder.png`, `plane.png`, `torus.png`, `cone.png`) featuring studio 3-point lighting, metallic surface shading, and transparent backgrounds matching Adobe After Effects Video Copilot Element 3D Scene Setup. Deleted inaccurate primitive SVGs.
+- **Cone Procedural Primitive (`js/3d_element_manager.js`, `js/scene-editor.js`)**: Added 3D Cone primitive support across procedural mesh generation and scene tree hierarchy.
+
 ## [0.5.72] - 2026-09-22
 
 ### Fixed

@@ -843,6 +843,9 @@
         case 'torus':
           geom = new THREE.TorusGeometry(50, 18, 24, 48);
           break;
+        case 'cone':
+          geom = new THREE.ConeGeometry(50, 90, 32);
+          break;
         case 'box':
         default:
           geom = new THREE.BoxGeometry(80, 80, 80);

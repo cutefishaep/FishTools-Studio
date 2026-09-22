@@ -13,6 +13,17 @@
   'use strict';
 
   /* ================================================================
+     CRISP 3D PRIMITIVE VECTOR ICONS (100% SVG, ZERO EMOJIS)
+     ================================================================ */
+  const PRIMITIVE_SVGS = {
+    box: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5L20.5 7.5V16.5L12 21.5L3.5 16.5V7.5L12 2.5Z"/><path d="M12 2.5V11.5L20.5 7.5"/><path d="M12 11.5L3.5 7.5"/><path d="M12 11.5V21.5"/></svg>',
+    sphere: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="9.5" ry="3.5"/><ellipse cx="12" cy="12" rx="3.5" ry="9.5"/></svg>',
+    cylinder: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 6V18C4 19.8 7.6 21.2 12 21.2C16.4 21.2 20 19.8 20 18V6"/></svg>',
+    plane: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,4 22,12 12,20 2,12"/><line x1="7" y1="8" x2="17" y2="16"/><line x1="17" y1="8" x2="7" y2="16"/></svg>',
+    torus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/><ellipse cx="12" cy="12" rx="4.5" ry="2.6"/></svg>'
+  };
+
+  /* ================================================================
      SCENE EDITOR SINGLETON
      ================================================================ */
   const SceneEditor = {
@@ -261,11 +272,26 @@
               CREATE ▾
             </button>
             <div class="se-create-dropdown">
-              <div class="se-create-item" data-primitive="box">📦 Box (Cube)</div>
-              <div class="se-create-item" data-primitive="sphere">⚪ Sphere</div>
-              <div class="se-create-item" data-primitive="cylinder">🛢️ Cylinder</div>
-              <div class="se-create-item" data-primitive="plane">⬛ Plane (Floor)</div>
-              <div class="se-create-item" data-primitive="torus">🍩 Torus (Donut)</div>
+              <div class="se-create-item" data-primitive="box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5L20.5 7.5V16.5L12 21.5L3.5 16.5V7.5L12 2.5Z"/><path d="M12 2.5V11.5L20.5 7.5"/><path d="M12 11.5L3.5 7.5"/><path d="M12 11.5V21.5"/></svg>
+                <span>Box (Cube)</span>
+              </div>
+              <div class="se-create-item" data-primitive="sphere">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="9.5" ry="3.5"/><ellipse cx="12" cy="12" rx="3.5" ry="9.5"/></svg>
+                <span>Sphere</span>
+              </div>
+              <div class="se-create-item" data-primitive="cylinder">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 6V18C4 19.8 7.6 21.2 12 21.2C16.4 21.2 20 19.8 20 18V6"/></svg>
+                <span>Cylinder</span>
+              </div>
+              <div class="se-create-item" data-primitive="plane">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,4 22,12 12,20 2,12"/><line x1="7" y1="8" x2="17" y2="16"/><line x1="17" y1="8" x2="7" y2="16"/></svg>
+                <span>Plane (Floor)</span>
+              </div>
+              <div class="se-create-item" data-primitive="torus">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9.5" ry="6"/><ellipse cx="12" cy="12" rx="4.5" ry="2.6"/></svg>
+                <span>Torus (Donut)</span>
+              </div>
             </div>
           </div>
           <span style="flex:1"></span>
@@ -304,14 +330,22 @@
             <span>Draft Textures</span>
           </label>
           <span style="flex:1"></span>
-          <button type="button" class="se-vp-tool-btn" data-action="reset-camera" title="Reset Camera View">⊙</button>
+          <button type="button" class="se-vp-tool-btn" data-action="reset-camera" title="Reset Camera View">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+          </button>
         </div>
         <div class="se-viewport-empty">No Model — click CREATE ▾ or IMPORT</div>
         <canvas class="se-viewport-canvas"></canvas>
         <div class="se-vp-bottom-toolbar">
-          <button type="button" class="se-vp-tool-btn is-active" data-nav="orbit" title="Orbit Camera Tool (Left-Click Drag)">🎥</button>
-          <button type="button" class="se-vp-tool-btn" data-nav="pan" title="Pan Camera Tool (Left-Click Drag)">✋</button>
-          <button type="button" class="se-vp-tool-btn" data-nav="zoom" title="Zoom Camera Tool (Left-Click Drag)">🔍</button>
+          <button type="button" class="se-vp-tool-btn is-active" data-nav="orbit" title="Orbit Camera Tool (Left-Click Drag)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M21 21v-5h-5"/></svg>
+          </button>
+          <button type="button" class="se-vp-tool-btn" data-nav="pan" title="Pan Camera Tool (Left-Click Drag)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v4"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M6 14v-1a2 2 0 0 0-4 0v5a7 7 0 0 0 7 7h3a8 8 0 0 0 8-8v-5a2 2 0 0 0-4 0"/></svg>
+          </button>
+          <button type="button" class="se-vp-tool-btn" data-nav="zoom" title="Zoom Camera Tool (Left-Click Drag)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
           <span class="se-ribbon-sep"></span>
           <select class="se-vp-select" data-prop="lighting" title="Lighting Mode">
             <option value="single">Single Light</option>
@@ -399,7 +433,7 @@
       propsPanel.innerHTML = `
         <div class="se-panel-header">Edit</div>
         <div class="se-props-content">
-          <div class="se-viewport-empty" style="padding:20px">No Selection</div>
+          <div class="se-panel-empty">No Selection</div>
         </div>
       `;
       colScene.appendChild(propsPanel);
@@ -705,7 +739,7 @@
       } else {
         // Render scene materials
         if (this._mgr.models.size === 0) {
-          this._materialsPanel.innerHTML = '<div class="se-viewport-empty" style="padding:15px">No Materials in Scene</div>';
+          this._materialsPanel.innerHTML = '<div class="se-panel-empty">No Materials in Scene</div>';
           return;
         }
 
@@ -760,11 +794,11 @@
       if (!this._browserBody) return;
 
       const primitives = [
-        { type: 'box', name: 'Box', icon: '📦' },
-        { type: 'sphere', name: 'Sphere', icon: '⚪' },
-        { type: 'cylinder', name: 'Cylinder', icon: '🛢️' },
-        { type: 'plane', name: 'Plane', icon: '⬛' },
-        { type: 'torus', name: 'Torus', icon: '🍩' }
+        { type: 'box', name: 'Box', svg: PRIMITIVE_SVGS.box },
+        { type: 'sphere', name: 'Sphere', svg: PRIMITIVE_SVGS.sphere },
+        { type: 'cylinder', name: 'Cylinder', svg: PRIMITIVE_SVGS.cylinder },
+        { type: 'plane', name: 'Plane', svg: PRIMITIVE_SVGS.plane },
+        { type: 'torus', name: 'Torus', svg: PRIMITIVE_SVGS.torus }
       ].filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery));
 
       let importedList = [];
@@ -784,7 +818,7 @@
           <div class="se-primitives-grid">
             ${primitives.map(p => `
               <div class="se-primitive-card" data-primitive="${p.type}" title="Click to spawn ${p.name}">
-                <span class="se-primitive-icon">${p.icon}</span>
+                <span class="se-primitive-icon">${p.svg}</span>
                 <span class="se-primitive-name">${p.name}</span>
               </div>
             `).join('')}
@@ -796,8 +830,13 @@
             ${importedList.length === 0 ? '<span style="font-size:10px;color:var(--text-dim)">No custom models yet</span>' : ''}
             ${importedList.map(m => `
               <div class="se-imported-card" data-id="${m.id}" title="Click to insert ${m.name}">
-                <span class="se-imported-name">📁 ${m.name}</span>
-                <button type="button" class="se-scene-item-del" data-delete-id="${m.id}" title="Delete model">✕</button>
+                <div style="display:flex;align-items:center;gap:6px;overflow:hidden">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span class="se-imported-name">${m.name}</span>
+                </div>
+                <button type="button" class="se-scene-item-del" data-delete-id="${m.id}" title="Delete model">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
               </div>
             `).join('')}
           </div>
@@ -935,12 +974,18 @@
         item.dataset.id = id;
         item.dataset.type = 'model';
         item.innerHTML = `
-          <div class="se-scene-item-eye ${entry.mesh && !entry.mesh.visible ? 'is-hidden' : ''}" title="Toggle Visibility">👁</div>
+          <button type="button" class="se-scene-item-eye ${entry.mesh && !entry.mesh.visible ? 'is-hidden' : ''}" title="Toggle Visibility">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+          </button>
           <svg class="se-scene-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
           <span class="se-scene-item-title">${entry.name}</span>
-          <button type="button" class="se-scene-item-del" title="Remove model">✕</button>
+          <button type="button" class="se-scene-item-del" title="Remove model">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         `;
 
         // Toggle visibility
@@ -987,13 +1032,19 @@
         item.dataset.id = id;
         item.dataset.type = 'light';
         item.innerHTML = `
-          <div class="se-scene-item-eye ${entry.light && !entry.light.visible ? 'is-hidden' : ''}" title="Toggle Visibility">👁</div>
+          <button type="button" class="se-scene-item-eye ${entry.light && !entry.light.visible ? 'is-hidden' : ''}" title="Toggle Visibility">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+          </button>
           <svg class="se-scene-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/>
             <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/>
           </svg>
           <span class="se-scene-item-title">${entry.type} light</span>
-          <button type="button" class="se-scene-item-del" title="Remove light">✕</button>
+          <button type="button" class="se-scene-item-del" title="Remove light">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         `;
 
         item.querySelector('.se-scene-item-eye').addEventListener('click', (e) => {
@@ -1041,7 +1092,7 @@
       if (!this._propsPanel) return;
 
       if (!this._selectedId) {
-        this._propsPanel.innerHTML = '<div class="se-viewport-empty" style="padding:20px">No Selection</div>';
+        this._propsPanel.innerHTML = '<div class="se-panel-empty">No Selection</div>';
         return;
       }
 

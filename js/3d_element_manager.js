@@ -234,15 +234,19 @@
     updateModelTransform(id, transform) {
       const entry = this.models.get(id);
       if (!entry || !entry.mesh) return;
-      const m = entry.mesh;
       const t = Object.assign(entry.transform, transform);
-      m.position.set(t.x || 0, -(t.y || 0), t.z || 0); // Y-inverted for screen coords
+      const posX = t.x !== undefined ? t.x : (t.posX || 0);
+      const posY = t.y !== undefined ? t.y : (t.posY || 0);
+      const posZ = t.z !== undefined ? t.z : (t.posZ || 0);
+      m.position.set(posX, -posY, posZ); // Y-inverted for screen coords
       m.rotation.set(
         (t.rotX || 0) * DEG2RAD,
         (t.rotY || 0) * DEG2RAD,
         (t.rotZ || 0) * DEG2RAD
       );
-      const s = (t.scale || 100) / 100 * (entry.bounds.scaleFactor || 1);
+      const scaleVal = t.scale !== undefined ? t.scale : (t.scaleX || 100);
+      const factor = (entry.bounds && entry.bounds.scaleFactor) ? entry.bounds.scaleFactor : 1;
+      const s = (scaleVal / 100) * factor;
       m.scale.set(s, s, s);
     }
 
@@ -569,6 +573,7 @@
         data.models.push({
           id,
           name: entry.name,
+          primitive: entry.primitive || null,
           transform: { ...entry.transform },
           materialOverrides: { ...entry.materialOverrides }
         });
@@ -607,14 +612,30 @@
       if (Array.isArray(data.models)) {
         for (const modelDef of data.models) {
           try {
-            const modelData = await getModelData(modelDef.id);
-            if (modelData) {
-              await this.loadModel(modelDef.id, modelDef.name, modelData);
-              if (modelDef.transform) {
-                this.updateModelTransform(modelDef.id, modelDef.transform);
+            if (modelDef.primitive) {
+              const primEntry = this.createPrimitive(modelDef.primitive, modelDef.name);
+              if (primEntry) {
+                // Re-key to preserved ID
+                this.models.delete(primEntry.id);
+                primEntry.id = modelDef.id;
+                this.models.set(modelDef.id, primEntry);
+                if (modelDef.transform) {
+                  this.updateModelTransform(modelDef.id, modelDef.transform);
+                }
+                if (modelDef.materialOverrides) {
+                  this.updateMaterials(modelDef.materialOverrides, modelDef.id);
+                }
               }
-              if (modelDef.materialOverrides) {
-                this.updateMaterials(modelDef.materialOverrides, modelDef.id);
+            } else if (getModelData) {
+              const modelData = await getModelData(modelDef.id);
+              if (modelData) {
+                await this.loadModel(modelDef.id, modelDef.name, modelData);
+                if (modelDef.transform) {
+                  this.updateModelTransform(modelDef.id, modelDef.transform);
+                }
+                if (modelDef.materialOverrides) {
+                  this.updateMaterials(modelDef.materialOverrides, modelDef.id);
+                }
               }
             }
           } catch (e) {
@@ -835,10 +856,17 @@
         wireframe: false
       });
 
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.set(0, (type === 'plane' ? 0.5 : 50), 0);
+      const yPos = (type === 'plane' ? 0.5 : 50);
+      mesh.position.set(0, yPos, 0);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+
+      // Calculate model bounding box and center
+      const box = new THREE.Box3().setFromObject(mesh);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
 
       const id = 'mesh_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
       this.scene.add(mesh);
@@ -846,10 +874,18 @@
       const entry = {
         id,
         name: defaultName,
+        primitive: type,
         mesh,
+        bounds: {
+          center: center.clone(),
+          size: size.clone(),
+          scaleFactor: 1.0
+        },
         transform: {
-          posX: 0, posY: (type === 'plane' ? 0.5 : 50), posZ: 0,
+          x: 0, y: yPos, z: 0,
+          posX: 0, posY: yPos, posZ: 0,
           rotX: 0, rotY: 0, rotZ: 0,
+          scale: 100,
           scaleX: 100, scaleY: 100, scaleZ: 100
         },
         materialOverrides: {

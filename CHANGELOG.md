@@ -5,6 +5,13 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.72] - 2026-09-22
+
+### Fixed
+- **Text Overlap & Panel Containment (`css/scene-editor.css`, `js/scene-editor.js`)**: Replaced shared `.se-viewport-empty` (`position: absolute; inset: 0`) in materials, properties, and tree panels with dedicated `.se-panel-empty`, preventing "No Materials in Scene" and "No Selection" labels from breaking out and overlapping on top of the 3D viewport canvas. Added strict `position: relative` containment to drawer tabs and property panes.
+- **Pure Vector SVG Starter Primitives & UI Icons (`assets/`, `js/scene-editor.js`, `css/scene-editor.css`)**: Eliminated all emojis across the 3D suite. Replaced primitive card emojis with crisp, dedicated vector SVGs (`assets/primitive-box.svg`, `primitive-sphere.svg`, `primitive-cylinder.svg`, `primitive-plane.svg`, `primitive-torus.svg`). Replaced navigation toolbar emojis (Orbit, Pan, Zoom, Reset Camera), hierarchy eye visibility buttons, and item deletion icons with crisp theme-token bound vector SVGs.
+- **Scale Factor TypeError on Primitives (`js/3d_element_manager.js`)**: Fixed `TypeError: can't access property "scaleFactor", entry.bounds is undefined` when creating procedural primitives or updating transforms by computing bounding box and scaling factor upon primitive instantiation, and adding optional chaining in `updateModelTransform`. Primitives now serialize and restore cleanly across scene sessions.
+
 ## [0.5.71] - 2026-09-22
 
 ### Fixed

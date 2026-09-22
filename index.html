@@ -30,7 +30,7 @@
         <h1 class="brand-title">OpenFishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.5.71</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.5.72</span>
         </div>
       </div>
       <div class="studio-header-actions">
@@ -420,7 +420,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.71</span>
+          <span class="welcome-badge">v0.5.72</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -456,11 +456,40 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.72 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.72</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 22, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Text Overlap &amp; Panel Containment (`css/scene-editor.css`, `js/scene-editor.js`)</span>
+                  <span class="changelog-item-desc">Replaced shared `.se-viewport-empty` (`position: absolute; inset: 0`) in materials, properties, and tree panels with dedicated `.se-panel-empty`, preventing "No Materials in Scene" and "No Selection" labels from breaking out and overlapping on top of the 3D viewport canvas. Added strict `position: relative` containment to drawer tabs and property panes.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Pure Vector SVG Starter Primitives &amp; UI Icons (`assets/`, `js/scene-editor.js`, `css/scene-editor.css`)</span>
+                  <span class="changelog-item-desc">Eliminated all emojis across the 3D suite. Replaced primitive card emojis with crisp, dedicated vector SVGs (`assets/primitive-box.svg`, `primitive-sphere.svg`, `primitive-cylinder.svg`, `primitive-plane.svg`, `primitive-torus.svg`). Replaced navigation toolbar emojis (Orbit, Pan, Zoom, Reset Camera), hierarchy eye visibility buttons, and item deletion icons with crisp theme-token bound vector SVGs.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Scale Factor TypeError on Primitives (`js/3d_element_manager.js`)</span>
+                  <span class="changelog-item-desc">Fixed `TypeError: can't access property "scaleFactor", entry.bounds is undefined` when creating procedural primitives or updating transforms by computing bounding box and scaling factor upon primitive instantiation, and adding optional chaining in `updateModelTransform`. Primitives now serialize and restore cleanly across scene sessions.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.71 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.71</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 22, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -1955,10 +1984,10 @@
   </div>
 
   <script src="js/jszip.min.js"></script>
-  <script src="js/db.js?v=0.5.71"></script>
-  <script src="js/modal.js?v=0.5.71"></script>
-  <script src="js/pwa-install.js?v=0.5.71"></script>
-  <script src="js/context-menu.js?v=0.5.71"></script>
-  <script src="js/main.js?v=0.5.71"></script>
+  <script src="js/db.js?v=0.5.72"></script>
+  <script src="js/modal.js?v=0.5.72"></script>
+  <script src="js/pwa-install.js?v=0.5.72"></script>
+  <script src="js/context-menu.js?v=0.5.72"></script>
+  <script src="js/main.js?v=0.5.72"></script>
 </body>
 </html>

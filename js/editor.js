@@ -10378,8 +10378,8 @@
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
       const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
-      const baseW = baseDims[0];
-      const baseH = baseDims[1];
+      const baseW = (currentProjectState.width && currentProjectState.width > 0) ? currentProjectState.width : baseDims[0];
+      const baseH = (currentProjectState.height && currentProjectState.height > 0) ? currentProjectState.height : baseDims[1];
 
       const shapeProps = {
         sizeX: baseW,
@@ -12176,6 +12176,17 @@
           e.preventDefault();
           e.stopPropagation();
           addAdjustmentLayer();
+        });
+      }
+
+      // 5c2. Add Solid Layer Button in Add Layer Drawer (Control Camera Layer panel)
+      const btnAddSolid = document.getElementById('btn-add-solid');
+      if (btnAddSolid) {
+        makeDraggableAsset(btnAddSolid, { type: 'control', controlType: 'solid', name: 'Solid' });
+        btnAddSolid.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          addSolidLayer();
         });
       }
 
@@ -18678,6 +18689,10 @@
             } else if (asset.controlType === 'adjustment') {
               if (typeof addAdjustmentLayer === 'function') {
                 addAdjustmentLayer(null, opts.targetSec !== undefined ? opts.targetSec : null);
+              }
+            } else if (asset.controlType === 'solid') {
+              if (typeof addSolidLayer === 'function') {
+                addSolidLayer(null, opts.targetSec !== undefined ? opts.targetSec : null);
               }
             }
           } else if (asset.type === 'text') {

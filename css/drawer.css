@@ -837,12 +837,17 @@
 
 /* 3 buttons: 3 columns 33/33/33 */
 .layer-action-btn-grid:has(> :first-child:nth-last-child(3)),
-.layer-action-btn-grid.is-3-items,
-#add-layer-control-grid {
+.layer-action-btn-grid.is-3-items {
   grid-template-columns: repeat(3, 1fr) !important;
 }
 .layer-action-btn-grid:has(> :first-child:nth-last-child(3)) .layer-action-btn,
-.layer-action-btn-grid.is-3-items .layer-action-btn,
+.layer-action-btn-grid.is-3-items .layer-action-btn {
+  grid-column: span 1 !important;
+}
+
+#add-layer-control-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
 #add-layer-control-grid .layer-action-btn {
   grid-column: span 1 !important;
 }

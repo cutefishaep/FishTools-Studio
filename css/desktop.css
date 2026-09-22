@@ -2059,7 +2059,7 @@
 
 .desktop-panel-right .effects-card.is-expanded,
 #desktop-panel-inspector .effects-card.is-expanded {
-  border-color: var(--color-primary-subtle, var(--border-strong)) !important;
+  border-color: var(--border-strong) !important;
 }
 
 /* Hide mobile swipe-to-delete layer on desktop */
@@ -2087,10 +2087,7 @@
   transition: background-color 0.08s ease !important;
 }
 
-.desktop-panel-right .effects-card:hover .effects-card-header,
-#desktop-panel-inspector .effects-card:hover .effects-card-header {
-  background-color: var(--bg-panel-hover) !important;
-}
+/* Removed: card:hover header highlight was too noisy */
 
 .desktop-panel-right .effects-card.is-expanded .effects-card-header,
 #desktop-panel-inspector .effects-card.is-expanded .effects-card-header {
@@ -2210,7 +2207,6 @@
 .desktop-panel-right .effects-card-eye-btn:hover,
 #desktop-panel-inspector .effects-card-eye-btn:hover {
   color: var(--color-primary) !important;
-  background-color: var(--bg-panel-inner) !important;
 }
 
 .desktop-panel-right .effects-card-eye-btn.is-active,
@@ -2227,7 +2223,6 @@
 .desktop-panel-right .effects-card-kebab-btn:hover,
 #desktop-panel-inspector .effects-card-kebab-btn:hover {
   color: var(--text-primary) !important;
-  background-color: var(--bg-panel-inner) !important;
 }
 
 .desktop-panel-right .effects-card-delete-btn,
@@ -2248,7 +2243,6 @@
 .desktop-panel-right .effects-card-delete-btn:hover,
 #desktop-panel-inspector .effects-card-delete-btn:hover {
   color: var(--color-danger, #ef4444) !important;
-  background-color: var(--color-danger-bg, rgba(239, 68, 68, 0.15)) !important;
 }
 
 .desktop-panel-right .effects-card-drag-handle,
@@ -2261,7 +2255,6 @@
 .desktop-panel-right .effects-card-drag-handle:hover,
 #desktop-panel-inspector .effects-card-drag-handle:hover {
   color: var(--text-primary) !important;
-  background-color: var(--bg-panel-inner) !important;
 }
 
 .desktop-panel-right .effects-card-drag-handle:active,
@@ -2281,8 +2274,8 @@
 #desktop-panel-inspector .effects-card.is-expanded .effects-card-controls {
   display: flex !important;
   flex-direction: column !important;
-  gap: 4px !important;
-  padding: 6px 8px !important;
+  gap: 2px !important;
+  padding: 4px 6px !important;
   background-color: var(--bg-panel-inner) !important;
   border-bottom-left-radius: var(--desktop-radius-sm) !important;
   border-bottom-right-radius: var(--desktop-radius-sm) !important;
@@ -2294,8 +2287,8 @@
   display: grid !important;
   grid-template-columns: minmax(80px, 34%) 1fr !important;
   align-items: center !important;
-  gap: 6px !important;
-  min-height: 24px !important;
+  gap: 4px !important;
+  min-height: 20px !important;
   box-sizing: border-box !important;
 }
 
@@ -2325,9 +2318,7 @@
 }
 
 .desktop-panel-right .effects-param-label:hover,
-#desktop-panel-inspector .effects-param-label:hover,
-.desktop-panel-right .effects-control-row:hover .effects-param-label,
-#desktop-panel-inspector .effects-control-row:hover .effects-param-label {
+#desktop-panel-inspector .effects-param-label:hover {
   color: var(--text-primary) !important;
 }
 
@@ -2348,8 +2339,8 @@
   justify-content: flex-end !important;
   flex: 1 !important;
   min-width: 0 !important;
-  height: 22px !important;
-  max-height: 22px !important;
+  height: 20px !important;
+  max-height: 20px !important;
   background-color: var(--bg-canvas) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important; /* 3px: squared with subtle rounding */
@@ -2363,8 +2354,7 @@
 
 .desktop-panel-right .effects-param-pill:hover,
 #desktop-panel-inspector .effects-param-pill:hover {
-  border-color: var(--color-primary) !important;
-  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--border-strong) !important;
 }
 
 .desktop-panel-right .effects-param-pill:active,
@@ -2379,7 +2369,7 @@
   bottom: 0 !important;
   left: 0 !important;
   background-color: var(--color-primary) !important;
-  opacity: 0.16 !important;
+  opacity: 0.10 !important;
   pointer-events: none !important;
 }
 
@@ -2401,8 +2391,8 @@
 #desktop-panel-inspector .effects-select,
 .desktop-panel-right .effects-custom-dropdown,
 #desktop-panel-inspector .effects-custom-dropdown {
-  height: 22px !important;
-  min-height: 22px !important;
+  height: 20px !important;
+  min-height: 20px !important;
   background-color: var(--bg-canvas) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;

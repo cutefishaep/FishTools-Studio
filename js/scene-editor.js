@@ -78,6 +78,11 @@
       }
 
       // Show window immediately for instantaneous user feedback
+      if (this._win) {
+        this._win._dragX = 0;
+        this._win._dragY = 0;
+        this._win.style.transform = '';
+      }
       this._overlay.classList.add('is-active');
       this.isOpen = true;
 
@@ -201,37 +206,28 @@
 
       const win = document.createElement('div');
       win.className = 'scene-editor-window';
+      this._win = win;
       overlay.appendChild(win);
 
       // === 1. Title bar ===
       const titlebar = document.createElement('div');
       titlebar.className = 'scene-editor-titlebar';
       titlebar.innerHTML = `
-        <div class="se-mac-dots">
-          <button type="button" class="se-mac-dot is-close" title="Close / Cancel"></button>
-          <button type="button" class="se-mac-dot is-min" title="Minimize / Center"></button>
-          <button type="button" class="se-mac-dot is-max" title="Toggle Fullscreen"></button>
-        </div>
         <span class="scene-editor-title">Scene Setup</span>
-        <span class="se-title-meta">FishTools 3D Element</span>
         <span class="se-title-spacer"></span>
         <div class="se-title-actions">
           <button type="button" class="se-title-btn" data-action="cancel" title="Cancel & Discard Changes">Cancel</button>
           <button type="button" class="se-title-btn is-primary" data-action="apply" title="Apply Scene Changes">OK</button>
+          <button type="button" class="se-title-close-btn" data-action="close" title="Close Window">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       `;
       win.appendChild(titlebar);
       this._initDrag(titlebar, win);
 
-      // Title bar buttons
-      titlebar.querySelector('.is-close').addEventListener('click', () => this.close(false, false));
-      titlebar.querySelector('.is-min').addEventListener('click', () => {
-        win.style.top = '';
-        win.style.left = '';
-      });
-      titlebar.querySelector('.is-max').addEventListener('click', () => {
-        win.classList.toggle('is-maximized');
-      });
+      // Title bar button listeners
+      titlebar.querySelector('[data-action="close"]').addEventListener('click', () => this.close(false, false));
       titlebar.querySelector('[data-action="cancel"]').addEventListener('click', () => this.close(false, false));
       titlebar.querySelector('[data-action="apply"]').addEventListener('click', () => this.close(true, true));
 
@@ -239,11 +235,6 @@
       const ribbon = document.createElement('div');
       ribbon.className = 'scene-editor-ribbon';
       ribbon.innerHTML = `
-        <div class="se-ribbon-menubar">
-          <span class="se-ribbon-menu-item">File</span>
-          <span class="se-ribbon-menu-item">Window</span>
-          <span class="se-ribbon-menu-item">Help</span>
-        </div>
         <div class="se-ribbon-actions">
           <button type="button" class="se-ribbon-btn" data-action="import" title="Import 3D model (GLTF, GLB)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -339,7 +330,6 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
           </button>
         </div>
-        <div class="se-viewport-empty">No Model — click CREATE ▾ or IMPORT</div>
         <canvas class="se-viewport-canvas"></canvas>
         <div class="se-vp-bottom-toolbar">
           <button type="button" class="se-vp-tool-btn is-active" data-nav="orbit" title="Orbit Camera Tool (Left-Click Drag)">
@@ -1086,10 +1076,6 @@
 
         this._sceneTree.appendChild(item);
       });
-
-      // Update empty label in viewport
-      const emptyLabel = this._viewport?.querySelector('.se-viewport-empty');
-      if (emptyLabel) emptyLabel.style.display = this._mgr.models.size > 0 ? 'none' : '';
     },
 
     /* ================================================================
@@ -1329,6 +1315,9 @@
           case 'ly': entry.light.position.y = value; entry.params.y = value; break;
           case 'lz': entry.light.position.z = value; entry.params.z = value; break;
         }
+        if (entry.helper && typeof entry.helper.update === 'function') {
+          entry.helper.update();
+        }
       }
     },
 
@@ -1454,29 +1443,32 @@
        ================================================================ */
 
     _initDrag(handle, win) {
+      win._dragX = 0;
+      win._dragY = 0;
+
       handle.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
-        if (e.target.closest('button, input, select, .se-mac-dot')) return;
+        if (e.target.closest('button, input, select, .se-title-actions, .se-title-btn, .se-title-close-btn')) return;
         if (win.classList.contains('is-maximized')) return;
 
         e.preventDefault();
         const startX = e.clientX;
         const startY = e.clientY;
-        const rect = win.getBoundingClientRect();
-        const winX = rect.left;
-        const winY = rect.top;
+        const initialDragX = win._dragX || 0;
+        const initialDragY = win._dragY || 0;
 
         handle.setPointerCapture(e.pointerId);
 
         const onMove = (ev) => {
           const dx = ev.clientX - startX;
           const dy = ev.clientY - startY;
-          win.style.left = (winX + dx) + 'px';
-          win.style.top = (winY + dy) + 'px';
-          win.style.margin = '0';
+          win._dragX = initialDragX + dx;
+          win._dragY = initialDragY + dy;
+          win.style.transform = `translate3d(${win._dragX}px, ${win._dragY}px, 0)`;
         };
 
-        const onUp = () => {
+        const onUp = (ev) => {
+          try { handle.releasePointerCapture(ev.pointerId); } catch (_) {}
           handle.removeEventListener('pointermove', onMove);
           handle.removeEventListener('pointerup', onUp);
         };

@@ -374,8 +374,20 @@
           break;
       }
 
+      let helper = null;
+      try {
+        if (type === 'point') {
+          helper = new THREE.PointLightHelper(light, 25, 0xffd166);
+        } else if (type === 'spot') {
+          helper = new THREE.SpotLightHelper(light, 0xffd166);
+        } else if (type === 'directional') {
+          helper = new THREE.DirectionalLightHelper(light, 50, 0xffd166);
+        }
+        if (helper) this.scene.add(helper);
+      } catch (_) {}
+
       this.scene.add(light);
-      this.lights.set(id, { light, type, params: { ...params } });
+      this.lights.set(id, { light, helper, type, params: { ...params } });
       return id;
     }
 
@@ -388,6 +400,10 @@
       if (!entry) return;
       this.scene.remove(entry.light);
       if (entry.light.dispose) entry.light.dispose();
+      if (entry.helper) {
+        this.scene.remove(entry.helper);
+        if (entry.helper.dispose) entry.helper.dispose();
+      }
       this.lights.delete(id);
     }
 
@@ -859,6 +875,7 @@
         wireframe: false
       });
 
+      const mesh = new THREE.Mesh(geom, mat);
       const yPos = (type === 'plane' ? 0.5 : 50);
       mesh.position.set(0, yPos, 0);
       mesh.castShadow = true;

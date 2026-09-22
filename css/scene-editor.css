@@ -58,11 +58,11 @@
 }
 
 /* ================================================================
-   1. TITLEBAR (AE Scene Setup Style with Traffic Lights & Action Buttons)
+   1. TITLEBAR (Clean Desktop Titlebar with Cancel, OK, Close)
    ================================================================ */
 
 .scene-editor-titlebar {
-  height: 36px;
+  height: 38px;
   background-color: var(--bg-panel);
   display: flex;
   align-items: center;
@@ -78,55 +78,12 @@
   cursor: grabbing;
 }
 
-/* Mac Window Traffic Light Buttons */
-.se-mac-dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.se-mac-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  outline: none;
-  transition: opacity 0.15s ease;
-}
-
-.se-mac-dot:hover {
-  opacity: 0.8;
-}
-
-.se-mac-dot.is-close {
-  background-color: #ff5f56;
-}
-
-.se-mac-dot.is-min {
-  background-color: #ffbd2e;
-}
-
-.se-mac-dot.is-max {
-  background-color: #27c93f;
-}
-
 .scene-editor-title {
   font-family: var(--font-brand);
   font-size: 13px;
   color: var(--text-primary);
   letter-spacing: 0.3px;
   font-weight: 600;
-  white-space: nowrap;
-}
-
-.se-title-meta {
-  font-family: var(--font-brand);
-  font-size: 10px;
-  color: var(--text-dim);
-  letter-spacing: 0.2px;
   white-space: nowrap;
 }
 
@@ -172,46 +129,46 @@
   background-color: var(--color-primary-hover);
 }
 
+.se-title-close-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  margin-left: 4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.se-title-close-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-danger);
+}
+
 /* ================================================================
-   2. TOP RIBBON TOOLBAR (Element 3D Style Ribbon)
+   2. TOP RIBBON TOOLBAR (Action Buttons)
    ================================================================ */
 
 .scene-editor-ribbon {
   background-color: var(--bg-panel-inner);
   border-bottom: 1px solid var(--border-panel);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  height: 42px;
+  padding: 0 10px;
   flex-shrink: 0;
 }
 
-.se-ribbon-menubar {
-  height: 22px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 12px;
-  background-color: var(--bg-dashboard);
-  border-bottom: 1px solid var(--border-panel);
-}
-
-.se-ribbon-menu-item {
-  font-family: var(--font-brand);
-  font-size: 10px;
-  color: var(--text-muted);
-  cursor: pointer;
-  user-select: none;
-}
-
-.se-ribbon-menu-item:hover {
-  color: var(--text-primary);
-}
-
 .se-ribbon-actions {
-  height: 42px;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
+  width: 100%;
 }
 
 .se-ribbon-btn {
@@ -425,19 +382,6 @@ canvas.se-viewport-canvas {
 
 canvas.se-viewport-canvas:active {
   cursor: grabbing;
-}
-
-.se-viewport-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-brand);
-  font-size: 13px;
-  color: var(--text-dim);
-  pointer-events: none; /* Do not block mouse/orbit interactions */
-  z-index: 1;
 }
 
 /* Dedicated Panel Empty State (Materials, Scene Tree, Inspector) */

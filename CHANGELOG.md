@@ -5,6 +5,15 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.74] - 2026-09-22
+
+### Fixed
+- **Restored `editor.html` & Bundled 3D Scene Editor Suite (`editor.html`)**: Restored full 4900+ lines `editor.html` core layout and wired `css/scene-editor.css`, `js/three-loader.js`, `js/3d-element-db.js`, `js/3d_element_manager.js`, `js/scene-editor.js`, and `effects/3d_element.js`.
+- **Window Dragging Jumping & Offset Fix (`js/scene-editor.js`)**: Replaced flex-relative `style.left/top` manipulation with cumulative `transform: translate3d(...)` tracking, eliminating all jump offsets when dragging the floating Scene Setup window.
+- **3D Visual Light Helpers (`js/3d_element_manager.js`, `js/scene-editor.js`)**: Added visual 3D wireframe helpers (`THREE.PointLightHelper`, `THREE.SpotLightHelper`, `THREE.DirectionalLightHelper`) rendered live inside the 3D viewport with real-time update on position and intensity slider changes.
+- **Cleaned Scene Setup Header & Viewport (`css/scene-editor.css`, `js/scene-editor.js`)**: Removed macOS traffic lights, menubar (`File`, `Window`, `Help`), and subtitle, replacing them with a crisp vector `✕` close button. Removed "No Model — click create" text overlay.
+- **Starter Primitive Spawning Crash Fix (`js/3d_element_manager.js`)**: Fixed `ReferenceError: mesh is not defined` in procedural primitive creation, enabling instant click-to-spawn for Box, Cone, Cylinder, Plane, Sphere, and Torus.
+
 ## [0.5.73] - 2026-09-22
 
 ### Added

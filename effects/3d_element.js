@@ -139,6 +139,9 @@
                 }
                 return null;
               });
+              if (typeof window.redrawComposition === 'function') {
+                window.redrawComposition('3d-element-loaded');
+              }
             }
           }
         } catch (e) {

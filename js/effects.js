@@ -981,13 +981,23 @@
         if (type === 'button') {
           processedParams.add(p.id);
           const btnLabel = p.buttonLabel || p.label || p.id;
-          controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-button" data-param="${p.id}">
-              <div class="effects-param-val-col" style="width:100%">
-                <button type="button" class="effects-action-btn fx-action-btn-${p.id}" data-param="${p.id}" data-effect-id="${fx.id}" title="${btnLabel}">${btnLabel}</button>
+          // Mobile lock: 3D editing requires desktop
+          const isMobile = window.innerWidth <= 600;
+          if (isMobile && (fx.id === '3d-element' || fx._def?.id === '3d-element')) {
+            controlsHTMLArr.push(`
+              <div class="effects-control-row effects-control-row-mobile-lock" data-param="${p.id}">
+                <div class="fx-mobile-lock">Switch to desktop view to modify this effect.</div>
               </div>
-            </div>
-          `);
+            `);
+          } else {
+            controlsHTMLArr.push(`
+              <div class="effects-control-row effects-control-row-button" data-param="${p.id}">
+                <div class="effects-param-val-col" style="width:100%">
+                  <button type="button" class="effects-action-btn fx-action-btn-${p.id}" data-param="${p.id}" data-effect-id="${fx.id}" title="${btnLabel}">${btnLabel}</button>
+                </div>
+              </div>
+            `);
+          }
           continue;
         }
 

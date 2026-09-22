@@ -170,15 +170,19 @@
         lightAngleY: fx.lightAngleY
       });
 
-      // Apply global transform offset to all models
+      // Apply global transform offset to all models (without mutating stored entry.transform)
       mgr.models.forEach((entry) => {
         const t = entry.transform;
-        mgr.updateModelTransform(entry.id, {
-          x: (t.x || 0) + (fx.offsetX || 0),
-          y: (t.y || 0) + (fx.offsetY || 0),
-          z: (t.z || 0) + (fx.offsetZ || 0),
-          scale: (t.scale || 100) * ((fx.modelScale || 100) / 100)
-        });
+        if (!entry.mesh) return;
+        const mesh = entry.mesh;
+        const posX = (t.x !== undefined ? t.x : (t.posX || 0)) + (fx.offsetX || 0);
+        const posY = (t.y !== undefined ? t.y : (t.posY || 0)) + (fx.offsetY || 0);
+        const posZ = (t.z !== undefined ? t.z : (t.posZ || 0)) + (fx.offsetZ || 0);
+        mesh.position.set(posX, -posY, posZ);
+        const scaleVal = (t.scale !== undefined ? t.scale : (t.scaleX || 100)) * ((fx.modelScale || 100) / 100);
+        const factor = (entry.bounds && entry.bounds.scaleFactor) ? entry.bounds.scaleFactor : 1;
+        const s = (scaleVal / 100) * factor;
+        mesh.scale.set(s, s, s);
       });
 
       // Sync camera from project camera layer

@@ -312,23 +312,41 @@
         <div class="se-viewport-header">
           <span class="se-tab-badge">Preview</span>
           <select class="se-viewport-dropdown" data-prop="view" title="Camera View Angle">
-            <option value="perspective">Perspective</option>
-            <option value="front">Front</option>
+            <option value="perspective" selected>Perspective</option>
             <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
             <option value="right">Right</option>
+            <option value="front">Front</option>
+            <option value="back">Back</option>
           </select>
           <select class="se-viewport-dropdown" data-prop="shading" title="Shading Mode">
-            <option value="shaded">Shaded</option>
+            <option value="shaded" selected>Shaded</option>
             <option value="wireframe">Wireframe</option>
+            <option value="point">Point</option>
           </select>
           <label class="se-viewport-check-label" title="Draft Textures Mode">
             <input type="checkbox" data-prop="draft-textures">
             <span>Draft Textures</span>
           </label>
           <span style="flex:1"></span>
-          <button type="button" class="se-vp-tool-btn" data-action="reset-camera" title="Reset Camera View">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+          <button type="button" class="se-vp-tool-btn" data-action="frame-selected" title="Frame Selected Object">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
           </button>
+          <button type="button" class="se-vp-tool-btn" data-action="more-options" title="View Options">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="se-view-options-panel" style="display:none">
+            <div class="se-vop-title">View Options</div>
+            <div class="se-vop-grid">
+              <label class="se-vop-item"><span>Show Info</span><input type="checkbox" data-vop="showInfo" checked></label>
+              <label class="se-vop-item"><span>Bounding Boxes</span><input type="checkbox" data-vop="boundingBoxes"></label>
+              <label class="se-vop-item"><span>Show AO</span><input type="checkbox" data-vop="showAO" checked></label>
+              <label class="se-vop-item"><span>Grid</span><input type="checkbox" data-vop="grid" checked></label>
+              <label class="se-vop-item"><span>Reflections</span><input type="checkbox" data-vop="reflections" checked></label>
+              <label class="se-vop-item"><span>Gizmos</span><input type="checkbox" data-vop="gizmos" checked></label>
+            </div>
+          </div>
         </div>
         <canvas class="se-viewport-canvas"></canvas>
         <div class="se-vp-bottom-toolbar">
@@ -342,13 +360,15 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
           </button>
           <span class="se-ribbon-sep"></span>
-          <select class="se-vp-select" data-prop="lighting" title="Lighting Mode">
-            <option value="single">Single Light</option>
-            <option value="studio">Studio 3-Point</option>
-            <option value="warm">Warm Light</option>
+          <select class="se-vp-select" data-prop="lighting" title="Lighting Preset">
+            <option value="none">None</option>
+            <option value="single" selected>Single Light</option>
+            <option value="double">Double Light</option>
+            <option value="studio">Studio</option>
           </select>
         </div>
       `;
+
       colPreview.appendChild(viewport);
       this._viewport = viewport;
       this._viewportCanvas = viewport.querySelector('.se-viewport-canvas');
@@ -624,19 +644,78 @@
         }
       });
 
-      // Shading dropdown (Shaded vs Wireframe)
+      // Shading dropdown (Shaded vs Wireframe vs Point)
       viewport.querySelector('[data-prop="shading"]').addEventListener('change', (e) => {
         if (this._mgr && typeof this._mgr.setShadingMode === 'function') {
           this._mgr.setShadingMode(e.target.value);
         }
       });
 
-      // Reset camera button
-      viewport.querySelector('[data-action="reset-camera"]').addEventListener('click', () => {
-        if (this._mgr && typeof this._mgr.resetCamera === 'function') {
-          this._mgr.resetCamera();
+      // Frame selected / reset camera button
+      viewport.querySelector('[data-action="frame-selected"]').addEventListener('click', () => {
+        if (this._mgr && typeof this._mgr.frameSelected === 'function') {
+          this._mgr.frameSelected(this._selectedId || null);
         }
       });
+
+      // More options toggle
+      const moreBtn = viewport.querySelector('[data-action="more-options"]');
+      const morePanel = viewport.querySelector('.se-view-options-panel');
+      if (moreBtn && morePanel) {
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = morePanel.style.display !== 'none';
+          morePanel.style.display = isOpen ? 'none' : 'block';
+        });
+        // Close panel on outside click
+        document.addEventListener('click', (e) => {
+          if (!morePanel.contains(e.target) && e.target !== moreBtn) {
+            morePanel.style.display = 'none';
+          }
+        });
+        // Wire view option checkboxes
+        morePanel.querySelectorAll('[data-vop]').forEach(chk => {
+          chk.addEventListener('change', () => {
+            const key = chk.dataset.vop;
+            const val = chk.checked;
+            if (!this._mgr) return;
+            switch (key) {
+              case 'grid':
+                if (this._mgr._gridHelper) this._mgr._gridHelper.visible = val;
+                break;
+              case 'boundingBoxes':
+                this._mgr.models.forEach(entry => {
+                  if (entry.mesh) {
+                    if (val && !entry._boxHelper) {
+                      entry._boxHelper = new window.THREE.BoxHelper(entry.mesh, 0x4488ff);
+                      this._mgr.scene.add(entry._boxHelper);
+                    } else if (!val && entry._boxHelper) {
+                      this._mgr.scene.remove(entry._boxHelper);
+                      entry._boxHelper = null;
+                    }
+                  }
+                });
+                break;
+              case 'reflections':
+                this._mgr.models.forEach(entry => {
+                  if (!entry.mesh) return;
+                  entry.mesh.traverse(child => {
+                    if (child.isMesh && child.material) {
+                      child.material.envMap = val ? this._mgr._envMap : null;
+                      child.material.needsUpdate = true;
+                    }
+                  });
+                });
+                break;
+              case 'gizmos':
+                if (this._mgr._selectionHelper) {
+                  this._mgr._selectionHelper.visible = val;
+                }
+                break;
+            }
+          });
+        });
+      }
 
       // Lighting preset select
       viewport.querySelector('[data-prop="lighting"]').addEventListener('change', (e) => {
@@ -654,7 +733,45 @@
           this._applyNavTool(this._activeNavTool);
         });
       });
+
+      // Raycasting: click on canvas to select object
+      const canvas = viewport.querySelector('.se-viewport-canvas');
+      if (canvas) {
+        canvas.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          this._selectPointerStart = { x: e.clientX, y: e.clientY };
+        });
+        canvas.addEventListener('pointerup', (e) => {
+          if (e.button !== 0) return;
+          const start = this._selectPointerStart;
+          if (!start) return;
+          const dx = Math.abs(e.clientX - start.x);
+          const dy = Math.abs(e.clientY - start.y);
+          // Only trigger select if pointer didn't move (not dragging camera)
+          if (dx > 5 || dy > 5) return;
+          if (!this._mgr || typeof this._mgr.getObjectAtRay !== 'function') return;
+          const rect = canvas.getBoundingClientRect();
+          const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          const hitId = this._mgr.getObjectAtRay(nx, ny);
+          if (hitId !== null) {
+            this._selectedId = hitId;
+            this._selectedType = 'model';
+            this._mgr.selectObject(hitId);
+            this._refreshSceneTree();
+            this._refreshProperties();
+          } else {
+            // Deselect
+            this._selectedId = null;
+            this._selectedType = null;
+            this._mgr.selectObject(null);
+            this._refreshSceneTree();
+            this._refreshProperties();
+          }
+        });
+      }
     },
+
 
     _applyNavTool(tool) {
       if (!this._mgr || !this._mgr.orbitControls || !window.THREE) return;

@@ -234,12 +234,13 @@
     updateModelTransform(id, transform) {
       const entry = this.models.get(id);
       if (!entry || !entry.mesh) return;
+      const mesh = entry.mesh;
       const t = Object.assign(entry.transform, transform);
       const posX = t.x !== undefined ? t.x : (t.posX || 0);
       const posY = t.y !== undefined ? t.y : (t.posY || 0);
       const posZ = t.z !== undefined ? t.z : (t.posZ || 0);
-      m.position.set(posX, -posY, posZ); // Y-inverted for screen coords
-      m.rotation.set(
+      mesh.position.set(posX, -posY, posZ); // Y-inverted for screen coords
+      mesh.rotation.set(
         (t.rotX || 0) * DEG2RAD,
         (t.rotY || 0) * DEG2RAD,
         (t.rotZ || 0) * DEG2RAD
@@ -247,7 +248,7 @@
       const scaleVal = t.scale !== undefined ? t.scale : (t.scaleX || 100);
       const factor = (entry.bounds && entry.bounds.scaleFactor) ? entry.bounds.scaleFactor : 1;
       const s = (scaleVal / 100) * factor;
-      m.scale.set(s, s, s);
+      mesh.scale.set(s, s, s);
     }
 
     /* ================================================================
@@ -556,7 +557,7 @@
       }
 
       if (this._gridHelper) this._gridHelper.visible = true;
-      if (this._axesHelper) this._axesHelper.visible = true;
+      if (this._axesHelper) this._axesHelper.visible = false; // Grid only, no world axes
       this.renderer.render(this.scene, this.camera);
       return this._offscreen;
     }
@@ -757,20 +758,30 @@
     }
 
     /**
-     * Switch view perspective (Perspective, Top, Front, Right)
+     * Switch view perspective (Perspective, Top, Bottom, Front, Back, Left, Right)
      */
     setViewMode(mode) {
       if (!this.camera) return;
       const dist = 550;
+      const target = { x: 0, y: 30, z: 0 };
       switch (mode) {
         case 'front':
-          this.camera.position.set(0, 30, dist);
+          this.camera.position.set(target.x, target.y, dist);
+          break;
+        case 'back':
+          this.camera.position.set(target.x, target.y, -dist);
           break;
         case 'top':
-          this.camera.position.set(0, dist, 0.001);
+          this.camera.position.set(target.x, dist, 0.001);
+          break;
+        case 'bottom':
+          this.camera.position.set(target.x, -dist, 0.001);
           break;
         case 'right':
-          this.camera.position.set(dist, 30, 0);
+          this.camera.position.set(dist, target.y, target.z);
+          break;
+        case 'left':
+          this.camera.position.set(-dist, target.y, target.z);
           break;
         case 'perspective':
         default:
@@ -778,58 +789,205 @@
           break;
       }
       if (this.orbitControls) {
-        this.orbitControls.target.set(0, 30, 0);
+        this.orbitControls.target.set(target.x, target.y, target.z);
         this.orbitControls.update();
       } else {
-        this.camera.lookAt(0, 30, 0);
+        this.camera.lookAt(target.x, target.y, target.z);
       }
     }
 
     /**
-     * Toggle wireframe shading mode for all meshes
+     * Toggle shading mode: shaded | wireframe | point
      */
     setShadingMode(mode) {
-      const isWire = (mode === 'wireframe');
       this.models.forEach(entry => {
         if (!entry.mesh) return;
         entry.mesh.traverse(child => {
           if (child.isMesh && child.material) {
-            child.material.wireframe = isWire;
+            child.material.wireframe = (mode === 'wireframe');
+            if (mode === 'point') {
+              child.material.wireframe = false;
+              // Create point-cloud representation (swap to PointsMaterial)
+              if (!child._origMat) child._origMat = child.material;
+              if (!child._pointsMesh) {
+                const points = new window.THREE.Points(
+                  child.geometry,
+                  new window.THREE.PointsMaterial({ color: 0x98ce7b, size: 3 })
+                );
+                points.name = '__points_' + child.uuid;
+                child.parent.add(points);
+                child._pointsMesh = points;
+              }
+              child.visible = false;
+              if (child._pointsMesh) child._pointsMesh.visible = true;
+            } else {
+              child.visible = true;
+              if (child._pointsMesh) child._pointsMesh.visible = false;
+            }
           }
         });
       });
     }
 
     /**
-     * Quick lighting presets
+     * Select an object by ID — shows BoxHelper outline
+     */
+    selectObject(id) {
+      if (!window.THREE) return;
+      const THREE = window.THREE;
+      this._selectedId = id;
+
+      // Remove old selection helper
+      if (this._selectionHelper) {
+        this.scene.remove(this._selectionHelper);
+        this._selectionHelper = null;
+      }
+
+      if (!id) return;
+      const entry = this.models.get(id);
+      if (!entry || !entry.mesh) return;
+
+      this._selectionHelper = new THREE.BoxHelper(entry.mesh, 0x98ce7b);
+      this.scene.add(this._selectionHelper);
+    }
+
+    /**
+     * Update selection helper (call each frame after model moves)
+     */
+    updateSelectionHelper() {
+      if (this._selectionHelper) {
+        this._selectionHelper.update();
+      }
+    }
+
+    /**
+     * Frame camera on selected object (or full scene if none)
+     */
+    frameSelected(id) {
+      if (!window.THREE || !this.camera) return;
+      const THREE = window.THREE;
+      const entry = id ? this.models.get(id) : null;
+
+      if (entry && entry.mesh) {
+        const box = new THREE.Box3().setFromObject(entry.mesh);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const dist = maxDim * 2.5;
+        const dir = this.camera.position.clone().sub(center).normalize();
+        this.camera.position.copy(center.clone().addScaledVector(dir, dist));
+        if (this.orbitControls) {
+          this.orbitControls.target.copy(center);
+          this.orbitControls.update();
+        } else {
+          this.camera.lookAt(center);
+        }
+      } else {
+        this.resetCamera();
+      }
+    }
+
+    /**
+     * Raycast to find object at normalized screen coords
+     * @param {number} nx - normalized x [-1, 1]
+     * @param {number} ny - normalized y [-1, 1]
+     * @returns {string|null} Model ID or null
+     */
+    getObjectAtRay(nx, ny) {
+      if (!window.THREE || !this.camera) return null;
+      const THREE = window.THREE;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera({ x: nx, y: ny }, this.camera);
+
+      const meshes = [];
+      this.models.forEach((entry, id) => {
+        if (entry.mesh) {
+          entry.mesh.traverse(child => {
+            if (child.isMesh) meshes.push({ mesh: child, id });
+          });
+        }
+      });
+
+      const intersects = raycaster.intersectObjects(meshes.map(m => m.mesh), false);
+      if (intersects.length === 0) return null;
+      const hit = intersects[0].object;
+      const found = meshes.find(m => m.mesh === hit);
+      return found ? found.id : null;
+    }
+
+    /**
+     * Quick lighting presets: none | single | double | studio
      */
     setLightingPreset(preset) {
+      const THREE = window.THREE;
       const dirEntry = this.lights.get('__directional');
       const ambEntry = this.lights.get('__ambient');
-      if (!dirEntry || !ambEntry) return;
+      if (!ambEntry) return;
+
+      // Remove any existing fill/rim lights from previous presets
+      ['__fill', '__rim'].forEach(k => {
+        if (this.lights.has(k)) {
+          const e = this.lights.get(k);
+          this.scene.remove(e.light);
+          if (e.light.dispose) e.light.dispose();
+          this.lights.delete(k);
+        }
+      });
 
       switch (preset) {
+        case 'none':
+          ambEntry.light.intensity = 0.08;
+          ambEntry.light.color.set(0xffffff);
+          if (dirEntry) dirEntry.light.intensity = 0;
+          break;
+
+        case 'double':
+          ambEntry.light.intensity = 0.3;
+          ambEntry.light.color.set(0xffffff);
+          if (dirEntry) {
+            dirEntry.light.intensity = 1.0;
+            dirEntry.light.color.set(0xfff0e0);
+            dirEntry.light.position.set(1, 1.5, 1).normalize();
+          }
+          // Add fill light from opposite side
+          if (THREE) {
+            const fill = new THREE.DirectionalLight(0xc8dcff, 0.6);
+            fill.position.set(-1, 0.5, -0.5).normalize();
+            this.scene.add(fill);
+            this.lights.set('__fill', { light: fill, type: 'directional', params: {} });
+          }
+          break;
+
         case 'studio':
           ambEntry.light.intensity = 0.5;
           ambEntry.light.color.set(0xffffff);
-          dirEntry.light.intensity = 1.2;
-          dirEntry.light.color.set(0xfff5e6);
-          dirEntry.light.position.set(2, 3, 2).normalize();
+          if (dirEntry) {
+            dirEntry.light.intensity = 1.2;
+            dirEntry.light.color.set(0xfff5e6);
+            dirEntry.light.position.set(2, 3, 2).normalize();
+          }
+          // Add fill + rim
+          if (THREE) {
+            const fill = new THREE.DirectionalLight(0xc8dcff, 0.5);
+            fill.position.set(-2, 1, -1).normalize();
+            this.scene.add(fill);
+            this.lights.set('__fill', { light: fill, type: 'directional', params: {} });
+            const rim = new THREE.DirectionalLight(0xffffff, 0.3);
+            rim.position.set(0, -1, -2).normalize();
+            this.scene.add(rim);
+            this.lights.set('__rim', { light: rim, type: 'directional', params: {} });
+          }
           break;
-        case 'warm':
-          ambEntry.light.intensity = 0.35;
-          ambEntry.light.color.set(0xffe0b2);
-          dirEntry.light.intensity = 1.3;
-          dirEntry.light.color.set(0xffb74d);
-          dirEntry.light.position.set(1.5, 2, 1).normalize();
-          break;
+
         case 'single':
         default:
           ambEntry.light.intensity = 0.4;
           ambEntry.light.color.set(0xffffff);
-          dirEntry.light.intensity = 1.0;
-          dirEntry.light.color.set(0xffffff);
-          dirEntry.light.position.set(1, 1, 0.5).normalize();
+          if (dirEntry) {
+            dirEntry.light.intensity = 1.0;
+            dirEntry.light.color.set(0xffffff);
+            dirEntry.light.position.set(1, 1, 0.5).normalize();
+          }
           break;
       }
     }

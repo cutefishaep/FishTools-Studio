@@ -6,10 +6,16 @@
 (function (window) {
   'use strict';
 
-  var SCRIPTS = [
-    'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js',
-    'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/js/loaders/GLTFLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/js/controls/OrbitControls.js'
+  var LOCAL_SCRIPTS = [
+    'vendor/three/three.min.js',
+    'vendor/three/GLTFLoader.js',
+    'vendor/three/OrbitControls.js'
+  ];
+
+  var CDN_SCRIPTS = [
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'
   ];
 
   var loadPromise = null;
@@ -38,7 +44,7 @@
       var script = document.createElement('script');
       script.type = 'text/javascript';
       script.src = src;
-      script.async = true;
+      script.async = false; // Preserve execution order
 
       script.onload = function () {
         script.dataset.loaded = 'true';
@@ -56,6 +62,16 @@
     });
   }
 
+  function loadScriptSet(scripts) {
+    var p = Promise.resolve();
+    scripts.forEach(function (url) {
+      p = p.then(function () {
+        return loadScript(url);
+      });
+    });
+    return p;
+  }
+
   /**
    * Lazy load Three.js and required add-ons.
    * @returns {Promise<typeof THREE>}
@@ -71,27 +87,22 @@
       return loadPromise;
     }
 
-    loadPromise = new Promise(function (resolve, reject) {
-      var promise = Promise.resolve();
-
-      // Load CDN scripts sequentially in order
-      SCRIPTS.forEach(function (url) {
-        promise = promise.then(function () {
-          return loadScript(url);
-        });
+    loadPromise = loadScriptSet(LOCAL_SCRIPTS)
+      .catch(function (err) {
+        console.warn('[ThreeLoader] Local scripts failed, falling back to CDN:', err);
+        return loadScriptSet(CDN_SCRIPTS);
+      })
+      .then(function () {
+        if (!window.THREE || !window.THREE.GLTFLoader || !window.THREE.OrbitControls) {
+          throw new Error('Three.js or add-ons missing after script load');
+        }
+        return window.THREE;
+      })
+      .catch(function (err) {
+        loadPromise = null;
+        console.error('[ThreeLoader] Failed to load Three.js:', err);
+        throw err;
       });
-
-      promise
-        .then(function () {
-          resolve(window.THREE);
-        })
-        .catch(function (err) {
-          // Reset cache on error so subsequent attempts can retry
-          loadPromise = null;
-          console.error('[ThreeLoader] Failed to load Three.js:', err);
-          reject(err);
-        });
-    });
 
     return loadPromise;
   }

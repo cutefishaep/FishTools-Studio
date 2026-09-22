@@ -5,6 +5,13 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.70] - 2026-09-22
+
+### Fixed
+- **Local Three.js Vendoring & Offline Support (`vendor/three/`, `js/three-loader.js`)**: Vendored Three.js r128 UMD build (`three.min.js`, `GLTFLoader.js`, `OrbitControls.js`) locally into `vendor/three/` to eliminate external CDN 404s, CORS blocking, and subresource integrity errors. Provides 100% offline 3D element rendering with automatic CDN fallback.
+- **Select Parameter Handling in Effects Rack (`js/effects.js`)**: Fixed `Uncaught TypeError: o.toLowerCase is not a function` when rendering effects with structured `{ value, label }` options (such as `alphaMode` in 3D Element), preventing effects rack inspector crashes.
+- **Service Worker Fetch Interception (`sw.js`)**: Replaced invalid `null` return on external fetch failure with a valid 408 Request Timeout Response, preventing browser worker interception failures.
+
 ## [0.5.69] - 2026-09-22
 
 ### Fixed

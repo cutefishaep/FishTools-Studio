@@ -797,13 +797,21 @@
 
         if (type === 'select') {
           processedParams.add(p.id);
-          const selectVal = (fx[p.id] !== undefined ? fx[p.id] : (p.default || 'normal')).toLowerCase();
-          const opts = Array.isArray(p.options) && p.options.length > 0 ? p.options : ['normal', 'multiply', 'overlay'];
+          const rawSelectVal = fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 'normal');
+          const selectVal = String(rawSelectVal).toLowerCase();
+          const rawOpts = Array.isArray(p.options) && p.options.length > 0 ? p.options : ['normal', 'multiply', 'overlay'];
+          const opts = rawOpts.map(o => {
+            if (typeof o === 'object' && o !== null) {
+              return { value: String(o.value !== undefined ? o.value : ''), label: String(o.label || o.value || '') };
+            }
+            const s = String(o);
+            return { value: s, label: s.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) };
+          });
 
           if (p.display === 'segmented') {
             const btns = opts.map(opt => `
-              <button type="button" class="effects-segmented-btn ${selectVal === opt.toLowerCase() ? 'is-active' : ''}" data-param="${p.id}" data-val="${opt}" title="${opt}">
-                ${opt.charAt(0).toUpperCase() + opt.slice(1)}
+              <button type="button" class="effects-segmented-btn ${selectVal === opt.value.toLowerCase() ? 'is-active' : ''}" data-param="${p.id}" data-val="${opt.value}" title="${opt.label}">
+                ${opt.label}
               </button>
             `).join('');
 
@@ -822,13 +830,13 @@
             continue;
           }
 
-          const formatLabel = (str) => String(str).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          const currentOpt = opts.find(o => o.toLowerCase() === selectVal) || opts[0] || selectVal;
-          const currentLabel = formatLabel(currentOpt);
+          const matchedOpt = opts.find(o => o.value.toLowerCase() === selectVal) || opts[0];
+          const currentVal = matchedOpt ? matchedOpt.value : selectVal;
+          const currentLabel = matchedOpt ? matchedOpt.label : selectVal;
+
           const items = opts.map(opt => {
-            const isSelected = opt.toLowerCase() === selectVal;
-            const labelText = formatLabel(opt);
-            return `<div class="custom-dropdown-item ${isSelected ? 'is-selected' : ''}" role="option" data-val="${opt}" title="${labelText}">${labelText}</div>`;
+            const isSelected = opt.value.toLowerCase() === selectVal;
+            return `<div class="custom-dropdown-item ${isSelected ? 'is-selected' : ''}" role="option" data-val="${opt.value}" title="${opt.label}">${opt.label}</div>`;
           }).join('');
 
           controlsHTMLArr.push(`
@@ -837,7 +845,7 @@
                 <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
               </div>
               <div class="effects-param-val-col">
-                <div class="custom-dropdown effects-custom-dropdown" data-param="${p.id}" data-value="${currentOpt}">
+                <div class="custom-dropdown effects-custom-dropdown" data-param="${p.id}" data-value="${currentVal}">
                   <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select ${p.label || p.id}">
                     <span class="custom-dropdown-label">${currentLabel}</span>
                     <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

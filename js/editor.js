@@ -13969,6 +13969,8 @@
           if (def && Array.isArray(def.params)) {
             def.params.forEach(p => {
               if (fx[p.id] === undefined) {
+                // Hidden stores data blobs, button is action-only — skip hydration
+                if (p.type === 'hidden' || p.type === 'button') return;
                 if (p.type === 'switch' || p.type === 'boolean') {
                   fx[p.id] = (p.default !== undefined) ? p.default : 1;
                 } else if (p.type === 'color') {
@@ -14142,6 +14144,9 @@
               (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
               (fx === layer.effects[0] && layer.keyframes[pId] && layer.keyframes[pId].length > 0)
             );
+
+            // Skip hidden/button params — no sync needed
+            if (pType === 'hidden' || pType === 'button') return;
 
             if (pType === 'switch' || pType === 'boolean') {
               const rawVal = (hasKf && effFx && effFx[pId] !== undefined)
@@ -14947,6 +14952,17 @@
         if (window.FishEffects && typeof window.FishEffects.bindCurveWidget === 'function') {
           window.FishEffects.bindCurveWidget(card, fx, layer);
         }
+
+        // 9. Action Button Params (e.g. Scene Editor — dispatches onButtonClick to effect def)
+        card.querySelectorAll('.effects-action-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const param = btn.dataset.param;
+            if (def && typeof def.onButtonClick === 'function') {
+              def.onButtonClick(param, fx, layer);
+            }
+          });
+        });
       });
     }
 

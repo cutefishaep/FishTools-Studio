@@ -961,6 +961,26 @@
           continue;
         }
 
+        // Hidden params — skip UI rendering entirely (used for sceneData etc.)
+        if (type === 'hidden') {
+          processedParams.add(p.id);
+          continue;
+        }
+
+        // Button params — render a clickable action button (used for Scene Editor etc.)
+        if (type === 'button') {
+          processedParams.add(p.id);
+          const btnLabel = p.buttonLabel || p.label || p.id;
+          controlsHTMLArr.push(`
+            <div class="effects-control-row effects-control-row-button" data-param="${p.id}">
+              <div class="effects-param-val-col" style="width:100%">
+                <button type="button" class="effects-action-btn fx-action-btn-${p.id}" data-param="${p.id}" data-effect-id="${fx.id}" title="${btnLabel}">${btnLabel}</button>
+              </div>
+            </div>
+          `);
+          continue;
+        }
+
         // Coordinate pair detection (e.g. offset_x/offset_y, posX/posY, point_x/point_y, anchorX/anchorY)
         let pairY = null;
         if (p.id.endsWith('_x')) {

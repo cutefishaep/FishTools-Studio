@@ -14434,7 +14434,7 @@
         function toggleExpand(e) {
           if (header && header._justSwiped) return;
           e.stopPropagation();
-          fx.isExpanded = fx.isExpanded === false ? true : false;
+          fx.isExpanded = !fx.isExpanded;
           card.classList.toggle('is-expanded', fx.isExpanded);
           if (kebabMenu) {
             kebabMenu.classList.remove('is-open');

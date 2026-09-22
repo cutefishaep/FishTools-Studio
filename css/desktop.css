@@ -2271,8 +2271,14 @@
 }
 
 /* Controls Area inside Expanded Card: Recessed Darker Surface */
-.desktop-panel-right .effects-card-controls,
-#desktop-panel-inspector .effects-card-controls {
+/* Hide controls when card is collapsed — must match ID specificity to override show rule */
+.desktop-panel-right .effects-card:not(.is-expanded) .effects-card-controls,
+#desktop-panel-inspector .effects-card:not(.is-expanded) .effects-card-controls {
+  display: none !important;
+}
+
+.desktop-panel-right .effects-card.is-expanded .effects-card-controls,
+#desktop-panel-inspector .effects-card.is-expanded .effects-card-controls {
   display: flex !important;
   flex-direction: column !important;
   gap: 4px !important;

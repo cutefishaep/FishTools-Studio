@@ -5,6 +5,14 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.71] - 2026-09-22
+
+### Fixed
+- **Effects Registry `onButtonClick` Dispatch (`js/effects.js`)**: Fixed `FishEffectsRegistry.register()` dropping custom descriptor callbacks including `onButtonClick`. Custom action buttons (like "Open Scene Editor") now correctly trigger their target handler without failing silently.
+- **Instant Floating Window Display for Scene Editor (`js/scene-editor.js`)**: Scene Editor floating popup window now appears instantly upon button click with smooth animation, running background 3D initialization and environment maps asynchronously with comprehensive try-catch safeguards.
+- **Three.js r128 Color Space Compatibility (`js/3d_element_manager.js`)**: Added dual fallback between modern `THREE.SRGBColorSpace` and Three.js r128 `THREE.sRGBEncoding` for renderer output and texture encoding.
+- **3D Suite Asset Loading & MIME Types (`editor.html`, `desktop.html`, `server.js`)**: Bundled Scene Editor stylesheets and scripts into `editor.html` with cache buster query parameters, and registered 3D asset MIME types (`.glb`, `.gltf`, `.bin`, `.hdr`) in `server.js`.
+
 ## [0.5.70] - 2026-09-22
 
 ### Fixed

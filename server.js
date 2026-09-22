@@ -31,7 +31,11 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf',
   '.wasm': 'application/wasm',
   '.xml': 'application/xml; charset=utf-8',
-  '.webmanifest': 'application/manifest+json; charset=utf-8'
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
+  '.bin': 'application/octet-stream',
+  '.hdr': 'image/vnd.radiance'
 };
 
 const SSE_INJECTION = `

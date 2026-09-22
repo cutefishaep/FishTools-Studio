@@ -1,9 +1,12 @@
-/* Scene Editor Window */
+/* ================================================================
+   OpenFishTools Studio — Scene Editor (Element 3D Scene Setup Style)
+   Pure Flat, Zero Blur, Zero Shadow, Strict Theme Token Binding
+   ================================================================ */
 
 .scene-editor-overlay {
   position: fixed;
   inset: 0;
-  background-color: color-mix(in srgb, var(--bg-canvas) 70%, transparent);
+  background-color: color-mix(in srgb, var(--bg-canvas) 75%, transparent);
   z-index: 9500;
   display: none;
   align-items: center;
@@ -15,12 +18,12 @@
 }
 
 .scene-editor-window {
-  width: 85vw;
-  height: 85vh;
-  min-width: 800px;
-  min-height: 500px;
-  max-width: 95vw;
-  max-height: 95vh;
+  width: 90vw;
+  height: 88vh;
+  min-width: 920px;
+  min-height: 580px;
+  max-width: 96vw;
+  max-height: 94vh;
   background-color: var(--bg-dashboard);
   border: 1px solid var(--border-panel);
   border-radius: 4px;
@@ -29,13 +32,24 @@
   overflow: hidden;
   position: relative;
   outline: none;
-  animation: window-appear 0.2s ease forwards;
+  animation: se-window-appear 0.18s ease forwards;
 }
 
-@keyframes window-appear {
+.scene-editor-window.is-maximized {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  top: 0 !important;
+  left: 0 !important;
+}
+
+@keyframes se-window-appear {
   0% {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
   100% {
     opacity: 1;
@@ -43,92 +57,254 @@
   }
 }
 
+/* ================================================================
+   1. TITLEBAR (AE Scene Setup Style with Traffic Lights & Action Buttons)
+   ================================================================ */
+
 .scene-editor-titlebar {
   height: 36px;
   background-color: var(--bg-panel);
   display: flex;
   align-items: center;
   padding: 0 12px;
+  gap: 12px;
   cursor: grab;
   border-bottom: 1px solid var(--border-panel);
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .scene-editor-titlebar:active {
   cursor: grabbing;
 }
 
+/* Mac Window Traffic Light Buttons */
+.se-mac-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.se-mac-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.15s ease;
+}
+
+.se-mac-dot:hover {
+  opacity: 0.8;
+}
+
+.se-mac-dot.is-close {
+  background-color: #ff5f56;
+}
+
+.se-mac-dot.is-min {
+  background-color: #ffbd2e;
+}
+
+.se-mac-dot.is-max {
+  background-color: #27c93f;
+}
+
 .scene-editor-title {
-  flex: 1;
   font-family: var(--font-brand);
   font-size: 13px;
   color: var(--text-primary);
   letter-spacing: 0.3px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.scene-editor-close {
-  width: 24px;
-  height: 24px;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  outline: none;
-  transition: color 0.15s ease;
+.se-title-meta {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 
-.scene-editor-close:hover {
-  color: var(--color-danger);
+.se-title-spacer {
+  flex: 1;
 }
 
-.scene-editor-toolbar {
-  height: 40px;
-  background-color: var(--bg-panel-inner);
+.se-title-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--border-panel);
+  flex-shrink: 0;
 }
 
-.se-tool-btn {
-  height: 28px;
-  padding: 0 12px;
-  background-color: var(--bg-panel);
+.se-title-btn {
+  height: 24px;
+  padding: 0 14px;
+  background-color: var(--bg-panel-inner);
   color: var(--text-muted);
   border: 1px solid var(--border-panel);
-  border-radius: 4px;
+  border-radius: 3px;
   font-family: var(--font-brand);
   font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   outline: none;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.se-tool-btn:hover {
+.se-title-btn:hover {
   background-color: var(--bg-panel-hover);
   color: var(--text-primary);
+  border-color: var(--border-subtle);
 }
 
-.se-tool-btn.is-primary {
+.se-title-btn.is-primary {
   background-color: var(--color-primary);
   color: var(--bg-canvas);
   border-color: var(--color-primary);
 }
 
-.se-tool-btn.is-primary:hover {
+.se-title-btn.is-primary:hover {
   background-color: var(--color-primary-hover);
 }
 
-.se-tool-sep {
+/* ================================================================
+   2. TOP RIBBON TOOLBAR (Element 3D Style Ribbon)
+   ================================================================ */
+
+.scene-editor-ribbon {
+  background-color: var(--bg-panel-inner);
+  border-bottom: 1px solid var(--border-panel);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.se-ribbon-menubar {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  background-color: var(--bg-dashboard);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.se-ribbon-menu-item {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.se-ribbon-menu-item:hover {
+  color: var(--text-primary);
+}
+
+.se-ribbon-actions {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.se-ribbon-btn {
+  height: 30px;
+  padding: 0 14px;
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.se-ribbon-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.se-ribbon-btn.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+.se-ribbon-btn.is-create {
+  background-color: color-mix(in srgb, var(--color-primary) 12%, var(--bg-panel));
+  color: var(--text-primary);
+  border-color: var(--color-primary);
+}
+
+.se-ribbon-btn.is-create:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 22%, var(--bg-panel));
+}
+
+.se-ribbon-sep {
   width: 1px;
-  height: 20px;
+  height: 22px;
   background-color: var(--border-panel);
   margin: 0 4px;
 }
+
+.se-ribbon-dropdown-wrap {
+  position: relative;
+}
+
+.se-create-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 4px;
+  padding: 4px 0;
+  display: none;
+  flex-direction: column;
+  z-index: 200;
+}
+
+.se-create-dropdown.is-open {
+  display: flex;
+}
+
+.se-create-item {
+  height: 28px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.se-create-item:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+/* ================================================================
+   3. BODY (3-COLUMN LAYOUT)
+   ================================================================ */
 
 .scene-editor-body {
   flex: 1;
@@ -137,9 +313,18 @@
   min-height: 0;
 }
 
+/* --- COLUMN 1: PREVIEW & MATERIALS --- */
+.se-col-preview {
+  flex: 1.4;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .scene-editor-viewport {
-  flex: 1;
-  min-width: 200px;
+  flex: 1.5;
+  min-height: 200px;
   position: relative;
   background-color: var(--bg-canvas);
   overflow: hidden;
@@ -149,27 +334,35 @@
   position: absolute;
   top: 8px;
   left: 8px;
+  right: 8px;
   display: flex;
+  align-items: center;
   gap: 6px;
-  z-index: 2;
+  z-index: 10;
+  pointer-events: auto;
 }
 
-.se-viewport-label {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 10px;
+.se-tab-badge {
+  height: 24px;
+  padding: 0 10px;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
   font-family: var(--font-brand);
-  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
 }
 
 .se-viewport-dropdown {
   height: 24px;
   padding: 0 8px;
-  background-color: color-mix(in srgb, var(--bg-panel) 80%, transparent);
+  background-color: var(--bg-panel);
   color: var(--text-muted);
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
   font-family: var(--font-brand);
   font-size: 10px;
   cursor: pointer;
@@ -177,11 +370,39 @@
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
+.se-viewport-dropdown:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.se-viewport-check-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.se-viewport-check-label input {
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
 canvas.se-viewport-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+canvas.se-viewport-canvas:active {
+  cursor: grabbing;
 }
 
 .se-viewport-empty {
@@ -191,50 +412,200 @@ canvas.se-viewport-canvas {
   align-items: center;
   justify-content: center;
   font-family: var(--font-brand);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-dim);
+  pointer-events: none; /* Do not block mouse/orbit interactions */
+  z-index: 1;
 }
 
-.scene-editor-vsplit {
-  width: 4px;
-  background-color: var(--border-panel);
-  cursor: col-resize;
-  flex-shrink: 0;
-  position: relative;
-  transition: background-color 0.15s ease;
-}
-
-.scene-editor-vsplit::after {
-  content: '';
-  width: 2px;
-  height: 24px;
-  border-radius: 2px;
-  background-color: var(--text-dim);
+/* Viewport Bottom Toolbar */
+.se-vp-bottom-toolbar {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  transition: background-color 0.15s ease;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+  pointer-events: auto;
 }
 
-.scene-editor-vsplit:hover::after,
-.scene-editor-vsplit:active::after {
-  background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+.se-vp-tool-btn {
+  width: 28px;
+  height: 28px;
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.scene-editor-sidebar {
-  width: 320px;
-  min-width: 200px;
-  max-width: 500px;
+.se-vp-tool-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.se-vp-tool-btn.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: var(--color-primary);
+}
+
+.se-vp-select {
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Bottom Left Preview Panel (Presets / Scene Materials) */
+.se-preview-bottom {
+  flex: 1;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-dashboard);
+  overflow: hidden;
+}
+
+.se-tab-bar {
+  height: 28px;
+  background-color: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border-panel);
+  gap: 2px;
+}
+
+.se-tab-btn {
+  height: 22px;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.se-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.se-tab-btn.is-active {
+  background-color: var(--bg-panel-inner);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.se-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* Presets Grid */
+.se-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.se-preset-card {
+  height: 64px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.se-preset-card:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+.se-preset-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-panel);
+}
+
+.se-preset-name {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Materials List */
+.se-materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.se-material-card {
+  padding: 8px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.se-material-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-brand);
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* --- COLUMN 2: SCENE HIERARCHY & EDIT INSPECTOR --- */
+.se-col-scene {
+  width: 280px;
+  min-width: 220px;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-dashboard);
+  overflow: hidden;
 }
 
 .scene-editor-scene {
   flex: 1;
   min-height: 120px;
-  overflow-y: auto;
-  background-color: var(--bg-dashboard);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .se-panel-header {
@@ -243,20 +614,62 @@ canvas.se-viewport-canvas {
   padding: 0 10px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   font-family: var(--font-brand);
   font-size: 11px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-panel);
   letter-spacing: 0.3px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.se-panel-subbar {
+  height: 24px;
+  background-color: var(--bg-panel-inner);
+  border-bottom: 1px solid var(--border-panel);
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.se-sub-actions {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.se-sub-btn {
+  height: 18px;
+  padding: 0 6px;
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border-panel);
+  border-radius: 2px;
+  font-family: var(--font-brand);
+  font-size: 9px;
+  cursor: pointer;
+  outline: none;
+}
+
+.se-sub-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
 }
 
 .se-scene-tree {
+  flex: 1;
+  overflow-y: auto;
   padding: 4px 0;
 }
 
 .se-scene-item {
-  height: 26px;
-  padding: 0 10px 0 20px;
+  height: 28px;
+  padding: 0 8px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -264,7 +677,8 @@ canvas.se-viewport-canvas {
   font-size: 11px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .se-scene-item:hover {
@@ -276,50 +690,66 @@ canvas.se-viewport-canvas {
   color: var(--text-primary);
 }
 
+.se-scene-item-eye {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.se-scene-item-eye.is-hidden {
+  opacity: 0.3;
+}
+
 .se-scene-item-icon {
   width: 14px;
   height: 14px;
   color: var(--text-dim);
-}
-
-.se-scene-item-indent-1 { padding-left: 36px; }
-.se-scene-item-indent-2 { padding-left: 52px; }
-.se-scene-item-indent-3 { padding-left: 68px; }
-.se-scene-item-indent-4 { padding-left: 84px; }
-.se-scene-item-indent-5 { padding-left: 100px; }
-
-.scene-editor-hsplit {
-  height: 4px;
-  background-color: var(--border-panel);
-  cursor: row-resize;
   flex-shrink: 0;
-  position: relative;
-  transition: background-color 0.15s ease;
 }
 
-.scene-editor-hsplit::after {
-  content: '';
-  width: 24px;
-  height: 2px;
-  border-radius: 2px;
-  background-color: var(--text-dim);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  transition: background-color 0.15s ease;
+.se-scene-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.scene-editor-hsplit:hover::after,
-.scene-editor-hsplit:active::after {
-  background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+.se-scene-item-del {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 
+.se-scene-item:hover .se-scene-item-del {
+  opacity: 1;
+}
+
+.se-scene-item-del:hover {
+  color: var(--color-danger);
+}
+
+/* Edit Inspector */
 .scene-editor-props {
   flex: 1;
-  min-height: 120px;
+  min-height: 140px;
   overflow-y: auto;
   background-color: var(--bg-dashboard);
+}
+
+.se-props-content {
+  padding-bottom: 12px;
 }
 
 .se-prop-group {
@@ -327,7 +757,7 @@ canvas.se-viewport-canvas {
 }
 
 .se-prop-group-title {
-  height: 26px;
+  height: 24px;
   padding: 0 10px;
   display: flex;
   align-items: center;
@@ -336,6 +766,8 @@ canvas.se-viewport-canvas {
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 600;
+  background-color: var(--bg-panel-inner);
 }
 
 .se-prop-row {
@@ -347,7 +779,7 @@ canvas.se-viewport-canvas {
 }
 
 .se-prop-label {
-  width: 90px;
+  width: 80px;
   flex-shrink: 0;
   font-family: var(--font-brand);
   font-size: 10px;
@@ -361,6 +793,7 @@ canvas.se-viewport-canvas {
   font-size: 11px;
   color: var(--text-primary);
   cursor: ew-resize;
+  user-select: none;
 }
 
 .se-prop-slider {
@@ -398,11 +831,195 @@ canvas.se-viewport-canvas {
   background-color: var(--bg-panel-inner);
   color: var(--text-muted);
   border: 1px solid var(--border-panel);
-  border-radius: 4px;
+  border-radius: 3px;
   font-family: var(--font-brand);
   font-size: 10px;
   outline: none;
 }
+
+/* --- COLUMN 3: MODEL BROWSER --- */
+.se-col-browser {
+  width: 250px;
+  min-width: 200px;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-dashboard);
+  overflow: hidden;
+}
+
+.se-browser-search-wrap {
+  padding: 6px 8px;
+  background-color: var(--bg-panel-inner);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.se-browser-search-input {
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  background-color: var(--bg-dashboard);
+  color: var(--text-primary);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  outline: none;
+}
+
+.se-browser-search-input:focus {
+  border-color: var(--color-primary);
+}
+
+.se-browser-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.se-browser-section-title {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.se-primitives-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.se-primitive-card {
+  height: 52px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+
+.se-primitive-card:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+.se-primitive-icon {
+  font-size: 16px;
+}
+
+.se-primitive-name {
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.se-imported-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.se-imported-card {
+  height: 32px;
+  padding: 0 8px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-panel);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.se-imported-card:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--border-subtle);
+}
+
+.se-imported-name {
+  font-family: var(--font-brand);
+  font-size: 11px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ================================================================
+   4. SPLITTER HANDLES
+   ================================================================ */
+
+.scene-editor-vsplit {
+  width: 4px;
+  background-color: var(--border-panel);
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.scene-editor-vsplit::after {
+  content: '';
+  width: 2px;
+  height: 24px;
+  border-radius: 2px;
+  background-color: var(--text-dim);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: background-color 0.15s ease;
+}
+
+.scene-editor-vsplit:hover::after,
+.scene-editor-vsplit:active::after {
+  background-color: var(--color-primary);
+}
+
+.scene-editor-hsplit {
+  height: 4px;
+  background-color: var(--border-panel);
+  cursor: row-resize;
+  flex-shrink: 0;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.scene-editor-hsplit::after {
+  content: '';
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--text-dim);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: background-color 0.15s ease;
+}
+
+.scene-editor-hsplit:hover::after,
+.scene-editor-hsplit:active::after {
+  background-color: var(--color-primary);
+}
+
+/* ================================================================
+   5. CONFIRM DIALOG
+   ================================================================ */
 
 .scene-editor-confirm {
   position: absolute;
@@ -411,7 +1028,7 @@ canvas.se-viewport-canvas {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 500;
 }
 
 .scene-editor-confirm.is-active {
@@ -431,7 +1048,8 @@ canvas.se-viewport-canvas {
   font-family: var(--font-brand);
   font-size: 14px;
   color: var(--text-primary);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .se-confirm-msg {
@@ -449,14 +1067,15 @@ canvas.se-viewport-canvas {
 
 .se-confirm-btn {
   height: 32px;
-  padding: 0 20px;
-  border-radius: 4px;
+  padding: 0 18px;
+  border-radius: 3px;
   font-family: var(--font-brand);
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--border-panel);
   outline: none;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .se-confirm-btn.is-danger {
@@ -465,7 +1084,9 @@ canvas.se-viewport-canvas {
 }
 
 .se-confirm-btn.is-danger:hover {
-  color: var(--text-primary);
+  background-color: var(--bg-panel-inner-hover);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .se-confirm-btn.is-safe {

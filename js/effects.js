@@ -19,6 +19,7 @@
     register(def) {
       if (!def || !def.id) return;
       const registeredDef = {
+        ...def,
         id: def.id,
         name: def.name || def.id,
         category: def.category || 'lightning',
@@ -28,6 +29,7 @@
         filter: typeof def.filter === 'function' ? def.filter : null,
         render: typeof def.render === 'function' ? def.render : null,
         renderPost: typeof def.renderPost === 'function' ? def.renderPost : null,
+        onButtonClick: typeof def.onButtonClick === 'function' ? def.onButtonClick : null,
         isExpanding: !!def.isExpanding
       };
       registry.set(def.id, registeredDef);

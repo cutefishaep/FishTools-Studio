@@ -66,15 +66,15 @@
       // Scene
       this.scene = new THREE.Scene();
 
-      // Camera (default perspective matching FishTools camera defaults)
+      // Camera (default perspective angled looking down at floor grid, matching AE Element 3D)
       this.camera = new THREE.PerspectiveCamera(
         50, // FOV — will sync from project camera
         this._width / this._height,
         0.1,
         10000
       );
-      this.camera.position.set(0, 0, 500);
-      this.camera.lookAt(0, 0, 0);
+      this.camera.position.set(0, 240, 520);
+      this.camera.lookAt(0, 30, 0);
 
       // Renderer (offscreen, transparent bg)
       this._offscreen = document.createElement('canvas');
@@ -90,17 +90,28 @@
       });
       this.renderer.setSize(this._width, this._height);
       this.renderer.setPixelRatio(1); // Use 1 for performance, composite handles DPR
-      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      if (THREE.SRGBColorSpace) {
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      } else if (THREE.sRGBEncoding) {
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+      }
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1.0;
 
       // Default lights
       this._addDefaultLights();
 
-      // Grid helper (for Scene Editor viewport only, not composited)
-      this._gridHelper = new THREE.GridHelper(1000, 20, 0x2a3321, 0x1d2415);
+      // Floor Grid helper (for Scene Editor viewport — high contrast AE Element 3D style)
+      this._gridHelper = new THREE.GridHelper(1400, 35, 0x98ce7b, 0x36432b);
+      this._gridHelper.position.y = 0;
       this._gridHelper.visible = false; // Only visible in Scene Editor
       this.scene.add(this._gridHelper);
+
+      // Subtle axes crosshair helper at origin
+      this._axesHelper = new THREE.AxesHelper(120);
+      this._axesHelper.position.y = 0.5;
+      this._axesHelper.visible = false;
+      this.scene.add(this._axesHelper);
 
       this.ready = true;
     }
@@ -283,7 +294,11 @@
       const THREE = window.THREE;
       const texture = new THREE.CanvasTexture(source);
       texture.flipY = false;
-      texture.colorSpace = THREE.SRGBColorSpace;
+      if (THREE.SRGBColorSpace) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if (THREE.sRGBEncoding) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
 
       entry.mesh.traverse((child) => {
         if (child.isMesh && child.material) {
@@ -393,7 +408,11 @@
       if (image) {
         const texture = new THREE.CanvasTexture(image);
         texture.mapping = THREE.EquirectangularReflectionMapping;
-        texture.colorSpace = THREE.SRGBColorSpace;
+        if (THREE.SRGBColorSpace) {
+          texture.colorSpace = THREE.SRGBColorSpace;
+        } else if (THREE.sRGBEncoding) {
+          texture.encoding = THREE.sRGBEncoding;
+        }
         this._envMap = texture;
         this._envIntensity = intensity !== undefined ? intensity : 1.0;
         this.scene.environment = texture;
@@ -495,8 +514,9 @@
         this.camera.updateProjectionMatrix();
       }
 
-      // Hide grid for compositing render
+      // Hide grid and axes for compositing render
       if (this._gridHelper) this._gridHelper.visible = false;
+      if (this._axesHelper) this._axesHelper.visible = false;
       this.renderer.render(this.scene, this.camera);
       return this._offscreen;
     }
@@ -516,6 +536,7 @@
       }
 
       if (this._gridHelper) this._gridHelper.visible = true;
+      if (this._axesHelper) this._axesHelper.visible = true;
       this.renderer.render(this.scene, this.camera);
       return this._offscreen;
     }
@@ -661,7 +682,10 @@
       this.orbitControls.enableDamping = true;
       this.orbitControls.dampingFactor = 0.08;
       this.orbitControls.minDistance = 10;
-      this.orbitControls.maxDistance = 5000;
+      this.orbitControls.maxDistance = 6000;
+      this.orbitControls.target.set(0, 30, 0);
+      this.orbitControls.screenSpacePanning = true;
+      this.orbitControls.update();
     }
 
     /**
@@ -679,6 +703,167 @@
      */
     updateOrbitControls() {
       if (this.orbitControls) this.orbitControls.update();
+    }
+
+    /**
+     * Reset camera to default AE perspective view
+     */
+    resetCamera() {
+      if (!this.camera) return;
+      this.camera.position.set(0, 240, 520);
+      if (this.orbitControls) {
+        this.orbitControls.target.set(0, 30, 0);
+        this.orbitControls.update();
+      } else {
+        this.camera.lookAt(0, 30, 0);
+      }
+    }
+
+    /**
+     * Switch view perspective (Perspective, Top, Front, Right)
+     */
+    setViewMode(mode) {
+      if (!this.camera) return;
+      const dist = 550;
+      switch (mode) {
+        case 'front':
+          this.camera.position.set(0, 30, dist);
+          break;
+        case 'top':
+          this.camera.position.set(0, dist, 0.001);
+          break;
+        case 'right':
+          this.camera.position.set(dist, 30, 0);
+          break;
+        case 'perspective':
+        default:
+          this.camera.position.set(0, 240, 520);
+          break;
+      }
+      if (this.orbitControls) {
+        this.orbitControls.target.set(0, 30, 0);
+        this.orbitControls.update();
+      } else {
+        this.camera.lookAt(0, 30, 0);
+      }
+    }
+
+    /**
+     * Toggle wireframe shading mode for all meshes
+     */
+    setShadingMode(mode) {
+      const isWire = (mode === 'wireframe');
+      this.models.forEach(entry => {
+        if (!entry.mesh) return;
+        entry.mesh.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.material.wireframe = isWire;
+          }
+        });
+      });
+    }
+
+    /**
+     * Quick lighting presets
+     */
+    setLightingPreset(preset) {
+      const dirEntry = this.lights.get('__directional');
+      const ambEntry = this.lights.get('__ambient');
+      if (!dirEntry || !ambEntry) return;
+
+      switch (preset) {
+        case 'studio':
+          ambEntry.light.intensity = 0.5;
+          ambEntry.light.color.set(0xffffff);
+          dirEntry.light.intensity = 1.2;
+          dirEntry.light.color.set(0xfff5e6);
+          dirEntry.light.position.set(2, 3, 2).normalize();
+          break;
+        case 'warm':
+          ambEntry.light.intensity = 0.35;
+          ambEntry.light.color.set(0xffe0b2);
+          dirEntry.light.intensity = 1.3;
+          dirEntry.light.color.set(0xffb74d);
+          dirEntry.light.position.set(1.5, 2, 1).normalize();
+          break;
+        case 'single':
+        default:
+          ambEntry.light.intensity = 0.4;
+          ambEntry.light.color.set(0xffffff);
+          dirEntry.light.intensity = 1.0;
+          dirEntry.light.color.set(0xffffff);
+          dirEntry.light.position.set(1, 1, 0.5).normalize();
+          break;
+      }
+    }
+
+    /**
+     * Create a 3D procedural primitive mesh (Box, Sphere, Cylinder, Plane, Torus)
+     * @param {string} type - 'box' | 'sphere' | 'cylinder' | 'plane' | 'torus'
+     * @param {string} [customName]
+     */
+    createPrimitive(type = 'box', customName = null) {
+      if (!window.THREE || !this.scene) return null;
+      const THREE = window.THREE;
+      let geom;
+      const defaultName = customName || (type.charAt(0).toUpperCase() + type.slice(1));
+
+      switch (type) {
+        case 'sphere':
+          geom = new THREE.SphereGeometry(60, 32, 24);
+          break;
+        case 'cylinder':
+          geom = new THREE.CylinderGeometry(50, 50, 100, 32);
+          break;
+        case 'plane':
+          geom = new THREE.PlaneGeometry(140, 140);
+          geom.rotateX(-Math.PI / 2);
+          break;
+        case 'torus':
+          geom = new THREE.TorusGeometry(50, 18, 24, 48);
+          break;
+        case 'box':
+        default:
+          geom = new THREE.BoxGeometry(80, 80, 80);
+          break;
+      }
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x98ce7b,
+        roughness: 0.35,
+        metalness: 0.2,
+        wireframe: false
+      });
+
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(0, (type === 'plane' ? 0.5 : 50), 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      const id = 'mesh_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      this.scene.add(mesh);
+
+      const entry = {
+        id,
+        name: defaultName,
+        mesh,
+        transform: {
+          posX: 0, posY: (type === 'plane' ? 0.5 : 50), posZ: 0,
+          rotX: 0, rotY: 0, rotZ: 0,
+          scaleX: 100, scaleY: 100, scaleZ: 100
+        },
+        materialOverrides: {
+          color: '#98ce7b',
+          roughness: 0.35,
+          metalness: 0.2,
+          wireframe: false,
+          opacity: 1
+        }
+      };
+
+      this.models.set(id, entry);
+      this.pushUndo();
+      return entry;
     }
 
     /* ================================================================

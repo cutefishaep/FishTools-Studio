@@ -1,10 +1,13 @@
 /**
- * OpenFishTools Studio — Scene Editor (Floating Window Controller)
- * Full-featured 3D scene editor for the "3D Element" effect.
- * Provides: 3D viewport, scene hierarchy, properties editor, model import, undo/redo.
+ * OpenFishTools Studio — Scene Editor (Element 3D Scene Setup Style)
+ * Full-featured 3D scene setup window for the "3D Element" effect.
  *
- * Opens as a draggable, resizable floating window with resizable internal panels.
- * Confirm dialog on close rendered inside the window.
+ * Provides:
+ * - Top Ribbon (Import, Undo, Redo, Environment, Extrude, Create Primitives)
+ * - 3D Viewport with floor grid, navigation toolbar (Orbit, Pan, Zoom), Lighting presets
+ * - Left Bottom: Presets & Scene Materials inspector
+ * - Center: Scene Hierarchy Tree & Transform/Material Edit Inspector
+ * - Right: Model Browser (Starter Primitives & Imported GLB models)
  */
 (function(window) {
   'use strict';
@@ -19,7 +22,10 @@
     _mgr: null,         // ThreeElementManager
     _dirty: false,      // Unsaved changes flag
     _selectedId: null,  // Selected scene item ID
+    _selectedType: null,// 'model' | 'light'
     _animFrame: null,   // Animation frame ID
+    _activeNavTool: 'orbit', // 'orbit' | 'pan' | 'zoom'
+    _activeTab: 'materials', // 'materials' | 'presets'
 
     // DOM references (cached after first build)
     _overlay: null,
@@ -28,6 +34,8 @@
     _viewportCanvas: null,
     _sceneTree: null,
     _propsPanel: null,
+    _materialsPanel: null,
+    _browserBody: null,
     _confirmEl: null,
     _built: false,
 
@@ -49,6 +57,7 @@
       this._mgr = mgr;
       this._dirty = false;
       this._selectedId = null;
+      this._selectedType = null;
 
       // Build DOM if first time
       if (!this._built) {
@@ -56,59 +65,70 @@
         this._built = true;
       }
 
-      // Init manager if needed
-      if (!mgr.ready) {
-        await mgr.init();
-        // Deserialize existing scene data
-        if (fx.sceneData) {
-          try {
-            const state = typeof fx.sceneData === 'string' ? JSON.parse(fx.sceneData) : fx.sceneData;
-            if (state) {
-              await mgr.deserialize(state, async (modelId) => {
-                if (window.ThreeDB) {
-                  await window.ThreeDB.init();
-                  const rec = await window.ThreeDB.getModel(modelId);
-                  return rec ? rec.data : null;
-                }
-                return null;
-              });
-            }
-          } catch (e) {
-            console.warn('Scene Editor: Failed to deserialize scene', e);
-          }
-        }
-
-        // Load default HDRI if no environment set
-        if (!mgr._envMap) {
-          const defaultHDRI = 'assets/env/default_env.jpg';
-          await mgr.loadEnvironmentFromURL(defaultHDRI);
-        }
-      }
-
-      // Enable orbit controls on viewport canvas
-      mgr.enableOrbitControls(this._viewportCanvas);
-
-      // Show window
+      // Show window immediately for instantaneous user feedback
       this._overlay.classList.add('is-active');
       this.isOpen = true;
 
       // Push history state for back-button close
       history.pushState({ sceneEditorOpen: true }, '');
 
-      // Start render loop
-      this._startRenderLoop();
+      try {
+        // Init manager if needed
+        if (!mgr.ready) {
+          await mgr.init();
 
-      // Refresh panels
-      this._refreshSceneTree();
-      this._refreshProperties();
+          // Deserialize existing scene data
+          if (fx.sceneData) {
+            try {
+              const state = typeof fx.sceneData === 'string' ? JSON.parse(fx.sceneData) : fx.sceneData;
+              if (state) {
+                await mgr.deserialize(state, async (modelId) => {
+                  if (window.ThreeDB) {
+                    await window.ThreeDB.init();
+                    const rec = await window.ThreeDB.getModel(modelId);
+                    return rec ? rec.data : null;
+                  }
+                  return null;
+                });
+              }
+            } catch (e) {
+              console.warn('Scene Editor: Failed to deserialize scene', e);
+            }
+          }
+
+          // Load default environment map if none set
+          if (!mgr._envMap) {
+            const defaultHDRI = 'assets/env/default_env.jpg';
+            try {
+              await mgr.loadEnvironmentFromURL(defaultHDRI);
+            } catch (_) {}
+          }
+        }
+
+        // Enable orbit controls on viewport container
+        mgr.enableOrbitControls(this._viewport);
+        this._applyNavTool(this._activeNavTool);
+
+        // Start render loop
+        this._startRenderLoop();
+
+        // Refresh all panels
+        this._refreshSceneTree();
+        this._refreshProperties();
+        this._refreshMaterialsPanel();
+        this._refreshModelBrowser();
+      } catch (err) {
+        console.error('Scene Editor open initialization error:', err);
+      }
     },
 
     /**
      * Close Scene Editor
      * @param {boolean} skipConfirm - Skip confirmation dialog
      * @param {boolean} save - Save changes on close
+     * @param {boolean} fromPopstate - Triggered by popstate event
      */
-    close(skipConfirm, save) {
+    close(skipConfirm, save, fromPopstate = false) {
       if (!this.isOpen) return;
 
       if (this._dirty && !skipConfirm) {
@@ -121,7 +141,7 @@
         const serialized = this._mgr.serialize();
         this._fx.sceneData = JSON.stringify(serialized);
 
-        // Trigger save
+        // Trigger layer save and preview invalidation
         if (typeof window.saveCurrentProjectLayers === 'function') {
           window.saveCurrentProjectLayers(true);
         }
@@ -143,13 +163,16 @@
       this._hideConfirm();
       this.isOpen = false;
 
-      // Pop history state
-      try { history.back(); } catch (_) {}
+      // Pop history state if not already from popstate
+      if (!fromPopstate) {
+        try { history.back(); } catch (_) {}
+      }
 
       // Clear references
       this._fx = null;
       this._layer = null;
       this._selectedId = null;
+      this._selectedType = null;
     },
 
     /* ================================================================
@@ -168,137 +191,256 @@
       win.className = 'scene-editor-window';
       overlay.appendChild(win);
 
-      // === Title bar ===
+      // === 1. Title bar ===
       const titlebar = document.createElement('div');
       titlebar.className = 'scene-editor-titlebar';
       titlebar.innerHTML = `
-        <span class="scene-editor-title">Scene Editor — 3D Element</span>
-        <button class="scene-editor-close" title="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
-        </button>
+        <div class="se-mac-dots">
+          <button type="button" class="se-mac-dot is-close" title="Close / Cancel"></button>
+          <button type="button" class="se-mac-dot is-min" title="Minimize / Center"></button>
+          <button type="button" class="se-mac-dot is-max" title="Toggle Fullscreen"></button>
+        </div>
+        <span class="scene-editor-title">Scene Setup</span>
+        <span class="se-title-meta">FishTools 3D Element</span>
+        <span class="se-title-spacer"></span>
+        <div class="se-title-actions">
+          <button type="button" class="se-title-btn" data-action="cancel" title="Cancel & Discard Changes">Cancel</button>
+          <button type="button" class="se-title-btn is-primary" data-action="apply" title="Apply Scene Changes">OK</button>
+        </div>
       `;
       win.appendChild(titlebar);
       this._initDrag(titlebar, win);
 
-      titlebar.querySelector('.scene-editor-close').addEventListener('click', () => {
-        this.close(false, false);
+      // Title bar buttons
+      titlebar.querySelector('.is-close').addEventListener('click', () => this.close(false, false));
+      titlebar.querySelector('.is-min').addEventListener('click', () => {
+        win.style.top = '';
+        win.style.left = '';
       });
+      titlebar.querySelector('.is-max').addEventListener('click', () => {
+        win.classList.toggle('is-maximized');
+      });
+      titlebar.querySelector('[data-action="cancel"]').addEventListener('click', () => this.close(false, false));
+      titlebar.querySelector('[data-action="apply"]').addEventListener('click', () => this.close(true, true));
 
-      // === Toolbar ===
-      const toolbar = document.createElement('div');
-      toolbar.className = 'scene-editor-toolbar';
-      toolbar.innerHTML = `
-        <button class="se-tool-btn" data-action="import">Import</button>
-        <span class="se-tool-sep"></span>
-        <button class="se-tool-btn" data-action="undo">Undo</button>
-        <button class="se-tool-btn" data-action="redo">Redo</button>
-        <span class="se-tool-sep"></span>
-        <button class="se-tool-btn" data-action="add-light">Add Light</button>
-        <span class="se-tool-sep"></span>
-        <span style="flex:1"></span>
-        <button class="se-tool-btn" data-action="cancel">Cancel</button>
-        <button class="se-tool-btn is-primary" data-action="apply">Apply</button>
+      // === 2. Top Ribbon Toolbar ===
+      const ribbon = document.createElement('div');
+      ribbon.className = 'scene-editor-ribbon';
+      ribbon.innerHTML = `
+        <div class="se-ribbon-menubar">
+          <span class="se-ribbon-menu-item">File</span>
+          <span class="se-ribbon-menu-item">Window</span>
+          <span class="se-ribbon-menu-item">Help</span>
+        </div>
+        <div class="se-ribbon-actions">
+          <button type="button" class="se-ribbon-btn" data-action="import" title="Import 3D model (GLTF, GLB)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            IMPORT
+          </button>
+          <span class="se-ribbon-sep"></span>
+          <button type="button" class="se-ribbon-btn" data-action="undo" title="Undo (Ctrl+Z)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+            UNDO
+          </button>
+          <button type="button" class="se-ribbon-btn" data-action="redo" title="Redo (Ctrl+Y)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+            REDO
+          </button>
+          <span class="se-ribbon-sep"></span>
+          <button type="button" class="se-ribbon-btn" data-action="environment" title="Set Environment Map">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            ENVIRONMENT
+          </button>
+          <button type="button" class="se-ribbon-btn" data-action="extrude" title="Extrude 3D Text / Shape">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M12 4v16M8 20h8"/></svg>
+            EXTRUDE
+          </button>
+          <div class="se-ribbon-dropdown-wrap">
+            <button type="button" class="se-ribbon-btn is-create" data-action="create-toggle" title="Create 3D Primitive">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              CREATE ▾
+            </button>
+            <div class="se-create-dropdown">
+              <div class="se-create-item" data-primitive="box">📦 Box (Cube)</div>
+              <div class="se-create-item" data-primitive="sphere">⚪ Sphere</div>
+              <div class="se-create-item" data-primitive="cylinder">🛢️ Cylinder</div>
+              <div class="se-create-item" data-primitive="plane">⬛ Plane (Floor)</div>
+              <div class="se-create-item" data-primitive="torus">🍩 Torus (Donut)</div>
+            </div>
+          </div>
+          <span style="flex:1"></span>
+          <button type="button" class="se-ribbon-btn" data-action="add-light" title="Add Point Light">+ LIGHT</button>
+        </div>
       `;
-      win.appendChild(toolbar);
-      this._bindToolbar(toolbar);
+      win.appendChild(ribbon);
+      this._bindRibbon(ribbon);
 
-      // === Body (viewport + sidebar) ===
+      // === 3. Body (3-Column Layout) ===
       const body = document.createElement('div');
       body.className = 'scene-editor-body';
 
-      // Viewport
+      // --- COLUMN 1: PREVIEW & MATERIALS ---
+      const colPreview = document.createElement('div');
+      colPreview.className = 'se-col-preview';
+
+      // Viewport container
       const viewport = document.createElement('div');
       viewport.className = 'scene-editor-viewport';
       viewport.innerHTML = `
         <div class="se-viewport-header">
-          <select class="se-viewport-dropdown" data-prop="view">
+          <span class="se-tab-badge">Preview</span>
+          <select class="se-viewport-dropdown" data-prop="view" title="Camera View Angle">
             <option value="perspective">Perspective</option>
             <option value="front">Front</option>
             <option value="top">Top</option>
             <option value="right">Right</option>
           </select>
-          <select class="se-viewport-dropdown" data-prop="render">
+          <select class="se-viewport-dropdown" data-prop="shading" title="Shading Mode">
             <option value="shaded">Shaded</option>
             <option value="wireframe">Wireframe</option>
           </select>
+          <label class="se-viewport-check-label" title="Draft Textures Mode">
+            <input type="checkbox" data-prop="draft-textures">
+            <span>Draft Textures</span>
+          </label>
+          <span style="flex:1"></span>
+          <button type="button" class="se-vp-tool-btn" data-action="reset-camera" title="Reset Camera View">⊙</button>
         </div>
-        <div class="se-viewport-empty">No Model</div>
+        <div class="se-viewport-empty">No Model — click CREATE ▾ or IMPORT</div>
         <canvas class="se-viewport-canvas"></canvas>
+        <div class="se-vp-bottom-toolbar">
+          <button type="button" class="se-vp-tool-btn is-active" data-nav="orbit" title="Orbit Camera Tool (Left-Click Drag)">🎥</button>
+          <button type="button" class="se-vp-tool-btn" data-nav="pan" title="Pan Camera Tool (Left-Click Drag)">✋</button>
+          <button type="button" class="se-vp-tool-btn" data-nav="zoom" title="Zoom Camera Tool (Left-Click Drag)">🔍</button>
+          <span class="se-ribbon-sep"></span>
+          <select class="se-vp-select" data-prop="lighting" title="Lighting Mode">
+            <option value="single">Single Light</option>
+            <option value="studio">Studio 3-Point</option>
+            <option value="warm">Warm Light</option>
+          </select>
+        </div>
       `;
-      body.appendChild(viewport);
+      colPreview.appendChild(viewport);
       this._viewport = viewport;
       this._viewportCanvas = viewport.querySelector('.se-viewport-canvas');
+      this._bindViewportControls(viewport);
 
-      // Viewport view mode handlers
-      viewport.querySelector('[data-prop="render"]').addEventListener('change', (e) => {
-        if (!this._mgr) return;
-        const wireframe = e.target.value === 'wireframe';
-        this._mgr.models.forEach(entry => {
-          entry.mesh.traverse(child => {
-            if (child.isMesh && child.material) {
-              child.material.wireframe = wireframe;
-            }
-          });
-        });
-      });
+      // Horizontal splitter in Column 1
+      const hsplitCol1 = document.createElement('div');
+      hsplitCol1.className = 'scene-editor-hsplit';
+      colPreview.appendChild(hsplitCol1);
 
-      // Vertical splitter
-      const vsplit = document.createElement('div');
-      vsplit.className = 'scene-editor-vsplit';
-      body.appendChild(vsplit);
-      this._initPanelResize(vsplit, 'vertical', viewport, null);
+      // Bottom Left Panel (Presets / Scene Materials)
+      const previewBottom = document.createElement('div');
+      previewBottom.className = 'se-preview-bottom';
+      previewBottom.innerHTML = `
+        <div class="se-tab-bar">
+          <button type="button" class="se-tab-btn is-active" data-tab="materials">Scene Materials</button>
+          <button type="button" class="se-tab-btn" data-tab="presets">Presets</button>
+        </div>
+        <div class="se-tab-content"></div>
+      `;
+      colPreview.appendChild(previewBottom);
+      this._materialsPanel = previewBottom.querySelector('.se-tab-content');
+      this._bindBottomLeftTabs(previewBottom);
+      this._initPanelResize(hsplitCol1, 'horizontal', viewport, previewBottom);
 
-      // Sidebar
-      const sidebar = document.createElement('div');
-      sidebar.className = 'scene-editor-sidebar';
+      body.appendChild(colPreview);
 
-      // Scene panel
+      // Vertical Splitter 1 (between Preview and Scene)
+      const vsplit1 = document.createElement('div');
+      vsplit1.className = 'scene-editor-vsplit';
+      body.appendChild(vsplit1);
+
+      // --- COLUMN 2: SCENE HIERARCHY & EDIT INSPECTOR ---
+      const colScene = document.createElement('div');
+      colScene.className = 'se-col-scene';
+
+      // Scene tree panel
       const scenePanel = document.createElement('div');
       scenePanel.className = 'scene-editor-scene';
       scenePanel.innerHTML = `
-        <div class="se-panel-header">Scene</div>
+        <div class="se-panel-header">
+          <span>Scene</span>
+        </div>
+        <div class="se-panel-subbar">
+          <div class="se-sub-actions">
+            <span>File</span>
+            <span>Edit</span>
+            <span>View</span>
+          </div>
+          <button type="button" class="se-sub-btn" data-action="quick-primitive" title="Add primitive to group">+ Add to Group</button>
+        </div>
         <div class="se-scene-tree"></div>
       `;
-      sidebar.appendChild(scenePanel);
+      colScene.appendChild(scenePanel);
       this._sceneTree = scenePanel.querySelector('.se-scene-tree');
+      scenePanel.querySelector('[data-action="quick-primitive"]').addEventListener('click', () => {
+        if (this._mgr) {
+          const entry = this._mgr.createPrimitive('box');
+          if (entry) {
+            this._selectedId = entry.id;
+            this._selectedType = 'model';
+            this._dirty = true;
+            this._refreshSceneTree();
+            this._refreshProperties();
+          }
+        }
+      });
 
-      // Horizontal splitter
-      const hsplit = document.createElement('div');
-      hsplit.className = 'scene-editor-hsplit';
-      sidebar.appendChild(hsplit);
-      this._initPanelResize(hsplit, 'horizontal', scenePanel, null);
+      // Horizontal Splitter in Column 2
+      const hsplitCol2 = document.createElement('div');
+      hsplitCol2.className = 'scene-editor-hsplit';
+      colScene.appendChild(hsplitCol2);
 
-      // Properties panel
+      // Edit properties panel
       const propsPanel = document.createElement('div');
       propsPanel.className = 'scene-editor-props';
       propsPanel.innerHTML = `
-        <div class="se-panel-header">Properties</div>
+        <div class="se-panel-header">Edit</div>
         <div class="se-props-content">
           <div class="se-viewport-empty" style="padding:20px">No Selection</div>
         </div>
       `;
-      sidebar.appendChild(propsPanel);
+      colScene.appendChild(propsPanel);
       this._propsPanel = propsPanel.querySelector('.se-props-content');
+      this._initPanelResize(hsplitCol2, 'horizontal', scenePanel, propsPanel);
 
-      body.appendChild(sidebar);
+      body.appendChild(colScene);
+      this._initPanelResize(vsplit1, 'vertical', colPreview, colScene);
+
+      // Vertical Splitter 2 (between Scene and Browser)
+      const vsplit2 = document.createElement('div');
+      vsplit2.className = 'scene-editor-vsplit';
+      body.appendChild(vsplit2);
+
+      // --- COLUMN 3: MODEL BROWSER ---
+      const colBrowser = document.createElement('div');
+      colBrowser.className = 'se-col-browser';
+      colBrowser.innerHTML = `
+        <div class="se-panel-header">Model Browser</div>
+        <div class="se-browser-search-wrap">
+          <input type="text" class="se-browser-search-input" placeholder="Search models...">
+        </div>
+        <div class="se-browser-body"></div>
+      `;
+      body.appendChild(colBrowser);
+      this._browserBody = colBrowser.querySelector('.se-browser-body');
+      this._bindModelBrowser(colBrowser);
+      this._initPanelResize(vsplit2, 'vertical', colScene, colBrowser);
+
       win.appendChild(body);
 
-      // Store splitter sidebar reference for resize
-      this._sidebar = sidebar;
-      this._initPanelResize(vsplit, 'vertical', viewport, sidebar);
-
-      // === Confirm dialog (inside window) ===
+      // === 4. Confirm Dialog ===
       const confirm = document.createElement('div');
       confirm.className = 'scene-editor-confirm';
       confirm.innerHTML = `
         <div class="se-confirm-card">
           <div class="se-confirm-title">Confirm</div>
-          <div class="se-confirm-msg">Discard unsaved scene changes?</div>
+          <div class="se-confirm-msg">Discard unsaved 3D scene changes?</div>
           <div class="se-confirm-actions">
-            <button class="se-confirm-btn is-danger" data-action="discard">Discard</button>
-            <button class="se-confirm-btn is-safe" data-action="keep">Keep Editing</button>
+            <button type="button" class="se-confirm-btn is-danger" data-action="discard">Discard</button>
+            <button type="button" class="se-confirm-btn is-safe" data-action="keep">Keep Editing</button>
           </div>
         </div>
       `;
@@ -313,26 +455,61 @@
         this._hideConfirm();
       });
 
-      // Append to document
+      // Append overlay to DOM
       document.body.appendChild(overlay);
       this._overlay = overlay;
       this._window = win;
 
-      // Popstate listener for back button
+      // Popstate listener for browser back button / gestures
       window.addEventListener('popstate', (e) => {
         if (this.isOpen) {
-          this.close(false, false);
+          this.close(false, false, true);
         }
       });
     },
 
     /* ================================================================
-       TOOLBAR ACTIONS
+       RIBBON & TOOLBAR BINDING
        ================================================================ */
 
-    _bindToolbar(toolbar) {
-      toolbar.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.se-tool-btn');
+    _bindRibbon(ribbon) {
+      // Toggle create dropdown
+      const createBtn = ribbon.querySelector('[data-action="create-toggle"]');
+      const createDropdown = ribbon.querySelector('.se-create-dropdown');
+      createBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        createDropdown.classList.toggle('is-open');
+      });
+
+      // Close create dropdown when clicking outside
+      document.addEventListener('pointerdown', (e) => {
+        if (!e.target.closest('.se-ribbon-dropdown-wrap')) {
+          createDropdown.classList.remove('is-open');
+        }
+      });
+
+      // Create primitive items
+      ribbon.querySelectorAll('.se-create-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const type = item.dataset.primitive || 'box';
+          createDropdown.classList.remove('is-open');
+          if (this._mgr) {
+            const entry = this._mgr.createPrimitive(type);
+            if (entry) {
+              this._selectedId = entry.id;
+              this._selectedType = 'model';
+              this._dirty = true;
+              this._refreshSceneTree();
+              this._refreshProperties();
+              this._refreshMaterialsPanel();
+            }
+          }
+        });
+      });
+
+      // Action buttons
+      ribbon.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.se-ribbon-btn');
         if (!btn) return;
         const action = btn.dataset.action;
 
@@ -340,6 +517,7 @@
           case 'import':
             await this._importModel();
             break;
+
           case 'undo':
             if (this._mgr) {
               await this._mgr.undo(async (id) => {
@@ -352,8 +530,10 @@
               });
               this._refreshSceneTree();
               this._refreshProperties();
+              this._refreshMaterialsPanel();
             }
             break;
+
           case 'redo':
             if (this._mgr) {
               await this._mgr.redo(async (id) => {
@@ -366,32 +546,318 @@
               });
               this._refreshSceneTree();
               this._refreshProperties();
+              this._refreshMaterialsPanel();
             }
             break;
+
+          case 'environment':
+            this._promptEnvironment();
+            break;
+
+          case 'extrude':
+            if (this._mgr) {
+              const entry = this._mgr.createPrimitive('torus', 'Extrude Mesh');
+              if (entry) {
+                this._selectedId = entry.id;
+                this._selectedType = 'model';
+                this._dirty = true;
+                this._refreshSceneTree();
+                this._refreshProperties();
+              }
+            }
+            break;
+
           case 'add-light':
             if (this._mgr) {
               this._mgr.pushUndo();
               this._mgr.addLight('point', {
                 color: '#ffffff',
-                intensity: 1.0,
-                x: 0, y: 200, z: 200
+                intensity: 1.2,
+                x: 100, y: 200, z: 200
               });
               this._dirty = true;
               this._refreshSceneTree();
             }
-            break;
-          case 'cancel':
-            this.close(false, false);
-            break;
-          case 'apply':
-            this.close(true, true);
             break;
         }
       });
     },
 
     /* ================================================================
-       MODEL IMPORT
+       VIEWPORT CONTROLS BINDING
+       ================================================================ */
+
+    _bindViewportControls(viewport) {
+      // Perspective / Ortho dropdown
+      viewport.querySelector('[data-prop="view"]').addEventListener('change', (e) => {
+        if (this._mgr && typeof this._mgr.setViewMode === 'function') {
+          this._mgr.setViewMode(e.target.value);
+        }
+      });
+
+      // Shading dropdown (Shaded vs Wireframe)
+      viewport.querySelector('[data-prop="shading"]').addEventListener('change', (e) => {
+        if (this._mgr && typeof this._mgr.setShadingMode === 'function') {
+          this._mgr.setShadingMode(e.target.value);
+        }
+      });
+
+      // Reset camera button
+      viewport.querySelector('[data-action="reset-camera"]').addEventListener('click', () => {
+        if (this._mgr && typeof this._mgr.resetCamera === 'function') {
+          this._mgr.resetCamera();
+        }
+      });
+
+      // Lighting preset select
+      viewport.querySelector('[data-prop="lighting"]').addEventListener('change', (e) => {
+        if (this._mgr && typeof this._mgr.setLightingPreset === 'function') {
+          this._mgr.setLightingPreset(e.target.value);
+        }
+      });
+
+      // Navigation tool buttons (Orbit, Pan, Zoom)
+      viewport.querySelectorAll('.se-vp-tool-btn[data-nav]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          viewport.querySelectorAll('.se-vp-tool-btn[data-nav]').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          this._activeNavTool = btn.dataset.nav;
+          this._applyNavTool(this._activeNavTool);
+        });
+      });
+    },
+
+    _applyNavTool(tool) {
+      if (!this._mgr || !this._mgr.orbitControls || !window.THREE) return;
+      const THREE = window.THREE;
+      const controls = this._mgr.orbitControls;
+
+      switch (tool) {
+        case 'pan':
+          controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+          controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+          break;
+        case 'zoom':
+          controls.mouseButtons.LEFT = THREE.MOUSE.DOLLY;
+          controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+          break;
+        case 'orbit':
+        default:
+          controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+          controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+          break;
+      }
+    },
+
+    /* ================================================================
+       BOTTOM LEFT TABS (PRESETS & MATERIALS)
+       ================================================================ */
+
+    _bindBottomLeftTabs(panel) {
+      panel.querySelectorAll('.se-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          panel.querySelectorAll('.se-tab-btn').forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          this._activeTab = btn.dataset.tab;
+          this._refreshMaterialsPanel();
+        });
+      });
+    },
+
+    _refreshMaterialsPanel() {
+      if (!this._materialsPanel || !this._mgr) return;
+
+      if (this._activeTab === 'presets') {
+        // Render quick material presets
+        const presets = [
+          { name: 'Chrome', color: '#eeeeee', metal: 0.95, rough: 0.1 },
+          { name: 'Gold', color: '#ffd700', metal: 0.9, rough: 0.2 },
+          { name: 'Emerald', color: '#98ce7b', metal: 0.1, rough: 0.15 },
+          { name: 'Matte Black', color: '#222222', metal: 0.1, rough: 0.8 },
+          { name: 'Glossy White', color: '#ffffff', metal: 0.05, rough: 0.05 },
+          { name: 'Copper', color: '#b87333', metal: 0.85, rough: 0.25 }
+        ];
+
+        this._materialsPanel.innerHTML = `
+          <div class="se-presets-grid">
+            ${presets.map(p => `
+              <div class="se-preset-card" data-preset="${p.name}" title="Apply ${p.name} material">
+                <div class="se-preset-swatch" style="background-color:${p.color}"></div>
+                <span class="se-preset-name">${p.name}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        this._materialsPanel.querySelectorAll('.se-preset-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const p = presets.find(pr => pr.name === card.dataset.preset);
+            if (!p || !this._selectedId) return;
+            this._mgr.updateMaterials({
+              color: p.color,
+              metalness: p.metal,
+              roughness: p.rough
+            }, this._selectedId);
+            this._dirty = true;
+            this._refreshProperties();
+          });
+        });
+      } else {
+        // Render scene materials
+        if (this._mgr.models.size === 0) {
+          this._materialsPanel.innerHTML = '<div class="se-viewport-empty" style="padding:15px">No Materials in Scene</div>';
+          return;
+        }
+
+        let html = '<div class="se-materials-list">';
+        this._mgr.models.forEach((entry, id) => {
+          const mat = entry.materialOverrides || {};
+          html += `
+            <div class="se-material-card" data-id="${id}">
+              <div class="se-material-header">
+                <div class="se-preset-swatch" style="background-color:${mat.color || '#98ce7b'};width:16px;height:16px"></div>
+                <span>${entry.name} Material</span>
+              </div>
+              <div class="se-prop-row">
+                <span class="se-prop-label">Metalness</span>
+                <span class="se-prop-value">${(mat.metalness || 0.2).toFixed(2)}</span>
+              </div>
+              <div class="se-prop-row">
+                <span class="se-prop-label">Roughness</span>
+                <span class="se-prop-value">${(mat.roughness || 0.35).toFixed(2)}</span>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+        this._materialsPanel.innerHTML = html;
+
+        this._materialsPanel.querySelectorAll('.se-material-card').forEach(card => {
+          card.addEventListener('click', () => {
+            this._selectedId = card.dataset.id;
+            this._selectedType = 'model';
+            this._refreshSceneTree();
+            this._refreshProperties();
+          });
+        });
+      }
+    },
+
+    /* ================================================================
+       MODEL BROWSER
+       ================================================================ */
+
+    _bindModelBrowser(colBrowser) {
+      const searchInput = colBrowser.querySelector('.se-browser-search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          this._refreshModelBrowser(searchInput.value.trim().toLowerCase());
+        });
+      }
+    },
+
+    async _refreshModelBrowser(searchQuery = '') {
+      if (!this._browserBody) return;
+
+      const primitives = [
+        { type: 'box', name: 'Box', icon: '📦' },
+        { type: 'sphere', name: 'Sphere', icon: '⚪' },
+        { type: 'cylinder', name: 'Cylinder', icon: '🛢️' },
+        { type: 'plane', name: 'Plane', icon: '⬛' },
+        { type: 'torus', name: 'Torus', icon: '🍩' }
+      ].filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery));
+
+      let importedList = [];
+      if (window.ThreeDB) {
+        try {
+          await window.ThreeDB.init();
+          importedList = await window.ThreeDB.listModels();
+        } catch (_) {}
+      }
+      if (searchQuery) {
+        importedList = importedList.filter(m => m.name.toLowerCase().includes(searchQuery));
+      }
+
+      this._browserBody.innerHTML = `
+        <div class="se-browser-section">
+          <div class="se-browser-section-title">Starter Primitives</div>
+          <div class="se-primitives-grid">
+            ${primitives.map(p => `
+              <div class="se-primitive-card" data-primitive="${p.type}" title="Click to spawn ${p.name}">
+                <span class="se-primitive-icon">${p.icon}</span>
+                <span class="se-primitive-name">${p.name}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="se-browser-section">
+          <div class="se-browser-section-title">Imported Models (${importedList.length})</div>
+          <div class="se-imported-list">
+            ${importedList.length === 0 ? '<span style="font-size:10px;color:var(--text-dim)">No custom models yet</span>' : ''}
+            ${importedList.map(m => `
+              <div class="se-imported-card" data-id="${m.id}" title="Click to insert ${m.name}">
+                <span class="se-imported-name">📁 ${m.name}</span>
+                <button type="button" class="se-scene-item-del" data-delete-id="${m.id}" title="Delete model">✕</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      // Spawn primitive on card click
+      this._browserBody.querySelectorAll('.se-primitive-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const type = card.dataset.primitive;
+          if (this._mgr) {
+            const entry = this._mgr.createPrimitive(type);
+            if (entry) {
+              this._selectedId = entry.id;
+              this._selectedType = 'model';
+              this._dirty = true;
+              this._refreshSceneTree();
+              this._refreshProperties();
+              this._refreshMaterialsPanel();
+            }
+          }
+        });
+      });
+
+      // Insert imported model on card click
+      this._browserBody.querySelectorAll('.se-imported-card').forEach(card => {
+        card.addEventListener('click', async (e) => {
+          if (e.target.closest('.se-scene-item-del')) return;
+          const id = card.dataset.id;
+          if (this._mgr && window.ThreeDB) {
+            const rec = await window.ThreeDB.getModel(id);
+            if (rec && rec.data) {
+              const newId = 'm_' + Date.now();
+              await this._mgr.loadModel(newId, rec.name, rec.data);
+              this._selectedId = newId;
+              this._selectedType = 'model';
+              this._dirty = true;
+              this._refreshSceneTree();
+              this._refreshProperties();
+              this._refreshMaterialsPanel();
+            }
+          }
+        });
+      });
+
+      // Delete imported model
+      this._browserBody.querySelectorAll('[data-delete-id]').forEach(delBtn => {
+        delBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = delBtn.dataset.deleteId;
+          if (window.ThreeDB) {
+            await window.ThreeDB.deleteModel(id);
+            this._refreshModelBrowser(searchQuery);
+          }
+        });
+      });
+    },
+
+    /* ================================================================
+       MODEL IMPORT & ENVIRONMENT PROMPT
        ================================================================ */
 
     async _importModel() {
@@ -404,40 +870,53 @@
         if (!input.files || input.files.length === 0) return;
         if (!this._mgr) return;
 
-        // Init IndexedDB
         if (window.ThreeDB) await window.ThreeDB.init();
-
         this._mgr.pushUndo();
 
         for (const file of input.files) {
           try {
-            // Save to IndexedDB
             let modelRecord = null;
             if (window.ThreeDB) {
               modelRecord = await window.ThreeDB.saveModel(file);
             }
             const modelId = modelRecord ? modelRecord.id : ('m_' + Date.now());
             const modelName = file.name.replace(/\.(glb|gltf)$/i, '');
-
-            // Read file data
             const data = await file.arrayBuffer();
 
-            // Load into Three.js scene
             await this._mgr.loadModel(modelId, modelName, data);
-
+            this._selectedId = modelId;
+            this._selectedType = 'model';
             this._dirty = true;
           } catch (err) {
             console.error('Scene Editor: Failed to import model', file.name, err);
           }
         }
 
-        // Update viewport empty state
         const emptyLabel = this._viewport.querySelector('.se-viewport-empty');
         if (emptyLabel) emptyLabel.style.display = this._mgr.models.size > 0 ? 'none' : '';
 
         this._refreshSceneTree();
+        this._refreshProperties();
+        this._refreshMaterialsPanel();
+        this._refreshModelBrowser();
       });
 
+      input.click();
+    },
+
+    _promptEnvironment() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', () => {
+        if (!input.files[0] || !this._mgr) return;
+        const img = new Image();
+        img.onload = () => {
+          this._mgr.setEnvironment(img, 1.0);
+          this._dirty = true;
+        };
+        img.src = URL.createObjectURL(input.files[0]);
+      });
       input.click();
     },
 
@@ -456,11 +935,25 @@
         item.dataset.id = id;
         item.dataset.type = 'model';
         item.innerHTML = `
+          <div class="se-scene-item-eye ${entry.mesh && !entry.mesh.visible ? 'is-hidden' : ''}" title="Toggle Visibility">👁</div>
           <svg class="se-scene-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
-          <span>${entry.name}</span>
+          <span class="se-scene-item-title">${entry.name}</span>
+          <button type="button" class="se-scene-item-del" title="Remove model">✕</button>
         `;
+
+        // Toggle visibility
+        item.querySelector('.se-scene-item-eye').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (entry.mesh) {
+            entry.mesh.visible = !entry.mesh.visible;
+            this._dirty = true;
+            this._refreshSceneTree();
+          }
+        });
+
+        // Select model
         item.addEventListener('click', () => {
           this._selectedId = id;
           this._selectedType = 'model';
@@ -468,27 +961,25 @@
           this._refreshProperties();
         });
 
-        // Right-click to delete
-        item.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          if (confirm('Remove model "' + entry.name + '"?')) {
-            this._mgr.pushUndo();
-            this._mgr.removeModel(id);
-            if (window.ThreeDB) window.ThreeDB.deleteModel(id);
-            this._dirty = true;
-            if (this._selectedId === id) {
-              this._selectedId = null;
-              this._selectedType = null;
-            }
-            this._refreshSceneTree();
-            this._refreshProperties();
+        // Delete model
+        item.querySelector('.se-scene-item-del').addEventListener('click', (e) => {
+          e.stopPropagation();
+          this._mgr.pushUndo();
+          this._mgr.removeModel(id);
+          this._dirty = true;
+          if (this._selectedId === id) {
+            this._selectedId = null;
+            this._selectedType = null;
           }
+          this._refreshSceneTree();
+          this._refreshProperties();
+          this._refreshMaterialsPanel();
         });
 
         this._sceneTree.appendChild(item);
       });
 
-      // Lights (custom only)
+      // Lights (custom lights)
       this._mgr.lights.forEach((entry, id) => {
         if (id.startsWith('__')) return;
         const item = document.createElement('div');
@@ -496,20 +987,33 @@
         item.dataset.id = id;
         item.dataset.type = 'light';
         item.innerHTML = `
+          <div class="se-scene-item-eye ${entry.light && !entry.light.visible ? 'is-hidden' : ''}" title="Toggle Visibility">👁</div>
           <svg class="se-scene-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/>
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/>
           </svg>
-          <span>${entry.type} light</span>
+          <span class="se-scene-item-title">${entry.type} light</span>
+          <button type="button" class="se-scene-item-del" title="Remove light">✕</button>
         `;
+
+        item.querySelector('.se-scene-item-eye').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (entry.light) {
+            entry.light.visible = !entry.light.visible;
+            this._dirty = true;
+            this._refreshSceneTree();
+          }
+        });
+
         item.addEventListener('click', () => {
           this._selectedId = id;
           this._selectedType = 'light';
           this._refreshSceneTree();
           this._refreshProperties();
         });
-        item.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
+
+        item.querySelector('.se-scene-item-del').addEventListener('click', (e) => {
+          e.stopPropagation();
           this._mgr.pushUndo();
           this._mgr.removeLight(id);
           this._dirty = true;
@@ -520,10 +1024,11 @@
           this._refreshSceneTree();
           this._refreshProperties();
         });
+
         this._sceneTree.appendChild(item);
       });
 
-      // Update empty label
+      // Update empty label in viewport
       const emptyLabel = this._viewport?.querySelector('.se-viewport-empty');
       if (emptyLabel) emptyLabel.style.display = this._mgr.models.size > 0 ? 'none' : '';
     },
@@ -550,28 +1055,35 @@
     _renderModelProperties() {
       const entry = this._mgr.models.get(this._selectedId);
       if (!entry) return;
-      const t = entry.transform;
+      const t = entry.transform || {};
+      const mat = entry.materialOverrides || {};
 
       this._propsPanel.innerHTML = `
         <div class="se-prop-group">
           <div class="se-prop-group-title">Transform</div>
-          ${this._propRow('Position X', t.x || 0, 'tx')}
-          ${this._propRow('Position Y', t.y || 0, 'ty')}
-          ${this._propRow('Position Z', t.z || 0, 'tz')}
+          ${this._propRow('Position X', t.posX || 0, 'tx')}
+          ${this._propRow('Position Y', t.posY || 0, 'ty')}
+          ${this._propRow('Position Z', t.posZ || 0, 'tz')}
           ${this._propRow('Rotation X', t.rotX || 0, 'rx', '°')}
           ${this._propRow('Rotation Y', t.rotY || 0, 'ry', '°')}
           ${this._propRow('Rotation Z', t.rotZ || 0, 'rz', '°')}
-          ${this._propRow('Scale', t.scale || 100, 'sc', '%')}
+          ${this._propRow('Scale', t.scaleX || 100, 'sc', '%')}
         </div>
         <div class="se-prop-group">
           <div class="se-prop-group-title">Material</div>
-          ${this._propSlider('Metalness', 0.5, 'metalness', 0, 1)}
-          ${this._propSlider('Roughness', 0.5, 'roughness', 0, 1)}
-          ${this._propSlider('AO Intensity', 1.0, 'aoIntensity', 0, 2)}
-        </div>
-        <div class="se-prop-group">
-          <div class="se-prop-group-title">Texture</div>
-          ${this._texturePicker('Diffuse', 'map')}
+          <div class="se-prop-row">
+            <span class="se-prop-label">Color</span>
+            <input type="color" class="se-prop-color-input" data-key="mat_color" value="${mat.color || '#98ce7b'}" style="background:none;border:none;width:32px;height:24px;cursor:pointer">
+          </div>
+          ${this._propSlider('Metalness', mat.metalness !== undefined ? mat.metalness : 0.2, 'metalness', 0, 1)}
+          ${this._propSlider('Roughness', mat.roughness !== undefined ? mat.roughness : 0.35, 'roughness', 0, 1)}
+          <div class="se-prop-row">
+            <span class="se-prop-label">Wireframe</span>
+            <label class="se-viewport-check-label">
+              <input type="checkbox" data-key="mat_wireframe" ${mat.wireframe ? 'checked' : ''}>
+              <span>Wireframe</span>
+            </label>
+          </div>
         </div>
       `;
 
@@ -581,7 +1093,7 @@
     _renderLightProperties() {
       const entry = this._mgr.lights.get(this._selectedId);
       if (!entry) return;
-      const p = entry.params;
+      const p = entry.params || {};
 
       this._propsPanel.innerHTML = `
         <div class="se-prop-group">
@@ -606,7 +1118,7 @@
     },
 
     _propSlider(label, value, key, min, max) {
-      const pct = ((value - min) / (max - min)) * 100;
+      const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
       return `
         <div class="se-prop-row">
           <span class="se-prop-label">${label}</span>
@@ -614,35 +1126,29 @@
             <div class="se-prop-slider-fill" style="width:${pct}%"></div>
             <div class="se-prop-slider-thumb" style="left:${pct}%"></div>
           </div>
-          <span class="se-prop-value" data-key="${key}" style="width:40px;text-align:right">${value.toFixed(2)}</span>
-        </div>
-      `;
-    },
-
-    _texturePicker(label, mapType) {
-      // Build layer options for "link to layer" dropdown
-      let layerOpts = '<option value="">None</option><option value="__upload">Upload Image...</option>';
-      const proj = window.currentProjectState;
-      if (proj && Array.isArray(proj.layers)) {
-        proj.layers.forEach(l => {
-          if (l.type !== 'camera' && l.type !== 'audio') {
-            layerOpts += `<option value="layer:${l.id}">${l.name || l.id}</option>`;
-          }
-        });
-      }
-
-      return `
-        <div class="se-prop-row">
-          <span class="se-prop-label">${label}</span>
-          <select class="se-prop-select" data-key="texture_${mapType}">
-            ${layerOpts}
-          </select>
+          <span class="se-prop-value" data-key="${key}" style="width:40px;text-align:right">${Number(value).toFixed(2)}</span>
         </div>
       `;
     },
 
     _bindPropertyInputs() {
       if (!this._propsPanel) return;
+
+      // Color picker
+      const colorInput = this._propsPanel.querySelector('[data-key="mat_color"]');
+      if (colorInput) {
+        colorInput.addEventListener('input', (e) => {
+          this._applyPropertyChange('mat_color', e.target.value);
+        });
+      }
+
+      // Wireframe checkbox
+      const wireCheckbox = this._propsPanel.querySelector('[data-key="mat_wireframe"]');
+      if (wireCheckbox) {
+        wireCheckbox.addEventListener('change', (e) => {
+          this._applyPropertyChange('mat_wireframe', e.target.checked);
+        });
+      }
 
       // Scrub values
       this._propsPanel.querySelectorAll('.se-prop-value[data-key]').forEach(el => {
@@ -673,7 +1179,6 @@
             el.removeEventListener('pointermove', onMove);
             el.removeEventListener('pointerup', onUp);
             if (!dragging) {
-              // Click to edit — show inline input
               this._inlineEdit(el);
             }
           };
@@ -718,44 +1223,6 @@
           slider.addEventListener('pointerup', onUp);
         });
       });
-
-      // Texture select
-      this._propsPanel.querySelectorAll('.se-prop-select[data-key]').forEach(sel => {
-        sel.addEventListener('change', async () => {
-          const val = sel.value;
-          const mapType = sel.dataset.key.replace('texture_', '');
-
-          if (val === '__upload') {
-            // File upload
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.addEventListener('change', () => {
-              if (!input.files[0]) return;
-              const img = new Image();
-              img.onload = () => {
-                this._mgr.setTexture(this._selectedId, mapType, img);
-                this._dirty = true;
-              };
-              img.src = URL.createObjectURL(input.files[0]);
-            });
-            input.click();
-          } else if (val.startsWith('layer:')) {
-            // Link to layer — render that layer to canvas and use as texture
-            const layerId = val.replace('layer:', '');
-            // This would require rendering the layer to an offscreen canvas
-            // For now, mark as TODO
-            console.log('Scene Editor: Link to layer texture —', layerId);
-            this._dirty = true;
-          } else {
-            // Clear texture
-            if (this._selectedId && this._mgr) {
-              this._mgr.setTexture(this._selectedId, mapType, null);
-              this._dirty = true;
-            }
-          }
-        });
-      });
     },
 
     _applyPropertyChange(key, value) {
@@ -765,20 +1232,31 @@
       if (this._selectedType === 'model') {
         const entry = this._mgr.models.get(this._selectedId);
         if (!entry) return;
-        const t = entry.transform;
+        const t = entry.transform || {};
 
         switch (key) {
-          case 'tx': t.x = value; break;
-          case 'ty': t.y = value; break;
-          case 'tz': t.z = value; break;
+          case 'tx': t.posX = value; break;
+          case 'ty': t.posY = value; break;
+          case 'tz': t.posZ = value; break;
           case 'rx': t.rotX = value; break;
           case 'ry': t.rotY = value; break;
           case 'rz': t.rotZ = value; break;
-          case 'sc': t.scale = value; break;
+          case 'sc':
+            t.scaleX = value;
+            t.scaleY = value;
+            t.scaleZ = value;
+            break;
           case 'metalness':
           case 'roughness':
-          case 'aoIntensity':
             this._mgr.updateMaterials({ [key]: value }, this._selectedId);
+            this._refreshMaterialsPanel();
+            return;
+          case 'mat_color':
+            this._mgr.updateMaterials({ color: value }, this._selectedId);
+            this._refreshMaterialsPanel();
+            return;
+          case 'mat_wireframe':
+            this._mgr.updateMaterials({ wireframe: !!value }, this._selectedId);
             return;
         }
         this._mgr.updateModelTransform(this._selectedId, t);
@@ -815,13 +1293,16 @@
 
       input.addEventListener('blur', commit);
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { commit(); input.blur(); }
-        if (e.key === 'Escape') { el.textContent = current.toFixed(1) + suffix; }
+        if (e.key === 'Enter') {
+          commit();
+        } else if (e.key === 'Escape') {
+          el.textContent = current.toFixed(1) + suffix;
+        }
       });
     },
 
     /* ================================================================
-       RENDER LOOP (Scene Editor viewport)
+       RENDER LOOP
        ================================================================ */
 
     _startRenderLoop() {
@@ -834,14 +1315,15 @@
 
         // Render to viewport canvas
         const rect = this._viewport.getBoundingClientRect();
-        const w = Math.floor(rect.width) || 800;
-        const h = Math.floor(rect.height) || 600;
+        const w = Math.max(10, Math.floor(rect.width));
+        const h = Math.max(10, Math.floor(rect.height));
 
         const rendered = this._mgr.renderForEditor(w, h);
         if (rendered && rendered !== this._viewportCanvas) {
-          // Copy to display canvas
-          this._viewportCanvas.width = w;
-          this._viewportCanvas.height = h;
+          if (this._viewportCanvas.width !== w || this._viewportCanvas.height !== h) {
+            this._viewportCanvas.width = w;
+            this._viewportCanvas.height = h;
+          }
           const ctx = this._viewportCanvas.getContext('2d');
           ctx.clearRect(0, 0, w, h);
           ctx.drawImage(rendered, 0, 0, w, h);
@@ -862,44 +1344,39 @@
        ================================================================ */
 
     _initPanelResize(splitter, direction, panelA, panelB) {
-      let startPos = 0;
-      let startSizeA = 0;
-      let startSizeB = 0;
-
       splitter.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
         e.preventDefault();
         splitter.setPointerCapture(e.pointerId);
 
         const parentRect = splitter.parentElement.getBoundingClientRect();
-        const parentSize = direction === 'vertical' ? parentRect.width : parentRect.height;
-
-        if (direction === 'vertical') {
-          startPos = e.clientX;
-          startSizeA = panelA ? panelA.getBoundingClientRect().width : parentSize * 0.65;
-          startSizeB = panelB ? panelB.getBoundingClientRect().width : parentSize * 0.35;
-        } else {
-          startPos = e.clientY;
-          startSizeA = panelA ? panelA.getBoundingClientRect().height : parentSize * 0.5;
-          startSizeB = panelB ? panelB.offsetHeight : parentSize * 0.5;
-        }
+        const startPos = direction === 'vertical' ? e.clientX : e.clientY;
+        const startSizeA = panelA ? (direction === 'vertical' ? panelA.getBoundingClientRect().width : panelA.getBoundingClientRect().height) : 200;
+        const startSizeB = panelB ? (direction === 'vertical' ? panelB.getBoundingClientRect().width : panelB.getBoundingClientRect().height) : 200;
 
         const onMove = (ev) => {
           const delta = direction === 'vertical' ? (ev.clientX - startPos) : (ev.clientY - startPos);
-          const newA = startSizeA + delta;
-          const newB = startSizeB - delta;
-          const min = parentSize * 0.2;
-          const max = parentSize * 0.8;
-
-          if (newA < min || newA > max) return;
+          const newA = Math.max(100, startSizeA + delta);
+          const newB = Math.max(100, startSizeB - delta);
 
           if (direction === 'vertical') {
-            if (panelA) panelA.style.width = newA + 'px';
-            if (panelA) panelA.style.flex = 'none';
-            if (panelB) panelB.style.width = newB + 'px';
+            if (panelA) {
+              panelA.style.width = newA + 'px';
+              panelA.style.flex = 'none';
+            }
+            if (panelB) {
+              panelB.style.width = newB + 'px';
+              panelB.style.flex = 'none';
+            }
           } else {
-            if (panelA) panelA.style.height = newA + 'px';
-            if (panelA) panelA.style.flex = 'none';
+            if (panelA) {
+              panelA.style.height = newA + 'px';
+              panelA.style.flex = 'none';
+            }
+            if (panelB) {
+              panelB.style.height = newB + 'px';
+              panelB.style.flex = 'none';
+            }
           }
         };
 
@@ -914,47 +1391,33 @@
     },
 
     /* ================================================================
-       WINDOW DRAG
+       WINDOW DRAGGING
        ================================================================ */
 
     _initDrag(handle, win) {
-      let startX = 0, startY = 0;
-      let winX = 0, winY = 0;
-
       handle.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('.scene-editor-close')) return;
         if (e.button !== 0) return;
+        if (e.target.closest('button, input, select, .se-mac-dot')) return;
+        if (win.classList.contains('is-maximized')) return;
+
         e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const rect = win.getBoundingClientRect();
+        const winX = rect.left;
+        const winY = rect.top;
+
         handle.setPointerCapture(e.pointerId);
-        handle.style.cursor = 'grabbing';
-
-        startX = e.clientX;
-        startY = e.clientY;
-
-        const style = getComputedStyle(win);
-        winX = parseInt(style.left) || 0;
-        winY = parseInt(style.top) || 0;
-
-        // If window was centered via transform, compute actual position
-        if (!win.style.left || win.style.left === 'auto') {
-          const rect = win.getBoundingClientRect();
-          winX = rect.left;
-          winY = rect.top;
-          win.style.position = 'fixed';
-          win.style.left = winX + 'px';
-          win.style.top = winY + 'px';
-          win.style.transform = 'none';
-        }
 
         const onMove = (ev) => {
           const dx = ev.clientX - startX;
           const dy = ev.clientY - startY;
           win.style.left = (winX + dx) + 'px';
           win.style.top = (winY + dy) + 'px';
+          win.style.margin = '0';
         };
 
         const onUp = () => {
-          handle.style.cursor = '';
           handle.removeEventListener('pointermove', onMove);
           handle.removeEventListener('pointerup', onUp);
         };
@@ -969,11 +1432,11 @@
        ================================================================ */
 
     _showConfirm() {
-      if (this._confirmEl) this._confirmEl.style.display = 'flex';
+      if (this._confirmEl) this._confirmEl.classList.add('is-active');
     },
 
     _hideConfirm() {
-      if (this._confirmEl) this._confirmEl.style.display = '';
+      if (this._confirmEl) this._confirmEl.classList.remove('is-active');
     }
   };
 

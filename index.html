@@ -30,7 +30,7 @@
         <h1 class="brand-title">OpenFishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.5.70</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.5.71</span>
         </div>
       </div>
       <div class="studio-header-actions">
@@ -420,7 +420,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.70</span>
+          <span class="welcome-badge">v0.5.71</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -456,11 +456,47 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.71 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.71</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Sep 22, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Effects Registry `onButtonClick` Dispatch (`js/effects.js`)</span>
+                  <span class="changelog-item-desc">Fixed `FishEffectsRegistry.register()` dropping custom descriptor callbacks including `onButtonClick`. Custom action buttons (like "Open Scene Editor") now correctly trigger their target handler without failing silently.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Instant Floating Window Display for Scene Editor (`js/scene-editor.js`)</span>
+                  <span class="changelog-item-desc">Scene Editor floating popup window now appears instantly upon button click with smooth animation, running background 3D initialization and environment maps asynchronously with comprehensive try-catch safeguards.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Three.js r128 Color Space Compatibility (`js/3d_element_manager.js`)</span>
+                  <span class="changelog-item-desc">Added dual fallback between modern `THREE.SRGBColorSpace` and Three.js r128 `THREE.sRGBEncoding` for renderer output and texture encoding.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">3D Suite Asset Loading &amp; MIME Types (`editor.html`, `desktop.html`, `server.js`)</span>
+                  <span class="changelog-item-desc">Bundled Scene Editor stylesheets and scripts into `editor.html` with cache buster query parameters, and registered 3D asset MIME types (`.glb`, `.gltf`, `.bin`, `.hdr`) in `server.js`.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.70 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.70</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 22, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -1919,10 +1955,10 @@
   </div>
 
   <script src="js/jszip.min.js"></script>
-  <script src="js/db.js?v=0.5.70"></script>
-  <script src="js/modal.js?v=0.5.70"></script>
-  <script src="js/pwa-install.js?v=0.5.70"></script>
-  <script src="js/context-menu.js?v=0.5.70"></script>
-  <script src="js/main.js?v=0.5.70"></script>
+  <script src="js/db.js?v=0.5.71"></script>
+  <script src="js/modal.js?v=0.5.71"></script>
+  <script src="js/pwa-install.js?v=0.5.71"></script>
+  <script src="js/context-menu.js?v=0.5.71"></script>
+  <script src="js/main.js?v=0.5.71"></script>
 </body>
 </html>

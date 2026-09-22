@@ -5,6 +5,21 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.67] - 2026-09-22
+
+### Added
+- **3D Element Plugin & Three.js Scene Setup (`effects/3d_element.js`, `js/3d_element_manager.js`, `js/scene-editor.js`, `css/scene-editor.css`)**: Isolated Three.js rendering plugin directly inside Effects Rack. Features Scene Editor floating window with resizable panels, scene tree hierarchy, 3D viewport with OrbitControls, multi-model support, customizable point/directional lighting, material inspector (color, roughness, metalness, wireframe, opacity), and project save/discard confirmation dialog.
+- **IndexedDB 3D Model Storage (`js/3d-element-db.js`)**: Persistent offline model storage via `FishTools3DModels` IndexedDB store for imported OBJ/GLTF/GLB models.
+- **Effects Rack Button & Hidden Param Types (`js/effects.js`, `js/editor.js`, `css/effects-rack.css`)**: Effects definition now supports `type: 'button'` for interactive action triggers and `type: 'hidden'` for persisting serialized scene state.
+
+## [0.5.66] - 2026-09-22
+
+### Added
+- **Diamond Keyframe Toggle & 3D Transform Properties (`js/editor.js`)**: Layer expand timeline rows now feature diamond keyframe toggles (solid for active keyframe, outline when empty) replacing stopwatch icons. Position and Rotation properties now feature 3-axis 3D control (X, Y, Z coordinates and angles).
+
+### Fixed
+- **Text OUT Animation Spring Physics (`js/text-engine.js`)**: Completely overhauled OUT animation curves with smooth spring deceleration and bounce physics, fixing abruptly truncated and non-interpolated text out transitions.
+
 ## [0.5.65] - 2026-09-22
 
 ### Fixed

@@ -24115,7 +24115,7 @@
           if (typeof val === 'object') {
             // Unwrap all shapes returned by getLayerPropertyValue
             if (val.posX !== undefined && val.posY !== undefined) {
-              return `${Math.round(val.posX)}, ${Math.round(val.posY)}`;
+              return `${Math.round(val.posX)}, ${Math.round(val.posY)}, ${Math.round(val.posZ || 0)}`;
             }
             if (val.scaleW !== undefined && val.scaleH !== undefined) {
               // scaleW/scaleH can be stored as % (e.g. 100) or px (e.g. 1080)
@@ -24128,7 +24128,7 @@
               return `${Math.round(w)}%, ${Math.round(h)}%`;
             }
             if (val.rotZ !== undefined) {
-              return `${val.rotZ.toFixed(1)}°`;
+              return `${(val.rotX || 0).toFixed(1)}°, ${(val.rotY || 0).toFixed(1)}°, ${val.rotZ.toFixed(1)}°`;
             }
             if (val.opacity !== undefined) {
               const o = val.opacity;
@@ -24705,10 +24705,10 @@
                   function updateStopwatchState() {
                     const active = hasKfAtPlayhead();
                     swBtn.classList.toggle('is-active', active);
-                    // Solid stopwatch SVG when active, outline when not
+                    // Diamond keyframe icon: solid when active, outline when not
                     swBtn.innerHTML = active
-                      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a9 9 0 1 0 0 18A9 9 0 0 0 12 2Zm.75 9.25V7.5a.75.75 0 0 0-1.5 0v4.25c0 .2.08.39.22.53l2.5 2.5a.75.75 0 1 0 1.06-1.06l-2.28-2.28ZM8.5 1.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 8.5 1.5Z"/></svg>`
-                      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5M12 2.5V5"/></svg>`;
+                      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L22 12L12 22L2 12Z"/></svg>`
+                      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 3.5L20.5 12L12 20.5L3.5 12Z"/></svg>`;
                   }
                   updateStopwatchState();
 
@@ -24792,7 +24792,10 @@
                         set: (v) => { getLive().posX = parseFloat(v) || 0; } },
                       { getVal: () => (getLive().posY ?? ph/2).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.posY = Number(((r.posY ?? ph/2) + dx).toFixed(2)); },
-                        set: (v) => { getLive().posY = parseFloat(v) || 0; } }
+                        set: (v) => { getLive().posY = parseFloat(v) || 0; } },
+                      { getVal: () => (getLive().posZ ?? 0).toFixed(1),
+                        scrub: (dx) => { const r = getLive(); r.posZ = Number(((r.posZ ?? 0) + dx).toFixed(2)); },
+                        set: (v) => { getLive().posZ = parseFloat(v) || 0; } }
                     ];
                     if (prop === 'scale') {
                       // normalize px→% if stored as px
@@ -24812,6 +24815,14 @@
                       ];
                     }
                     if (prop === 'rotate') return [
+                      { getVal: () => (getLive().rotX ?? 0).toFixed(1) + '°',
+                        getEditVal: () => (getLive().rotX ?? 0).toFixed(1),
+                        scrub: (dx) => { const r = getLive(); r.rotX = Number(((r.rotX ?? 0) + dx*0.5).toFixed(2)); },
+                        set: (v) => { const r = getLive(); r.rotX = parseFloat(v) || 0; } },
+                      { getVal: () => (getLive().rotY ?? 0).toFixed(1) + '°',
+                        getEditVal: () => (getLive().rotY ?? 0).toFixed(1),
+                        scrub: (dx) => { const r = getLive(); r.rotY = Number(((r.rotY ?? 0) + dx*0.5).toFixed(2)); },
+                        set: (v) => { const r = getLive(); r.rotY = parseFloat(v) || 0; } },
                       { getVal: () => { const deg = getLive().rotation ?? getLive().rotZ ?? 0; const rev = Math.trunc(deg / 360); const rem = deg - rev * 360; return `${rev}x${rem >= 0 ? '+' : ''}${rem.toFixed(1)}°`; },
                         getEditVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1),
                         scrub: (dx) => { const r = getLive(); r.rotation = Number(((r.rotation ?? 0) + dx*0.5).toFixed(2)); r.rotZ = r.rotation; },

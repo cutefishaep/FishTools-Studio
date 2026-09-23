@@ -749,6 +749,43 @@
       const selectedProp = activeProperty || (typeof window !== 'undefined' && window.activeKeyframeProperty) || (def.params[0] ? `${fx.id}:${def.params[0].id}` : '');
       const ticksMarkup = getRulerTicksSVG();
 
+      // Mobile / editor.html layout lock: 3D Element requires desktop workstation
+      const isMobileEditor = (typeof window !== 'undefined') && (
+        (window.location && window.location.pathname && window.location.pathname.includes('editor.html')) ||
+        (typeof document !== 'undefined' && !document.querySelector('.desktop-workstation, .desktop-viewport')) ||
+        (typeof window.isDesktopLayout === 'function' && !window.isDesktopLayout()) ||
+        (typeof window.innerWidth === 'number' && window.innerWidth <= 600)
+      );
+      const is3DElement = (fx.type === '3d-element' || def.id === '3d-element');
+
+      if (isMobileEditor && is3DElement) {
+        return `
+        <div class="effects-card fx-${fx.id} ${isExpanded ? 'is-expanded' : ''} ${isDisabled ? 'is-disabled' : ''}" data-effect-id="${fx.id}" data-effect-type="${fx.type}">
+          <div class="effects-card-header">
+            <div class="effects-card-left">
+              <button type="button" class="effects-card-toggle-btn" title="Toggle Controls" aria-label="Toggle Controls">
+                <svg viewBox="0 0 24 24" class="effects-card-caret"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+              </button>
+              <span class="effects-card-title">${fx.name || def.name}</span>
+            </div>
+            <div class="effects-card-actions">
+              <button type="button" class="effects-card-eye-btn ${isDisabled ? '' : 'is-active'}" title="Enable/Disable Effect" aria-label="Toggle Effect">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+              </button>
+              <button type="button" class="effects-card-delete-btn" title="Remove Effect" aria-label="Delete">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="effects-card-controls">
+            <div class="effects-control-row effects-control-row-mobile-lock">
+              <div class="fx-mobile-lock">Switch to desktop view to edit this effects</div>
+            </div>
+          </div>
+        </div>
+        `;
+      }
+
       let eff = null;
       if (typeof window !== 'undefined' && typeof window.getLayerEffectivePropsAtTime === 'function' && layer) {
         const sec = (currentSec !== undefined && currentSec !== null) ? currentSec : ((Math.abs(window.timelinePanX || 0)) / (window.currentPixelsPerSecond || 80));
@@ -977,27 +1014,17 @@
           continue;
         }
 
-        // Button params — render a clickable action button (used for Scene Editor etc.)
+        // Button params — render a clickable action button
         if (type === 'button') {
           processedParams.add(p.id);
           const btnLabel = p.buttonLabel || p.label || p.id;
-          // Mobile lock: 3D editing requires desktop
-          const isMobile = window.innerWidth <= 600;
-          if (isMobile && (fx.id === '3d-element' || fx._def?.id === '3d-element')) {
-            controlsHTMLArr.push(`
-              <div class="effects-control-row effects-control-row-mobile-lock" data-param="${p.id}">
-                <div class="fx-mobile-lock">Switch to desktop view to modify this effect.</div>
+          controlsHTMLArr.push(`
+            <div class="effects-control-row effects-control-row-button" data-param="${p.id}">
+              <div class="effects-param-val-col" style="width:100%">
+                <button type="button" class="effects-action-btn fx-action-btn-${p.id}" data-param="${p.id}" data-effect-id="${fx.id}" title="${btnLabel}">${btnLabel}</button>
               </div>
-            `);
-          } else {
-            controlsHTMLArr.push(`
-              <div class="effects-control-row effects-control-row-button" data-param="${p.id}">
-                <div class="effects-param-val-col" style="width:100%">
-                  <button type="button" class="effects-action-btn fx-action-btn-${p.id}" data-param="${p.id}" data-effect-id="${fx.id}" title="${btnLabel}">${btnLabel}</button>
-                </div>
-              </div>
-            `);
-          }
+            </div>
+          `);
           continue;
         }
 

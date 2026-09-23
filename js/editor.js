@@ -14303,14 +14303,26 @@
         layer.brightness = layer.effects[0].brightness !== undefined ? layer.effects[0].brightness : 0;
         layer.contrast = layer.effects[0].contrast !== undefined ? layer.effects[0].contrast : 0;
       }
+      // Call effect onRemove lifecycle if defined (e.g. 3D Element WebGL disposal)
+      const def = (window.FishEffects && window.FishEffects.registry)
+        ? window.FishEffects.registry.get(removedFx.type)
+        : ((window.FishEffectsRegistry) ? window.FishEffectsRegistry.get(removedFx.type) : null);
+      if (def && typeof def.onRemove === 'function') {
+        try { def.onRemove(removedFx); } catch (e) { console.warn('Error during effect onRemove:', e); }
+      }
 
       syncEffectsRackUI();
       if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-      if (typeof redrawComposition === 'function') redrawComposition('effect-delete');
-      if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
-      if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
-      if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
       showEffectsRackToast('Effect removed');
+
+      // Defer heavy composition redraw and timeline DOM reconstruction to next animation frame
+      // Prevents blocking the main thread so the effect card vanishes with zero latency
+      requestAnimationFrame(() => {
+        if (typeof redrawComposition === 'function') redrawComposition('effect-delete');
+        if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+        if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+      });
     }
     window.deleteEffectFromLayer = deleteEffectFromLayer;
 
@@ -14648,6 +14660,7 @@
                 } catch (_) {}
                 showEffectsRackToast('Effect copied');
               } else if (action === 'delete') {
+                card.style.display = 'none';
                 deleteEffectFromLayer(fx.id, layer);
               }
             });
@@ -14659,6 +14672,7 @@
         if (delBtn) {
           delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            card.style.display = 'none';
             deleteEffectFromLayer(fx.id, layer);
           });
         }

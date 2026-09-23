@@ -1,12 +1,5 @@
 [
   {
-    "file": "3d_element.js",
-    "id": "3d-element",
-    "name": "3D Element",
-    "category": "3d",
-    "icon": "assets/FXPH.svg"
-  },
-  {
     "file": "anamorphic_flare.js",
     "id": "anamorphic-flare",
     "name": "Anamorphic Flare",

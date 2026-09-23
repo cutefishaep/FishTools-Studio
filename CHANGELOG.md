@@ -5,6 +5,21 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.76] - 2026-09-22
+
+### Changed
+- **Reverted 3D Element Suite (`effects/3d_element.js`, `js/3d_element_manager.js`, `js/scene-editor.js`, `css/scene-editor.css`, `vendor/three/`)**: Cleanly unbundled and reverted 3D Element effect plugin and Three.js dependencies per request. Core After Effects features including Solid Layer panel button (v0.5.68) and AE-style split-diamond keyframe visuals and deselection interactions (v0.5.69) are preserved intact.
+
+### Fixed
+- **Instant Effect Deletion Latency Elimination (`js/editor.js`)**: Eliminated UI delay when deleting effects from layer rack. Added optimistic zero-latency element hiding on delete button click, deferred heavy full-timeline DOM reconstruction (`renderTimelineLayers`) and composition redraw to next animation frame (`requestAnimationFrame`), and invoked `onRemove` lifecycle hook to dispose heavy WebGL resources cleanly.
+
+## [0.5.75] - 2026-09-22
+
+### Fixed
+- **3D Preview XYZ Gizmo Inversion & Camera Screen Projection (`js/scene-editor.js`, `js/3d_element_manager.js`)**: Replaced naive axis delta guesswork with exact 3D camera screen projection of axis vectors, ensuring moving mouse along any axis (X, Y, Z) smoothly and intuitively drives object movement in world space matching cursor direction under all camera angles and rotations. Fixed inverted Y axis movement in `moveSelectedOnAxis`.
+- **Model Sinking Below Grid & Position Reset (`js/3d_element_manager.js`, `effects/3d_element.js`)**: Fixed `mesh.position.set(posX, posY, posZ)` in `updateModelTransform` which previously inverted `posY` with `-posY`, causing objects to sink 50 units below the floor grid whenever properties or scenes were restored. Protected 3D manager models from being overridden by background timeline/composition render while Scene Editor is open.
+- **Proportional Gizmo Sizing & Hit Detection (`js/3d_element_manager.js`, `js/scene-editor.js`)**: Compacted gizmo arrow length from 80 to 50 and refined camera distance scale factor from `dist / 400` to `dist / 650`, eliminating oversized arrows that dwarfed models. Added origin sphere and replaced `visible: false` on hit cylinder with `transparent: true, opacity: 0` so Three.js Raycaster reliably registers grab clicks. Added dynamic `grab` / `grabbing` cursor feedback.
+
 ## [0.5.74] - 2026-09-22
 
 ### Fixed

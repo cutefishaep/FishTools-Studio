@@ -16,6 +16,7 @@
   --desktop-btn-h: 30px;
   --desktop-btn-h-lg: 40px;
   --desktop-layer-panel-w: 240px;
+  --desktop-control-col-w: 56px;
   --desktop-parent-col-w: 76px;
 }
 
@@ -4364,10 +4365,13 @@
   text-overflow: ellipsis;
 }
 
-.desktop-ruler-col-label.col-mblur {
-  width: 22px;
+.desktop-ruler-col-label.col-control {
+  width: var(--desktop-control-col-w, 56px);
   text-align: center;
   flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .desktop-ruler-col-label.col-parent {
@@ -4801,10 +4805,21 @@
   height: 13px;
 }
 
-/* Motion Blur Switch (AE 3-Circle Icon) */
+/* Control Column (Switches & Options) */
+.desktop-layer-control-col {
+  width: var(--desktop-control-col-w, 56px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  gap: 4px;
+}
+
+/* Motion Blur Switch (AE Style: Empty column slot when disabled, Crisp icon when enabled) */
 .desktop-layer-mblur-btn {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -4815,19 +4830,47 @@
   cursor: pointer;
   padding: 0;
   color: var(--text-muted);
-  opacity: 0.5;
-  transition: color 0.08s ease, opacity 0.08s ease, background-color 0.08s ease;
+  transition: color 0.08s ease, border-color 0.08s ease, background-color 0.08s ease;
 }
 
-.desktop-layer-mblur-btn:hover {
-  opacity: 1;
-  color: var(--text-primary);
+/* Inactive state: looks like an empty column / empty slot */
+.desktop-layer-mblur-btn:not(.is-active) .svg-icon {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.08s ease;
+}
+
+/* Hover over empty column/slot: reveal subtle slot outline and faint ghost icon */
+.desktop-layer-control-col:hover .desktop-layer-mblur-btn:not(.is-active),
+.desktop-layer-mblur-btn:not(.is-active):hover {
   background-color: var(--bg-panel-hover);
+  border-color: var(--border-subtle);
 }
 
+.desktop-layer-control-col:hover .desktop-layer-mblur-btn:not(.is-active) .svg-icon,
+.desktop-layer-mblur-btn:not(.is-active):hover .svg-icon {
+  opacity: 0.35;
+  visibility: visible;
+  color: var(--text-muted);
+}
+
+/* Active state: crisp icon visible */
 .desktop-layer-mblur-btn.is-active {
-  opacity: 1;
+  background-color: transparent;
+  border-color: transparent;
   color: var(--color-primary);
+}
+
+.desktop-layer-mblur-btn.is-active .svg-icon {
+  opacity: 1;
+  visibility: visible;
+  color: var(--color-primary);
+}
+
+.desktop-layer-mblur-btn.is-active:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--border-subtle);
+  color: var(--color-primary-hover);
 }
 
 .desktop-layer-mblur-btn .svg-icon {

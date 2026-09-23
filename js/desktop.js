@@ -1142,17 +1142,37 @@
           nameEl.title = layerName;
         }
 
-        // 3. Motion Blur Toggle Switch Button
-        let mblurBtn = pill.querySelector('.desktop-layer-mblur-btn');
+        // 3. Control Column (Switches & Options: Motion Blur, etc.)
+        let parentCol = pill.querySelector('.desktop-layer-parent-col');
+        let controlCol = pill.querySelector('.desktop-layer-control-col');
+        if (!controlCol) {
+          controlCol = document.createElement('div');
+          controlCol.className = 'desktop-layer-control-col';
+          if (parentCol) {
+            pill.insertBefore(controlCol, parentCol);
+          } else {
+            pill.appendChild(controlCol);
+          }
+        }
+
+        let mblurBtn = controlCol.querySelector('.desktop-layer-mblur-btn');
+        if (!mblurBtn) {
+          const oldDirectBtn = pill.querySelector(':scope > .desktop-layer-mblur-btn');
+          if (oldDirectBtn) {
+            controlCol.appendChild(oldDirectBtn);
+            mblurBtn = oldDirectBtn;
+          }
+        }
+
         const isMbOn = !!(layer && layer.motionBlur);
         if (!mblurBtn) {
           mblurBtn = document.createElement('button');
           mblurBtn.type = 'button';
           mblurBtn.className = 'desktop-layer-mblur-btn' + (isMbOn ? ' is-active' : '');
-          mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+          mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
           mblurBtn.setAttribute('aria-label', mblurBtn.title);
           mblurBtn.innerHTML = '<span class="svg-icon svg-icon-motion-blur" aria-hidden="true"></span>';
-          pill.appendChild(mblurBtn);
+          controlCol.appendChild(mblurBtn);
 
           mblurBtn.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
@@ -1184,7 +1204,7 @@
                 const b = pillSlot.querySelector('.desktop-layer-mblur-btn');
                 if (b) {
                   b.classList.toggle('is-active', nextState);
-                  b.title = nextState ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+                  b.title = nextState ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
                   b.setAttribute('aria-label', b.title);
                 }
               }
@@ -1198,11 +1218,11 @@
           });
         } else {
           mblurBtn.classList.toggle('is-active', isMbOn);
-          mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled';
+          mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
         }
 
         // 4. Parent & Link Column (Pickwhip + Parent Badge)
-        let parentCol = pill.querySelector('.desktop-layer-parent-col');
+        if (!parentCol) parentCol = pill.querySelector('.desktop-layer-parent-col');
         if (!parentCol) {
           parentCol = document.createElement('div');
           parentCol.className = 'desktop-layer-parent-col';
@@ -1580,6 +1600,7 @@
             if (
               e.target.closest('.timeline-layer-eye-btn') ||
               e.target.closest('.desktop-layer-twistie-btn') ||
+              e.target.closest('.desktop-layer-control-col') ||
               e.target.closest('.desktop-layer-mblur-btn') ||
               e.target.closest('.desktop-layer-parent-col') ||
               e.target.closest('.desktop-layer-pickwhip-btn') ||
@@ -1889,6 +1910,13 @@
           _cachedDesktopPanelW = val;
         }
       }
+      const savedControlW = localStorage.getItem('oft_desktop_control_col_w');
+      if (savedControlW) {
+        const val = parseFloat(savedControlW);
+        if (!isNaN(val) && val >= 36) {
+          document.documentElement.style.setProperty('--desktop-control-col-w', `${val}px`);
+        }
+      }
       const savedParentW = localStorage.getItem('oft_desktop_parent_col_w');
       if (savedParentW) {
         const val = parseFloat(savedParentW);
@@ -1989,6 +2017,40 @@
               const newParentW = Math.max(50, Math.min(220, Math.round(startParentW - delta)));
               document.documentElement.style.setProperty('--desktop-parent-col-w', `${newParentW}px`);
               try { localStorage.setItem('oft_desktop_parent_col_w', newParentW); } catch (_) {}
+            }
+
+            function onColUp() {
+              resizer.classList.remove('is-dragging');
+              document.body.style.cursor = '';
+              document.body.style.userSelect = '';
+              window.removeEventListener('pointermove', onColMove, true);
+              window.removeEventListener('pointerup', onColUp, true);
+              window.removeEventListener('pointercancel', onColUp, true);
+            }
+
+            window.addEventListener('pointermove', onColMove, true);
+            window.addEventListener('pointerup', onColUp, true);
+            window.addEventListener('pointercancel', onColUp, true);
+          });
+        } else if (type === 'control') {
+          // Resizing Control column width
+          resizer.addEventListener('pointerdown', (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
+            const startX = e.clientX;
+            const startControlW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-control-col-w')) || 56;
+            resizer.classList.add('is-dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            function onColMove(moveEvent) {
+              moveEvent.preventDefault();
+              const delta = moveEvent.clientX - startX;
+              const newControlW = Math.max(36, Math.min(180, Math.round(startControlW + delta)));
+              document.documentElement.style.setProperty('--desktop-control-col-w', `${newControlW}px`);
+              try { localStorage.setItem('oft_desktop_control_col_w', newControlW); } catch (_) {}
             }
 
             function onColUp() {

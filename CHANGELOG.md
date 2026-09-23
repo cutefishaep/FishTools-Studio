@@ -5,6 +5,16 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.77] - 2026-09-23
+
+### Changed
+- **Timeline Switches & "Control" Category Header (`desktop.html`, `css/desktop.css`, `js/desktop.js`, `js/editor.js`)**:
+  - Replaced the single "M" column header in the timeline ruler gutter with the category title **"Control"** (`.col-control`) positioned adjacent to "Layer Name".
+  - Refactored switch rendering into dedicated modular `.desktop-layer-control-col` container with dynamic `--desktop-control-col-w` token binding and resize persistence.
+  - Switches now display as a clean empty column/slot when disabled, revealing subtle outline and ghost icon feedback only on hover.
+  - Active switches render crisp vector icons in `var(--color-primary)` with full state synchronization.
+  - Protected Control column clicks from triggering unwanted layer drag selections.
+
 ## [0.5.76] - 2026-09-22
 
 ### Changed

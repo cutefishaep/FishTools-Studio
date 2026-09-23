@@ -24585,6 +24585,7 @@
                 if (
                   e.target.closest('.timeline-layer-eye-btn') ||
                   e.target.closest('.desktop-layer-twistie-btn') ||
+                  e.target.closest('.desktop-layer-control-col') ||
                   e.target.closest('.desktop-layer-mblur-btn') ||
                   e.target.closest('.desktop-layer-parent-col') ||
                   e.target.closest('.desktop-layer-pickwhip-btn') ||

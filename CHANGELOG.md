@@ -5,6 +5,15 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.78] - 2026-09-23
+
+### Fixed
+- **Authentic After Effects Switch Box Slots (`css/desktop.css`)**:
+  - Replaced invisible empty switch space with clearly visible recessed dark square slots (`[ ]`), eliminating UI gaps ("kek bolong") on disabled layers.
+  - Inactive switches now render as solid dark square boxes (`var(--bg-canvas)`) with defined borders (`var(--border-panel)` / `var(--border-subtle)` on selection) and no internal icon.
+  - Active switches render crisp vector icons inside the square box with active theme tokens (`var(--color-primary)`), perfectly matching After Effects reference.
+  - Added subtle hover highlight and ghost icon feedback on mouse hover.
+
 ## [0.5.77] - 2026-09-23
 
 ### Changed

@@ -112,8 +112,11 @@ export async function onRequestPost(context) {
     try {
       catboxRes = await fetch('https://catbox.moe/user/api.php', {
         method: 'POST',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        },
         body: catboxForm,
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(15000)
       });
     } catch (netErr) {
       return new Response(JSON.stringify({ error: 'Storage provider unavailable or timed out. Please try again.' }), {

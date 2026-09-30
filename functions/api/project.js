@@ -77,8 +77,11 @@ export async function onRequestGet(context) {
     // 3. Verify file is still live and available on Catbox (fast 2-byte range probe)
     try {
       const probe = await fetch(record.fileUrl, {
-        headers: { 'Range': 'bytes=0-1' },
-        signal: AbortSignal.timeout(4000)
+        headers: {
+          'Range': 'bytes=0-1',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        },
+        signal: AbortSignal.timeout(5000)
       });
       if (probe.status === 404 || (!probe.ok && probe.status !== 416)) {
         return new Response(JSON.stringify({ success: false, error: 'Project Not Found', fileMissing: true }), {
@@ -95,7 +98,10 @@ export async function onRequestGet(context) {
     // 4. Proxy download mode: streams file from Catbox with CORS headers
     if (isDownload) {
       const fileRes = await fetch(record.fileUrl, {
-        signal: AbortSignal.timeout(15000)
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        },
+        signal: AbortSignal.timeout(20000)
       });
 
       if (!fileRes.ok) {

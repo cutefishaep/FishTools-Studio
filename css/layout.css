@@ -605,6 +605,45 @@ html, body {
   margin-bottom: 2px;
 }
 
+/* Uploaded Project Action Buttons (Copy Link, QR, Delete) */
+.uploaded-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-right: 4px;
+  flex-shrink: 0;
+}
+
+.uploaded-btn-action {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  background-color: var(--bg-panel-inner);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0;
+}
+
+.uploaded-btn-action:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--color-primary);
+}
+
+.uploaded-btn-action:active {
+  transform: scale(0.92);
+}
+
+.uploaded-btn-action.btn-remove-uploaded:hover {
+  color: var(--color-danger, #ff5555);
+}
+
 /* Project List Content - Scrollable when projects exceed view */
 .projects-list {
   flex: 1;

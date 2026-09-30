@@ -2754,8 +2754,42 @@ window.FishDatabase = (function () {
     return _cleanupInFlight;
   }
 
-  if (typeof window !== 'undefined') {
-    window.cleanupAllStudioCaches = cleanupAllStudioCaches;
+  var UPLOADED_PROJECTS_KEY = 'oft_uploaded_projects';
+
+  function getUploadedProjects() {
+    try {
+      var raw = localStorage.getItem(UPLOADED_PROJECTS_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveUploadedProject(project) {
+    if (!project || !project.id) return;
+    try {
+      var list = getUploadedProjects();
+      list = list.filter(function (p) { return p && String(p.id) !== String(project.id); });
+      list.unshift(project);
+      if (list.length > 50) list = list.slice(0, 50);
+      localStorage.setItem(UPLOADED_PROJECTS_KEY, JSON.stringify(list));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fish-db-uploaded-projects-updated', { detail: list }));
+      }
+    } catch (_) {}
+  }
+
+  function removeUploadedProject(id) {
+    try {
+      var list = getUploadedProjects();
+      list = list.filter(function (p) { return p && String(p.id) !== String(id); });
+      localStorage.setItem(UPLOADED_PROJECTS_KEY, JSON.stringify(list));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fish-db-uploaded-projects-updated', { detail: list }));
+      }
+    } catch (_) {}
   }
 
   return {
@@ -2793,6 +2827,9 @@ window.FishDatabase = (function () {
     cleanupAllStudioCaches: cleanupAllStudioCaches,
     checkStoragePersistence: checkStoragePersistence,
     requestPersistentStorage: requestPersistentStorage,
-    getStorageEstimate: checkStoragePersistence
+    getStorageEstimate: checkStoragePersistence,
+    getUploadedProjects: getUploadedProjects,
+    saveUploadedProject: saveUploadedProject,
+    removeUploadedProject: removeUploadedProject
   };
 })();

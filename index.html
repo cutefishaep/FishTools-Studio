@@ -105,11 +105,27 @@
         </button>
       </div>
 
-      <!-- Projects Panel: Local Projects -->
+      <!-- Projects Panel: Local & Uploaded Projects -->
       <section class="projects-panel" aria-label="Projects Management">
+        <div class="projects-tab-switch" role="tablist">
+          <button type="button" class="projects-tab-btn is-active" id="tab-local-projects" role="tab" aria-selected="true" aria-controls="panel-local-projects">
+            <span>Your Projects</span>
+            <span class="project-count-badge" id="project-count-badge">0</span>
+          </button>
+          <button type="button" class="projects-tab-btn" id="tab-uploaded-projects" role="tab" aria-selected="false" aria-controls="panel-uploaded-projects">
+            <span>Uploaded Projects</span>
+            <span class="project-count-badge" id="uploaded-count-badge">0</span>
+          </button>
+        </div>
+
         <!-- Local Projects Tab Pane -->
-        <div class="projects-tab-content is-active" id="panel-local-projects" role="tabpanel">
+        <div class="projects-tab-content is-active" id="panel-local-projects" role="tabpanel" style="margin-top: 10px;">
           <div class="projects-list" id="projects-container"></div>
+        </div>
+
+        <!-- Uploaded Projects Tab Pane -->
+        <div class="projects-tab-content" id="panel-uploaded-projects" role="tabpanel" style="display: none; margin-top: 10px;">
+          <div class="projects-list" id="uploaded-projects-container"></div>
         </div>
       </section>
 
@@ -2461,6 +2477,33 @@
           <span>Share as Link</span>
         </button>
       </footer>
+    </div>
+  <!-- ==========================================================================
+       MODULAR POP-UP: QR CODE SHARE MODAL
+       ========================================================================== -->
+  <div class="qr-share-backdrop" id="qr-share-backdrop" role="dialog" aria-modal="true" aria-label="Share Project QR Code">
+    <div class="qr-share-wrapper">
+      <div class="qr-share-card" id="qr-share-card">
+        <!-- Rendered Card Preview Image (100% WYSIWYG match with Download) -->
+        <img class="qr-share-rendered-img" id="qr-share-rendered-img" src="" alt="Project Share Card" draggable="false">
+        <!-- Hidden scratch container for QRCode.js raw generation -->
+        <div id="qr-share-qr-wrap" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden; width: 500px; height: 500px;" aria-hidden="true"></div>
+      </div>
+      <!-- Buttons below card -->
+      <div class="qr-share-actions">
+        <!-- Copy link -->
+        <button type="button" class="qr-share-action-btn" id="qr-btn-copy" title="Copy Link" aria-label="Copy Link">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+        <!-- Download as PNG -->
+        <button type="button" class="qr-share-action-btn" id="qr-btn-download" title="Download as PNG" aria-label="Download as PNG">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-14 9v2h14v-2H5z"/></svg>
+        </button>
+        <!-- Close -->
+        <button type="button" class="qr-share-action-btn" id="qr-btn-close" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 

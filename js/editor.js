@@ -31046,6 +31046,22 @@
             hideOFTSProgressModal();
           }
 
+          // Save to persistent uploaded projects storage
+          if (window.FishDatabase && typeof window.FishDatabase.saveUploadedProject === 'function') {
+            const rec = json.record || {};
+            window.FishDatabase.saveUploadedProject({
+              id: String(json.id || rec.id),
+              name: rec.name || currentProjectState.name || 'Untitled Project',
+              specs: rec.specs || `${currentProjectState.resolution || '1080p'} • ${currentProjectState.fps || 60} fps`,
+              size: rec.size || (window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : '1.0 MB'),
+              aspectRatio: rec.aspectRatio || currentProjectState.aspectRatio || '16:9',
+              thumbnail: rec.thumbnail || thumb || '',
+              shareUrl: json.shareUrl,
+              fileUrl: rec.fileUrl || json.catboxUrl || '',
+              createdAt: rec.createdAt || Date.now()
+            });
+          }
+
           // 4. Open QR Share Modal with real shortlink and metadata
           await openQRShareModal(json.shareUrl, json.record || json);
         } catch (err) {

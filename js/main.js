@@ -191,12 +191,18 @@ async function initVersionFetcher() {
 }
 
 /**
- * Loads projects from FishDatabase and populates the "Your Project" list
+ * Loads projects from FishDatabase and populates the "Your Project" list and "Uploaded Projects" list
  */
 async function initProjectsFetcher() {
   const listContainer = document.getElementById('projects-container');
   const countBadge = document.getElementById('project-count-badge');
-  if (!listContainer) return;
+  const uploadedListContainer = document.getElementById('uploaded-projects-container');
+  const uploadedCountBadge = document.getElementById('uploaded-count-badge');
+
+  const tabLocal = document.getElementById('tab-local-projects');
+  const tabUploaded = document.getElementById('tab-uploaded-projects');
+  const panelLocal = document.getElementById('panel-local-projects');
+  const panelUploaded = document.getElementById('panel-uploaded-projects');
 
   async function loadAndRender() {
     let projects = [];
@@ -210,28 +216,124 @@ async function initProjectsFetcher() {
     renderProjects(projects, listContainer, countBadge);
   }
 
+  function loadAndRenderUploaded() {
+    let uploaded = [];
+    if (window.FishDatabase && typeof window.FishDatabase.getUploadedProjects === 'function') {
+      try {
+        uploaded = window.FishDatabase.getUploadedProjects();
+      } catch (e) {
+        uploaded = [];
+      }
+    }
+    renderUploadedProjects(uploaded, uploadedListContainer, uploadedCountBadge);
+  }
+
+  // Dual tab switcher (Your Projects vs Uploaded Projects)
+  if (tabLocal && tabUploaded) {
+    tabLocal.addEventListener('click', () => {
+      tabLocal.classList.add('is-active');
+      tabLocal.setAttribute('aria-selected', 'true');
+      tabUploaded.classList.remove('is-active');
+      tabUploaded.setAttribute('aria-selected', 'false');
+      if (panelLocal) panelLocal.style.display = 'flex';
+      if (panelUploaded) panelUploaded.style.display = 'none';
+    });
+
+    tabUploaded.addEventListener('click', () => {
+      tabUploaded.classList.add('is-active');
+      tabUploaded.setAttribute('aria-selected', 'true');
+      tabLocal.classList.remove('is-active');
+      tabLocal.setAttribute('aria-selected', 'false');
+      if (panelLocal) panelLocal.style.display = 'none';
+      if (panelUploaded) panelUploaded.style.display = 'flex';
+      loadAndRenderUploaded();
+    });
+  }
+
   // Initial load
-  await loadAndRender();
+  if (listContainer) await loadAndRender();
+  if (uploadedListContainer) loadAndRenderUploaded();
 
   // Listen to custom DB project update events
   window.addEventListener('fish-db-projects-updated', () => {
     loadAndRender();
   });
-
-  // Project item left-click navigation (delegated)
-  listContainer.addEventListener('click', (e) => {
-    const swipeBox = e.target.closest('.project-swipe-container');
-    if (swipeBox && swipeBox._hasSwiped) {
-      return;
-    }
-    const item = e.target.closest('.project-item');
-    if (!item) return;
-    const projectId = item.dataset.id;
-    if (projectId) {
-      const targetPage = resolveTargetEditorPage();
-      window.location.href = `${targetPage}?id=${encodeURIComponent(projectId)}`;
-    }
+  window.addEventListener('fish-db-uploaded-projects-updated', () => {
+    loadAndRenderUploaded();
   });
+
+  // Local Project item left-click navigation (delegated)
+  if (listContainer) {
+    listContainer.addEventListener('click', (e) => {
+      const swipeBox = e.target.closest('.project-swipe-container');
+      if (swipeBox && swipeBox._hasSwiped) {
+        return;
+      }
+      const item = e.target.closest('.project-item');
+      if (!item) return;
+      const projectId = item.dataset.id;
+      if (projectId) {
+        const targetPage = resolveTargetEditorPage();
+        window.location.href = `${targetPage}?id=${encodeURIComponent(projectId)}`;
+      }
+    });
+  }
+
+  // Uploaded Project item actions (delegated)
+  if (uploadedListContainer) {
+    uploadedListContainer.addEventListener('click', async (e) => {
+      // 1. Copy link button (icon only)
+      const copyBtn = e.target.closest('.btn-copy-uploaded-link');
+      if (copyBtn) {
+        e.stopPropagation();
+        const url = copyBtn.dataset.url;
+        if (url) {
+          try {
+            await navigator.clipboard.writeText(url);
+            showDashboardToast('Link copied to clipboard!');
+          } catch (_) {}
+        }
+        return;
+      }
+
+      // 2. View QR button (icon only)
+      const qrBtn = e.target.closest('.btn-view-uploaded-qr');
+      if (qrBtn) {
+        e.stopPropagation();
+        const id = qrBtn.dataset.id;
+        const list = window.FishDatabase ? window.FishDatabase.getUploadedProjects() : [];
+        const item = list.find(p => p && String(p.id) === String(id));
+        if (item) {
+          openDashboardQRModal(item);
+        }
+        return;
+      }
+
+      // 3. Remove button (icon only)
+      const removeBtn = e.target.closest('.btn-remove-uploaded');
+      if (removeBtn) {
+        e.stopPropagation();
+        const id = removeBtn.dataset.id;
+        if (id && window.FishDatabase) {
+          window.FishDatabase.removeUploadedProject(id);
+          loadAndRenderUploaded();
+          showDashboardToast('Removed from uploaded projects');
+        }
+        return;
+      }
+
+      // 4. Clicked card body -> trigger preset import preview
+      const card = e.target.closest('.uploaded-project-item');
+      if (card) {
+        const id = card.dataset.id;
+        const list = window.FishDatabase ? window.FishDatabase.getUploadedProjects() : [];
+        const item = list.find(p => p && String(p.id) === String(id));
+        if (item) {
+          triggerUploadedProjectImport(item);
+        }
+      }
+    });
+  }
 
   // Attach Right-Click & Press-Hold ContextMenu
   if (window.ContextMenu && typeof window.ContextMenu.bindTrigger === 'function') {
@@ -410,6 +512,106 @@ function renderProjects(projects, container, countBadge) {
       }).catch(() => {});
     });
   }
+}
+
+/**
+ * Renders uploaded/shared projects in the Uploaded Projects tab
+ */
+function renderUploadedProjects(projects, container, countBadge) {
+  if (countBadge) {
+    countBadge.textContent = String(projects ? projects.length : 0);
+    countBadge.setAttribute('title', `${projects ? projects.length : 0} Uploaded Projects`);
+  }
+
+  if (!container) return;
+
+  if (!projects || projects.length === 0) {
+    container.innerHTML = `
+      <div class="projects-empty">
+        <div class="projects-empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+          </svg>
+        </div>
+        <span>No uploaded projects yet</span>
+        <span style="font-size:12px;color:var(--text-muted);margin-top:4px;">Projects exported as link will appear here</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = projects.map(project => {
+    const name = project.name || 'Untitled Project';
+    const size = project.size || '1.0 MB';
+    const savedTime = formatRelativeTime(project.createdAt || Date.now());
+    const specs = `${escapeHtml(project.specs || '1080p • 60 fps')}`;
+    const shareUrl = project.shareUrl || `${window.location.origin}/${project.id}`;
+
+    return `
+      <div class="project-swipe-container" data-id="${escapeHtml(project.id)}">
+        <article class="project-item uploaded-project-item" data-id="${escapeHtml(project.id)}" tabindex="0" role="button" aria-label="Uploaded Project: ${escapeHtml(name)}">
+          <div class="project-thumb-box" aria-hidden="true">
+            ${project.thumbnail ? `
+              <img class="project-thumb-img" src="${project.thumbnail}" alt="" loading="lazy" />
+            ` : `
+              <div class="project-thumb-placeholder">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
+                  <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
+                  <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
+                </svg>
+              </div>
+            `}
+          </div>
+          <div class="project-info">
+            <div class="project-row-main">
+              <span class="project-name">${escapeHtml(name)}</span>
+              <span class="project-size">${escapeHtml(size)}</span>
+            </div>
+            <div class="project-row-sub">
+              <span class="project-saved">${escapeHtml(savedTime)}</span>
+              <span class="project-specs">${specs}</span>
+            </div>
+          </div>
+          <!-- Action Buttons (Copy Link, QR, Remove - Icon only) -->
+          <div class="uploaded-actions">
+            <button type="button" class="uploaded-btn-action btn-copy-uploaded-link" data-url="${escapeHtml(shareUrl)}" title="Copy Link" aria-label="Copy Link">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+              </svg>
+            </button>
+            <button type="button" class="uploaded-btn-action btn-view-uploaded-qr" data-id="${escapeHtml(project.id)}" title="View QR Code" aria-label="View QR Code">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M4 4h6v6H4V4zm2 2v2h2V6H6zm8-2h6v6h-6V4zm2 2v2h2V6h-2zM4 14h6v6H4v-6zm2 2v2h2v-2H6zm10-2h2v2h-2v-2zm-2 2h2v2h-2v-2zm4 0h2v2h-2v-2zm-2 2h2v2h-2v-2zm2 2h2v2h-2v-2zm-6-2h2v2h-2v-2zm0-4h2v2h-2v-2z"/>
+              </svg>
+            </button>
+            <button type="button" class="uploaded-btn-action btn-remove-uploaded" data-id="${escapeHtml(project.id)}" title="Remove" aria-label="Remove">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </div>
+        </article>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Triggers link project import flow when clicking an uploaded project card
+ */
+async function triggerUploadedProjectImport(project) {
+  if (!project || !project.id) return;
+  showDashboardToast('Fetching project...');
+  try {
+    const res = await fetch(`/api/project?id=${encodeURIComponent(project.id)}`);
+    const data = await res.json();
+    if (res.ok && data.success && data.project) {
+      showPresetConfirmModal(data.project);
+      return;
+    }
+  } catch (_) {}
+  showPresetConfirmModal(project);
 }
 
 /**
@@ -850,31 +1052,67 @@ async function openShareProjectLinkModal(projectId, projectName) {
   const project = await window.FishDatabase.getProject(projectId);
   if (!project) return;
 
-  const nameEl = document.getElementById('index-share-link-project-name');
-  const sizeEl = document.getElementById('index-share-link-project-size');
-  const specsEl = document.getElementById('index-share-link-project-specs');
-  const thumbBox = document.getElementById('index-share-link-thumb-box');
-  const linkInput = document.getElementById('index-share-project-link-input');
-  const statusText = document.getElementById('index-share-link-status-text');
+  showDashboardToast('Packaging project for share link...');
 
-  if (nameEl) nameEl.textContent = project.name || projectName || 'Untitled';
-  if (sizeEl) sizeEl.textContent = project.size || '12 KB';
-  if (specsEl) specsEl.textContent = `${project.resolution || '1080p'} • ${project.fps || 60} fps`;
+  try {
+    const zipBlob = await window.FishDatabase.exportProjectToOFTS(projectId, {
+      skipDownload: true
+    });
 
-  if (thumbBox) {
-    if (project.thumbnail) {
-      thumbBox.innerHTML = `<img src="${project.thumbnail}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
-    } else {
-      thumbBox.innerHTML = `<div class="project-thumb-placeholder"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/><path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/><path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/></svg></div>`;
+    if (!zipBlob) {
+      showDashboardToast('Failed to package project');
+      return;
     }
-  }
 
-  const shareUrl = `${window.location.origin}/1`;
-  if (linkInput) linkInput.value = shareUrl;
-  if (statusText) statusText.textContent = 'Shareable link ready! Users visiting this link can import this project.';
+    const MAX_SHARE_SIZE = 15 * 1024 * 1024; // 15MB
+    if (zipBlob.size > MAX_SHARE_SIZE) {
+      const formattedSize = window.FishDatabase.formatBytes(zipBlob.size);
+      alert(`Project size (${formattedSize}) exceeds the 15MB share limit.\n\nCloud link sharing is limited to 15MB. Please save the project directly to your local device (.ofts).`);
+      return;
+    }
 
-  if (window.Modal) {
-    window.Modal.open('modal-share-project-link');
+    showDashboardToast('Uploading to storage...');
+
+    const fd = new FormData();
+    fd.append('file', zipBlob, (project.name || 'Project') + '.ofts');
+    fd.append('name', project.name || 'Untitled Project');
+    fd.append('specs', `${project.resolution || '1080p'} • ${project.fps || 60} fps`);
+    fd.append('aspectRatio', project.aspectRatio || '16:9');
+    fd.append('size', window.FishDatabase.formatBytes(zipBlob.size));
+    fd.append('thumbnail', project.thumbnail || '');
+
+    const res = await fetch('/api/share', {
+      method: 'POST',
+      body: fd
+    });
+
+    const json = await res.json();
+    if (!res.ok || !json.success || !json.shareUrl) {
+      alert('Share upload failed: ' + (json.error || 'Server error'));
+      return;
+    }
+
+    // Save to persistent uploaded projects
+    const rec = {
+      id: String(json.id),
+      name: (json.record && json.record.name) || project.name || 'Untitled Project',
+      specs: (json.record && json.record.specs) || `${project.resolution || '1080p'} • ${project.fps || 60} fps`,
+      size: (json.record && json.record.size) || window.FishDatabase.formatBytes(zipBlob.size),
+      aspectRatio: (json.record && json.record.aspectRatio) || project.aspectRatio || '16:9',
+      thumbnail: (json.record && json.record.thumbnail) || project.thumbnail || '',
+      shareUrl: json.shareUrl,
+      fileUrl: (json.record && json.record.fileUrl) || json.catboxUrl || '',
+      createdAt: (json.record && json.record.createdAt) || Date.now()
+    };
+
+    window.FishDatabase.saveUploadedProject(rec);
+    showDashboardToast('Share link created!');
+
+    // Open QR modal directly
+    openDashboardQRModal(rec);
+  } catch (err) {
+    console.error('[Dashboard:ShareLink]', err);
+    showDashboardToast('Failed to generate project link: ' + (err.message || err));
   }
 }
 window.openShareProjectLinkModal = openShareProjectLinkModal;
@@ -1611,6 +1849,284 @@ function toggleQrisDisplay() {
     if (arrow) arrow.classList.remove('is-open');
   }
 }
+
+// ==========================================================================
+// DASHBOARD QR CODE SHARE MODAL CONTROLLER
+// ==========================================================================
+let _dashboardQRShareUrl = '';
+let _dashboardCachedQRCardDataUrl = '';
+
+// Dynamically load QRCode.js if not already available
+if (typeof window !== 'undefined' && !window.QRCode) {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+  document.head.appendChild(s);
+}
+
+function drawImageCover(ctx, img, targetX, targetY, targetW, targetH) {
+  const imgW = img.naturalWidth || img.width;
+  const imgH = img.naturalHeight || img.height;
+  if (!imgW || !imgH) return;
+  const scale = Math.max(targetW / imgW, targetH / imgH);
+  const sW = targetW / scale;
+  const sH = targetH / scale;
+  const sX = (imgW - sW) / 2;
+  const sY = (imgH - sH) / 2;
+  ctx.drawImage(img, sX, sY, sW, sH, targetX, targetY, targetW, targetH);
+}
+
+async function generateDashboardQRCardCanvas(shareUrl, record) {
+  const W = 900, H = 1200;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+
+  // 1. Base dark background
+  ctx.fillStyle = '#0d1109';
+  ctx.fillRect(0, 0, W, H);
+
+  // 2. Background thumbnail (COVER aspect ratio, NEVER stretched)
+  let thumbSrc = (record && record.thumbnail) || null;
+  if (thumbSrc && typeof thumbSrc === 'string' && thumbSrc.startsWith('data:')) {
+    try {
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = thumbSrc;
+      });
+      ctx.save();
+      ctx.globalAlpha = 0.40;
+      drawImageCover(ctx, img, 0, 0, W, H);
+      ctx.restore();
+    } catch (_) {}
+  }
+
+  // Dark overlay on thumbnail to guarantee high contrast
+  ctx.fillStyle = 'rgba(13, 17, 9, 0.75)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Card border inside canvas
+  ctx.strokeStyle = '#222d1b';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, W - 6, H - 6);
+
+  // 3. Header: Project Name (Centered, Cal Sans, truncated with ellipsis if long)
+  ctx.fillStyle = '#98ce7b';
+  ctx.font = 'bold 46px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let pName = (record && record.name) || 'Untitled Project';
+  pName = String(pName).trim();
+  if (ctx.measureText(pName).width > 740) {
+    while (pName.length > 3 && ctx.measureText(pName + '…').width > 740) {
+      pName = pName.slice(0, -1);
+    }
+    pName += '…';
+  }
+  ctx.fillText(pName, W / 2, 95);
+
+  // Project Specs Subtitle
+  const specsText = [record && record.specs, record && record.size].filter(Boolean).join(' • ') || '1080p • 60 fps';
+  ctx.fillStyle = '#8fad84';
+  ctx.font = '600 24px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(specsText, W / 2, 145);
+
+  // 4. QR Code Box (White container card with rounded corners, prominent & scannable)
+  const qrBoxSize = 640;
+  const qrBoxX = (W - qrBoxSize) / 2;
+  const qrBoxY = 195;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 32);
+  } else {
+    ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+  }
+  ctx.fill();
+
+  // Draw QR code from scratch element
+  const qrWrap = document.getElementById('qr-share-qr-wrap');
+  const qrCanvas = qrWrap ? qrWrap.querySelector('canvas') : null;
+  const qrImg = qrWrap ? qrWrap.querySelector('img') : null;
+  const pad = 36;
+  const qrInnerSize = qrBoxSize - pad * 2;
+
+  if (qrCanvas) {
+    ctx.drawImage(qrCanvas, qrBoxX + pad, qrBoxY + pad, qrInnerSize, qrInnerSize);
+  } else if (qrImg && qrImg.complete && qrImg.naturalWidth > 0) {
+    ctx.drawImage(qrImg, qrBoxX + pad, qrBoxY + pad, qrInnerSize, qrInnerSize);
+  } else {
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText(shareUrl, W / 2, qrBoxY + qrBoxSize / 2);
+  }
+
+  // 5. Action Instruction Prompt
+  ctx.fillStyle = '#c0dbc0';
+  ctx.font = '600 23px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Scan with camera to import project', W / 2, 905);
+
+  // 6. Branding Footer: Premium Capsule Pill Badge (App Icon + "FishTools Studio")
+  let iconLoaded = false;
+  const appIcon = new Image();
+  try {
+    await new Promise((res, rej) => {
+      appIcon.onload = res;
+      appIcon.onerror = rej;
+      appIcon.src = 'assets/icon-192.png';
+    });
+    iconLoaded = true;
+  } catch (_) {
+    try {
+      await new Promise((res, rej) => {
+        appIcon.onload = res;
+        appIcon.onerror = rej;
+        appIcon.src = 'assets/icon.svg';
+      });
+      iconLoaded = true;
+    } catch (_) {}
+  }
+
+  const brandPillY = 1015;
+  const brandPillH = 72;
+  const iconSize = 44;
+  const gap = 16;
+  const brandText = 'FishTools Studio';
+
+  ctx.font = 'bold 30px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+  const textW = ctx.measureText(brandText).width;
+  const innerW = (iconLoaded ? iconSize + gap : 0) + textW;
+  const pillPaddingX = 32;
+  const pillW = innerW + pillPaddingX * 2;
+  const pillX = (W - pillW) / 2;
+  const pillY = brandPillY - brandPillH / 2;
+
+  ctx.fillStyle = '#151c12';
+  ctx.strokeStyle = '#2d3e26';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(pillX, pillY, pillW, brandPillH, brandPillH / 2);
+  } else {
+    ctx.rect(pillX, pillY, pillW, brandPillH);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  const contentStartX = pillX + pillPaddingX;
+  if (iconLoaded) {
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(contentStartX, brandPillY - iconSize / 2, iconSize, iconSize, 10);
+    } else {
+      ctx.rect(contentStartX, brandPillY - iconSize / 2, iconSize, iconSize);
+    }
+    ctx.clip();
+    ctx.drawImage(appIcon, contentStartX, brandPillY - iconSize / 2, iconSize, iconSize);
+    ctx.restore();
+  }
+
+  const textStartX = iconLoaded ? contentStartX + iconSize + gap : contentStartX;
+  ctx.fillStyle = '#98ce7b';
+  ctx.font = 'bold 30px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(brandText, textStartX, brandPillY);
+
+  return c;
+}
+
+async function openDashboardQRModal(record) {
+  const backdrop = document.getElementById('qr-share-backdrop');
+  if (!backdrop || !record) return;
+
+  _dashboardQRShareUrl = record.shareUrl || `${window.location.origin}/${record.id}`;
+
+  const qrWrap = document.getElementById('qr-share-qr-wrap');
+  if (qrWrap) {
+    if (!window.QRCode) {
+      await new Promise(r => setTimeout(r, 400));
+    }
+    qrWrap.innerHTML = '';
+    if (window.QRCode) {
+      try {
+        new window.QRCode(qrWrap, {
+          text: _dashboardQRShareUrl,
+          width: 500,
+          height: 500,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.H
+        });
+      } catch (_) {}
+    }
+    await new Promise(r => setTimeout(r, 80));
+  }
+
+  try {
+    const cardCanvas = await generateDashboardQRCardCanvas(_dashboardQRShareUrl, record);
+    _dashboardCachedQRCardDataUrl = cardCanvas.toDataURL('image/png');
+    const renderedImg = document.getElementById('qr-share-rendered-img');
+    if (renderedImg) {
+      renderedImg.src = _dashboardCachedQRCardDataUrl;
+    }
+  } catch (err) {
+    console.error('[FishDashboard:QRCard]', err);
+  }
+
+  history.pushState({ qrModal: true }, '');
+  backdrop.classList.add('is-active');
+}
+
+// Bind QR backdrop controls on dashboard
+document.addEventListener('DOMContentLoaded', () => {
+  const qrCloseBtn = document.getElementById('qr-btn-close');
+  if (qrCloseBtn) {
+    qrCloseBtn.addEventListener('click', () => {
+      const backdrop = document.getElementById('qr-share-backdrop');
+      if (backdrop) backdrop.classList.remove('is-active');
+    });
+  }
+
+  const qrBackdropEl = document.getElementById('qr-share-backdrop');
+  if (qrBackdropEl) {
+    qrBackdropEl.addEventListener('click', (e) => {
+      if (e.target === qrBackdropEl) {
+        qrBackdropEl.classList.remove('is-active');
+      }
+    });
+  }
+
+  const qrCopyBtn = document.getElementById('qr-btn-copy');
+  if (qrCopyBtn) {
+    qrCopyBtn.addEventListener('click', async () => {
+      if (_dashboardQRShareUrl) {
+        try {
+          await navigator.clipboard.writeText(_dashboardQRShareUrl);
+          showDashboardToast('Link copied to clipboard!');
+        } catch (_) {}
+      }
+    });
+  }
+
+  const qrDownloadBtn = document.getElementById('qr-btn-download');
+  if (qrDownloadBtn) {
+    qrDownloadBtn.addEventListener('click', () => {
+      if (!_dashboardCachedQRCardDataUrl) return;
+      const a = document.createElement('a');
+      a.href = _dashboardCachedQRCardDataUrl;
+      a.download = `Project_QR.png`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); }, 1000);
+    });
+  }
+});
 
 // Global exposes for HTML onclick handlers & module interop
 window.openDeleteModal = openDeleteModal;

@@ -58,10 +58,14 @@ export default {
         return assets.fetch(new Request(new URL('/demo.html', request.url), request));
       }
 
-      // 5. Shortlink support: e.g. /1, /project-id -> /index.html
+      // 5. Shortlink support: e.g. /1, /project-id -> /index.html (served via / to avoid 307 redirect)
       const cleanPath = pathname.replace(/^\/+|\/+$/g, '');
       if (/^[a-zA-Z0-9_-]+$/.test(cleanPath) && !cleanPath.includes('.') && cleanPath !== 'api') {
-        return assets.fetch(new Request(new URL('/index.html', request.url), request));
+        const indexRes = await assets.fetch(new Request(new URL('/', request.url), request));
+        return new Response(indexRes.body, {
+          status: 200,
+          headers: indexRes.headers
+        });
       }
 
       // 6. Default: serve static assets from directory

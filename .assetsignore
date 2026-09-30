@@ -6,6 +6,7 @@ node_modules
 .system_generated
 vercelgate
 scratch
+storage
 server.js
 run.*
 *.log

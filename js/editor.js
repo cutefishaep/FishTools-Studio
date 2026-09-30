@@ -31065,9 +31065,6 @@
           // 4. Open QR Share Modal with real shortlink and metadata
           await openQRShareModal(json.shareUrl, json.record || json);
         } catch (err) {
-          if (typeof hideOFTSProgressModal === 'function') {
-            hideOFTSProgressModal();
-          }
           console.error('[FishExport:Link]', err);
           const errMsg = err && (err.message || String(err));
           if (errMsg && errMsg.includes('15MB')) {
@@ -31081,6 +31078,19 @@
             }
           } else {
             alert('Failed to generate project link: ' + errMsg);
+          }
+        } finally {
+          window.isExporting = false;
+          if (typeof document !== 'undefined') {
+            document.body.classList.remove('is-exporting');
+            const progModal = document.getElementById('modal-ofts-progress');
+            if (progModal) progModal.classList.remove('is-active');
+          }
+          if (typeof hideOFTSProgressModal === 'function') {
+            hideOFTSProgressModal();
+          }
+          if (typeof updatePlayButtonUI === 'function') {
+            try { updatePlayButtonUI(); } catch (_) {}
           }
         }
       }

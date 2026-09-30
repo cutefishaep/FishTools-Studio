@@ -133,13 +133,9 @@
               <span>Open Timeline</span>
             </button>
             <div class="popover-menu-divider"></div>
-            <!-- 2. Image Sequence -->
-            <button type="button" class="popover-menu-item" id="btn-template-export-sequence" title="Export Image Sequence">
-              <span>Image Sequence</span>
-            </button>
-            <!-- 3. Export Video -->
-            <button type="button" class="popover-menu-item" id="btn-template-export-video" title="Export Video">
-              <span>Export Video</span>
+            <!-- 2. Export (triggers export popup drawer) -->
+            <button type="button" class="popover-menu-item" id="btn-template-export" title="Export">
+              <span>Export</span>
             </button>
           </div>
         `;
@@ -197,45 +193,31 @@
         });
       }
 
-      const btnExpPNG = document.getElementById('btn-template-export-png');
-      if (btnExpPNG) {
-        btnExpPNG.addEventListener('click', (e) => {
-          e.preventDefault();
-          if (window.Popover) window.Popover.close();
-          const mainBtn = document.getElementById('btn-export-png');
-          if (mainBtn) mainBtn.click();
-        });
-      }
-
-      const btnExpSeq = document.getElementById('btn-template-export-sequence');
-      if (btnExpSeq) {
-        btnExpSeq.addEventListener('click', (e) => {
-          e.preventDefault();
-          if (window.Popover) window.Popover.close();
-          const mainBtn = document.getElementById('btn-export-sequence');
-          if (mainBtn) mainBtn.click();
-        });
-      }
-
-      const btnExpVideo = document.getElementById('btn-template-export-video');
-      if (btnExpVideo) {
-        btnExpVideo.addEventListener('click', (e) => {
+      const btnExport = document.getElementById('btn-template-export');
+      if (btnExport) {
+        btnExport.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           if (window.Popover) window.Popover.close(false);
-          const mainBtn = document.getElementById('btn-export-video-modal');
-          if (mainBtn) mainBtn.click();
+          const exportBtn = document.getElementById('btn-editor-export');
+          if (exportBtn) {
+            exportBtn.click();
+          } else if (typeof window.openExportOverlay === 'function') {
+            window.openExportOverlay();
+          }
         });
       }
 
       // Preview box click -> toggle play/pause
       el.previewBox.addEventListener('click', () => {
+        if (window.isExporting) return;
         this.togglePlay();
       });
 
       // Space key to toggle play/pause while template editor is open
       window.addEventListener('keydown', (e) => {
         if (!this.isOpen) return;
+        if (window.isExporting) return;
         if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
         if (e.code === 'Space' || e.key === ' ') {
           e.preventDefault();
@@ -256,6 +238,7 @@
       };
 
       wrap.addEventListener('pointerdown', (e) => {
+        if (window.isExporting) return;
         e.preventDefault();
         this.pause();
         this._isDraggingScrubber = true;
@@ -291,6 +274,14 @@
       // Native browser back button (popstate support)
       window.addEventListener('popstate', (e) => {
         if (this.isOpen) {
+          const exportOverlay = document.getElementById('export-fs-overlay');
+          if (exportOverlay && exportOverlay.classList.contains('is-active')) {
+            return;
+          }
+          const qrBackdrop = document.getElementById('qr-share-backdrop');
+          if (qrBackdrop && qrBackdrop.classList.contains('is-active')) {
+            return;
+          }
           if (window.Popover && window.Popover.activePopover && window.Popover.activePopover.id === 'popover-template-next') {
             window.Popover.close(false);
           } else {
@@ -1129,6 +1120,7 @@
     },
 
     togglePlay() {
+      if (window.isExporting) return;
       if (this.isPlaying) {
         this.pause();
       } else {
@@ -1137,6 +1129,7 @@
     },
 
     play() {
+      if (window.isExporting) return;
       if (this.isPlaying) return;
       this.isPlaying = true;
       window.isTimelinePlaying = true;

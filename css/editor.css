@@ -280,10 +280,14 @@ html, body {
 }
 
 .ctrl-btn:disabled,
-.ctrl-btn.is-disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  pointer-events: none;
+.ctrl-btn.is-disabled,
+body.is-exporting #editor-btn-play,
+body.is-exporting .ctrl-btn-play,
+body.is-exporting .template-play-overlay,
+body.is-exporting .template-scrubber-wrap {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
 }
 
 .ctrl-btn:active {

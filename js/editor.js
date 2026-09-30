@@ -458,6 +458,30 @@
 
 
     let saveLayersDebounceTimer = null;
+
+    function captureProjectThumbnailPreview() {
+      try {
+        const canvas = document.getElementById('editor-active-canvas');
+        if (!canvas || !canvas.width || !canvas.height) return null;
+        const maxDim = 280;
+        let thumbW = maxDim;
+        let thumbH = Math.max(1, Math.round(maxDim * (canvas.height / canvas.width)));
+        if (canvas.height > canvas.width) {
+          thumbH = maxDim;
+          thumbW = Math.max(1, Math.round(maxDim * (canvas.width / canvas.height)));
+        }
+        const off = document.createElement('canvas');
+        off.width = thumbW;
+        off.height = thumbH;
+        const ctx = off.getContext('2d');
+        ctx.drawImage(canvas, 0, 0, thumbW, thumbH);
+        return off.toDataURL('image/jpeg', 0.8) || off.toDataURL('image/webp', 0.8);
+      } catch (e) {
+        return null;
+      }
+    }
+    window.captureProjectThumbnailPreview = captureProjectThumbnailPreview;
+
     function saveCurrentProjectLayers(immediate = false) {
       if (saveLayersDebounceTimer) {
         clearTimeout(saveLayersDebounceTimer);
@@ -629,6 +653,15 @@
               prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
             }
             prj.isTemplate = !!currentProjectState.isTemplate;
+
+            // Auto-capture project thumbnail from composition canvas
+            const thumb = captureProjectThumbnailPreview();
+            if (thumb) {
+              prj.thumbnail = thumb;
+              currentProjectState.thumbnail = thumb;
+            } else if (currentProjectState.thumbnail) {
+              prj.thumbnail = currentProjectState.thumbnail;
+            }
 
             // Synchronous active project backup to ensure zero loss if tab unloads
             try {
@@ -16989,6 +17022,12 @@
           if (typeof writeEmergencySnapshot === 'function') {
             writeEmergencySnapshot();
           }
+
+          const exitThumb = (typeof captureProjectThumbnailPreview === 'function') ? captureProjectThumbnailPreview() : null;
+          if (exitThumb) {
+            currentProjectState.thumbnail = exitThumb;
+          }
+
           if (currentProjectState.id) {
             try {
               const activeProj = {
@@ -17002,6 +17041,7 @@
                 layers: currentProjectState.layers || [],
                 beatmarks: currentProjectState.beatmarks || [],
                 pixelsPerSecond: window.currentPixelsPerSecond || 80,
+                thumbnail: currentProjectState.thumbnail || exitThumb || '',
                 updatedAt: new Date().toISOString()
               };
               localStorage.setItem('oft_active_project_backup_' + currentProjectState.id, JSON.stringify(activeProj));
@@ -20414,9 +20454,19 @@
       function updatePlayButtonUI() {
         if (!playBtn) return;
         playBtn.classList.toggle('is-playing', isPlaying);
-        playBtn.setAttribute('title', isPlaying ? 'Pause (Space)' : 'Play (Space)');
-        playBtn.setAttribute('aria-label', isPlaying ? 'Pause (Space)' : 'Play (Space)');
+        if (window.isExporting) {
+          playBtn.classList.add('is-disabled');
+          playBtn.setAttribute('disabled', 'true');
+          playBtn.setAttribute('title', 'Export in progress (Playback locked)');
+          playBtn.setAttribute('aria-label', 'Export in progress (Playback locked)');
+        } else {
+          playBtn.classList.remove('is-disabled');
+          playBtn.removeAttribute('disabled');
+          playBtn.setAttribute('title', isPlaying ? 'Pause (Space)' : 'Play (Space)');
+          playBtn.setAttribute('aria-label', isPlaying ? 'Pause (Space)' : 'Play (Space)');
+        }
       }
+      window.updatePlayButtonUI = updatePlayButtonUI;
 
       function pausePlayback(returnToStart = true) {
         if (!isPlaying) return;
@@ -21087,6 +21137,14 @@
         });
 
         playBtn.addEventListener('click', (e) => {
+          if (window.isExporting) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') {
+              e.stopImmediatePropagation();
+            }
+            return;
+          }
           if (isPlayLongPress) {
             e.preventDefault();
             e.stopPropagation();
@@ -27296,6 +27354,14 @@
           return; // Let user type spaces in real text input fields
         }
 
+        // If export is in progress, suppress Space completely so playback cannot be started
+        if (window.isExporting) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+          return;
+        }
+
         // If any modal/popup card is active, suppress Space so background timeline does not play and modal buttons don't fire
         const hasOpenModal = document.querySelector('.modal-backdrop.is-active, .modal-backdrop.active, .modal-backdrop.is-open, .modal-card.is-active');
         if (hasOpenModal) {
@@ -28940,6 +29006,18 @@
       // 1. Progress Overlay Helpers
       function showExportProgress(title, percent = 0, stage = '', engineBadge = 'GPU') {
         window.isExporting = true;
+        if (typeof document !== 'undefined') document.body.classList.add('is-exporting');
+        // Stop playback immediately across both timeline and template editor!
+        if (typeof pausePlayback === 'function') {
+          try { pausePlayback(false); } catch (_) {}
+        }
+        if (window.FishTemplateEditor && typeof window.FishTemplateEditor.pause === 'function') {
+          try { window.FishTemplateEditor.pause(); } catch (_) {}
+        }
+        if (typeof updatePlayButtonUI === 'function') {
+          try { updatePlayButtonUI(); } catch (_) {}
+        }
+
         if (window.PreviewCacheManager && typeof window.PreviewCacheManager.stopIdleWorker === 'function') {
           window.PreviewCacheManager.stopIdleWorker();
         }
@@ -28973,8 +29051,12 @@
 
       function hideExportProgress() {
         window.isExporting = false;
+        if (typeof document !== 'undefined') document.body.classList.remove('is-exporting');
         const overlay = document.getElementById('editor-export-progress-overlay');
         if (overlay) overlay.style.display = 'none';
+        if (typeof updatePlayButtonUI === 'function') {
+          try { updatePlayButtonUI(); } catch (_) {}
+        }
       }
 
       // Unified Cancel Handler (for Image Sequence, Video, and any ongoing render)
@@ -28983,6 +29065,10 @@
         isExportCancelled = true;
         window.isExportCancelled = true;
         window.isExporting = false;
+        if (typeof document !== 'undefined') document.body.classList.remove('is-exporting');
+        if (typeof updatePlayButtonUI === 'function') {
+          try { updatePlayButtonUI(); } catch (_) {}
+        }
 
         // Cancel video export in FishExportEngine if running
         if (window.FishExportEngine && typeof window.FishExportEngine.cancel === 'function') {
@@ -30511,119 +30597,850 @@
       window.exportVideoMP4 = exportVideoMP4;
       window.exportVideoHardware = exportVideoHardware;
       window.exportVideoFFmpeg = exportVideoFFmpeg;
-      // 8. Bind Events
+      // 8. Bind Events — Fullscreen Export Overlay
 
-      const btnExportPNG = document.getElementById('btn-export-png');
-      if (btnExportPNG) {
-        btnExportPNG.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (window.Popover) window.Popover.close();
-          exportCurrentFrameAsPNG();
-        });
-      }
-
-      const btnExportSeq = document.getElementById('btn-export-sequence');
-      if (btnExportSeq) {
-        btnExportSeq.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (window.Popover) window.Popover.close();
-          exportImageSequenceZIP();
-        });
-      }
-
-      // Popover Action: Save Current Frame
-      const btnExportSaveFrame = document.getElementById('btn-export-save-frame');
-      if (btnExportSaveFrame) {
-        btnExportSaveFrame.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (window.Popover) window.Popover.close();
-          exportCurrentFrameAsPNG();
-        });
-      }
-
-      const bitrateSwitch = document.getElementById('export-bitrate-switch');
-      if (bitrateSwitch) {
-        bitrateSwitch.querySelectorAll('.segmented-switch-item').forEach(item => {
-          item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            bitrateSwitch.querySelectorAll('.segmented-switch-item').forEach(btn => {
-              btn.classList.remove('is-active', 'is-selected');
-              btn.setAttribute('aria-selected', 'false');
+      // ---- Minimal QR Code canvas generator (no external dependency) ----
+      // Uses qr-creator algorithm via inline Reed-Solomon + data matrix generator.
+      // For simplicity, integrates a CDN-loaded qrcode.js or falls back to SVG placeholder.
+      function generateQRToElement(url, container) {
+        container.innerHTML = '';
+        // Try QRCode library if present (loaded dynamically below)
+        if (window.QRCode) {
+          try {
+            new window.QRCode(container, {
+              text: url,
+              width: container.offsetWidth || 200,
+              height: container.offsetHeight || 200,
+              colorDark: '#000000',
+              colorLight: '#ffffff',
+              correctLevel: window.QRCode.CorrectLevel.H
             });
-            item.classList.add('is-active', 'is-selected');
-            item.setAttribute('aria-selected', 'true');
+            return;
+          } catch (_) {}
+        }
+        // Fallback: plain canvas checkerboard placeholder
+        const c = document.createElement('canvas');
+        c.width = 200; c.height = 200;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 200, 200);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('QR: ' + url.slice(-14), 100, 105);
+        container.appendChild(c);
+      }
+
+      // Load QRCode.js dynamically (MIT, qrcodejs)
+      if (!window.QRCode) {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        s.onload = () => console.log('[FishExport] QRCode.js loaded');
+        document.head.appendChild(s);
+      }
+
+      // ---- Fullscreen Export Overlay Controller ----
+      const _exportOverlay = document.getElementById('export-fs-overlay');
+      const _exportBtnEditor = document.getElementById('btn-editor-export');
+      const _exportCloseBtn = document.getElementById('export-fs-close-btn');
+      const _exportNextBtn = document.getElementById('export-fs-next-btn');
+      const _exportNextLabel = document.getElementById('export-fs-next-label');
+      const _exportSubtitle = document.getElementById('export-fs-subtitle');
+
+      let _currentExportType = 'video'; // default selected
+
+      const _exportTypeLabels = {
+        video:    'Export Video',
+        frame:    'Current Frame',
+        sequence: 'Image Sequence',
+        project:  'Project File',
+        link:     'Project Link'
+      };
+
+      const _exportBackdrop = document.getElementById('export-drawer-backdrop');
+
+      function openExportOverlay() {
+        if (!_exportOverlay) return;
+        history.pushState({ exportOverlay: true }, '');
+        if (_exportBackdrop) _exportBackdrop.classList.add('is-active');
+        _exportOverlay.classList.add('is-active');
+        // Sync filename in video settings panel
+        const fnInput = document.getElementById('export-video-filename');
+        if (fnInput && currentProjectState) fnInput.value = currentProjectState.name || 'New_Project';
+        // Sync FPS from project
+        const fpsSelect = document.getElementById('export-video-fps');
+        const seqFpsSelect = document.getElementById('export-seq-fps');
+        const projFps = String(currentProjectState && currentProjectState.fps ? currentProjectState.fps : 60);
+        if (fpsSelect) {
+          const opt = fpsSelect.querySelector(`option[value="${projFps}"]`);
+          if (opt) fpsSelect.value = projFps;
+        }
+        if (seqFpsSelect) {
+          const opt = seqFpsSelect.querySelector(`option[value="${projFps}"]`);
+          if (opt) seqFpsSelect.value = projFps;
+        }
+        // Sync resolution from project
+        const resSelect = document.getElementById('export-video-resolution');
+        const seqResSelect = document.getElementById('export-seq-resolution');
+        const projRes = currentProjectState && currentProjectState.resolution ? currentProjectState.resolution : '1080p';
+        if (resSelect) {
+          const opt = resSelect.querySelector(`option[value="${projRes}"]`);
+          if (opt) resSelect.value = projRes;
+        }
+        if (seqResSelect) {
+          const opt = seqResSelect.querySelector(`option[value="${projRes}"]`);
+          if (opt) seqResSelect.value = projRes;
+        }
+      }
+
+      function closeExportOverlay() {
+        if (!_exportOverlay) return;
+        if (_exportBackdrop) _exportBackdrop.classList.remove('is-active');
+        _exportOverlay.classList.remove('is-active');
+        // Close any open settings panel too
+        document.querySelectorAll('.export-settings-panel.is-active').forEach(p => p.classList.remove('is-active'));
+      }
+
+      // Backdrop click/tap closes drawer
+      if (_exportBackdrop) {
+        _exportBackdrop.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeExportOverlay();
+        });
+        _exportBackdrop.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeExportOverlay();
+        });
+      }
+
+      // Escape key closes drawer
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && _exportOverlay && _exportOverlay.classList.contains('is-active')) {
+          closeExportOverlay();
+        }
+      });
+
+      // Open overlay when export button clicked (override popover)
+      if (_exportBtnEditor) {
+        _exportBtnEditor.removeAttribute('data-popover-target');
+        _exportBtnEditor.removeAttribute('data-popover-placement');
+        _exportBtnEditor.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close(false);
+          openExportOverlay();
+        });
+      }
+
+      if (_exportCloseBtn) {
+        _exportCloseBtn.addEventListener('click', () => closeExportOverlay());
+      }
+
+      // Back button closes overlay via popstate
+      window.addEventListener('popstate', (e) => {
+        if (_exportOverlay && _exportOverlay.classList.contains('is-active')) {
+          closeExportOverlay();
+          return;
+        }
+        // Also close QR modal on back
+        const qrBackdrop = document.getElementById('qr-share-backdrop');
+        if (qrBackdrop && qrBackdrop.classList.contains('is-active')) {
+          qrBackdrop.classList.remove('is-active');
+        }
+      });
+
+      // Radio card selection
+      if (_exportOverlay) {
+        _exportOverlay.querySelectorAll('.export-option-card').forEach(card => {
+          card.addEventListener('click', (e) => {
+            // Don't deselect if clicking chevron
+            if (e.target.closest('.export-option-chevron[data-settings-panel]') &&
+                e.target.closest('.export-option-chevron').dataset.settingsPanel) return;
+
+            _exportOverlay.querySelectorAll('.export-option-card').forEach(c => {
+              c.classList.remove('is-selected');
+              c.setAttribute('aria-checked', 'false');
+            });
+            card.classList.add('is-selected');
+            card.setAttribute('aria-checked', 'true');
+            _currentExportType = card.dataset.exportType || 'video';
+            if (_exportNextLabel) _exportNextLabel.textContent = _exportTypeLabels[_currentExportType] || 'Export';
+            if (_exportSubtitle) _exportSubtitle.textContent = _exportTypeLabels[_currentExportType] || 'Export';
+          });
+        });
+
+        // Chevron → open settings panel
+        _exportOverlay.querySelectorAll('.export-option-chevron[data-settings-panel]').forEach(chevron => {
+          chevron.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const panelId = chevron.dataset.settingsPanel;
+            if (!panelId) return;
+            // Also select the card first
+            const card = chevron.closest('.export-option-card');
+            if (card) {
+              _exportOverlay.querySelectorAll('.export-option-card').forEach(c => {
+                c.classList.remove('is-selected');
+                c.setAttribute('aria-checked', 'false');
+              });
+              card.classList.add('is-selected');
+              card.setAttribute('aria-checked', 'true');
+              _currentExportType = card.dataset.exportType || 'video';
+              if (_exportNextLabel) _exportNextLabel.textContent = _exportTypeLabels[_currentExportType] || 'Export';
+              if (_exportSubtitle) _exportSubtitle.textContent = _exportTypeLabels[_currentExportType] || 'Export';
+            }
+            const panel = document.getElementById(panelId);
+            if (panel) {
+              history.pushState({ settingsPanel: panelId }, '');
+              panel.classList.add('is-active');
+            }
           });
         });
       }
 
-      // Popover Action: Open Export Video Modal
-      const btnExportVideoModal = document.getElementById('btn-export-video-modal');
-      if (btnExportVideoModal) {
-        btnExportVideoModal.addEventListener('click', (e) => {
+      // Close settings panel via back button inside panel
+      document.querySelectorAll('[data-close-settings]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const panelId = btn.dataset.closeSettings;
+          const panel = document.getElementById(panelId);
+          if (panel) panel.classList.remove('is-active');
+        });
+      });
+
+      // Bitrate pill selection in video settings
+      document.querySelectorAll('[data-video-bitrate]').forEach(pill => {
+        pill.addEventListener('click', () => {
+          document.querySelectorAll('[data-video-bitrate]').forEach(p => p.classList.remove('is-active'));
+          pill.classList.add('is-active');
+        });
+      });
+
+      // Image sequence format pill selection
+      document.querySelectorAll('[data-seq-format]').forEach(pill => {
+        pill.addEventListener('click', () => {
+          document.querySelectorAll('[data-seq-format]').forEach(p => p.classList.remove('is-active'));
+          pill.classList.add('is-active');
+        });
+      });
+
+      // Next button: close overlay and trigger export
+      if (_exportNextBtn) {
+        _exportNextBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          closeExportOverlay();
+
+          switch (_currentExportType) {
+            case 'video': {
+              // Read settings
+              const resEl = document.getElementById('export-video-resolution');
+              const res = resEl ? resEl.value : (currentProjectState.resolution || '1080p');
+              const fpsEl = document.getElementById('export-video-fps');
+              const fps = fpsEl ? parseInt(fpsEl.value, 10) : (currentProjectState.fps || 60);
+              const bitrateBtn = document.querySelector('[data-video-bitrate].is-active');
+              const preset = bitrateBtn ? bitrateBtn.dataset.videoBitrate : 'normal';
+              const fnInput = document.getElementById('export-video-filename');
+              const customName = fnInput ? fnInput.value.trim() : '';
+
+              // Temporarily override resolution/fps on project state for this export
+              const _origRes = currentProjectState.resolution;
+              const _origFps = currentProjectState.fps;
+              currentProjectState.resolution = res;
+              currentProjectState.fps = fps;
+
+              await exportVideoMP4(preset, customName, 'mp4');
+
+              currentProjectState.resolution = _origRes;
+              currentProjectState.fps = _origFps;
+              break;
+            }
+
+            case 'frame': {
+              await exportCurrentFrameAsPNG();
+              break;
+            }
+
+            case 'sequence': {
+              // Read sequence settings
+              const seqResEl = document.getElementById('export-seq-resolution');
+              const seqRes = seqResEl ? seqResEl.value : (currentProjectState.resolution || '1080p');
+              const seqFpsEl = document.getElementById('export-seq-fps');
+              const seqFps = seqFpsEl ? parseInt(seqFpsEl.value, 10) : (currentProjectState.fps || 60);
+              const formatBtn = document.querySelector('[data-seq-format].is-active');
+              const seqFormat = formatBtn ? formatBtn.dataset.seqFormat : 'zip';
+
+              const _origRes2 = currentProjectState.resolution;
+              const _origFps2 = currentProjectState.fps;
+              currentProjectState.resolution = seqRes;
+              currentProjectState.fps = seqFps;
+
+              if (seqFormat === 'zip') {
+                await exportImageSequenceZIP();
+              } else if (seqFormat === 'gif') {
+                // GIF: use existing ZIP flow, fallback message for now
+                await exportImageSequenceGIF();
+              } else if (seqFormat === 'webp') {
+                await exportImageSequenceWebP();
+              }
+
+              currentProjectState.resolution = _origRes2;
+              currentProjectState.fps = _origFps2;
+              break;
+            }
+
+            case 'project': {
+              if (typeof exportCurrentProjectOFTSAction === 'function') {
+                await exportCurrentProjectOFTSAction();
+              }
+              break;
+            }
+
+            case 'link': {
+              await exportProjectToShareLinkAction();
+              break;
+            }
+          }
+        });
+      }
+
+      // Capture compressed thumbnail (~10-15KB) specifically for cloud storage
+      function captureCompressedShareThumbnail() {
+        try {
+          const canvas = document.getElementById('editor-active-canvas');
+          if (!canvas || !canvas.width || !canvas.height) return '';
+          const maxDim = 200;
+          let w = maxDim;
+          let h = Math.max(1, Math.round(maxDim * (canvas.height / canvas.width)));
+          if (canvas.height > canvas.width) {
+            h = maxDim;
+            w = Math.max(1, Math.round(maxDim * (canvas.width / canvas.height)));
+          }
+          const off = document.createElement('canvas');
+          off.width = w; off.height = h;
+          const ctx = off.getContext('2d');
+          ctx.drawImage(canvas, 0, 0, w, h);
+          return off.toDataURL('image/jpeg', 0.6) || '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      async function exportProjectToShareLinkAction() {
+        if (!window.FishDatabase) {
+          alert('Database module not ready.');
+          return;
+        }
+
+        // Save current changes first
+        if (typeof saveCurrentProjectLayers === 'function') {
+          await saveCurrentProjectLayers(true);
+        }
+
+        try {
+          if (typeof showOFTSProgressModal === 'function') {
+            showOFTSProgressModal('Sharing Project', 0, 'Packing .ofts bundle...');
+          }
+
+          // 1. Generate package keeping progress modal open (0% - 50%)
+          const zipBlob = await window.FishDatabase.exportProjectToOFTS(currentProjectState.id, {
+            skipDownload: true,
+            keepProgressOpen: true
+          });
+
+          if (!zipBlob) {
+            if (typeof hideOFTSProgressModal === 'function') hideOFTSProgressModal();
+            return;
+          }
+
+          // Check project size limit (15MB)
+          const MAX_SHARE_SIZE = 15 * 1024 * 1024; // 15MB
+          if (zipBlob.size > MAX_SHARE_SIZE) {
+            if (typeof hideOFTSProgressModal === 'function') hideOFTSProgressModal();
+            const formattedSize = window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : `${(zipBlob.size / (1024 * 1024)).toFixed(1)} MB`;
+            const shouldSaveLocal = confirm(
+              `Project size (${formattedSize}) exceeds the 15MB share limit.\n\n` +
+              `Cloud link sharing is limited to 15MB. Please save the project directly to your local device (.ofts).\n\n` +
+              `Download project to your device now?`
+            );
+            if (shouldSaveLocal) {
+              if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
+                await window.FishDatabase.exportProjectToOFTS(currentProjectState.id);
+              }
+            }
+            return;
+          }
+
+          if (typeof updateOFTSProgress === 'function') {
+            updateOFTSProgress(50, 'Package prepared. Connecting to cloud storage...');
+          }
+
+          // 2. Compress thumbnail
+          const thumb = captureCompressedShareThumbnail() || currentProjectState.thumbnail || '';
+
+          // 3. Send to API (/api/share) with live upload progress (50% - 95%)
+          const fd = new FormData();
+          fd.append('file', zipBlob, (currentProjectState.name || 'Project') + '.ofts');
+          fd.append('name', currentProjectState.name || 'Untitled Project');
+          fd.append('specs', `${currentProjectState.resolution || '1080p'} • ${currentProjectState.fps || 60} fps`);
+          fd.append('aspectRatio', currentProjectState.aspectRatio || '16:9');
+          fd.append('size', window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : '1.0 MB');
+          fd.append('thumbnail', thumb);
+
+          const json = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/share', true);
+            xhr.timeout = 20000; // 20 seconds timeout prevents hanging
+
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable && e.total > 0) {
+                const uploadPct = 50 + Math.round((e.loaded / e.total) * 45); // 50% -> 95%
+                const pctUploadOnly = Math.round((e.loaded / e.total) * 100);
+                if (typeof updateOFTSProgress === 'function') {
+                  updateOFTSProgress(uploadPct, `Uploading to storage (${pctUploadOnly}%)...`);
+                }
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status !== 200) {
+                let errText = `Server returned status ${xhr.status}`;
+                try {
+                  const errJson = JSON.parse(xhr.responseText);
+                  if (errJson && errJson.error) errText = errJson.error;
+                } catch (_) {}
+                reject(new Error(errText));
+                return;
+              }
+
+              try {
+                if (typeof updateOFTSProgress === 'function') {
+                  updateOFTSProgress(98, 'Generating QR code & short link...');
+                }
+                const res = JSON.parse(xhr.responseText);
+                resolve(res);
+              } catch (err) {
+                reject(new Error('Invalid response from server'));
+              }
+            };
+
+            xhr.ontimeout = () => {
+              reject(new Error('Cloud upload timed out (20s). Storage service is slow or unresponsive.'));
+            };
+
+            xhr.onerror = () => reject(new Error('Network error connecting to share service'));
+            xhr.send(fd);
+          });
+
+          if (!json.success || !json.shareUrl) {
+            if (typeof hideOFTSProgressModal === 'function') hideOFTSProgressModal();
+            alert('Share upload failed: ' + (json.error || 'Server error'));
+            return;
+          }
+
+          if (typeof updateOFTSProgress === 'function') {
+            updateOFTSProgress(100, 'Ready!');
+          }
+          await new Promise(r => setTimeout(r, 280));
+
+          if (typeof hideOFTSProgressModal === 'function') {
+            hideOFTSProgressModal();
+          }
+
+          // 4. Open QR Share Modal with real shortlink and metadata
+          await openQRShareModal(json.shareUrl, json.record || json);
+        } catch (err) {
+          if (typeof hideOFTSProgressModal === 'function') {
+            hideOFTSProgressModal();
+          }
+          console.error('[FishExport:Link]', err);
+          const errMsg = err && (err.message || String(err));
+          if (errMsg && errMsg.includes('15MB')) {
+            const shouldSaveLocal = confirm(
+              `${errMsg}\n\nDownload project to your device (.ofts) now?`
+            );
+            if (shouldSaveLocal) {
+              if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
+                await window.FishDatabase.exportProjectToOFTS(currentProjectState.id);
+              }
+            }
+          } else {
+            alert('Failed to generate project link: ' + errMsg);
+          }
+        }
+      }
+
+      // ---- Image Sequence: GIF export (animated GIF via canvas) ----
+      async function exportImageSequenceGIF() {
+        // GIF export requires external library; fallback to ZIP with notice
+        showExportProgress('GIF export...', 0, 'GIF encoding is not yet supported. Exporting as ZIP instead.', 'CPU');
+        await new Promise(r => setTimeout(r, 1200));
+        hideExportProgress();
+        await exportImageSequenceZIP();
+      }
+
+      // ---- Image Sequence: animated WebP export ----
+      async function exportImageSequenceWebP() {
+        // Animated WebP: export frames as individual webp blobs → zip for now
+        if (window.isExporting) return;
+        if (typeof JSZip === 'undefined') { alert('JSZip not available.'); return; }
+
+        showExportProgress('Exporting WebP sequence...', 0, 'Initializing...', 'CPU');
+        isExportCancelled = false;
+        window.isExportCancelled = false;
+        window.isExporting = true;
+
+        const cacheOk = await ensureAllVideosCached();
+        if (!cacheOk || isExportCancelled || !window.isExporting) { hideExportProgress(); return; }
+
+        try {
+          const fps = parseInt(currentProjectState.fps || 60, 10);
+          const totalDur = Math.max(0.5, typeof window.getProjectTotalDuration === 'function' ? window.getProjectTotalDuration() : (currentProjectState.defaultDuration || 5));
+          const totalFrames = Math.max(1, Math.round(totalDur * fps));
+          const aspect = currentProjectState.aspectRatio || '16:9';
+          const res = currentProjectState.resolution || '1080p';
+          const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const [baseW, baseH] = baseDims;
+
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = baseW;
+          exportCanvas.height = baseH;
+          const zip = new JSZip();
+          const videoLayers = (currentProjectState.layers || []).filter(l => l.type === 'video' && !l.hidden);
+          const pps = window.currentPixelsPerSecond || 80;
+
+          for (let i = 0; i < totalFrames; i++) {
+            if (isExportCancelled || !window.isExporting) return;
+            const t = i / fps;
+            await prepareVideoFramesForTime(t, videoLayers, pps);
+            renderCanvasFrame(exportCanvas, currentProjectState.bgColor, baseW, baseH, 'export-seq', t);
+            const blob = await new Promise(r => exportCanvas.toBlob(r, 'image/webp', 0.92));
+            if (!blob) continue;
+            const buf = await blob.arrayBuffer();
+            zip.file(`frame_${String(i).padStart(6, '0')}.webp`, buf);
+            updateExportProgress(Math.round(((i + 1) / totalFrames) * 100), `Frame ${i + 1} / ${totalFrames}`, 'CPU');
+            await new Promise(r => setTimeout(r, 0));
+          }
+
+          if (!isExportCancelled && window.isExporting) {
+            updateExportProgress(99, 'Compressing...', 'CPU');
+            const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${(currentProjectState.name || 'Project').replace(/[^a-zA-Z0-9_-]/g, '_')}_webp_sequence.zip`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+          }
+        } catch (err) {
+          console.error('[Export:WebP]', err);
+        } finally {
+          window.isExporting = false;
+          hideExportProgress();
+        }
+      }
+
+      // ---- QR Share Modal ----
+      let _qrShareUrl = '';
+      let _cachedQRCardDataUrl = '';
+
+      function drawImageCover(ctx, img, targetX, targetY, targetW, targetH) {
+        const imgW = img.videoWidth || img.naturalWidth || img.width;
+        const imgH = img.videoHeight || img.naturalHeight || img.height;
+        if (!imgW || !imgH) return;
+        const imgRatio = imgW / imgH;
+        const targetRatio = targetW / targetH;
+        let sX = 0, sY = 0, sW = imgW, sH = imgH;
+        if (imgRatio > targetRatio) {
+          sW = imgH * targetRatio;
+          sX = (imgW - sW) / 2;
+        } else {
+          sH = imgW / targetRatio;
+          sY = (imgH - sH) / 2;
+        }
+        ctx.drawImage(img, sX, sY, sW, sH, targetX, targetY, targetW, targetH);
+      }
+
+      async function generateQRCardCanvas(shareUrl, record) {
+        const W = 900, H = 1200;
+        const c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d');
+
+        // 1. Base dark background
+        ctx.fillStyle = '#0d1109';
+        ctx.fillRect(0, 0, W, H);
+
+        // 2. Background thumbnail (COVER aspect ratio, NEVER stretched)
+        let thumbSrc = (record && record.thumbnail) || (currentProjectState && currentProjectState.thumbnail) || null;
+        if (!thumbSrc && typeof captureProjectThumbnailPreview === 'function') {
+          try { thumbSrc = captureProjectThumbnailPreview(); } catch (_) {}
+        }
+
+        if (thumbSrc && typeof thumbSrc === 'string' && thumbSrc.startsWith('data:')) {
+          try {
+            const img = new Image();
+            await new Promise((res, rej) => {
+              img.onload = res;
+              img.onerror = rej;
+              img.src = thumbSrc;
+            });
+            ctx.save();
+            ctx.globalAlpha = 0.40;
+            drawImageCover(ctx, img, 0, 0, W, H);
+            ctx.restore();
+          } catch (_) {}
+        }
+
+        // Dark gradient-free overlay on thumbnail to guarantee high contrast
+        ctx.fillStyle = 'rgba(13, 17, 9, 0.75)';
+        ctx.fillRect(0, 0, W, H);
+
+        // Card border inside canvas
+        ctx.strokeStyle = '#222d1b';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(3, 3, W - 6, H - 6);
+
+        // 3. Header: Project Name (Centered, Cal Sans, truncated with ellipsis if long)
+        ctx.fillStyle = '#98ce7b';
+        ctx.font = 'bold 46px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let pName = (record && record.name) || (currentProjectState && currentProjectState.name) || 'Untitled Project';
+        pName = String(pName).trim();
+        if (ctx.measureText(pName).width > 740) {
+          while (pName.length > 3 && ctx.measureText(pName + '…').width > 740) {
+            pName = pName.slice(0, -1);
+          }
+          pName += '…';
+        }
+        ctx.fillText(pName, W / 2, 95);
+
+        // Header Subtitle: Specs & Resolution metadata
+        let specsText = '';
+        if (record && (record.specs || record.size)) {
+          specsText = [record.specs, record.size].filter(Boolean).join(' • ');
+        } else if (currentProjectState) {
+          specsText = `${currentProjectState.resolution || '1080p'} • ${currentProjectState.fps || 60} fps`;
+        }
+        if (specsText) {
+          ctx.fillStyle = '#8fa886';
+          ctx.font = '500 23px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.fillText(specsText, W / 2, 145);
+        }
+
+        // 4. QR Code Box (White container card with rounded corners, prominent & scannable)
+        const qrBoxSize = 640;
+        const qrBoxX = (W - qrBoxSize) / 2; // 130
+        const qrBoxY = 195;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 32);
+        } else {
+          ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+        }
+        ctx.fill();
+
+        // Draw QR code from scratch element
+        const qrWrap = document.getElementById('qr-share-qr-wrap');
+        const qrCanvas = qrWrap ? qrWrap.querySelector('canvas') : null;
+        const qrImg = qrWrap ? qrWrap.querySelector('img') : null;
+        const pad = 36;
+        const qrInnerSize = qrBoxSize - pad * 2; // 568
+
+        if (qrCanvas) {
+          ctx.drawImage(qrCanvas, qrBoxX + pad, qrBoxY + pad, qrInnerSize, qrInnerSize);
+        } else if (qrImg && qrImg.complete && qrImg.naturalWidth > 0) {
+          ctx.drawImage(qrImg, qrBoxX + pad, qrBoxY + pad, qrInnerSize, qrInnerSize);
+        } else {
+          ctx.fillStyle = '#000000';
+          ctx.font = 'bold 22px monospace';
+          ctx.fillText(shareUrl, W / 2, qrBoxY + qrBoxSize / 2);
+        }
+
+        // 5. Action Instruction Prompt
+        ctx.fillStyle = '#c0dbc0';
+        ctx.font = '600 23px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Scan with camera to import project', W / 2, 905);
+
+        // 6. Branding Footer: Premium Capsule Pill Badge (App Icon + "FishTools Studio")
+        let iconLoaded = false;
+        const appIcon = new Image();
+        try {
+          await new Promise((res, rej) => {
+            appIcon.onload = res;
+            appIcon.onerror = rej;
+            appIcon.src = 'assets/icon-192.png';
+          });
+          iconLoaded = true;
+        } catch (_) {
+          try {
+            await new Promise((res, rej) => {
+              appIcon.onload = res;
+              appIcon.onerror = rej;
+              appIcon.src = 'assets/icon.svg';
+            });
+            iconLoaded = true;
+          } catch (_) {}
+        }
+
+        const brandPillY = 1015;
+        const brandPillH = 72;
+        const iconSize = 44;
+        const gap = 16;
+        const brandText = 'FishTools Studio';
+
+        ctx.font = 'bold 30px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+        const textW = ctx.measureText(brandText).width;
+        const innerW = (iconLoaded ? iconSize + gap : 0) + textW;
+        const pillPaddingX = 32;
+        const pillW = innerW + pillPaddingX * 2;
+        const pillX = (W - pillW) / 2;
+        const pillY = brandPillY - brandPillH / 2;
+
+        // Draw pill container
+        ctx.fillStyle = '#151c12';
+        ctx.strokeStyle = '#2d3e26';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(pillX, pillY, pillW, brandPillH, brandPillH / 2);
+        } else {
+          ctx.rect(pillX, pillY, pillW, brandPillH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw icon & text inside pill
+        const contentStartX = pillX + pillPaddingX;
+        if (iconLoaded) {
+          ctx.save();
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(contentStartX, brandPillY - iconSize / 2, iconSize, iconSize, 10);
+          } else {
+            ctx.rect(contentStartX, brandPillY - iconSize / 2, iconSize, iconSize);
+          }
+          ctx.clip();
+          ctx.drawImage(appIcon, contentStartX, brandPillY - iconSize / 2, iconSize, iconSize);
+          ctx.restore();
+        }
+
+        const textStartX = iconLoaded ? contentStartX + iconSize + gap : contentStartX;
+        ctx.fillStyle = '#98ce7b';
+        ctx.font = 'bold 30px "Cal Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(brandText, textStartX, brandPillY);
+
+        return c;
+      }
+
+      async function openQRShareModal(shareUrl, record) {
+        window.isExporting = false;
+        if (typeof document !== 'undefined') document.body.classList.remove('is-exporting');
+        if (typeof updatePlayButtonUI === 'function') {
+          try { updatePlayButtonUI(); } catch (_) {}
+        }
+        const backdrop = document.getElementById('qr-share-backdrop');
+        if (!backdrop) return;
+
+        _qrShareUrl = shareUrl || `${window.location.origin}/1`;
+
+        // 1. Generate QR code in hidden container with 500px resolution
+        const qrWrap = document.getElementById('qr-share-qr-wrap');
+        if (qrWrap) {
+          if (!window.QRCode) {
+            await new Promise(r => setTimeout(r, 400));
+          }
+          generateQRToElement(_qrShareUrl, qrWrap, 500);
+          await new Promise(r => setTimeout(r, 80));
+        }
+
+        // 2. Render pixel-perfect WYSIWYG canvas and bind directly to image preview
+        try {
+          const cardCanvas = await generateQRCardCanvas(_qrShareUrl, record);
+          _cachedQRCardDataUrl = cardCanvas.toDataURL('image/png');
+          const renderedImg = document.getElementById('qr-share-rendered-img');
+          if (renderedImg) {
+            renderedImg.src = _cachedQRCardDataUrl;
+          }
+        } catch (err) {
+          console.error('[FishExport:QRCard]', err);
+        }
+
+        history.pushState({ qrModal: true }, '');
+        backdrop.classList.add('is-active');
+      }
+
+      // QR close button & backdrop outside click
+      const _qrCloseBtn = document.getElementById('qr-btn-close');
+      if (_qrCloseBtn) {
+        _qrCloseBtn.addEventListener('click', () => {
+          const backdrop = document.getElementById('qr-share-backdrop');
+          if (backdrop) backdrop.classList.remove('is-active');
+        });
+      }
+
+      const _qrBackdropEl = document.getElementById('qr-share-backdrop');
+      if (_qrBackdropEl) {
+        _qrBackdropEl.addEventListener('click', (e) => {
+          if (e.target === _qrBackdropEl) {
+            _qrBackdropEl.classList.remove('is-active');
+          }
+        });
+      }
+
+      // QR Copy button
+      const _qrCopyBtn = document.getElementById('qr-btn-copy');
+      if (_qrCopyBtn) {
+        _qrCopyBtn.addEventListener('click', async () => {
+          if (_qrShareUrl) {
+            try {
+              await navigator.clipboard.writeText(_qrShareUrl);
+              const origTitle = _qrCopyBtn.title;
+              _qrCopyBtn.title = 'Copied!';
+              setTimeout(() => { _qrCopyBtn.title = origTitle; }, 1800);
+            } catch (_) {}
+          }
+        });
+      }
+
+      // QR Download button — directly downloads the rendered canvas image
+      const _qrDownloadBtn = document.getElementById('qr-btn-download');
+      if (_qrDownloadBtn) {
+        _qrDownloadBtn.addEventListener('click', () => {
+          if (!_cachedQRCardDataUrl) return;
+          const a = document.createElement('a');
+          a.href = _cachedQRCardDataUrl;
+          const name = (currentProjectState && currentProjectState.name) || 'Project';
+          a.download = `${name.replace(/[^a-zA-Z0-9_-]/g, '_')}_QR.png`;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { document.body.removeChild(a); }, 1000);
+        });
+      }
+
+      // Legacy backward-compat: btn-export-png still works if exists
+      const btnExportPNGLegacy = document.getElementById('btn-export-png');
+      if (btnExportPNGLegacy) {
+        btnExportPNGLegacy.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (window.Popover) window.Popover.close(false);
-          const fnInput = document.getElementById('export-video-filename');
-          if (fnInput) {
-            fnInput.value = currentProjectState.name || 'New_Project';
-          }
-
-          if (window.Modal) {
-            window.Modal.open('modal-export-video');
-          }
+          exportCurrentFrameAsPNG();
         });
       }
 
-      // Modal Action: Start Video Render & Export
-      const btnModalStartExport = document.getElementById('btn-modal-start-export');
-      if (btnModalStartExport) {
-        btnModalStartExport.addEventListener('click', (e) => {
+      // Legacy backward-compat: btn-export-video still works if exists
+      const btnExportVideoLegacy = document.getElementById('btn-export-video');
+      if (btnExportVideoLegacy) {
+        btnExportVideoLegacy.addEventListener('click', (e) => {
           e.preventDefault();
-          const fnInput = document.getElementById('export-video-filename');
-          const customName = fnInput ? fnInput.value.trim() : '';
-
-          let preset = 'normal';
-          const activeItem = document.querySelector('#export-bitrate-switch .segmented-switch-item.is-active, #export-bitrate-switch .segmented-switch-item.is-selected');
-          if (activeItem && activeItem.dataset.value) {
-            preset = activeItem.dataset.value;
-          } else if (window.Switch && typeof window.Switch.getValue === 'function') {
-            preset = window.Switch.getValue('export-bitrate-switch') || 'normal';
-          }
-
-          if (window.Modal) {
-            window.Modal.close();
-          }
-          exportVideoMP4(preset, customName, 'mp4');
-        });
-      }
-
-      // Allow Enter key inside filename input to trigger export
-      const exportFilenameInput = document.getElementById('export-video-filename');
-      if (exportFilenameInput) {
-        exportFilenameInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            if (btnModalStartExport) btnModalStartExport.click();
-          }
-        });
-      }
-
-      // Backward compatible button fallback
-      const btnExportVideo = document.getElementById('btn-export-video');
-      if (btnExportVideo) {
-        btnExportVideo.addEventListener('click', (e) => {
-          e.preventDefault();
-          let preset = 'normal';
-          const activeItem = document.querySelector('#export-bitrate-switch .segmented-switch-item.is-active, #export-bitrate-switch .segmented-switch-item.is-selected');
-          if (activeItem && activeItem.dataset.value) {
-            preset = activeItem.dataset.value;
-          } else if (window.Switch && typeof window.Switch.getValue === 'function') {
-            preset = window.Switch.getValue('export-bitrate-switch') || 'normal';
-          }
-          exportVideoMP4(preset);
+          exportVideoMP4('normal');
         });
       }
     })();

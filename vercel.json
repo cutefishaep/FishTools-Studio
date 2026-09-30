@@ -3,6 +3,7 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/__config", "destination": "/api/config" }
+    { "source": "/__config", "destination": "/api/config" },
+    { "source": "/([0-9a-zA-Z_-]+)", "destination": "/index.html" }
   ]
 }

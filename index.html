@@ -234,28 +234,101 @@
        - Slide from top on mobile, center scale on desktop
        - Closeable by clicking backdrop or native back button
        ========================================================================== -->
+  <!-- ==========================================================================
+       MODULAR POP-UP: IMPORT PROJECT MODAL
+       - Supports File (.ofts) upload and Link / URL ingestion (Alight Motion style)
+       ========================================================================== -->
+  <!-- ==========================================================================
+       MODULAR POP-UP: IMPORT PROJECT MODAL
+       - Switch between File and Link (Icons only)
+       - Clean, flat, minimal
+       ========================================================================== -->
   <div class="modal-backdrop" id="modal-import-project" role="dialog" aria-modal="true" aria-label="Import Project Dialog">
-    <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-card modal-import-card" onclick="event.stopPropagation()">
       <header class="modal-header">
         <h3 class="modal-title">Import Project</h3>
+        <div class="modal-header-actions">
+          <!-- Icon-only switch between File and Link -->
+          <div class="modal-icon-switch" id="import-mode-switch" role="tablist" aria-label="Import Mode">
+            <button type="button" class="modal-icon-switch-btn is-active" id="import-tab-file" role="tab" aria-selected="true" title="Import from file (.ofts)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M4 4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8L10 4H4zm8 3c.55 0 1 .45 1 1v4.59l1.3-1.29c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-3 3a.996.996 0 0 1-1.41 0l-3-3a.996.996 0 1 1 1.41-1.41l1.29 1.29V8c0-.55.45-1 1-1z"/>
+              </svg>
+            </button>
+            <button type="button" class="modal-icon-switch-btn" id="import-tab-link" role="tab" aria-selected="false" title="Import from link">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </button>
+          </div>
+          <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-import-project')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
       </header>
 
-      <div class="modal-body">
-        <div class="modal-dropzone" id="import-dropzone" tabindex="0" role="button" aria-label="Drop .ofts file here or click to browse">
-          <input type="file" id="import-file-input" class="modal-dropzone-input" accept=".ofts" aria-hidden="true" style="display: none;">
+      <!-- Panel 1: File Ingestion (.ofts dropzone) -->
+      <div class="modal-body modal-import-body" id="import-panel-file">
+        <div class="modal-import-dropzone" id="import-file-dropzone" tabindex="0" role="button" aria-label="Drop .ofts file here or click to browse">
+          <input type="file" id="import-file-input" accept=".ofts" style="display: none;">
           <div class="dropzone-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="44" height="44" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
               <path d="M4 4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8L10 4H4zm8 3c.55 0 1 .45 1 1v4.59l1.3-1.29c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-3 3a.996.996 0 0 1-1.41 0l-3-3a.996.996 0 1 1 1.41-1.41l1.29 1.29V8c0-.55.45-1 1-1z"/>
             </svg>
           </div>
-          <span class="dropzone-title">Drag &amp; Drop .ofts file here</span>
-          <span class="dropzone-subtitle">Select project file (.ofts)</span>
-          <div class="dropzone-formats">
-            <span class="dropzone-badge">.OFTS</span>
-          </div>
+          <span class="dropzone-title">Drop .ofts file here</span>
+          <span class="dropzone-subtitle">or click to browse from device</span>
           <span class="dropzone-file-status" id="import-file-status"></span>
         </div>
       </div>
+
+      <!-- Panel 2: Link Ingestion (Paste link & click Import to fetch) -->
+      <div class="modal-body modal-import-body" id="import-panel-link" style="display: none;">
+        <input type="text" class="modal-input modal-import-input" id="import-project-link-input" placeholder="e.g. studio.cutefish.my.id/3 or 3" spellcheck="false" autocomplete="off">
+        <div class="modal-import-status" id="import-link-status-text"></div>
+        <button type="button" class="modal-btn-create" id="btn-submit-import-link" style="width: 100%;">
+          Import
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR POP-UP: PRESET CONFIRMATION MODAL
+       Clean & minimal project preview card + 1 Import button
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-preset-confirm" role="dialog" aria-modal="true" aria-label="Preset Preview Dialog">
+    <div class="modal-card modal-import-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title">Import Project</h3>
+        <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-preset-confirm')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="modal-body modal-import-body">
+        <div class="preset-confirm-card" id="preset-confirm-card">
+          <div class="preset-confirm-thumb-box" id="preset-confirm-thumb-box">
+            <!-- Thumbnail injected by JS -->
+          </div>
+          <div class="preset-confirm-meta">
+            <div class="preset-confirm-name" id="preset-confirm-name">Shared Project</div>
+            <div class="preset-confirm-specs" id="preset-confirm-specs">1080p • 60 fps</div>
+          </div>
+        </div>
+        <div class="modal-import-status" id="preset-confirm-status"></div>
+      </div>
+
+      <footer class="modal-footer modal-import-footer">
+        <button type="button" class="modal-btn-create" id="btn-do-preset-import">
+          Import
+        </button>
+      </footer>
     </div>
   </div>
 
@@ -2331,6 +2404,63 @@
         <span class="modal-progress-percent" id="ofts-progress-percent">0%</span>
         <span class="modal-progress-status" id="ofts-progress-status">Packing project...</span>
       </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR POP-UP: SHARE PROJECT LINK MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-share-project-link" role="dialog" aria-modal="true" aria-label="Share Project Link Dialog">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title">Share Project Link</h3>
+      </header>
+
+      <div class="modal-body">
+        <div class="project-link-preview-card" id="index-share-link-preview-card">
+          <div class="project-link-thumb-box" id="index-share-link-thumb-box">
+            <div class="project-thumb-placeholder">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
+                <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
+                <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="project-link-details">
+            <span class="project-link-title" id="index-share-link-project-name">Project</span>
+            <div class="project-link-meta">
+              <span class="project-link-badge" id="index-share-link-project-size">--</span>
+              <span class="project-link-specs" id="index-share-link-project-specs">1080p • 60 fps</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label class="modal-label" for="index-share-project-link-input">PROJECT LINK</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="modal-input" id="index-share-project-link-input" readonly spellcheck="false" autocomplete="off" style="flex: 1;" placeholder="Generating unique link...">
+            <button type="button" id="btn-index-copy-project-link" title="Copy Link" style="flex-shrink: 0; padding: 0 16px; border-radius: 8px; background-color: var(--color-primary); color: var(--bg-canvas); font-family: var(--font-brand); font-size: 13px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s ease;">
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-link-status" id="index-share-link-status-text" style="font-size: 12px; color: var(--text-muted); font-family: var(--font-brand); min-height: 18px; margin-top: 4px;">
+        </div>
+      </div>
+
+      <footer class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="modal-btn-cancel" onclick="window.Modal && window.Modal.close()" style="background-color: var(--bg-panel-inner); color: var(--text-primary); border: none; border-radius: 8px; padding: 8px 16px; font-family: var(--font-brand); font-size: 13px; font-weight: 700; cursor: pointer;">
+          Close
+        </button>
+        <button type="button" class="modal-btn-create" id="btn-index-generate-link" style="margin: 0;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+          </svg>
+          <span>Share as Link</span>
+        </button>
+      </footer>
     </div>
   </div>
 

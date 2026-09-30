@@ -12,6 +12,7 @@ scratch/
 .env.*
 .vercel
 vercelgate
+storage/
 
 # macOS & OS junk
 .DS_Store

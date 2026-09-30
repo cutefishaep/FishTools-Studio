@@ -140,7 +140,7 @@
               <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
             </svg>
           </button>
-          <button type="button" class="editor-export-btn" id="btn-editor-export" data-popover-target="popover-editor-export" data-popover-placement="bottom" title="Export" aria-label="Export">
+          <button type="button" class="editor-export-btn" id="btn-editor-export" title="Export" aria-label="Export">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6-2.83l2.59 2.58L17 10.33l-5-5-5 5 1.41 1.42L11 9.17V17h2V9.17z"/>
             </svg>
@@ -3024,22 +3024,250 @@
   </div>
 
   <!-- ==========================================================================
-       MODULAR EXPORT POPOVER (.is-menu-popover)
-       Features: Image Sequence, Export Video
+       FULLSCREEN EXPORT OVERLAY — Alight Motion Style
+       Triggered by #btn-editor-export (replaces popover)
        ========================================================================== -->
-  <div class="popover-card is-menu-popover export-popover-card" id="popover-editor-export" role="dialog" aria-hidden="true">
-    <div class="popover-tail" aria-hidden="true"></div>
-    <div class="popover-menu-list">
-      <!-- 1. Image Sequence -->
-      <button type="button" class="popover-menu-item" id="btn-export-sequence" title="Export Image Sequence">
-        <span>Image Sequence</span>
-      </button>
+  <!-- Export Drawer Backdrop (Click outside closes drawer) -->
+  <div class="export-drawer-backdrop" id="export-drawer-backdrop" aria-hidden="true"></div>
 
-      <!-- 2. Export Video -->
-      <button type="button" class="popover-menu-item" id="btn-export-video-modal" title="Export Video">
-        <span>Export Video</span>
+  <div class="export-fs-overlay" id="export-fs-overlay" role="dialog" aria-modal="true" aria-label="Export">
+
+    <div class="export-fs-inner">
+    <!-- Header -->
+    <div class="export-fs-header">
+      <button type="button" class="export-fs-back-btn" id="export-fs-close-btn" title="Close" aria-label="Close Export">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <span class="export-fs-title">Export</span>
+      <span class="export-fs-subtitle" id="export-fs-subtitle">Select format</span>
+    </div>
+
+    <!-- Options list -->
+    <div class="export-fs-body" id="export-fs-body">
+
+      <!-- 1. Export Video -->
+      <div class="export-option-card is-selected" data-export-type="video" role="radio" aria-checked="true" tabindex="0">
+        <div class="export-option-radio">
+          <div class="export-option-radio-dot"></div>
+        </div>
+        <div class="export-option-info">
+          <span class="export-option-label">Export Video</span>
+          <span class="export-option-desc">MP4 video</span>
+        </div>
+        <button type="button" class="export-option-chevron" data-settings-panel="export-settings-video" title="Video settings" aria-label="Video settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+        </button>
+      </div>
+
+      <!-- 2. Current Frame -->
+      <div class="export-option-card" data-export-type="frame" role="radio" aria-checked="false" tabindex="0">
+        <div class="export-option-radio">
+          <div class="export-option-radio-dot"></div>
+        </div>
+        <div class="export-option-info">
+          <span class="export-option-label">Current Frame</span>
+          <span class="export-option-desc">PNG image</span>
+        </div>
+        <button type="button" class="export-option-chevron" data-settings-panel="" title="" aria-label="" style="opacity:0;pointer-events:none;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+        </button>
+      </div>
+
+      <!-- 3. Image Sequence -->
+      <div class="export-option-card" data-export-type="sequence" role="radio" aria-checked="false" tabindex="0">
+        <div class="export-option-radio">
+          <div class="export-option-radio-dot"></div>
+        </div>
+        <div class="export-option-info">
+          <span class="export-option-label">Image Sequence</span>
+          <span class="export-option-desc">ZIP · GIF · WebP</span>
+        </div>
+        <button type="button" class="export-option-chevron" data-settings-panel="export-settings-sequence" title="Sequence settings" aria-label="Sequence settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+        </button>
+      </div>
+
+      <!-- 4. Project File -->
+      <div class="export-option-card" data-export-type="project" role="radio" aria-checked="false" tabindex="0">
+        <div class="export-option-radio">
+          <div class="export-option-radio-dot"></div>
+        </div>
+        <div class="export-option-info">
+          <span class="export-option-label">Project File</span>
+          <span class="export-option-desc">.ofts project file</span>
+        </div>
+        <button type="button" class="export-option-chevron" data-settings-panel="" title="" aria-label="" style="opacity:0;pointer-events:none;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+        </button>
+      </div>
+
+      <!-- 5. Project Link -->
+      <div class="export-option-card" data-export-type="link" role="radio" aria-checked="false" tabindex="0">
+        <div class="export-option-radio">
+          <div class="export-option-radio-dot"></div>
+        </div>
+        <div class="export-option-info">
+          <span class="export-option-label">Project Link</span>
+          <span class="export-option-desc">Link + QR code (max 15MB)</span>
+        </div>
+        <button type="button" class="export-option-chevron" data-settings-panel="" title="" aria-label="" style="opacity:0;pointer-events:none;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+        </button>
+      </div>
+
+    </div><!-- /export-fs-body -->
+
+    <!-- Footer: Next -->
+    <div class="export-fs-footer">
+      <button type="button" class="export-fs-next-btn" id="export-fs-next-btn">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+        <span id="export-fs-next-label">Export Video</span>
       </button>
     </div>
+
+    </div><!-- /export-fs-inner -->
+  </div><!-- /export-fs-overlay -->
+
+  <!-- ==========================================================================
+       EXPORT SETTINGS PANEL — Video
+       ========================================================================== -->
+  <div class="export-settings-panel" id="export-settings-video" role="dialog" aria-modal="true" aria-label="Video Export Settings">
+    <div class="export-fs-inner">
+    <div class="export-settings-header">
+      <button type="button" class="export-fs-back-btn" data-close-settings="export-settings-video" title="Back" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <span class="export-settings-title">Video Settings</span>
+    </div>
+    <div class="export-settings-body">
+      <!-- Resolution -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Resolution</span>
+        <select class="export-setting-select" id="export-video-resolution">
+          <option value="480p">480p</option>
+          <option value="720p">720p HD</option>
+          <option value="1080p" selected>1080p Full HD</option>
+          <option value="2K">2K</option>
+          <option value="4K">4K Ultra HD</option>
+        </select>
+      </div>
+      <!-- FPS -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Frame Rate (FPS)</span>
+        <select class="export-setting-select" id="export-video-fps">
+          <option value="24">24 fps</option>
+          <option value="30">30 fps</option>
+          <option value="60" selected>60 fps</option>
+        </select>
+      </div>
+      <!-- Bitrate -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Bitrate Quality</span>
+        <div class="export-format-pill-row">
+          <button type="button" class="export-format-pill" data-video-bitrate="light">Light</button>
+          <button type="button" class="export-format-pill is-active" data-video-bitrate="normal">Normal</button>
+          <button type="button" class="export-format-pill" data-video-bitrate="detail">Detail</button>
+        </div>
+      </div>
+      <!-- Audio -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Audio</span>
+        <div class="export-setting-toggle-row">
+          <span class="export-setting-toggle-label-text">Include Audio Track</span>
+          <label class="export-setting-toggle">
+            <input type="checkbox" id="export-video-audio" checked>
+            <span class="export-toggle-track"></span>
+          </label>
+        </div>
+      </div>
+      <!-- Filename -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">File Name</span>
+        <input type="text" class="export-setting-select" id="export-video-filename" placeholder="New_Project" spellcheck="false" autocomplete="off" style="font-family:var(--font-brand);font-size:14px;font-weight:600;">
+      </div>
+    </div>
+    </div><!-- /export-fs-inner -->
+  </div>
+
+  <!-- ==========================================================================
+       EXPORT SETTINGS PANEL — Image Sequence
+       ========================================================================== -->
+  <div class="export-settings-panel" id="export-settings-sequence" role="dialog" aria-modal="true" aria-label="Image Sequence Export Settings">
+    <div class="export-fs-inner">
+    <div class="export-settings-header">
+      <button type="button" class="export-fs-back-btn" data-close-settings="export-settings-sequence" title="Back" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <span class="export-settings-title">Image Sequence Settings</span>
+    </div>
+    <div class="export-settings-body">
+      <!-- Resolution -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Resolution</span>
+        <select class="export-setting-select" id="export-seq-resolution">
+          <option value="480p">480p</option>
+          <option value="720p">720p HD</option>
+          <option value="1080p" selected>1080p Full HD</option>
+          <option value="2K">2K</option>
+          <option value="4K">4K Ultra HD</option>
+        </select>
+      </div>
+      <!-- FPS -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Frame Rate (FPS)</span>
+        <select class="export-setting-select" id="export-seq-fps">
+          <option value="24">24 fps</option>
+          <option value="30">30 fps</option>
+          <option value="60" selected>60 fps</option>
+        </select>
+      </div>
+      <!-- Format -->
+      <div class="export-setting-group">
+        <span class="export-setting-label">Export Format</span>
+        <div class="export-format-pill-row">
+          <button type="button" class="export-format-pill is-active" data-seq-format="zip">.zip</button>
+          <button type="button" class="export-format-pill" data-seq-format="gif">.gif</button>
+          <button type="button" class="export-format-pill" data-seq-format="webp">.webp</button>
+        </div>
+      </div>
+    </div>
+    </div><!-- /export-fs-inner -->
+  </div>
+
+  <!-- ==========================================================================
+       QR CODE SHARE MODAL
+       ========================================================================== -->
+  <div class="qr-share-backdrop" id="qr-share-backdrop" role="dialog" aria-modal="true" aria-label="Share Project QR Code">
+    <div class="qr-share-wrapper">
+      <div class="qr-share-card" id="qr-share-card">
+        <!-- Rendered Card Preview Image (100% WYSIWYG match with Download) -->
+        <img class="qr-share-rendered-img" id="qr-share-rendered-img" src="" alt="Project Share Card" draggable="false">
+        <!-- Hidden scratch container for QRCode.js raw generation -->
+        <div id="qr-share-qr-wrap" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden; width: 500px; height: 500px;" aria-hidden="true"></div>
+      </div><!-- /qr-share-card -->
+      <!-- Buttons below card -->
+      <div class="qr-share-actions">
+        <!-- Copy link -->
+        <button type="button" class="qr-share-action-btn" id="qr-btn-copy" title="Copy Link">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        </button>
+        <!-- Download as PNG -->
+        <button type="button" class="qr-share-action-btn" id="qr-btn-download" title="Download as PNG">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-14 9v2h14v-2H5z"/></svg>
+        </button>
+        <!-- Close -->
+        <button type="button" class="qr-share-action-btn" id="qr-btn-close" title="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keep old export-bitrate-switch for backward compat (hidden) -->
+  <div id="export-bitrate-switch" style="display:none;" aria-hidden="true">
+    <button data-value="light" class="segmented-switch-item">Light</button>
+    <button data-value="normal" class="segmented-switch-item is-active is-selected">Normal</button>
+    <button data-value="detail" class="segmented-switch-item">Detail</button>
   </div>
 
   <!-- ==========================================================================
@@ -3334,6 +3562,63 @@
             <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
           </svg>
           <span>Export Video</span>
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR EXPORT PROJECT AS LINK MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-export-project-link" role="dialog" aria-modal="true" aria-label="Share Project Link Dialog">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title">Share Project Link</h3>
+      </header>
+
+      <div class="modal-body">
+        <div class="project-link-preview-card" id="export-link-preview-card">
+          <div class="project-link-thumb-box" id="export-link-thumb-box">
+            <div class="project-thumb-placeholder">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
+                <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
+                <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="project-link-details">
+            <span class="project-link-title" id="export-link-project-name">Project</span>
+            <div class="project-link-meta">
+              <span class="project-link-badge" id="export-link-project-size">--</span>
+              <span class="project-link-specs" id="export-link-project-specs">1080p • 60 fps</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label class="modal-label" for="export-project-link-input">PROJECT LINK</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="modal-input" id="export-project-link-input" readonly spellcheck="false" autocomplete="off" style="flex: 1;" placeholder="Generating unique link...">
+            <button type="button" id="btn-copy-project-link" title="Copy Link" style="flex-shrink: 0; padding: 0 16px; border-radius: 8px; background-color: var(--color-primary); color: var(--bg-canvas); font-family: var(--font-brand); font-size: 13px; font-weight: 700; border: none; cursor: pointer; transition: opacity 0.15s ease;">
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-link-status" id="export-link-status-text" style="font-size: 12px; color: var(--text-muted); font-family: var(--font-brand); min-height: 18px; margin-top: 4px;">
+        </div>
+      </div>
+
+      <footer class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" class="modal-btn-cancel" onclick="window.Modal && window.Modal.close()" style="background-color: var(--bg-panel-inner); color: var(--text-primary); border: none; border-radius: 8px; padding: 8px 16px; font-family: var(--font-brand); font-size: 13px; font-weight: 700; cursor: pointer;">
+          Close
+        </button>
+        <button type="button" class="modal-btn-create" id="btn-generate-project-link" style="margin: 0;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+          </svg>
+          <span>Share as Link</span>
         </button>
       </footer>
     </div>

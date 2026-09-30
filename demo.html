@@ -958,6 +958,9 @@
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-import-project')" style="padding: 12px 24px; font-size: 14px;">
                   Open "Import Project" Modal
                 </button>
+                <button type="button" class="theme-btn" onclick="Modal.open('modal-preset-confirm')" style="padding: 12px 24px; font-size: 14px;">
+                  Open "Preset Preview" Modal
+                </button>
                 <button type="button" class="theme-btn" onclick="Modal.open('modal-project-settings')" style="padding: 12px 24px; font-size: 14px;">
                   Open "Project Settings" Modal
                 </button>
@@ -975,7 +978,7 @@
                 </button>
               </div>
               <span style="color: var(--text-secondary); font-size: 12.5px;">
-                Slide-down animation on mobile (≤600px), center scale on desktop (≥601px). Dismiss by clicking backdrop or pressing browser back button.
+                Bottom-sheet slide-up drawer on mobile (≤600px), center scale on desktop (≥601px). Dismiss by clicking backdrop or pressing browser back button.
               </span>
             </div>
           </div>
@@ -5007,29 +5010,88 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
 
   <!-- Modular Import Project Modal -->
   <div class="modal-backdrop" id="modal-import-project" role="dialog" aria-modal="true" aria-label="Import Project Dialog">
-    <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-card modal-import-card" onclick="event.stopPropagation()">
       <header class="modal-header">
         <h3 class="modal-title">Import Project</h3>
+        <div class="modal-header-actions">
+          <div class="modal-icon-switch" role="tablist" aria-label="Import Mode">
+            <button type="button" class="modal-icon-switch-btn is-active" id="demo-import-tab-file" onclick="document.getElementById('demo-import-tab-file').classList.add('is-active'); document.getElementById('demo-import-tab-link').classList.remove('is-active'); document.getElementById('demo-import-panel-file').style.display='block'; document.getElementById('demo-import-panel-link').style.display='none';" title="Import from file (.ofts)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M4 4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8L10 4H4zm8 3c.55 0 1 .45 1 1v4.59l1.3-1.29c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-3 3a.996.996 0 0 1-1.41 0l-3-3a.996.996 0 1 1 1.41-1.41l1.29 1.29V8c0-.55.45-1 1-1z"/>
+              </svg>
+            </button>
+            <button type="button" class="modal-icon-switch-btn" id="demo-import-tab-link" onclick="document.getElementById('demo-import-tab-link').classList.add('is-active'); document.getElementById('demo-import-tab-file').classList.remove('is-active'); document.getElementById('demo-import-panel-link').style.display='block'; document.getElementById('demo-import-panel-file').style.display='none';" title="Import from link">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </button>
+          </div>
+          <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-import-project')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
       </header>
 
-      <div class="modal-body">
-        <div class="modal-dropzone" id="demo-modal-import-dropzone" tabindex="0" role="button" aria-label="Drop project files here or click to browse">
-          <input type="file" class="modal-dropzone-input" accept=".json,.fishtool,.fts,.zip" aria-hidden="true" style="display: none;">
+      <!-- Panel 1: File Dropzone -->
+      <div class="modal-body modal-import-body" id="demo-import-panel-file">
+        <div class="modal-import-dropzone" onclick="showDemoToast('Select .ofts file from your computer');">
           <div class="dropzone-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="44" height="44" fill="currentColor">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
               <path d="M4 4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8L10 4H4zm8 3c.55 0 1 .45 1 1v4.59l1.3-1.29c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-3 3a.996.996 0 0 1-1.41 0l-3-3a.996.996 0 1 1 1.41-1.41l1.29 1.29V8c0-.55.45-1 1-1z"/>
             </svg>
           </div>
-          <span class="dropzone-title">Drag &amp; Drop project files here</span>
+          <span class="dropzone-title">Drop .ofts file here</span>
           <span class="dropzone-subtitle">or click to browse from device</span>
-          <div class="dropzone-formats">
-            <span class="dropzone-badge">.JSON</span>
-            <span class="dropzone-badge">.FISHTOOL</span>
-            <span class="dropzone-badge">.FTS</span>
-          </div>
-          <span class="dropzone-file-status"></span>
         </div>
       </div>
+
+      <!-- Panel 2: Link Ingestion -->
+      <div class="modal-body modal-import-body" id="demo-import-panel-link" style="display: none;">
+        <input type="text" class="modal-input modal-import-input" id="demo-import-project-link-input" placeholder="e.g. studio.cutefish.my.id/3" spellcheck="false" autocomplete="off" value="studio.cutefish.my.id/3">
+        <div class="modal-import-status" id="demo-import-link-status"></div>
+        <button type="button" class="modal-btn-create" onclick="Modal.close('modal-import-project'); setTimeout(() => Modal.open('modal-preset-confirm'), 200);">
+          Import
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular Preset Confirmation Modal -->
+  <div class="modal-backdrop" id="modal-preset-confirm" role="dialog" aria-modal="true" aria-label="Preset Preview Dialog">
+    <div class="modal-card modal-import-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title">Import Project</h3>
+        <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-preset-confirm')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="modal-body modal-import-body">
+        <div class="preset-confirm-card">
+          <div class="preset-confirm-thumb-box">
+            <div style="width: 100%; height: 100%; background: var(--bg-canvas); display: flex; align-items: center; justify-content: center; color: var(--color-primary);">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M4 4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8L10 4H4zm8 3c.55 0 1 .45 1 1v4.59l1.3-1.29c.39-.39 1.02-.39 1.41 0 .39.39.39 1.02 0 1.41l-3 3a.996.996 0 0 1-1.41 0l-3-3a.996.996 0 1 1 1.41-1.41l1.29 1.29V8c0-.55.45-1 1-1z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="preset-confirm-meta">
+            <div class="preset-confirm-name">Neon Glow Intro Preset</div>
+            <div class="preset-confirm-specs">1080p • 60 fps • 1.4 MB</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="modal-footer modal-import-footer">
+        <button type="button" class="modal-btn-create" onclick="Modal.close('modal-preset-confirm'); showDemoToast('Importing preset into IndexedDB...');">
+          Import
+        </button>
+      </footer>
     </div>
   </div>
 
@@ -7459,11 +7521,8 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
         <span>Open Timeline</span>
       </button>
       <div class="popover-menu-divider"></div>
-      <button type="button" class="popover-menu-item" onclick="Popover.close()">
-        <span>Image Sequence</span>
-      </button>
-      <button type="button" class="popover-menu-item" onclick="Popover.close(false); Modal.open('modal-export-video');">
-        <span>Export Video</span>
+      <button type="button" class="popover-menu-item" onclick="Popover.close(false); const expBtn = document.getElementById('btn-editor-export'); if (expBtn) expBtn.click(); else if (typeof openExportOverlay === 'function') openExportOverlay();">
+        <span>Export</span>
       </button>
     </div>
   </div>

@@ -5,7 +5,7 @@
  * 1. Modular: Open/Close any modal by ID or custom HTML content.
  * 2. Back Button Interception: Native browser back / swipe back closes popup without URL address changes.
  * 3. Outside Click: Clicking the empty backdrop closes popup smoothly.
- * 4. Responsive Transition: Mobile (top-to-bottom slide), Desktop/Tablet (center scale-in).
+ * 4. Responsive Transition: Mobile (bottom sheet slide-up), Desktop/Tablet (center scale-in).
  */
 
 class ModalManager {

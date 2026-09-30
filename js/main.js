@@ -245,6 +245,11 @@ async function initProjectsFetcher() {
           action: () => exportProjectAction(projectId, projectName)
         },
         {
+          label: 'Share as Link',
+          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>',
+          action: () => openShareProjectLinkModal(projectId, projectName)
+        },
+        {
           label: 'Project Settings',
           icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
           action: () => openProjectSettingsModal(projectId)
@@ -350,13 +355,28 @@ function renderProjects(projects, container, countBadge) {
 
         <!-- Top Layer Project Item Card -->
         <article class="project-item" data-id="${escapeHtml(project.id)}" tabindex="0" role="button" aria-label="Project: ${escapeHtml(name)}">
-          <div class="project-row-main">
-            <span class="project-name">${escapeHtml(name)}</span>
-            <span class="project-size" data-project-size-id="${escapeHtml(project.id)}">${escapeHtml(size)}</span>
+          <div class="project-thumb-box" aria-hidden="true">
+            ${project.thumbnail ? `
+              <img class="project-thumb-img" src="${project.thumbnail}" alt="" loading="lazy" />
+            ` : `
+              <div class="project-thumb-placeholder">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
+                  <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
+                  <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
+                </svg>
+              </div>
+            `}
           </div>
-          <div class="project-row-sub">
-            <span class="project-saved">${escapeHtml(savedTime)}</span>
-            <span class="project-specs">${specs}</span>
+          <div class="project-info">
+            <div class="project-row-main">
+              <span class="project-name">${escapeHtml(name)}</span>
+              <span class="project-size" data-project-size-id="${escapeHtml(project.id)}">${escapeHtml(size)}</span>
+            </div>
+            <div class="project-row-sub">
+              <span class="project-saved">${escapeHtml(savedTime)}</span>
+              <span class="project-specs">${specs}</span>
+            </div>
           </div>
         </article>
       </div>
@@ -822,6 +842,43 @@ async function exportProjectAction(projectId, projectName) {
   }
 }
 
+/**
+ * Opens Share Project Link modal from dashboard
+ */
+async function openShareProjectLinkModal(projectId, projectName) {
+  if (!projectId || !window.FishDatabase) return;
+  const project = await window.FishDatabase.getProject(projectId);
+  if (!project) return;
+
+  const nameEl = document.getElementById('index-share-link-project-name');
+  const sizeEl = document.getElementById('index-share-link-project-size');
+  const specsEl = document.getElementById('index-share-link-project-specs');
+  const thumbBox = document.getElementById('index-share-link-thumb-box');
+  const linkInput = document.getElementById('index-share-project-link-input');
+  const statusText = document.getElementById('index-share-link-status-text');
+
+  if (nameEl) nameEl.textContent = project.name || projectName || 'Untitled';
+  if (sizeEl) sizeEl.textContent = project.size || '12 KB';
+  if (specsEl) specsEl.textContent = `${project.resolution || '1080p'} • ${project.fps || 60} fps`;
+
+  if (thumbBox) {
+    if (project.thumbnail) {
+      thumbBox.innerHTML = `<img src="${project.thumbnail}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
+    } else {
+      thumbBox.innerHTML = `<div class="project-thumb-placeholder"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/><path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/><path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/></svg></div>`;
+    }
+  }
+
+  const shareUrl = `${window.location.origin}/1`;
+  if (linkInput) linkInput.value = shareUrl;
+  if (statusText) statusText.textContent = 'Shareable link ready! Users visiting this link can import this project.';
+
+  if (window.Modal) {
+    window.Modal.open('modal-share-project-link');
+  }
+}
+window.openShareProjectLinkModal = openShareProjectLinkModal;
+
 let dashboardToastTimer = null;
 
 /**
@@ -1069,7 +1126,332 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Wire Copy button for dashboard Share Link modal
+  const btnIndexCopy = document.getElementById('btn-index-copy-project-link');
+  if (btnIndexCopy && !btnIndexCopy._wired) {
+    btnIndexCopy._wired = true;
+    btnIndexCopy.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('index-share-project-link-input');
+      if (input && input.value) {
+        try {
+          await navigator.clipboard.writeText(input.value);
+          const orig = btnIndexCopy.textContent;
+          btnIndexCopy.textContent = 'Copied!';
+          setTimeout(() => { btnIndexCopy.textContent = orig; }, 1800);
+        } catch (_) {}
+      }
+    });
+  }
+
+  // ==========================================================================
+  // MODULAR POP-UP: IMPORT PROJECT (File Dropzone & Link Switcher + Preset Confirm)
+  // ==========================================================================
+  setupImportProjectModal();
 });
+
+// Active shared project state
+let activeSharedProject = null;
+
+function extractProjectId(raw) {
+  if (!raw) return '';
+  const str = String(raw).trim();
+  try {
+    const parsed = new URL(str, window.location.origin);
+    const queryId = parsed.searchParams.get('import') || parsed.searchParams.get('p') || parsed.searchParams.get('project');
+    if (queryId) return queryId.trim();
+    const segs = parsed.pathname.split('/').filter(Boolean);
+    if (segs.length > 0) return segs[segs.length - 1].trim();
+  } catch (_) {}
+  const parts = str.split('/');
+  return parts[parts.length - 1].replace(/[^a-zA-Z0-9_-]/g, '').trim();
+}
+
+function showPresetConfirmModal(project) {
+  activeSharedProject = project;
+  const nameEl = document.getElementById('preset-confirm-name');
+  const specsEl = document.getElementById('preset-confirm-specs');
+  const thumbBox = document.getElementById('preset-confirm-thumb-box');
+  const statusEl = document.getElementById('preset-confirm-status');
+  const btn = document.getElementById('btn-do-preset-import');
+
+  if (nameEl) nameEl.textContent = project.name || 'Shared Project';
+  if (specsEl) {
+    const parts = [project.specs, project.size].filter(Boolean);
+    specsEl.textContent = parts.join(' • ') || 'Ready to import';
+  }
+  if (statusEl) {
+    statusEl.className = 'modal-import-status';
+    statusEl.textContent = '';
+  }
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Import';
+  }
+
+  if (thumbBox) {
+    thumbBox.textContent = '';
+    const isSafeThumb = typeof project.thumbnail === 'string' &&
+      (project.thumbnail.startsWith('data:image/jpeg;base64,') ||
+       project.thumbnail.startsWith('data:image/webp;base64,') ||
+       project.thumbnail.startsWith('data:image/png;base64,'));
+    if (isSafeThumb) {
+      const img = document.createElement('img');
+      img.src = project.thumbnail;
+      img.alt = '';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      thumbBox.appendChild(img);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'project-thumb-placeholder';
+      ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--color-primary);background-color:var(--bg-canvas);';
+      ph.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/></svg>';
+      thumbBox.appendChild(ph);
+    }
+  }
+
+  if (window.Modal) {
+    window.Modal.open('modal-preset-confirm');
+  }
+}
+
+function setupImportProjectModal() {
+  const tabFile = document.getElementById('import-tab-file');
+  const tabLink = document.getElementById('import-tab-link');
+  const panelFile = document.getElementById('import-panel-file');
+  const panelLink = document.getElementById('import-panel-link');
+  const linkInput = document.getElementById('import-project-link-input');
+  const statusText = document.getElementById('import-link-status-text');
+  const btnSubmitLink = document.getElementById('btn-submit-import-link');
+  const fileDropzone = document.getElementById('import-file-dropzone');
+  const fileInput = document.getElementById('import-file-input');
+  const fileStatus = document.getElementById('import-file-status');
+
+  // 1. Icon-only Tab Switcher (File vs Link)
+  if (tabFile && tabLink) {
+    tabFile.addEventListener('click', () => {
+      tabFile.classList.add('is-active');
+      tabFile.setAttribute('aria-selected', 'true');
+      tabLink.classList.remove('is-active');
+      tabLink.setAttribute('aria-selected', 'false');
+      if (panelFile) panelFile.style.display = 'block';
+      if (panelLink) panelLink.style.display = 'none';
+    });
+
+    tabLink.addEventListener('click', () => {
+      tabLink.classList.add('is-active');
+      tabLink.setAttribute('aria-selected', 'true');
+      tabFile.classList.remove('is-active');
+      tabFile.setAttribute('aria-selected', 'false');
+      if (panelFile) panelFile.style.display = 'none';
+      if (panelLink) panelLink.style.display = 'block';
+      if (linkInput) linkInput.focus();
+    });
+  }
+
+  // 2. File Ingestion (.ofts dropzone)
+  if (fileDropzone && fileInput) {
+    fileDropzone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(name => {
+      fileDropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileDropzone.classList.add('is-dragover');
+      });
+    });
+
+    ['dragleave', 'dragend'].forEach(name => {
+      fileDropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileDropzone.classList.remove('is-dragover');
+      });
+    });
+
+    fileDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fileDropzone.classList.remove('is-dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleImportedFiles(e.dataTransfer.files, fileDropzone, fileStatus);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        handleImportedFiles(fileInput.files, fileDropzone, fileStatus);
+      }
+    });
+  }
+
+  // 3. Link Ingestion: NOT realtime! Only fetch when clicking Import or Enter
+  async function triggerLinkFetch() {
+    const val = (linkInput?.value || '').trim();
+    if (!val) {
+      if (statusText) {
+        statusText.className = 'modal-import-status is-error';
+        statusText.textContent = 'Please enter a project link or ID';
+      }
+      return;
+    }
+
+    const id = extractProjectId(val);
+    if (!id) {
+      if (statusText) {
+        statusText.className = 'modal-import-status is-error';
+        statusText.textContent = 'Invalid link or project ID';
+      }
+      return;
+    }
+
+    if (btnSubmitLink) {
+      btnSubmitLink.disabled = true;
+      btnSubmitLink.textContent = 'Checking...';
+    }
+    if (statusText) {
+      statusText.className = 'modal-import-status';
+      statusText.textContent = 'Checking project availability...';
+    }
+
+    try {
+      const res = await fetch(`/api/project?id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.project) {
+        if (statusText) {
+          statusText.className = 'modal-import-status is-error';
+          statusText.textContent = 'Project Not Found';
+        }
+        if (btnSubmitLink) {
+          btnSubmitLink.disabled = false;
+          btnSubmitLink.textContent = 'Import';
+        }
+        return;
+      }
+
+      // Found: close link modal & open clean preset confirmation modal
+      if (btnSubmitLink) {
+        btnSubmitLink.disabled = false;
+        btnSubmitLink.textContent = 'Import';
+      }
+      if (statusText) statusText.textContent = '';
+      if (window.Modal) window.Modal.close('modal-import-project');
+
+      setTimeout(() => {
+        showPresetConfirmModal(data.project);
+      }, 180);
+    } catch (err) {
+      if (statusText) {
+        statusText.className = 'modal-import-status is-error';
+        statusText.textContent = 'Project Not Found';
+      }
+      if (btnSubmitLink) {
+        btnSubmitLink.disabled = false;
+        btnSubmitLink.textContent = 'Import';
+      }
+    }
+  }
+
+  if (btnSubmitLink) {
+    btnSubmitLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerLinkFetch();
+    });
+  }
+
+  if (linkInput) {
+    linkInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerLinkFetch();
+      }
+    });
+  }
+
+  // 4. Confirm Preset Import button
+  const btnDoPresetImport = document.getElementById('btn-do-preset-import');
+  if (btnDoPresetImport) {
+    btnDoPresetImport.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (!activeSharedProject || !activeSharedProject.id) return;
+
+      const confirmStatus = document.getElementById('preset-confirm-status');
+      if (confirmStatus) {
+        confirmStatus.className = 'modal-import-status';
+        confirmStatus.textContent = 'Downloading package from Catbox storage...';
+      }
+      btnDoPresetImport.disabled = true;
+      btnDoPresetImport.textContent = 'Importing...';
+
+      try {
+        const downloadUrl = `/api/project?id=${encodeURIComponent(activeSharedProject.id)}&download=1`;
+        const res = await fetch(downloadUrl);
+        if (!res.ok) throw new Error('Download failed: ' + res.status);
+        const blob = await res.blob();
+
+        if (confirmStatus) confirmStatus.textContent = 'Extracting layers & assets into IndexedDB...';
+        const file = new File([blob], (activeSharedProject.name || 'Project') + '.ofts', { type: 'application/octet-stream' });
+
+        if (!window.FishDatabase || typeof window.FishDatabase.importOFTSPackage !== 'function') {
+          throw new Error('Database import module unavailable');
+        }
+
+        const imported = await window.FishDatabase.importOFTSPackage(file);
+        if (confirmStatus) {
+          confirmStatus.className = 'modal-import-status is-ready';
+          confirmStatus.textContent = 'Import successful! Opening project...';
+        }
+
+        setTimeout(() => {
+          if (window.Modal) window.Modal.close();
+          const targetPage = resolveTargetEditorPage();
+          window.location.href = `${targetPage}?id=${imported.id}`;
+        }, 400);
+      } catch (err) {
+        console.error('[FishImport:Preset]', err);
+        if (confirmStatus) {
+          confirmStatus.className = 'modal-import-status is-error';
+          confirmStatus.textContent = 'Import failed: ' + (err.message || err);
+        }
+        btnDoPresetImport.disabled = false;
+        btnDoPresetImport.textContent = 'Import';
+      }
+    });
+  }
+
+  // Auto-detect incoming project link in URL (/1 or ?import=1)
+  checkIncomingProjectImportLink();
+}
+
+async function checkIncomingProjectImportLink() {
+  const url = new URL(window.location.href);
+  let importId = url.searchParams.get('import') || url.searchParams.get('p') || url.searchParams.get('project');
+  if (!importId) {
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    if (segments.length === 1 && !['index.html', 'editor.html', 'desktop.html', 'demo.html', 'privacy.html', 'terms.html'].includes(segments[0])) {
+      importId = segments[0];
+    }
+  }
+
+  if (importId) {
+    // Direct URL access: DO NOT open modal-import-project! Directly fetch & show preset confirmation popup
+    try {
+      const res = await fetch(`/api/project?id=${encodeURIComponent(importId)}`);
+      const data = await res.json();
+      if (res.ok && data.success && data.project) {
+        setTimeout(() => {
+          showPresetConfirmModal(data.project);
+        }, 200);
+      } else {
+        alert('Project Not Found (file may have been deleted or expired).');
+      }
+    } catch (_) {
+      alert('Project Not Found');
+    }
+  }
+}
 
 /**
  * Handles imported .ofts project file

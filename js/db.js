@@ -473,6 +473,7 @@ window.FishDatabase = (function () {
       sizeBytes: p.sizeBytes,
       updatedAt: p.updatedAt,
       createdAt: p.createdAt,
+      thumbnail: p.thumbnail || '',
       layerCount: Array.isArray(p.layers) ? p.layers.length : (p.layerCount || 0)
     };
   }
@@ -2175,6 +2176,19 @@ window.FishDatabase = (function () {
 
   /* --- OFTS Export Progress Modal Helpers --- */
   function showOFTSProgressModal(title, percent, stage) {
+    if (typeof window !== 'undefined') {
+      window.isExporting = true;
+      if (typeof document !== 'undefined') document.body.classList.add('is-exporting');
+      if (typeof window.pausePlayback === 'function') {
+        try { window.pausePlayback(false); } catch (_) {}
+      }
+      if (window.FishTemplateEditor && typeof window.FishTemplateEditor.pause === 'function') {
+        try { window.FishTemplateEditor.pause(); } catch (_) {}
+      }
+      if (typeof window.updatePlayButtonUI === 'function') {
+        try { window.updatePlayButtonUI(); } catch (_) {}
+      }
+    }
     if (typeof document === 'undefined') return;
     var modal = document.getElementById('modal-ofts-progress');
     if (!modal) {
@@ -2228,6 +2242,13 @@ window.FishDatabase = (function () {
   }
 
   function hideOFTSProgressModal() {
+    if (typeof window !== 'undefined') {
+      window.isExporting = false;
+      if (typeof document !== 'undefined') document.body.classList.remove('is-exporting');
+      if (typeof window.updatePlayButtonUI === 'function') {
+        try { window.updatePlayButtonUI(); } catch (_) {}
+      }
+    }
     if (typeof document === 'undefined') return;
     var modal = document.getElementById('modal-ofts-progress');
     if (!modal) return;
@@ -2249,14 +2270,16 @@ window.FishDatabase = (function () {
     if (!window.JSZip) throw new Error("JSZip not loaded");
 
     var onProgress = typeof options === 'function' ? options : (options && options.onProgress);
+    var isShareMode = Boolean(options && options.keepProgressOpen);
     var reportProgress = function (pct, stage) {
-      updateOFTSProgress(pct, stage);
+      var reportedPct = isShareMode ? Math.round(pct * 0.5) : pct;
+      updateOFTSProgress(reportedPct, stage);
       if (typeof onProgress === 'function') {
-        try { onProgress(pct, stage); } catch (_) {}
+        try { onProgress(reportedPct, stage); } catch (_) {}
       }
     };
 
-    showOFTSProgressModal('Exporting .ofts', 0, 'Packing project...');
+    showOFTSProgressModal(isShareMode ? 'Sharing Project' : 'Exporting .ofts', 0, 'Packing project...');
     reportProgress(5, 'Sanitizing project layers & manifest...');
 
     try {
@@ -2369,12 +2392,18 @@ window.FishDatabase = (function () {
         reportProgress(pct, 'Compressing (' + Math.round(metadata.percent || 0) + '%)...');
       });
 
-      reportProgress(100, 'Complete!');
-      downloadFile((pkg.folderName || 'Project') + '.ofts', zipBlob, 'application/octet-stream');
+      if (!isShareMode) {
+        reportProgress(100, 'Complete!');
+        if (!options || !options.skipDownload) {
+          downloadFile((pkg.folderName || 'Project') + '.ofts', zipBlob, 'application/octet-stream');
+        }
 
-      await new Promise(function (r) { setTimeout(r, 400); });
-      hideOFTSProgressModal();
-      return true;
+        await new Promise(function (r) { setTimeout(r, 400); });
+        hideOFTSProgressModal();
+      } else {
+        updateOFTSProgress(50, 'Package prepared. Connecting to cloud...');
+      }
+      return zipBlob;
     } catch (err) {
       hideOFTSProgressModal();
       throw err;

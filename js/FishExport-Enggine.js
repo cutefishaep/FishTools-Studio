@@ -75,6 +75,17 @@
   // ── Progress UI Helpers ────────────────────────────────────────────────────────
   function showProgress(title, pct, stage, engineBadge) {
     window.isExporting = true;
+    if (typeof document !== 'undefined') document.body.classList.add('is-exporting');
+    if (typeof window.pausePlayback === 'function') {
+      try { window.pausePlayback(false); } catch (_) {}
+    }
+    if (window.FishTemplateEditor && typeof window.FishTemplateEditor.pause === 'function') {
+      try { window.FishTemplateEditor.pause(); } catch (_) {}
+    }
+    if (typeof window.updatePlayButtonUI === 'function') {
+      try { window.updatePlayButtonUI(); } catch (_) {}
+    }
+
     if (window.PreviewCacheManager && typeof window.PreviewCacheManager.stopIdleWorker === 'function') {
       window.PreviewCacheManager.stopIdleWorker();
     }
@@ -107,6 +118,10 @@
   function hideProgress() {
     window.isExporting = false;
     isCancelled = false;
+    if (typeof document !== 'undefined') document.body.classList.remove('is-exporting');
+    if (typeof window.updatePlayButtonUI === 'function') {
+      try { window.updatePlayButtonUI(); } catch (_) {}
+    }
     var overlay = document.getElementById('editor-export-progress-overlay');
     if (overlay) overlay.style.display = 'none';
   }
@@ -114,6 +129,10 @@
   function cleanupExportResources() {
     isCancelled = true;
     window.isExporting = false;
+    if (typeof document !== 'undefined') document.body.classList.remove('is-exporting');
+    if (typeof window.updatePlayButtonUI === 'function') {
+      try { window.updatePlayButtonUI(); } catch (_) {}
+    }
     try {
       var allExportCanvases = document.querySelectorAll('canvas[style*="left:-99999px"], canvas.export-temp-canvas');
       allExportCanvases.forEach(function(c) {

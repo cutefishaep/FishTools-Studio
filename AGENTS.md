@@ -25,7 +25,7 @@ Boundaries: code/commits/PRs written normal.
 ## Pop-up & Drawer Navigation Rules
 - **Modular Architecture**: All popups/drawers must use the universal `.modal-backdrop` & `.modal-card` system from `css/modal.css` and `js/modal.js`.
 - **Responsive Movement**:
-  - **Mobile (<= 600px)**: Slide in from TOP to BOTTOM (`transform: translateY(-100%)` -> `translateY(0)`).
+  - **Mobile (<= 600px)**: Slide in from BOTTOM to TOP (`transform: translateY(100%)` -> `translateY(0)`). Full width bottom sheet (`width: 100%`) with top rounded corners (`border-radius: 28px 28px 0 0`) for thumb reachability.
   - **Tablet & Desktop (>= 601px)**: Center scale-in (`transform: scale(0.92)` -> `scale(1)`).
 - **Close Triggers**:
   - Clicking empty backdrop outside the card closes the popup.

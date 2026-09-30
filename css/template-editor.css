@@ -526,12 +526,29 @@
 /* --- Modular Next Popover (.is-menu-popover) & Export Modal Layers --- */
 #popover-template-next {
   z-index: 1000002;
-  min-width: 230px;
+  min-width: 190px;
 }
 
-#modal-export-video,
+.export-drawer-backdrop {
+  z-index: 1000004 !important;
+}
+
+.export-fs-overlay {
+  z-index: 1000005 !important;
+}
+
+.export-settings-panel {
+  z-index: 1000006 !important;
+}
+
+#qr-share-backdrop,
+#modal-export-project-link,
+#modal-export-video {
+  z-index: 1000010 !important;
+}
+
 #editor-export-progress-overlay {
-  z-index: 1000005;
+  z-index: 1000020 !important;
 }
 
 /* ==========================================================================

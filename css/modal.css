@@ -852,27 +852,29 @@
    RESPONSIVE ANIMATIONS & GEOMETRY
    ========================================================================== */
 
-/* 1. Mobile (<= 600px): Slide Down from Top, Full Content Height (Zero Scroll) */
+/* 1. Mobile (<= 600px): Bottom Sheet Drawer, Full Width, Slide in from Bottom */
 @media (max-width: 600px) {
   .modal-backdrop {
-    align-items: flex-start;
+    align-items: flex-end;
     justify-content: center;
     padding: 0;
   }
 
   .modal-card {
     margin: 0;
-    width: 100%;
-    max-height: none;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88dvh;
     height: auto;
-    border-bottom-left-radius: 36px;
-    border-bottom-right-radius: 36px;
-    border-bottom: 1px solid var(--border-subtle);
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    transform: translateY(-100%);
+    border-radius: 28px 28px 0 0 !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(100%);
     transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
   }
 
   .modal-backdrop.is-active .modal-card {
@@ -920,8 +922,9 @@
 
 @media (max-width: 600px) {
   .quick-effects-card {
-    border-radius: 0 0 20px 20px !important;
+    border-radius: 28px 28px 0 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
   }
 }
 
@@ -1681,9 +1684,9 @@
   .donate-modal-card {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 50dvh;
+    max-height: 80dvh;
     height: auto;
-    border-radius: 0 0 20px 20px !important;
+    border-radius: 28px 28px 0 0 !important;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2154,16 +2157,27 @@
    Features: Minimal flat progress bar, percentage text, zero blur, zero shadows
    ========================================================================== */
 .modal-card.modal-progress-card {
-  width: 90%;
-  max-width: 360px;
+  width: clamp(340px, 36vw, 420px);
+  max-width: 420px;
   padding: 24px 24px 20px;
-  border-radius: 14px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 16px;
   box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .modal-card.modal-progress-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 28px 28px 0 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px)) 20px !important;
+  }
 }
 
 .modal-progress-title {
@@ -2225,14 +2239,25 @@
    Flat, borderless, zero shadows, high-contrast hover state
    ========================================================================== */
 .video-import-modal-card {
-  width: 92%;
-  max-width: 440px;
+  width: clamp(340px, 40vw, 450px);
+  max-width: 450px;
   background-color: var(--bg-dashboard);
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 0;
   border: 1px solid var(--border-subtle);
   overflow: hidden;
   box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .video-import-modal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 28px 28px 0 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 .video-import-modal-body {
@@ -2599,3 +2624,728 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ==========================================================================
+   MODULAR POP-UP: IMPORT PROJECT MODAL (.modal-import-card)
+   Ultra-minimal: 1 textbox + 1 status line + 1 text-only Import button
+   100% Theme Tokens, zero blurs, zero gradients, zero shadows
+   ========================================================================== */
+.modal-import-card {
+  width: clamp(320px, 92vw, 420px) !important;
+  max-width: 420px;
+  border-radius: 20px !important;
+  background-color: var(--bg-dashboard);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .modal-import-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 28px 28px 0 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+.modal-import-body {
+  padding: 8px 20px 14px 20px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.modal-import-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  background-color: var(--bg-panel);
+  color: var(--color-primary);
+  font-family: var(--font-brand);
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  outline: none;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.modal-import-input:focus {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+.modal-import-status {
+  font-size: 13px;
+  font-family: var(--font-brand);
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  line-height: 1.35;
+  transition: color 0.15s ease;
+  word-break: break-all;
+}
+
+.modal-import-status.is-error {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.modal-import-status.is-ready {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-icon-switch {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-panel);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.modal-icon-switch-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.modal-icon-switch-btn.is-active,
+.modal-icon-switch-btn[aria-selected="true"] {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.modal-icon-switch-btn:hover:not(.is-active) {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.modal-import-dropzone {
+  background-color: var(--bg-panel);
+  border: 2px dashed var(--border-subtle);
+  border-radius: 14px;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-import-dropzone:hover,
+.modal-import-dropzone.is-dragover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+}
+
+.modal-import-dropzone .dropzone-icon {
+  color: var(--color-primary);
+  margin-bottom: 2px;
+}
+
+.modal-import-dropzone .dropzone-title {
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.modal-import-dropzone .dropzone-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modal-import-dropzone .dropzone-file-status {
+  font-size: 12px;
+  color: var(--color-primary);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.preset-confirm-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background-color: var(--bg-panel);
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.preset-confirm-thumb-box {
+  width: 72px;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.preset-confirm-thumb-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preset-confirm-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preset-confirm-name {
+  font-family: var(--font-brand);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-confirm-specs {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.modal-import-footer {
+  padding: 0 20px 20px 20px !important;
+  display: flex;
+  box-sizing: border-box;
+}
+
+.modal-import-footer .modal-btn-create {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.modal-import-footer .modal-btn-create:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+
+/* Export Drawer Backdrop */
+.export-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background-color: rgba(10, 18, 10, 0.75);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.export-drawer-backdrop.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Export Slide Drawer (Slides in from right to left) */
+.export-fs-overlay {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: auto;
+  width: 440px;
+  max-width: 100vw;
+  height: 100%;
+  height: 100dvh;
+  z-index: 99999;
+  background-color: var(--bg-canvas);
+  border-left: 1px solid var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.export-fs-overlay.is-active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.export-fs-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
+/* Header bar */
+.export-fs-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--bg-panel);
+  flex-shrink: 0;
+}
+.export-fs-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.export-fs-back-btn:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+.export-fs-title {
+  font-family: var(--font-brand);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+.export-fs-subtitle {
+  font-family: var(--font-brand);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Scroll area holding option list */
+.export-fs-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Each export option card (radio row) */
+.export-option-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 14px;
+  border-radius: 12px;
+  background-color: var(--bg-panel);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  position: relative;
+  user-select: none;
+}
+.export-option-card:hover {
+  background-color: var(--bg-panel-hover);
+}
+.export-option-card.is-selected {
+  background-color: var(--bg-panel-hover);
+}
+
+/* Radio circle */
+.export-option-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease;
+}
+.export-option-card.is-selected .export-option-radio {
+  border-color: var(--color-primary);
+}
+.export-option-radio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.export-option-card.is-selected .export-option-radio-dot {
+  opacity: 1;
+}
+
+/* Option text area */
+.export-option-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-option-label {
+  font-family: var(--font-brand);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.export-option-desc {
+  font-family: var(--font-brand);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Chevron button on right side (opens settings panel) */
+.export-option-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.export-option-chevron:hover {
+  background-color: var(--bg-panel-inner);
+  color: var(--text-primary);
+}
+
+/* Footer: Next button */
+.export-fs-footer {
+  padding: 16px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--bg-panel);
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.export-fs-next-btn {
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  font-family: var(--font-brand);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.export-fs-next-btn:hover {
+  background-color: var(--color-primary-hover);
+}
+.export-fs-next-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   EXPORT SETTINGS PANEL — Slide-in from right
+   ========================================================================== */
+.export-settings-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: auto;
+  width: 440px;
+  max-width: 100vw;
+  height: 100%;
+  height: 100dvh;
+  z-index: 100000;
+  background-color: var(--bg-canvas);
+  border-left: 1px solid var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.export-settings-panel.is-active {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.export-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--bg-panel);
+  flex-shrink: 0;
+}
+.export-settings-title {
+  font-family: var(--font-brand);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+.export-settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Settings field group */
+.export-setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.export-setting-label {
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.export-setting-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23a5b39a' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 36px;
+}
+.export-setting-select:focus {
+  outline: none;
+}
+
+/* Toggle row */
+.export-setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+}
+.export-setting-toggle-label-text {
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.export-setting-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.export-setting-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.export-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  background-color: var(--bg-panel-inner);
+  cursor: pointer;
+  transition: background-color 0.18s ease;
+}
+.export-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+.export-setting-toggle input:checked + .export-toggle-track {
+  background-color: var(--color-primary);
+}
+.export-setting-toggle input:checked + .export-toggle-track::after {
+  transform: translateX(20px);
+  background-color: var(--bg-canvas);
+}
+
+/* Format pills */
+.export-format-pill-row {
+  display: flex;
+  gap: 8px;
+}
+.export-format-pill {
+  flex: 1;
+  padding: 10px 6px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--bg-panel);
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  text-align: center;
+}
+.export-format-pill.is-active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+.export-format-pill:hover:not(.is-active) {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   QR CODE SHARE MODAL — 3:4 vertical card style
+   ========================================================================== */
+.qr-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 101000;
+  background-color: rgba(10, 18, 10, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.qr-share-backdrop.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.qr-share-card {
+  position: relative;
+  width: min(340px, calc(100vw - 32px));
+  aspect-ratio: 3 / 4;
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+}
+
+.qr-share-rendered-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 23px;
+}
+
+/* Action buttons below the card */
+.qr-share-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+.qr-share-action-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.qr-share-action-btn:hover {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+.qr-share-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Mobile (<= 600px): export drawer takes full width */
+@media (max-width: 600px) {
+  .export-fs-overlay,
+  .export-settings-panel {
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+  }
+}
+

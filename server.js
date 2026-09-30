@@ -35,7 +35,8 @@ const MIME_TYPES = {
   '.glb': 'model/gltf-binary',
   '.gltf': 'model/gltf+json',
   '.bin': 'application/octet-stream',
-  '.hdr': 'image/vnd.radiance'
+  '.hdr': 'image/vnd.radiance',
+  '.ofts': 'application/octet-stream'
 };
 
 const SSE_INJECTION = `
@@ -94,6 +95,9 @@ if (!process.env.VERCEL) {
         normalized.includes('.gemini') ||
         normalized.includes('.system_generated') ||
         normalized.includes('scratch') ||
+        normalized.startsWith('storage') ||
+        normalized.includes('/storage') ||
+        normalized.endsWith('.ofts') ||
         normalized.startsWith('.')
       ) {
         return;
@@ -154,16 +158,41 @@ function loadEnv() {
     } catch (_) {}
   }
 }
-loadEnv();
+// In-memory sliding window IP rate limiter (10 shares / minute / IP)
+const shareRateLimitMap = new Map();
+function checkShareRateLimit(ip) {
+  const now = Date.now();
+  const entry = shareRateLimitMap.get(ip);
+  if (!entry || now > entry.resetTime) {
+    shareRateLimitMap.set(ip, { count: 1, resetTime: now + 60000 });
+    return true;
+  }
+  if (entry.count >= 10) return false;
+  entry.count++;
+  return true;
+}
+// Clean up expired rate limiter entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of shareRateLimitMap.entries()) {
+    if (now > entry.resetTime) shareRateLimitMap.delete(ip);
+  }
+}, 120000);
 
 function handleRequest(req, res) {
   const host = req.headers.host || `localhost:${PORT}`;
   const parsedUrl = new URL(req.url, `http://${host}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
 
-  // Security: block direct access to .env and hidden dot-files
-  if (pathname === '/.env' || pathname.startsWith('/.env') || pathname.includes('/.env') || pathname.startsWith('/.')) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
+  // Security: block direct access to .env, dot-files, internal storage databases, and server internals
+  if (
+    pathname === '/.env' || pathname.startsWith('/.env') || pathname.includes('/.env') || pathname.startsWith('/.') ||
+    pathname === '/storage' || pathname === '/storage/' ||
+    (pathname.startsWith('/storage/') && !pathname.startsWith('/storage/files/')) ||
+    pathname.endsWith('.json') && pathname.startsWith('/storage') ||
+    pathname === '/server.js' || pathname === '/package.json' || pathname === '/package-lock.json'
+  ) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('403 Forbidden');
     return;
   }
@@ -264,6 +293,322 @@ function handleRequest(req, res) {
     return;
   }
 
+  // Helper for shares storage
+  const SHARES_DIR = path.join(ROOT, 'storage');
+  const SHARES_FILE = path.join(SHARES_DIR, 'shares.json');
+
+  function getLocalShares() {
+    try {
+      if (!fs.existsSync(SHARES_DIR)) fs.mkdirSync(SHARES_DIR, { recursive: true });
+      if (!fs.existsSync(SHARES_FILE)) fs.writeFileSync(SHARES_FILE, '{}', 'utf-8');
+      return JSON.parse(fs.readFileSync(SHARES_FILE, 'utf-8'));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveLocalShares(data) {
+    try {
+      if (!fs.existsSync(SHARES_DIR)) fs.mkdirSync(SHARES_DIR, { recursive: true });
+      fs.writeFileSync(SHARES_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (_) {}
+  }
+
+  // API: Share Project (Upload .ofts to Catbox + store metadata)
+  if (req.method === 'POST' && pathname === '/api/share') {
+    (async () => {
+      try {
+        const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '127.0.0.1';
+        if (!checkShareRateLimit(clientIp)) {
+          res.writeHead(429, {
+            'Content-Type': 'application/json',
+            'Retry-After': '60',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ error: 'Rate limit exceeded. Please wait a minute before sharing again.' }));
+          return;
+        }
+
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.headers.host || `localhost:${PORT}`;
+        const origin = `${protocol}://${host}`;
+
+        const request = new Request(`${origin}${req.url}`, {
+          method: req.method,
+          headers: req.headers,
+          body: new ReadableStream({
+            start(controller) {
+              req.on('data', chunk => controller.enqueue(chunk));
+              req.on('end', () => controller.close());
+              req.on('error', err => controller.error(err));
+            }
+          }),
+          duplex: 'half'
+        });
+
+        const formData = await request.formData();
+        const file = formData.get('file');
+
+        if (!file || typeof file.size !== 'number' || file.size === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'No valid project file provided' }));
+          return;
+        }
+
+        // 1. File Size Capping (Max 15MB)
+        const MAX_FILE_SIZE = 15 * 1024 * 1024;
+        if (file.size > MAX_FILE_SIZE) {
+          res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({
+            error: 'Project exceeds maximum upload limit of 15MB. Please save the project to your local device (Download Project .ofts).'
+          }));
+          return;
+        }
+
+        // 2. Binary Magic Byte Validation: Must be valid ZIP archive
+        const headerBuffer = await file.slice(0, 4).arrayBuffer();
+        const headerBytes = new Uint8Array(headerBuffer);
+        const isZip = headerBytes[0] === 0x50 && headerBytes[1] === 0x4B &&
+                      (headerBytes[2] === 0x03 || headerBytes[2] === 0x05 || headerBytes[2] === 0x07);
+
+        if (!isZip) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Security rejection: Uploaded file is not a valid .ofts package.' }));
+          return;
+        }
+
+        // 3. Sanitize inputs
+        const rawName = String(formData.get('name') || 'Untitled Project').trim();
+        const sanitizedName = rawName.slice(0, 80).replace(/[^\w\s\-\.\(\)]/gi, '').trim() || 'Untitled Project';
+
+        const rawSpecs = String(formData.get('specs') || '1080p • 60 fps').trim();
+        const sanitizedSpecs = rawSpecs.slice(0, 40).replace(/[^\w\s\-\•\.\(\)]/gi, '') || '1080p • 60 fps';
+
+        const rawSize = String(formData.get('size') || '1.0 MB').trim();
+        const sanitizedSize = rawSize.slice(0, 20).replace(/[^\w\s\-\.]/gi, '') || '1.0 MB';
+
+        const rawAspect = String(formData.get('aspectRatio') || '16:9').trim();
+        const sanitizedAspect = rawAspect.slice(0, 10).replace(/[^\d:]/g, '') || '16:9';
+
+        let sanitizedThumbnail = '';
+        const rawThumb = formData.get('thumbnail');
+        if (typeof rawThumb === 'string' && (rawThumb.startsWith('data:image/jpeg;base64,') || rawThumb.startsWith('data:image/webp;base64,') || rawThumb.startsWith('data:image/png;base64,'))) {
+          if (rawThumb.length <= 150000) sanitizedThumbnail = rawThumb;
+        }
+
+        // 4. Compute next ID in local shares database
+        const shares = getLocalShares();
+        const keys = Object.keys(shares);
+        let nextId = '1';
+        if (keys.length > 0) {
+          const numKeys = keys.map(k => parseInt(k, 10)).filter(n => !isNaN(n));
+          if (numKeys.length > 0) {
+            nextId = String(Math.max(...numKeys) + 1);
+          } else {
+            nextId = String(keys.length + 1);
+          }
+        }
+
+        const safeName = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) + '.ofts';
+        let fileUrl = '';
+
+        // 5. Attempt upload to Catbox API (with 6s timeout)
+        try {
+          const catboxForm = new FormData();
+          catboxForm.append('reqtype', 'fileupload');
+          catboxForm.append('fileToUpload', file, safeName);
+
+          const catboxRes = await fetch('https://catbox.moe/user/api.php', {
+            method: 'POST',
+            body: catboxForm,
+            signal: AbortSignal.timeout(6000)
+          });
+
+          if (catboxRes.ok) {
+            const catboxText = (await catboxRes.text()).trim();
+            if (catboxText.startsWith('https://files.catbox.moe/')) {
+              fileUrl = catboxText;
+            }
+          }
+        } catch (catboxErr) {
+          console.warn('[Share] Catbox upload error/timeout:', catboxErr.message);
+        }
+
+        // 6. Local dev fallback: if Catbox is down/unreachable, store .ofts locally
+        if (!fileUrl) {
+          try {
+            const filesDir = path.join(ROOT, 'storage', 'files');
+            if (!fs.existsSync(filesDir)) fs.mkdirSync(filesDir, { recursive: true });
+            const localFileName = `${nextId}_${safeName}`;
+            const localFilePath = path.join(filesDir, localFileName);
+            const arrayBuf = await file.arrayBuffer();
+            fs.writeFileSync(localFilePath, Buffer.from(arrayBuf));
+            fileUrl = `${origin}/storage/files/${localFileName}`;
+            console.log(`[Share] Saved to local dev storage: ${fileUrl}`);
+          } catch (storageErr) {
+            console.error('[Share] Local storage fallback failed:', storageErr);
+            res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ error: 'Storage provider error and local fallback failed' }));
+            return;
+          }
+        }
+
+        const record = {
+          id: nextId,
+          name: sanitizedName,
+          specs: sanitizedSpecs,
+          size: sanitizedSize,
+          aspectRatio: sanitizedAspect,
+          thumbnail: sanitizedThumbnail,
+          fileUrl,
+          createdAt: Date.now()
+        };
+
+        shares[nextId] = record;
+        saveLocalShares(shares);
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'X-Content-Type-Options': 'nosniff'
+        });
+        res.end(JSON.stringify({
+          success: true,
+          id: nextId,
+          shareUrl: `${origin}/${nextId}`,
+          catboxUrl: fileUrl,
+          record
+        }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: 'Internal Server Error' }));
+      }
+    })();
+    return;
+  }
+
+  // API: Get Project Metadata or Proxy Download
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/api/project') {
+    (async () => {
+      try {
+        const rawId = parsedUrl.searchParams.get('id');
+        const isDownload = parsedUrl.searchParams.get('download') === '1';
+
+        if (!rawId || typeof rawId !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Missing or invalid id query parameter' }));
+          return;
+        }
+
+        // Strict ID sanitization
+        const id = rawId.slice(0, 32).replace(/[^a-zA-Z0-9_\-]/g, '');
+        if (!id) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Invalid id format' }));
+          return;
+        }
+
+        const shares = getLocalShares();
+        const record = shares[id];
+        if (!record || !record.fileUrl) {
+          res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Project Not Found' }));
+          return;
+        }
+
+        let isCatbox = false;
+        let isLocal = false;
+
+        // SSRF Protection: strictly verify storage hostname, port, and credentials
+        try {
+          const parsedStorageUrl = new URL(record.fileUrl);
+          isCatbox = (
+            parsedStorageUrl.protocol === 'https:' &&
+            parsedStorageUrl.hostname === 'files.catbox.moe' &&
+            (parsedStorageUrl.port === '' || parsedStorageUrl.port === '443') &&
+            !parsedStorageUrl.username &&
+            !parsedStorageUrl.password
+          );
+          isLocal = (
+            (parsedStorageUrl.hostname === 'localhost' || parsedStorageUrl.hostname === '127.0.0.1') &&
+            parsedStorageUrl.pathname.startsWith('/storage/files/')
+          );
+          if (!isCatbox && !isLocal) {
+            res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ success: false, error: 'Unauthorized storage source' }));
+            return;
+          }
+        } catch (_) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Invalid storage URL' }));
+          return;
+        }
+
+        if (isLocal) {
+          const parsedStorageUrl = new URL(record.fileUrl);
+          const localRelPath = parsedStorageUrl.pathname.replace(/^\/+/, '');
+          const localFilePath = path.join(ROOT, localRelPath);
+          if (!fs.existsSync(localFilePath)) {
+            res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ success: false, error: 'Project Not Found', fileMissing: true }));
+            return;
+          }
+          if (isDownload) {
+            const safeName = String(record.name || 'Project').slice(0, 60).replace(/[^a-zA-Z0-9_\-]/g, '_') + '.ofts';
+            res.writeHead(200, {
+              'Content-Type': 'application/octet-stream',
+              'Content-Disposition': `attachment; filename="${safeName}"`,
+              'Access-Control-Allow-Origin': '*',
+              'X-Content-Type-Options': 'nosniff'
+            });
+            res.end(fs.readFileSync(localFilePath));
+            return;
+          }
+        } else {
+          // Verify file is still live and available on Catbox (fast 2-byte range probe)
+          try {
+            const probe = await fetch(record.fileUrl, {
+              headers: { 'Range': 'bytes=0-1' },
+              signal: AbortSignal.timeout(4000)
+            });
+            if (probe.status === 404 || (!probe.ok && probe.status !== 416)) {
+              res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ success: false, error: 'Project Not Found', fileMissing: true }));
+              return;
+            }
+          } catch (_) {}
+
+          if (isDownload) {
+            // Stream file from Catbox to bypass browser CORS / ISP blocks
+            const fileRes = await fetch(record.fileUrl, { signal: AbortSignal.timeout(15000) });
+            if (!fileRes.ok) {
+              res.writeHead(404, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Project Not Found', fileMissing: true }));
+              return;
+            }
+            const safeName = String(record.name || 'Project').slice(0, 60).replace(/[^a-zA-Z0-9_\-]/g, '_') + '.ofts';
+            res.writeHead(200, {
+              'Content-Type': 'application/octet-stream',
+              'Content-Disposition': `attachment; filename="${safeName}"`,
+              'Access-Control-Allow-Origin': '*',
+              'X-Content-Type-Options': 'nosniff'
+            });
+            const arrayBuffer = await fileRes.arrayBuffer();
+            res.end(Buffer.from(arrayBuffer));
+            return;
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, project: record }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ error: err.message || 'Server error' }));
+      }
+    })();
+    return;
+  }
+
   // Resolve target file
   const relativePath = pathname.replace(/^\/+/, '');
   let filePath = path.join(ROOT, relativePath);
@@ -280,6 +625,19 @@ function handleRequest(req, res) {
     } else if (fs.existsSync(path.join(ROOT, relativePath + '.html'))) {
       filePath = path.join(ROOT, relativePath + '.html');
     }
+  }
+
+  // Project short link mapping (e.g. /1, /project-id) -> index.html
+  if (!fs.existsSync(filePath) && /^[a-zA-Z0-9_-]+$/.test(relativePath)) {
+    filePath = path.join(ROOT, 'index.html');
+  }
+
+  // Security: prevent path traversal out of project root
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(ROOT)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('403 Forbidden');
+    return;
   }
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {

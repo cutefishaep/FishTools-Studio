@@ -288,8 +288,9 @@ async function initProjectsFetcher() {
         e.stopPropagation();
         const url = copyBtn.dataset.url;
         if (url) {
+          const cleanUrl = url.replace(/^https?:\/\//i, '');
           try {
-            await navigator.clipboard.writeText(url);
+            await navigator.clipboard.writeText(cleanUrl);
             showDashboardToast('Link copied to clipboard!');
           } catch (_) {}
         }
@@ -1373,8 +1374,9 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const input = document.getElementById('index-share-project-link-input');
       if (input && input.value) {
+        const cleanVal = input.value.replace(/^https?:\/\//i, '');
         try {
-          await navigator.clipboard.writeText(input.value);
+          await navigator.clipboard.writeText(cleanVal);
           const orig = btnIndexCopy.textContent;
           btnIndexCopy.textContent = 'Copied!';
           showDashboardToast('Link copied to clipboard!');
@@ -2114,8 +2116,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (qrCopyBtn) {
     qrCopyBtn.addEventListener('click', async () => {
       if (_dashboardQRShareUrl) {
+        const cleanUrl = _dashboardQRShareUrl.replace(/^https?:\/\//i, '');
         try {
-          await navigator.clipboard.writeText(_dashboardQRShareUrl);
+          await navigator.clipboard.writeText(cleanUrl);
           showDashboardToast('Link copied to clipboard!');
         } catch (_) {}
       }

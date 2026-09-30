@@ -31444,8 +31444,9 @@
       if (_qrCopyBtn) {
         _qrCopyBtn.addEventListener('click', async () => {
           if (_qrShareUrl) {
+            const cleanUrl = _qrShareUrl.replace(/^https?:\/\//i, '');
             try {
-              await navigator.clipboard.writeText(_qrShareUrl);
+              await navigator.clipboard.writeText(cleanUrl);
               const origTitle = _qrCopyBtn.title;
               _qrCopyBtn.title = 'Copied!';
               showEditorToast('Link copied to clipboard!');
@@ -31453,7 +31454,7 @@
             } catch (_) {
               try {
                 const ta = document.createElement('textarea');
-                ta.value = _qrShareUrl;
+                ta.value = cleanUrl;
                 document.body.appendChild(ta);
                 ta.select();
                 document.execCommand('copy');

@@ -70,15 +70,21 @@
   // Pre-calculate 256-entry 1D LUT (R, G, B)
   const _lutData = new Uint8Array(256 * 4);
 
-  function generateLUT(curveRGB, curveR, curveG, curveB) {
-    const sRGB = buildSpline(curveRGB || [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]]);
+  function generateLUT(curveRGB, curveR, curveG, curveB, contrast) {
+    const sRGB = buildSpline(curveRGB || [[0, 0], [1, 1]]);
     const sR = curveR ? buildSpline(curveR) : null;
     const sG = curveG ? buildSpline(curveG) : null;
     const sB = curveB ? buildSpline(curveB) : null;
+    const c = Math.max(-1, Math.min(1, (Number(contrast) || 0) / 100.0));
 
     for (let i = 0; i < 256; i++) {
       const norm = i / 255.0;
-      const base = sRGB(norm);
+      let base = sRGB(norm);
+
+      if (c !== 0) {
+        base = base - c * 0.22 * Math.sin(Math.PI * 2 * base);
+        base = Math.max(0, Math.min(1, base));
+      }
 
       const rVal = sR ? sR(base) : base;
       const gVal = sG ? sG(base) : base;
@@ -249,18 +255,15 @@
 
   const DEFAULT_POINTS = [
     [0, 0],
-    [0.25, 0.25],
-    [0.5, 0.5],
-    [0.75, 0.75],
     [1, 1]
   ];
 
   const PRESETS = {
-    linear: [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]],
-    s_curve: [[0, 0], [0.25, 0.18], [0.5, 0.5], [0.75, 0.82], [1, 1]],
-    hard_contrast: [[0, 0], [0.25, 0.12], [0.5, 0.5], [0.75, 0.88], [1, 1]],
-    lift_blacks: [[0, 0.12], [0.25, 0.28], [0.5, 0.5], [0.75, 0.75], [1, 1]],
-    invert: [[0, 1], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [1, 0]]
+    linear: [[0, 0], [1, 1]],
+    s_curve: [[0, 0], [0.25, 0.18], [0.75, 0.82], [1, 1]],
+    hard_contrast: [[0, 0], [0.25, 0.10], [0.5, 0.5], [0.75, 0.90], [1, 1]],
+    lift_blacks: [[0, 0.14], [0.25, 0.28], [0.75, 0.82], [1, 0.96]],
+    invert: [[0, 1], [1, 0]]
   };
 
   reg.register({
@@ -270,6 +273,15 @@
     icon: 'assets/FXPH.svg',
     description: 'Authentic interactive tonal curve with monotone cubic spline interpolation and 256-entry hardware LUT',
     params: [
+      {
+        id: 'contrast',
+        label: 'S-Curve Contrast',
+        type: 'number',
+        min: -100,
+        max: 100,
+        default: 0,
+        unit: '%'
+      },
       {
         id: 'curve',
         label: 'Curve',
@@ -297,9 +309,10 @@
       const ptsR = fx && fx.curveR;
       const ptsG = fx && fx.curveG;
       const ptsB = fx && fx.curveB;
+      const contrast = fx && fx.contrast !== undefined ? Number(fx.contrast) : 0;
 
       // Generate 256-entry LUT
-      const lut = generateLUT(pts, ptsR, ptsG, ptsB);
+      const lut = generateLUT(pts, ptsR, ptsG, ptsB, contrast);
 
       // WebGL Hardware LUT Execution
       if (!_glFailed && initCurveGL()) {

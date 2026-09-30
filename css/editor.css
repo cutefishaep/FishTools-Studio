@@ -242,6 +242,7 @@ html, body {
 .svg-icon-pickwhip { -webkit-mask-image: url('../assets/pickwhip.svg?v=0.5.62'); mask-image: url('../assets/pickwhip.svg?v=0.5.62'); }
 .svg-icon-null { -webkit-mask-image: url('../assets/layer-null.svg'); mask-image: url('../assets/layer-null.svg'); }
 .svg-icon-plus { -webkit-mask-image: url('../assets/plus.svg'); mask-image: url('../assets/plus.svg'); }
+.svg-icon-3d { -webkit-mask-image: url('../assets/icon-3d.svg'); mask-image: url('../assets/icon-3d.svg'); }
 .svg-icon-eye { -webkit-mask-image: url('../assets/icon-eye.svg'); mask-image: url('../assets/icon-eye.svg'); }
 .svg-icon-eye-off { -webkit-mask-image: url('../assets/icon-eye-off.svg'); mask-image: url('../assets/icon-eye-off.svg'); }
 .svg-icon-audio { -webkit-mask-image: url('../assets/track-audio.svg'); mask-image: url('../assets/track-audio.svg'); }
@@ -651,7 +652,8 @@ html, body {
   color: var(--bg-canvas);
 }
 
-.editor-layer-motion-blur-btn {
+.editor-layer-motion-blur-btn,
+.editor-layer-3d-btn {
   background-color: transparent;
   color: var(--color-primary);
   border: none;
@@ -669,30 +671,44 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.editor-layer-motion-blur-btn svg {
+.editor-layer-motion-blur-btn svg,
+.editor-layer-3d-btn svg,
+.editor-layer-3d-btn .svg-icon {
   width: 20px;
   height: 20px;
   display: block;
   pointer-events: none;
+}
+
+.editor-layer-motion-blur-btn svg {
   fill: currentColor;
 }
 
-.editor-layer-motion-blur-btn:hover {
+.editor-layer-3d-btn svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+.editor-layer-motion-blur-btn:hover,
+.editor-layer-3d-btn:hover {
   background-color: var(--bg-panel-hover);
   color: var(--color-primary-hover);
 }
 
-.editor-layer-motion-blur-btn:active {
+.editor-layer-motion-blur-btn:active,
+.editor-layer-3d-btn:active {
   background-color: var(--color-primary);
   color: var(--bg-canvas);
 }
 
-.editor-layer-motion-blur-btn.is-active {
+.editor-layer-motion-blur-btn.is-active,
+.editor-layer-3d-btn.is-active {
   background-color: var(--color-primary);
   color: var(--bg-canvas);
 }
 
-.editor-layer-motion-blur-btn.is-active:hover {
+.editor-layer-motion-blur-btn.is-active:hover,
+.editor-layer-3d-btn.is-active:hover {
   background-color: var(--color-primary-hover);
   color: var(--bg-canvas);
 }

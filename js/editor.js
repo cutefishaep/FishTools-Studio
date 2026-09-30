@@ -2237,6 +2237,7 @@
         }
         bufferScale = w / (baseDims[0] || 1920);
       }
+      window._lastBufferScale = bufferScale;
 
       if (camEff === null) {
         const activeCamera = activeLayers.find(l => l.type === 'camera' && !l.hidden);
@@ -3241,9 +3242,9 @@
             const absW = Math.abs(bw);
             const absH = Math.abs(bh);
 
-            // Calculate Camera Depth of Field blur if camera blur is enabled
+            // Calculate Camera Depth of Field blur if camera blur is enabled (3D layers only)
             let layerDofBlur = 0;
-            if (activeCamera && camEff && camEff.cameraBlurEnabled && (camEff.cameraBlurAmount || 20) > 0) {
+            if (layer.is3D && activeCamera && camEff && camEff.cameraBlurEnabled && (camEff.cameraBlurAmount || 20) > 0) {
               const layerZ = effProps.posZ || 0;
               let focusZ = camEff.cameraFocusDistance || 0;
               let distToFocus = 0;
@@ -3562,11 +3563,14 @@
         // LIVE FRAME CACHING (After Effects RAM Preview Style)
         // STRICT RULE: only cache when the exact video frame is available (hasExtractingVideo = false).
         // Caching during playback, scrubbing, and frame park ensures subsequent scrubbing is instant 60fps.
-        // Skip lookahead-cache writes here — the lookahead worker writes directly via setFrameFromCanvas.
+        const currentRenderElapsed = performance.now() - t0;
         if (!hasExtractingVideo && !isExport && !window.isExporting && !isIdleCache && !isTransformDragging &&
             triggerSource !== 'lookahead-cache' &&
             window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
-          window.PreviewCacheManager.setFrameFromCanvas(frameIndex, canvas);
+          // If frame render was heavy (> 13ms), skip passive snapshot this tick to guarantee locked 60fps display refresh
+          if (!window.isTimelinePlaying || currentRenderElapsed < 13) {
+            window.PreviewCacheManager.setFrameFromCanvas(frameIndex, canvas);
+          }
           // NEVER delete cached frames during extraction — was causing patchy cache bar!
         }
 
@@ -3637,6 +3641,8 @@
           const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || baseDims[1]));
           baseDims = [cw, ch];
         }
+        currentProjectState._baseW = baseDims[0];
+        currentProjectState._baseH = baseDims[1];
         const draftBtn = document.getElementById('editor-icon-low-quality');
         const isDraft = draftBtn && draftBtn.classList.contains('is-active');
 
@@ -3696,6 +3702,8 @@
       const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
       const baseW = baseDims[0];
       const baseH = baseDims[1];
+      currentProjectState._baseW = baseW;
+      currentProjectState._baseH = baseH;
       (currentProjectState.layers || []).forEach(l => {
         if (l.type === 'camera') {
           l.scaleW = baseW;
@@ -4250,6 +4258,26 @@
                     window.selectTimelineLayer(matchedLayerIds[0]);
                   }
                 }
+              } else if (!isAdditive) {
+                if (typeof window.deselectAllDesktopLayers === 'function') {
+                  window.deselectAllDesktopLayers();
+                } else if (typeof window.deselectTimelineLayer === 'function') {
+                  window.deselectTimelineLayer();
+                } else if (typeof deselectTimelineLayer === 'function') {
+                  deselectTimelineLayer();
+                }
+              }
+            } else {
+              // Clicked empty background without dragging
+              const isAdditive = !!(upEvent.shiftKey || upEvent.metaKey || upEvent.ctrlKey);
+              if (!isAdditive) {
+                if (typeof window.deselectAllDesktopLayers === 'function') {
+                  window.deselectAllDesktopLayers();
+                } else if (typeof window.deselectTimelineLayer === 'function') {
+                  window.deselectTimelineLayer();
+                } else if (typeof deselectTimelineLayer === 'function') {
+                  deselectTimelineLayer();
+                }
               }
             }
           }
@@ -4637,7 +4665,13 @@
 
       // Pointerup / Pointercancel / Window Blur: Release & Persist to DB on gesture completion
       const onPointerEnd = (e) => {
-        if (!activeOp) return;
+        if (!activeOp) {
+          if (window.activeSnapGuides) {
+            window.activeSnapGuides = null;
+            if (window.CanvasOverlay) window.CanvasOverlay.scheduleRedraw();
+          }
+          return;
+        }
         try { activeCanvasEl.releasePointerCapture(e.pointerId); } catch (_) {}
         const didMove = hasMoved;
         const finishedLayer = targetLayer;
@@ -5831,6 +5865,7 @@
     let currentDrawerSubview = 'main';
     window.currentDrawerSubview = 'main';
     let currentRotateAxis = 'z';
+    window.currentRotateAxis = 'z';
 
     // Modular detector: true ONLY when drawer is open AND showing an active property editor (e.g. transform, graph)
     function isPropertyEditorActive() {
@@ -6271,11 +6306,13 @@
     }
 
     function getSelectedLayerAndBaseDims() {
-      const layers = currentProjectState.layers || [];
-      const layer = layers.find(l => l.id === window.selectedLayerId);
+      const layers = (window.currentProjectState && window.currentProjectState.layers) || currentProjectState.layers || [];
+      const targetId = window.selectedLayerId || (typeof selectedLayerId !== 'undefined' ? selectedLayerId : null) || (window.selectedLayerIds && window.selectedLayerIds.size > 0 ? Array.from(window.selectedLayerIds)[0] : null);
+      const layer = layers.find(l => l.id === targetId);
       if (!layer) return null;
-      const aspect = currentProjectState.aspectRatio || '16:9';
-      const res = currentProjectState.resolution || '1080p';
+      const proj = window.currentProjectState || currentProjectState || {};
+      const aspect = proj.aspectRatio || '16:9';
+      const res = proj.resolution || '1080p';
       const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
       return { layer, baseW: baseDims[0], baseH: baseDims[1] };
     }
@@ -6292,6 +6329,7 @@
         layer.rotY = 0;
         layer.anchorZ = 0;
       }
+      const is3D = !!(layer && layer.is3D);
       const pps = window.currentPixelsPerSecond || 80;
       const isParented = !!(layer && layer.parentId);
       const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec, null, null, isParented) : layer;
@@ -6379,6 +6417,11 @@
       if (valScaleH) valScaleH.textContent = formatTransformNumber(curScaleH);
 
       // 4. Rotation value for active axis (X, Y, Z)
+      if (!is3D && currentRotateAxis !== 'z') {
+        currentRotateAxis = 'z';
+        window.currentRotateAxis = 'z';
+      }
+
       let curRot = 0;
       if (currentRotateAxis === 'x') {
         curRot = eff.rotX !== undefined ? eff.rotX : (layer.rotX || 0);
@@ -6390,10 +6433,22 @@
       updateRotateKnob(curRot);
 
       // Sync axis switch UI button states
+      const rotateAxisSwitch = document.getElementById('rotate-axis-switch');
+      if (rotateAxisSwitch) {
+        rotateAxisSwitch.classList.toggle('is-3d-hidden', !is3D);
+        if (!is3D) {
+          rotateAxisSwitch.style.setProperty('display', 'none', 'important');
+        } else {
+          rotateAxisSwitch.style.removeProperty('display');
+          if (!window.isDesktop && !document.body.classList.contains('is-desktop')) {
+            rotateAxisSwitch.style.display = 'flex';
+          }
+        }
+      }
       const axisBtns = document.querySelectorAll('#rotate-axis-switch .segmented-switch-item');
       axisBtns.forEach(b => {
         const ax = b.dataset.axis;
-        const isDis = isAdjustment && (ax === 'x' || ax === 'y');
+        const isDis = !is3D || (isAdjustment && (ax === 'x' || ax === 'y'));
         b.disabled = isDis;
         b.classList.toggle('is-disabled', isDis);
         const isActive = (ax === currentRotateAxis);
@@ -6402,13 +6457,25 @@
         b.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
 
-      // Disable Z position UI if adjustment layer
+      // Disable/hide Z position UI if not 3D layer (or adjustment layer)
       const zRulerWrap = document.querySelector('.transform-z-ruler-wrap');
       const valCardZ = valPosZ ? valPosZ.closest('.transform-val-card') : null;
       if (zRulerWrap) {
+        zRulerWrap.classList.toggle('is-3d-hidden', !is3D);
+        if (!is3D) {
+          zRulerWrap.style.setProperty('display', 'none', 'important');
+        } else {
+          zRulerWrap.style.removeProperty('display');
+        }
         zRulerWrap.classList.toggle('is-disabled', isAdjustment);
       }
       if (valCardZ) {
+        valCardZ.classList.toggle('is-3d-hidden', !is3D);
+        if (!is3D) {
+          valCardZ.style.setProperty('display', 'none', 'important');
+        } else {
+          valCardZ.style.removeProperty('display');
+        }
         valCardZ.classList.toggle('is-disabled', isAdjustment);
       }
 
@@ -6466,6 +6533,19 @@
       }
     }
     window.syncTransformControllerValues = syncTransformControllerValues;
+
+    function syncTransform3DVisibility() {
+      if (typeof syncTransformControllerValues === 'function') {
+        syncTransformControllerValues();
+      }
+      if (typeof updateEditorHeaderMode === 'function') {
+        updateEditorHeaderMode();
+      }
+      if (typeof updateTransformKeyframeBtnState === 'function') {
+        updateTransformKeyframeBtnState();
+      }
+    }
+    window.syncTransform3DVisibility = syncTransform3DVisibility;
 
     // ======================================================================
     // GRAPH EDITOR CONTROLLER (Interactive Bezier Handles, Overshoot & Playhead Line)
@@ -8114,7 +8194,13 @@
         });
 
         const onMoveEnd = (e) => {
-          if (!isMoving) return;
+          if (!isMoving) {
+            if (window.activeSnapGuides) {
+              window.activeSnapGuides = null;
+              if (window.CanvasOverlay) window.CanvasOverlay.scheduleRedraw();
+            }
+            return;
+          }
           try { movePad.releasePointerCapture(e.pointerId); } catch (_) {}
           movePad.classList.remove('is-dragging');
           isMoving = false;
@@ -8132,6 +8218,8 @@
 
         movePad.addEventListener('pointerup', onMoveEnd);
         movePad.addEventListener('pointercancel', onMoveEnd);
+        window.addEventListener('pointerup', onMoveEnd);
+        window.addEventListener('pointercancel', onMoveEnd);
       }
 
       // H1. Rotate Axis Switch Interaction (X, Y, Z)
@@ -8142,10 +8230,11 @@
           const axis = btn.dataset.axis;
           if (!axis) return;
           const info = getSelectedLayerAndBaseDims();
-          if (info && info.layer && info.layer.type === 'adjustment') {
+          if (info && info.layer && (info.layer.type === 'adjustment' || !info.layer.is3D)) {
             if (axis === 'x' || axis === 'y') return;
           }
           currentRotateAxis = axis;
+          window.currentRotateAxis = axis;
 
           axisBtns.forEach(b => {
             const isActive = (b === btn);
@@ -8271,7 +8360,7 @@
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           const l = info.layer;
-          if (l && l.type === 'adjustment') return;
+          if (l && (l.type === 'adjustment' || !l.is3D)) return;
           const isAnchor = (typeof moveAnchorSubmode !== 'undefined' && moveAnchorSubmode === 'anchor');
           if (l && l.expressions && (l.expressions.move || (isAnchor && l.expressions.anchor))) return;
           syncLayerWithEffectiveProps(l);
@@ -8281,7 +8370,7 @@
         },
         onMove: (deltaY) => {
           const { targetL, z, isAnchor } = posZInit;
-          if (!targetL || targetL.type === 'adjustment') return;
+          if (!targetL || targetL.type === 'adjustment' || !targetL.is3D) return;
           let newZ = z + deltaY * 2;
 
           // Snap to Grid when Grid Overlay is active
@@ -14791,7 +14880,9 @@
                   isAngle: isAngle,
                   onCommit: (newVal) => {
                     fx[paramName] = newVal;
-                    if (!layer.effects || fx === layer.effects[0]) layer[paramName] = newVal;
+                    if (fx && fx.type === 'brightness-contrast' && (paramName === 'brightness' || paramName === 'contrast')) {
+                      layer[paramName] = newVal;
+                    }
 
                     const ticksEl = card.querySelector(`.fx-scrubber-${paramName} .jog-wheel-ticks`);
                     if (ticksEl) ticksEl.style.backgroundPosition = '0 0';
@@ -14822,6 +14913,8 @@
                     }
                     if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
                     if (typeof redrawComposition === 'function') redrawComposition('effect-value-input');
+                    const curveWidget = card.querySelector('.effects-curve-editor');
+                    if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
                     if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
                     syncEffectsKeyframeState(layer);
                     if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
@@ -14906,7 +14999,7 @@
 
               if (param) {
                 fx[param] = val;
-                if (!layer.effects || fx === layer.effects[0]) {
+                if (fx && fx.type === 'brightness-contrast' && (param === 'brightness' || param === 'contrast')) {
                   layer[param] = val;
                 }
 
@@ -15069,6 +15162,8 @@
               }
               if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
               if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+              const curveWidget = card.querySelector('.effects-curve-editor');
+              if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
               if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
               if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
                 updateTimelineKeyframeMarkersHighlight();
@@ -15158,6 +15253,8 @@
 
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
           if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+          const curveWidget = card.querySelector('.effects-curve-editor');
+          if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
 
           if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
           if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
@@ -16037,7 +16134,7 @@
       // 6. Sync Background Idle Caching Dropdown
       const idleDropdown = document.getElementById('dropdown-idle-caching');
       if (idleDropdown && !isPrecomp) {
-        const idleVal = currentProjectState.idleCache !== undefined ? currentProjectState.idleCache : (localStorage.getItem('oft_idle_cache') === 'true');
+        const idleVal = currentProjectState.idleCache !== undefined ? currentProjectState.idleCache : (localStorage.getItem('oft_idle_cache') !== 'false');
         idleDropdown.dataset.value = idleVal ? 'true' : 'false';
         const label = idleDropdown.querySelector('.custom-dropdown-label');
         if (label) label.textContent = idleVal ? 'Enabled' : 'Disabled';
@@ -16954,8 +17051,8 @@
       }
 
       // Initialize RAM Preview Cache BEFORE initial preview canvas rendering
-      // Idle cache disabled by default
-      const savedIdleCache = localStorage.getItem('oft_idle_cache') === 'true'; // default FALSE
+      // Idle cache enabled by default when preview cache is active
+      const savedIdleCache = localStorage.getItem('oft_idle_cache') !== 'false'; // default TRUE
       currentProjectState.idleCache = savedIdleCache;
       const initialFps = currentProjectState.fps || 60;
       window.currentTimelineFps = initialFps;
@@ -20390,6 +20487,9 @@
         }
         // Always trigger idle cache fill after pause — fills remaining uncached frames in background
         // This mirrors AE RAM Preview: bar fills continuously during idle time
+        if (window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
+          window.PreviewCacheManager.scheduleIdleCheck(true);
+        }
         // Flush any pending debounced beatmark save and refresh badge state
         if (typeof saveCurrentProjectBeatmarks === 'function') {
           saveCurrentProjectBeatmarks(true);
@@ -20930,13 +21030,6 @@
 
         _playTickCount++;
 
-        // Smart look-ahead caching: check lookahead window throttled every 15 frames (~250ms) to avoid event loop spam
-        if (window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
-          if (_playTickCount % 15 === 0 || !window.PreviewCacheManager._lookaheadRunning) {
-            window.PreviewCacheManager.startLookaheadWorker(nextSec, fps);
-          }
-        }
-
         playAnimationId = requestAnimationFrame(stepPlay);
       }
 
@@ -21019,6 +21112,9 @@
 
             isPlaying = true;
             window.isTimelinePlaying = true;
+            if (window.PreviewCacheManager) {
+              window.PreviewCacheManager.stopIdleWorker();
+            }
             updatePlayButtonUI();
             if (timelineTweenRaf) {
               cancelAnimationFrame(timelineTweenRaf);
@@ -21121,15 +21217,15 @@
             window.isPreviewCacheEnabled = enabled;
             syncPlaySettingsUI();
             if (window.PreviewCacheManager) {
+              window.PreviewCacheManager.setIdleCacheEnabled(enabled);
               if (!enabled) {
                 // Instantly clear ruler display when cache is turned off
+                window.PreviewCacheManager.stopIdleWorker();
                 window.PreviewCacheManager.updateRulerUI();
               } else {
-                // Re-enable and fill cache
+                // Re-enable and fill cache in background
                 window.PreviewCacheManager.updateRulerUI();
-                if (typeof window.PreviewCacheManager.scheduleIdleFill === 'function') {
-                  window.PreviewCacheManager.scheduleIdleFill();
-                }
+                window.PreviewCacheManager.scheduleIdleCheck(true);
               }
             }
           });
@@ -21265,6 +21361,10 @@
 
       function selectTimelineLayer(layerId, isMulti = false, keepKeyframes = false) {
         if (!layerId) return;
+        if (window.activeSnapGuides) {
+          window.activeSnapGuides = null;
+          if (window.CanvasOverlay) window.CanvasOverlay.scheduleRedraw();
+        }
         if (!keepKeyframes && typeof window.clearSelectedKeyframes === 'function') {
           window.clearSelectedKeyframes();
         }
@@ -21557,6 +21657,10 @@
         window.selectedLayerIds = selectedLayerIds;
         window.selectedMediaId = null;
         window.activeKeyframeProperty = null;
+        if (window.activeSnapGuides) {
+          window.activeSnapGuides = null;
+          if (window.CanvasOverlay) window.CanvasOverlay.scheduleRedraw();
+        }
         if (typeof window.clearSelectedKeyframes === 'function') {
           window.clearSelectedKeyframes();
         }
@@ -21671,6 +21775,17 @@
             btnMotionBlur.classList.toggle('is-active', !!(layer && layer.motionBlur));
           }
 
+          const btn3D = document.getElementById('btn-layer-header-3d');
+          if (btn3D) {
+            const targetId = selectedLayerId || (selectedLayerIds ? Array.from(selectedLayerIds)[0] : null);
+            const layer = (currentProjectState.layers || []).find(l => l.id === targetId);
+            const canBe3D = layer && layer.type !== 'audio';
+            btn3D.style.display = canBe3D ? 'inline-flex' : 'none';
+            const is3D = !!(layer && layer.is3D);
+            btn3D.classList.toggle('is-active', is3D);
+            btn3D.setAttribute('aria-pressed', String(is3D));
+          }
+
           const btnCollapse = document.getElementById('btn-layer-header-collapse');
           if (btnCollapse) {
             const targetId = selectedLayerId || (selectedLayerIds ? Array.from(selectedLayerIds)[0] : null);
@@ -21697,6 +21812,8 @@
           if (batchActions) batchActions.style.display = 'none';
           const btnLayerCol = document.getElementById('btn-layer-header-collapse');
           if (btnLayerCol) btnLayerCol.style.display = 'none';
+          const btnLayer3D = document.getElementById('btn-layer-header-3d');
+          if (btnLayer3D) btnLayer3D.style.display = 'none';
 
           const projectBackBtn = document.getElementById('editor-project-back-btn');
           const projectNameInput = document.getElementById('editor-project-name');
@@ -21919,6 +22036,63 @@
               }
             });
 
+            saveCurrentProjectLayers();
+            redrawComposition();
+          });
+        }
+
+        // 3a-3. 3D Layer Toggle Button in Layer Header
+        const btnLayer3D = document.getElementById('btn-layer-header-3d');
+        if (btnLayer3D) {
+          btnLayer3D.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetIds = new Set();
+            if (selectedLayerId) targetIds.add(selectedLayerId);
+            if (selectedLayerIds && selectedLayerIds.size > 0) {
+              selectedLayerIds.forEach(id => targetIds.add(id));
+            }
+            if (targetIds.size === 0 || !currentProjectState.layers) return;
+
+            const firstLayer = currentProjectState.layers.find(l => targetIds.has(l.id));
+            const nextState = firstLayer ? !firstLayer.is3D : true;
+
+            currentProjectState.layers.forEach(l => {
+              if (targetIds.has(l.id)) {
+                l.is3D = nextState;
+                if (typeof invalidatePreviewCacheForLayer === 'function') {
+                  invalidatePreviewCacheForLayer(l);
+                }
+              }
+            });
+
+            btnLayer3D.classList.toggle('is-active', nextState);
+            btnLayer3D.setAttribute('aria-pressed', String(nextState));
+
+            targetIds.forEach(id => {
+              const overlay = document.getElementById('timeline-lane-heads-overlay');
+              const pillSlot = overlay ? overlay.querySelector(`.timeline-lane-pill-slot[data-layer-id="${id}"]`) : null;
+              if (pillSlot) {
+                const b = pillSlot.querySelector('.desktop-layer-3d-btn');
+                if (b) {
+                  b.classList.toggle('is-active', nextState);
+                  b.title = nextState ? '3D Layer: Enabled' : '3D Layer: Disabled';
+                  b.setAttribute('aria-label', b.title);
+                }
+              }
+            });
+
+            if (!nextState && typeof currentRotateAxis !== 'undefined') {
+              currentRotateAxis = 'z';
+            }
+
+            if (typeof syncTransform3DVisibility === 'function') {
+              syncTransform3DVisibility();
+            } else if (typeof syncTransformControllerValues === 'function') {
+              syncTransformControllerValues();
+            }
+            if (typeof renderTimelineLayers === 'function') {
+              renderTimelineLayers();
+            }
             saveCurrentProjectLayers();
             redrawComposition();
           });
@@ -24158,10 +24332,6 @@
             return val.toFixed(1);
           }
           if (typeof val === 'object') {
-            // Unwrap all shapes returned by getLayerPropertyValue
-            if (val.posX !== undefined && val.posY !== undefined) {
-              return `${Math.round(val.posX)}, ${Math.round(val.posY)}, ${Math.round(val.posZ || 0)}`;
-            }
             if (val.scaleW !== undefined && val.scaleH !== undefined) {
               // scaleW/scaleH can be stored as % (e.g. 100) or px (e.g. 1080)
               // If values look like px (>400), try to normalize to %
@@ -24173,7 +24343,19 @@
               return `${Math.round(w)}%, ${Math.round(h)}%`;
             }
             if (val.rotZ !== undefined) {
-              return `${(val.rotX || 0).toFixed(1)}°, ${(val.rotY || 0).toFixed(1)}°, ${val.rotZ.toFixed(1)}°`;
+              if (layer && layer.is3D) {
+                return `${(val.rotX || 0).toFixed(1)}°, ${(val.rotY || 0).toFixed(1)}°, ${val.rotZ.toFixed(1)}°`;
+              }
+              const deg = val.rotZ;
+              const rev = Math.trunc(deg / 360);
+              const rem = deg - rev * 360;
+              return `${rev}x${rem >= 0 ? '+' : ''}${rem.toFixed(1)}°`;
+            }
+            if (val.posX !== undefined && val.posY !== undefined) {
+              if (layer && layer.is3D) {
+                return `${Math.round(val.posX)}, ${Math.round(val.posY)}, ${Math.round(val.posZ || 0)}`;
+              }
+              return `${Math.round(val.posX)}, ${Math.round(val.posY)}`;
             }
             if (val.opacity !== undefined) {
               const o = val.opacity;
@@ -24183,6 +24365,9 @@
               return `${Math.round(val.volume * 100)}%`;
             }
             if (val.anchorX !== undefined && val.anchorY !== undefined) {
+              if (layer && layer.is3D) {
+                return `${Math.round(val.anchorX)}, ${Math.round(val.anchorY)}, ${Math.round(val.anchorZ || 0)}`;
+              }
               return `${Math.round(val.anchorX)}, ${Math.round(val.anchorY)}`;
             }
             if (val.skewX !== undefined) {
@@ -24832,17 +25017,25 @@
                     const pw = (window.currentProjectState && window.currentProjectState.width) || 1080;
                     const ph = (window.currentProjectState && window.currentProjectState.height) || 1920;
                     const rl = getLive();
-                    if (prop === 'move') return [
-                      { getVal: () => (getLive().posX ?? pw/2).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.posX = Number(((r.posX ?? pw/2) + dx).toFixed(2)); },
-                        set: (v) => { getLive().posX = parseFloat(v) || 0; } },
-                      { getVal: () => (getLive().posY ?? ph/2).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.posY = Number(((r.posY ?? ph/2) + dx).toFixed(2)); },
-                        set: (v) => { getLive().posY = parseFloat(v) || 0; } },
-                      { getVal: () => (getLive().posZ ?? 0).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.posZ = Number(((r.posZ ?? 0) + dx).toFixed(2)); },
-                        set: (v) => { getLive().posZ = parseFloat(v) || 0; } }
-                    ];
+                    if (prop === 'move') {
+                      const is3D = !!getLive().is3D;
+                      const comps = [
+                        { getVal: () => (getLive().posX ?? pw/2).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.posX = Number(((r.posX ?? pw/2) + dx).toFixed(2)); },
+                          set: (v) => { getLive().posX = parseFloat(v) || 0; } },
+                        { getVal: () => (getLive().posY ?? ph/2).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.posY = Number(((r.posY ?? ph/2) + dx).toFixed(2)); },
+                          set: (v) => { getLive().posY = parseFloat(v) || 0; } }
+                      ];
+                      if (is3D) {
+                        comps.push({
+                          getVal: () => (getLive().posZ ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.posZ = Number(((r.posZ ?? 0) + dx).toFixed(2)); },
+                          set: (v) => { getLive().posZ = parseFloat(v) || 0; }
+                        });
+                      }
+                      return comps;
+                    }
                     if (prop === 'scale') {
                       // normalize px→% if stored as px
                       const normW = (v) => v > 400 ? (v/pw*100).toFixed(1) : Number(v).toFixed(1);
@@ -24860,33 +25053,55 @@
                           set: (v) => { const r = getLive(); r.scaleH = denormH(parseFloat(v) || 100); } }
                       ];
                     }
-                    if (prop === 'rotate') return [
-                      { getVal: () => (getLive().rotX ?? 0).toFixed(1) + '°',
-                        getEditVal: () => (getLive().rotX ?? 0).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.rotX = Number(((r.rotX ?? 0) + dx*0.5).toFixed(2)); },
-                        set: (v) => { const r = getLive(); r.rotX = parseFloat(v) || 0; } },
-                      { getVal: () => (getLive().rotY ?? 0).toFixed(1) + '°',
-                        getEditVal: () => (getLive().rotY ?? 0).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.rotY = Number(((r.rotY ?? 0) + dx*0.5).toFixed(2)); },
-                        set: (v) => { const r = getLive(); r.rotY = parseFloat(v) || 0; } },
-                      { getVal: () => { const deg = getLive().rotation ?? getLive().rotZ ?? 0; const rev = Math.trunc(deg / 360); const rem = deg - rev * 360; return `${rev}x${rem >= 0 ? '+' : ''}${rem.toFixed(1)}°`; },
-                        getEditVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.rotation = Number(((r.rotation ?? 0) + dx*0.5).toFixed(2)); r.rotZ = r.rotation; },
-                        set: (v) => { const r = getLive(); r.rotation = parseFloat(v) || 0; r.rotZ = r.rotation; } }
-                    ];
+                    if (prop === 'rotate') {
+                      const is3D = !!getLive().is3D;
+                      if (!is3D) {
+                        return [
+                          { getVal: () => { const deg = getLive().rotation ?? getLive().rotZ ?? 0; const rev = Math.trunc(deg / 360); const rem = deg - rev * 360; return `${rev}x${rem >= 0 ? '+' : ''}${rem.toFixed(1)}°`; },
+                            getEditVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1),
+                            scrub: (dx) => { const r = getLive(); r.rotation = Number(((r.rotation ?? 0) + dx*0.5).toFixed(2)); r.rotZ = r.rotation; },
+                            set: (v) => { const r = getLive(); r.rotation = parseFloat(v) || 0; r.rotZ = r.rotation; } }
+                        ];
+                      }
+                      return [
+                        { getVal: () => (getLive().rotX ?? 0).toFixed(1) + '°',
+                          getEditVal: () => (getLive().rotX ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.rotX = Number(((r.rotX ?? 0) + dx*0.5).toFixed(2)); },
+                          set: (v) => { const r = getLive(); r.rotX = parseFloat(v) || 0; } },
+                        { getVal: () => (getLive().rotY ?? 0).toFixed(1) + '°',
+                          getEditVal: () => (getLive().rotY ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.rotY = Number(((r.rotY ?? 0) + dx*0.5).toFixed(2)); },
+                          set: (v) => { const r = getLive(); r.rotY = parseFloat(v) || 0; } },
+                        { getVal: () => { const deg = getLive().rotation ?? getLive().rotZ ?? 0; const rev = Math.trunc(deg / 360); const rem = deg - rev * 360; return `${rev}x${rem >= 0 ? '+' : ''}${rem.toFixed(1)}°`; },
+                          getEditVal: () => (getLive().rotation ?? getLive().rotZ ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.rotation = Number(((r.rotation ?? 0) + dx*0.5).toFixed(2)); r.rotZ = r.rotation; },
+                          set: (v) => { const r = getLive(); r.rotation = parseFloat(v) || 0; r.rotZ = r.rotation; } }
+                      ];
+                    }
                     if (prop === 'opacity') return [
                       { getVal: () => Math.round((getLive().opacity ?? 1) * 100) + '%',
                         scrub: (dx) => { const r = getLive(); r.opacity = Math.max(0, Math.min(1, (r.opacity ?? 1) + dx*0.005)); },
                         set: (v) => { getLive().opacity = Math.max(0, Math.min(1, parseFloat(v)/100)); } }
                     ];
-                    if (prop === 'origin') return [
-                      { getVal: () => (getLive().anchorX ?? 0).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.anchorX = Number(((r.anchorX ?? 0) + dx).toFixed(2)); },
-                        set: (v) => { getLive().anchorX = parseFloat(v) || 0; } },
-                      { getVal: () => (getLive().anchorY ?? 0).toFixed(1),
-                        scrub: (dx) => { const r = getLive(); r.anchorY = Number(((r.anchorY ?? 0) + dx).toFixed(2)); },
-                        set: (v) => { getLive().anchorY = parseFloat(v) || 0; } }
-                    ];
+                    if (prop === 'origin') {
+                      const is3D = !!getLive().is3D;
+                      const comps = [
+                        { getVal: () => (getLive().anchorX ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.anchorX = Number(((r.anchorX ?? 0) + dx).toFixed(2)); },
+                          set: (v) => { getLive().anchorX = parseFloat(v) || 0; } },
+                        { getVal: () => (getLive().anchorY ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.anchorY = Number(((r.anchorY ?? 0) + dx).toFixed(2)); },
+                          set: (v) => { getLive().anchorY = parseFloat(v) || 0; } }
+                      ];
+                      if (is3D) {
+                        comps.push({
+                          getVal: () => (getLive().anchorZ ?? 0).toFixed(1),
+                          scrub: (dx) => { const r = getLive(); r.anchorZ = Number(((r.anchorZ ?? 0) + dx).toFixed(2)); },
+                          set: (v) => { getLive().anchorZ = parseFloat(v) || 0; }
+                        });
+                      }
+                      return comps;
+                    }
                     if (prop === 'skew') return [
                       { getVal: () => (getLive().skew ?? getLive().skewX ?? 0).toFixed(1) + '°',
                         scrub: (dx) => { const r = getLive(); r.skew = Number(((r.skew ?? 0) + dx*0.5).toFixed(2)); r.skewX = r.skew; },
@@ -28634,6 +28849,33 @@
 
         previewContainer.addEventListener('pointerup', stopPan);
         previewContainer.addEventListener('pointercancel', stopPan);
+
+        let containerDownPos = null;
+        previewContainer.addEventListener('pointerdown', (e) => {
+          if (e.button === 0 && (e.target === previewContainer || e.target.id === 'editor-preview-canvas')) {
+            containerDownPos = { x: e.clientX, y: e.clientY };
+          } else {
+            containerDownPos = null;
+          }
+        });
+        previewContainer.addEventListener('pointerup', (e) => {
+          if (containerDownPos && e.button === 0 && (e.target === previewContainer || e.target.id === 'editor-preview-canvas')) {
+            const dist = Math.hypot(e.clientX - containerDownPos.x, e.clientY - containerDownPos.y);
+            containerDownPos = null;
+            if (dist <= 5) {
+              const isAdditive = !!(e.shiftKey || e.metaKey || e.ctrlKey);
+              if (!isAdditive) {
+                if (typeof window.deselectAllDesktopLayers === 'function') {
+                  window.deselectAllDesktopLayers();
+                } else if (typeof window.deselectTimelineLayer === 'function') {
+                  window.deselectTimelineLayer();
+                } else if (typeof deselectTimelineLayer === 'function') {
+                  deselectTimelineLayer();
+                }
+              }
+            }
+          }
+        });
       }
 
       // Initialize default 100%

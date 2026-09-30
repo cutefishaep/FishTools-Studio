@@ -178,6 +178,7 @@
 .desktop-header .editor-layer-delete-btn,
 .desktop-header .editor-layer-collapse-btn,
 .desktop-header .editor-layer-motion-blur-btn,
+.desktop-header .editor-layer-3d-btn,
 .desktop-header .editor-layer-link-btn,
 .desktop-header .editor-layer-more-btn {
   width: var(--desktop-btn-h);
@@ -205,6 +206,8 @@
 .desktop-header .editor-layer-delete-btn svg,
 .desktop-header .editor-layer-collapse-btn svg,
 .desktop-header .editor-layer-motion-blur-btn svg,
+.desktop-header .editor-layer-3d-btn svg,
+.desktop-header .editor-layer-3d-btn .svg-icon,
 .desktop-header .editor-layer-link-btn svg,
 .desktop-header .editor-layer-more-btn svg {
   width: 16px;
@@ -222,10 +225,15 @@
   stroke-linejoin: round !important;
 }
 
-/* STROKE FIX: Collapse icon */
+/* STROKE FIX: Collapse icon & 3D Layer icon */
 .desktop-header .editor-precomp-collapse-btn svg,
-.desktop-header .editor-layer-collapse-btn svg {
+.desktop-header .editor-layer-collapse-btn svg,
+.desktop-header .editor-layer-3d-btn svg {
   stroke: currentColor !important;
+}
+
+.desktop-header .editor-layer-3d-btn svg {
+  fill: none !important;
 }
 
 /* Fill icons */
@@ -244,6 +252,7 @@
 .desktop-header .editor-layer-group-exclude-btn:hover,
 .desktop-header .editor-layer-collapse-btn:hover,
 .desktop-header .editor-layer-motion-blur-btn:hover,
+.desktop-header .editor-layer-3d-btn:hover,
 .desktop-header .editor-layer-link-btn:hover,
 .desktop-header .editor-layer-more-btn:hover {
   background-color: var(--color-primary);
@@ -265,6 +274,7 @@
 .desktop-header .editor-layer-delete-btn:active,
 .desktop-header .editor-layer-collapse-btn:active,
 .desktop-header .editor-layer-motion-blur-btn:active,
+.desktop-header .editor-layer-3d-btn:active,
 .desktop-header .editor-layer-link-btn:active,
 .desktop-header .editor-layer-more-btn:active {
   transform: scale(0.93);
@@ -1559,6 +1569,11 @@
   pointer-events: auto !important;
 }
 
+.desktop-panel-right .transform-val-card.is-3d-hidden,
+.desktop-panel-right .transform-val-card[style*="display: none"] {
+  display: none !important;
+}
+
 .desktop-panel-right .transform-val-card.is-dual {
   flex: 2 !important;
   flex-direction: row !important;
@@ -1668,6 +1683,11 @@
   margin-top: 4px !important;
 }
 
+.desktop-panel-right .transform-z-ruler-wrap.is-3d-hidden,
+.desktop-panel-right .transform-z-ruler-wrap[style*="display: none"] {
+  display: none !important;
+}
+
 /* Rotation Pane */
 .desktop-panel-right #pane-transform-rotate .rotate-axis-switch {
   width: 100% !important;
@@ -1679,6 +1699,11 @@
   border-radius: var(--desktop-radius) !important;
   padding: 2px !important;
   gap: 2px !important;
+}
+
+.desktop-panel-right #pane-transform-rotate .rotate-axis-switch.is-3d-hidden,
+.desktop-panel-right #pane-transform-rotate .rotate-axis-switch[style*="display: none"] {
+  display: none !important;
 }
 
 .desktop-panel-right #pane-transform-rotate .rotate-axis-switch .segmented-switch-item {
@@ -2293,6 +2318,14 @@
   box-sizing: border-box !important;
 }
 
+.desktop-panel-right .effects-control-row.effects-control-row-curve,
+#desktop-panel-inspector .effects-control-row.effects-control-row-curve {
+  display: block !important;
+  grid-template-columns: none !important;
+  width: 100% !important;
+  padding: 4px 0 !important;
+}
+
 .desktop-panel-right .effects-param-label-col,
 #desktop-panel-inspector .effects-param-label-col {
   display: flex !important;
@@ -2389,9 +2422,7 @@
 
 /* Select dropdowns and Custom Dropdowns in Controls */
 .desktop-panel-right .effects-select,
-#desktop-panel-inspector .effects-select,
-.desktop-panel-right .effects-custom-dropdown,
-#desktop-panel-inspector .effects-custom-dropdown {
+#desktop-panel-inspector .effects-select {
   height: 20px !important;
   min-height: 20px !important;
   background-color: var(--bg-canvas) !important;
@@ -2399,10 +2430,180 @@
   border-radius: var(--desktop-radius-sm) !important;
   color: var(--text-primary) !important;
   font-family: var(--font-brand) !important;
-  font-size: 10.5px !important;
+  font-size: 10px !important;
   font-weight: 700 !important;
   padding: 0 6px !important;
   box-sizing: border-box !important;
+}
+
+/* Effects Custom Dropdown Container: Clean wrapper with no background or border */
+.desktop-panel-right .effects-custom-dropdown,
+#desktop-panel-inspector .effects-custom-dropdown {
+  position: relative !important;
+  display: flex !important;
+  flex: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Effects Dropdown Trigger: 20px pill matching .effects-param-pill surface */
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-trigger,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-trigger {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  background-color: var(--bg-canvas) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 0 6px !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-brand) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.08s ease, background-color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-trigger:hover,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-trigger:hover {
+  border-color: var(--border-strong) !important;
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown.is-open .custom-dropdown-trigger,
+#desktop-panel-inspector .effects-custom-dropdown.is-open .custom-dropdown-trigger {
+  border-color: var(--color-primary) !important;
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-label,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-label {
+  font-family: var(--font-brand) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-align: left !important;
+  flex: 1 !important;
+  line-height: 18px !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-arrow,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-arrow {
+  color: var(--text-muted) !important;
+  width: 10px !important;
+  height: 10px !important;
+  margin-left: 4px !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown.is-open .custom-dropdown-arrow,
+#desktop-panel-inspector .effects-custom-dropdown.is-open .custom-dropdown-arrow {
+  color: var(--color-primary) !important;
+  transform: rotate(180deg) !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-menu,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-menu {
+  position: absolute !important;
+  top: calc(100% + 2px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  min-width: 100% !important;
+  width: 100% !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 2px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+  z-index: 1200 !important;
+  box-sizing: border-box !important;
+  max-height: 180px !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-4px) !important;
+  transition: opacity 0.12s ease, transform 0.12s ease !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown.is-open .custom-dropdown-menu,
+#desktop-panel-inspector .effects-custom-dropdown.is-open .custom-dropdown-menu {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-menu::-webkit-scrollbar,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-menu::-webkit-scrollbar {
+  display: none !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-item,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 6px !important;
+  font-family: var(--font-brand) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  border-radius: 2px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  user-select: none !important;
+  transition: background-color 0.08s ease, color 0.08s ease !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-item:hover,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-item:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-item.is-selected,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-item.is-selected {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  font-weight: 700 !important;
+}
+
+.desktop-panel-right .effects-custom-dropdown .custom-dropdown-item.is-selected:hover,
+#desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-item.is-selected:hover {
+  background-color: var(--color-primary-hover) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.desktop-panel-right .effects-card.has-dropdown-open,
+#desktop-panel-inspector .effects-card.has-dropdown-open,
+.desktop-panel-right .effects-card:has(.custom-dropdown.is-open),
+#desktop-panel-inspector .effects-card:has(.custom-dropdown.is-open) {
+  z-index: 100 !important;
 }
 
 /* Swatches & Switches */
@@ -3482,7 +3683,7 @@
   border-color: var(--color-primary) !important;
 }
 
-.desktop-panel-right .custom-dropdown-trigger {
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-trigger {
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;
@@ -3490,18 +3691,18 @@
   font-family: var(--font-brand) !important;
 }
 
-.desktop-panel-right .custom-dropdown-menu {
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-menu {
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;
 }
 
-.desktop-panel-right .custom-dropdown-item:hover {
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-item:hover {
   background-color: var(--bg-panel-hover) !important;
   color: var(--text-primary) !important;
 }
 
-.desktop-panel-right .custom-dropdown-item.is-selected {
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-item.is-selected {
   background-color: var(--color-primary) !important;
   color: var(--bg-canvas) !important;
   font-weight: 700 !important;
@@ -4008,6 +4209,7 @@
 .svg-icon-lightning { -webkit-mask-image: url('../assets/lightning.svg'); mask-image: url('../assets/lightning.svg'); }
 .svg-icon-grid { -webkit-mask-image: url('../assets/icon-grid.svg'); mask-image: url('../assets/icon-grid.svg'); }
 .svg-icon-motion-blur { -webkit-mask-image: url('../assets/icon-motion-blur.svg'); mask-image: url('../assets/icon-motion-blur.svg'); }
+.svg-icon-3d { -webkit-mask-image: url('../assets/icon-3d.svg'); mask-image: url('../assets/icon-3d.svg'); }
 .svg-icon-copy { -webkit-mask-image: url('../assets/copy.svg'); mask-image: url('../assets/copy.svg'); }
 .svg-icon-paste { -webkit-mask-image: url('../assets/paste.svg'); mask-image: url('../assets/paste.svg'); }
 .svg-icon-pickwhip { -webkit-mask-image: url('../assets/pickwhip.svg?v=0.5.62'); mask-image: url('../assets/pickwhip.svg?v=0.5.62'); }
@@ -4817,7 +5019,8 @@
 }
 
 /* Authentic AE Switch Slot: Explicit dark recessed square box [ ] when inactive, Crisp icon inside when toggled */
-.desktop-layer-mblur-btn {
+.desktop-layer-mblur-btn,
+.desktop-layer-3d-btn {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
@@ -4835,48 +5038,56 @@
   transition: color 0.08s ease, border-color 0.08s ease, background-color 0.08s ease, transform 0.05s ease;
 }
 
-.desktop-layer-mblur-btn:active {
+.desktop-layer-mblur-btn:active,
+.desktop-layer-3d-btn:active {
   transform: scale(0.92);
 }
 
 /* Inactive state: clearly visible dark recessed slot [ ], icon inside is hidden */
-.desktop-layer-mblur-btn:not(.is-active) {
+.desktop-layer-mblur-btn:not(.is-active),
+.desktop-layer-3d-btn:not(.is-active) {
   background-color: var(--bg-canvas);
   border-color: var(--border-panel);
 }
 
-.desktop-layer-mblur-btn:not(.is-active) .svg-icon {
+.desktop-layer-mblur-btn:not(.is-active) .svg-icon,
+.desktop-layer-3d-btn:not(.is-active) .svg-icon {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.08s ease;
 }
 
 /* Hover over inactive slot: subtle highlight & faint ghost icon for click feedback */
-.desktop-layer-mblur-btn:not(.is-active):hover {
+.desktop-layer-mblur-btn:not(.is-active):hover,
+.desktop-layer-3d-btn:not(.is-active):hover {
   background-color: var(--bg-panel-inner);
   border-color: var(--color-primary);
 }
 
-.desktop-layer-mblur-btn:not(.is-active):hover .svg-icon {
+.desktop-layer-mblur-btn:not(.is-active):hover .svg-icon,
+.desktop-layer-3d-btn:not(.is-active):hover .svg-icon {
   opacity: 0.45;
   visibility: visible;
   color: var(--text-muted);
 }
 
 /* Active state: crisp icon visible inside the slot */
-.desktop-layer-mblur-btn.is-active {
+.desktop-layer-mblur-btn.is-active,
+.desktop-layer-3d-btn.is-active {
   background-color: var(--bg-canvas);
   border-color: var(--border-panel);
   color: var(--color-primary);
 }
 
-.desktop-layer-mblur-btn.is-active .svg-icon {
+.desktop-layer-mblur-btn.is-active .svg-icon,
+.desktop-layer-3d-btn.is-active .svg-icon {
   opacity: 1;
   visibility: visible;
   color: var(--color-primary);
 }
 
-.desktop-layer-mblur-btn.is-active:hover {
+.desktop-layer-mblur-btn.is-active:hover,
+.desktop-layer-3d-btn.is-active:hover {
   background-color: var(--bg-panel-inner);
   border-color: var(--color-primary-hover);
   color: var(--color-primary-hover);
@@ -4884,11 +5095,14 @@
 
 /* High-contrast perimeter definition on selected / focused layer rows */
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .desktop-layer-mblur-btn:not(:hover),
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-mblur-btn:not(:hover) {
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .desktop-layer-3d-btn:not(:hover),
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-mblur-btn:not(:hover),
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-3d-btn:not(:hover) {
   border-color: var(--border-subtle);
 }
 
-.desktop-layer-mblur-btn .svg-icon {
+.desktop-layer-mblur-btn .svg-icon,
+.desktop-layer-3d-btn .svg-icon {
   width: 14px;
   height: 14px;
 }
@@ -5111,8 +5325,9 @@
   display: none !important;
 }
 
-/* Hide motion blur & link from desktop header in layer mode (now in layer column) */
+/* Hide motion blur, 3D & link from desktop header in layer mode (now in layer column) */
 .desktop-header .editor-layer-motion-blur-btn,
+.desktop-header .editor-layer-3d-btn,
 .desktop-header .editor-layer-link-btn {
   display: none !important;
 }

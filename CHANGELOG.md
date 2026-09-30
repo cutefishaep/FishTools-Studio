@@ -5,6 +5,67 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.85] - 2026-09-30
+
+### Changed
+- **Camera Lens Blur Icon Reverted (`effects/camera_lens_blur.js`, `editor.html`, `desktop.html`, `js/editor.js`)**:
+  - Replaced custom camera lens blur SVG icon with standard `assets/FXPH.svg` placeholder asset across gallery cards and registry definitions.
+  - Removed `assets/icon-camera-lens-blur.svg`.
+
+## [0.5.84] - 2026-09-30
+
+### Fixed
+- **Tonal Curve Editor & S-Curve Overhaul (`effects/curve.js`, `js/effects.js`, `css/effects-rack.css`, `css/desktop.css`)**:
+  - Fixed inspector grid squishing bug where `.effects-control-row-curve` was constrained to 34% width, expanding it to full 100% card width with centered 1:1 square canvas.
+  - Simplified default curve baseline to clean 2 points `[[0, 0], [1, 1]]` (Photoshop/Lightroom/Premiere standard), eliminating the 5-point cluster that caused zig-zag staircasing.
+  - Added dedicated one-click preset buttons: `S-Curve`, `Hard S`, `Film`, `Linear` for instant cinematic S-curve grading.
+  - Added live `S-Curve Contrast` scrubber (-100% to +100%) that dynamically shapes the curve into a silky smooth S-curve with real-time SVG curve preview and hardware LUT generation.
+  - Improved control point dragging with 32px hit radius and maximum 5 control points to prevent runaway point clutter.
+
+## [0.5.83] - 2026-09-30
+
+### Fixed
+- **Authentic Optical Camera Lens Blur Bokeh Overhaul (`effects/camera_lens_blur.js`, `assets/icon-camera-lens-blur.svg`)**:
+  - Replaced plain CSS `blur()` fallback with full hardware WebGL optical convolution kernel simulating physical lens aperture bokeh (After Effects parity).
+  - Added physical polygonal iris diaphragm geometry (`irisShape`: Hexagon, Pentagon, Octagon, Circle, Triangle, Square, Heptagon, Decagon) with `bladeCurvature`, `rotation`, and anamorphic `aspectRatio`.
+  - Added diffraction ring / spherical aberration (`diffraction` / Edge Ring) creating the signature crisp "soap-bubble" bokeh outer rim.
+  - Implemented specular highlight extraction in linear HDR energy gathering space (`highlightGain`, `highlightThreshold`) with Reinhard highlight compression tone mapping.
+  - Added longitudinal chromatic aberration fringing (`chromaticAberration` / Fringe) and sub-texel interleaved gradient noise radial dithering to eliminate banding artifacts.
+  - Generated dedicated vector SVG aperture diaphragm icon `assets/icon-camera-lens-blur.svg` bound to CSS theme tokens.
+
+## [0.5.82] - 2026-09-30
+
+### Fixed
+- **Effect Blend Mode Isolation (`js/editor.js`)**:
+  - Fixed bug where changing an effect's internal blend mode or dropdown parameter in the Effects Rack mutated `layer.blendMode`.
+  - Scoped dropdown assignment fallback strictly to `brightness-contrast` (`brightness` / `contrast`), preventing effect blend modes from overwriting layer blend modes.
+
+## [0.5.81] - 2026-09-30
+
+### Fixed
+- **Anamorphic Flare & Haze Flare Inverted Photo Ghost Fix (`effects/anamorphic_flare.js`, `effects/haze_flare.js`)**:
+  - Eliminated raw unblurred highlight photo overlay (`u_core` / `reflCore` / `thresh.c`) from Anamorphic Flare composite shader and 2D fallback, ensuring only pure horizontal flare streaks render.
+  - Fixed WebGL texture upload and FBO UV coordinate orientation with `gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)` and standard `[0, 1, 0, 0, 1, 1, 1, 0]` UV mapping, preventing Y-axis inversion across FBO passes.
+  - Set default `reflection` to `0%` matching Magic Bullet Looks presets (`Cyan Streak.l3t`, `Cool Haze.l3t`), with secondary reflection strictly limited to optical streak reflection when dialed in.
+
+## [0.5.80] - 2026-09-30
+
+### Added
+- **Magic Bullet Looks Anamorphic Flare & Haze Flare Porting (`effects/anamorphic_flare.js`, `effects/haze_flare.js`)**:
+  - **Anamorphic Flare (`anam`)**: Complete Magic Bullet Looks architecture with `Boost`, `Threshold`, `Threshold Softness`, `Size`, `Thickness`, `Reflection` (secondary inverted ghost flare across optical axis center `1.0 - uv`), `Reflection Boost`, `Tint`, `Core Glow`, `Chromatic Fringe`, `Blend Mode`, and `Flare Only`. WebGL multi-pass GPU pipeline and Canvas 2D fallback.
+  - **Haze / Flare (`haze`)**: Full Magic Bullet Looks optical diffusion and light scattering architecture with `Spillage` (controls highlight threshold & midtone bleed), `Softness` (multi-octave spherical Gaussian diffusion), `Reach` (horizontal cylindrical flare streak), `Exposure`, `Reflection` (secondary ghost flare bounce), `Reflection Exposure`, `Matte Box Size` & `Matte Box Shade` (lens hood light occlusion), `Tint`, `Blend Mode`, and `Haze Only`. WebGL multi-FBO pipeline and Canvas 2D fallback.
+
+## [0.5.79] - 2026-09-29
+
+### Added
+- **Per-Layer 3D Toggle Switch (After Effects Parity)**:
+  - Added dedicated isometric 3D cube switch button (`assets/icon-3d.svg`, `.desktop-layer-3d-btn`, `.editor-layer-3d-btn`) in timeline lane Control column and top action header.
+  - Toggling 3D on a layer switches its transform mode dynamically between 2D flat space and 3D camera space.
+  - Layer 2D: Renders flat in screen space (unaffected by camera movement, zoom, lens focal length, or depth of field blur), with X/Y Position, Rotation, and X/Y Anchor Point.
+  - Layer 3D: Participates in hardware WebGL 3D perspective, responsive to 3D cameras, depth sorting, Z-axis displacement, and rotX/rotY/rotZ.
+  - **3D Depth Space Partitioning (`js/fishtool-engine.js`)**: 2D layers between 3D layers now properly split 3D depth passes, compositing in strict timeline stack order just like Adobe After Effects.
+  - **Dynamic Transform Controller & Keyframe Inspector (`js/editor.js`)**: Automatically adapts UI controls (Z ruler, Z value cards, rotation axis segmented switch X/Y/Z) based on the layer's 3D switch state.
+
 ## [0.5.78] - 2026-09-23
 
 ### Fixed

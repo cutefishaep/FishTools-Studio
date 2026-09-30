@@ -712,11 +712,15 @@
       const anchorY = (layer.anchorY || 0) * bufferScale;
       const anchorZ = (layer.anchorZ || 0) * bufferScale;
 
-      const hasCamera = !!camera;
-      const is3D = hasCamera || Math.abs(rotX) > 0.001 || Math.abs(rotY) > 0.001 || Math.abs(posZ) > 0.001 || Math.abs(anchorZ) > 0.001 || !!layer.is3D || !!layer.collapseTransformations;
+      const is3D = !!layer.is3D || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera';
+      const effectiveRotX = is3D ? rotX : 0;
+      const effectiveRotY = is3D ? rotY : 0;
+      const effectivePosZ = is3D ? posZ : 0;
+      const effectiveAnchorZ = is3D ? anchorZ : 0;
+      const effectiveCamera = is3D ? camera : null;
 
-      const camLens = Math.max(1, camera ? (camera.cameraLens !== undefined ? camera.cameraLens : 50) : 50);
-      const camZoom = camera ? (camera.cameraZoom !== undefined ? camera.cameraZoom : 100) : 100;
+      const camLens = Math.max(1, effectiveCamera ? (effectiveCamera.cameraLens !== undefined ? effectiveCamera.cameraLens : 50) : 50);
+      const camZoom = effectiveCamera ? (effectiveCamera.cameraZoom !== undefined ? effectiveCamera.cameraZoom : 100) : 100;
       const lensFactor = Math.max(0.01, camLens / 50);
       const zoomFactor = Math.max(0.01, camZoom / 100);
       const totalZoom = lensFactor * zoomFactor;
@@ -724,36 +728,46 @@
       const camDist = CAMERA_DISTANCE * lensFactor * bufferScale;
       const nearPlane = NEAR_PLANE * bufferScale;
       const maxZ = camDist - nearPlane;
-      const lensDistort = this._getLensDistort(camera);
+      const lensDistort = this._getLensDistort(effectiveCamera);
 
       const vw = viewportW || (1920 * bufferScale);
       const vh = viewportH || (1080 * bufferScale);
 
       const boundsForMVP = {
-        cx, cy, posZ,
+        cx, cy,
+        posZ: effectivePosZ,
         w: absW, h: absH,
         signX, signY,
-        rotX, rotY, rotZ,
+        rotX: effectiveRotX,
+        rotY: effectiveRotY,
+        rotZ,
         skewX, skewY,
-        anchorX, anchorY, anchorZ,
+        anchorX, anchorY,
+        anchorZ: effectiveAnchorZ,
         bufferScale
       };
 
       let mvp = null;
       if (is3D) {
-        mvp = this._computeMVP(boundsForMVP, vw, vh, 0, camera);
+        mvp = this._computeMVP(boundsForMVP, vw, vh, 0, effectiveCamera);
       }
 
       let pTL, pTR, pBR, pBL, pN, pE, pS, pW, pAnchor;
       let isBehindCamera = false;
 
       const transformParams = {
-        cx, cy, posZ, rotX, rotY, rotZ, skewX, skewY, signX, signY,
-        anchorX, anchorY, anchorZ,
+        cx, cy,
+        posZ: effectivePosZ,
+        rotX: effectiveRotX,
+        rotY: effectiveRotY,
+        rotZ,
+        skewX, skewY, signX, signY,
+        anchorX, anchorY,
+        anchorZ: effectiveAnchorZ,
         perspective: camDist,
         near: nearPlane,
         bufferScale,
-        camera,
+        camera: effectiveCamera,
         vw,
         vh
       };
@@ -859,12 +873,17 @@
         is3D,
         isBehindCamera,
         maxZ,
-        cx, cy, posZ,
-        anchorX, anchorY, anchorZ,
+        cx, cy,
+        posZ: effectivePosZ,
+        anchorX, anchorY,
+        anchorZ: effectiveAnchorZ,
         w: absW, h: absH,
         scaleW: bw, scaleH: bh,
         signX, signY,
-        rotation: rotZ, rotX, rotY, rotZ,
+        rotation: rotZ,
+        rotX: effectiveRotX,
+        rotY: effectiveRotY,
+        rotZ,
         skewX, skewY,
         x: minX, y: minY,
         aabbW: maxX - minX,
@@ -926,10 +945,9 @@
         return; // Clipped out of camera view: layer has passed behind camera near plane
       }
       const { absW = bounds.w, absH = bounds.h, signX, signY, is3D } = bounds;
-      const hasCamera3D = !!(camera && (camera.rotX || camera.rotY || camera.posZ || camera.posX || camera.posY || (camera.cameraZoom && camera.cameraZoom !== 100) || (camera.cameraLens && camera.cameraLens !== 50)));
 
       // 1. Fast Path: Pure 2D (Single native ctx.drawImage)
-      if ((!is3D && !hasCamera3D) || !this.isReady) {
+      if (!is3D || !this.isReady) {
         ctx.save();
         if (layer.opacity !== undefined && layer.opacity !== null) {
           const rawOp = Number(layer.opacity);
@@ -941,27 +959,31 @@
         if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
           window.FishEffects.applyToContext(ctx, layer);
         }
-        if (layer._dofBlur && layer._dofBlur > 0.5) {
+        if (is3D && layer._dofBlur && layer._dofBlur > 0.5) {
           const curF = ctx.filter && ctx.filter !== 'none' ? ctx.filter : '';
           ctx.filter = (curF ? (curF + ' ') : '') + `blur(${layer._dofBlur.toFixed(1)}px)`;
         }
         const ax = (bounds.anchorX || 0) * signX;
         const ay = (bounds.anchorY || 0) * signY;
         ctx.translate(bounds.cx + ax, bounds.cy + ay);
-        const posZ = bounds.posZ || 0;
-        const camLens = Math.max(1, camera ? (camera.cameraLens !== undefined ? camera.cameraLens : 50) : 50);
-        const camZoom = camera ? (camera.cameraZoom !== undefined ? camera.cameraZoom : 100) : 100;
-        const lensFactor = Math.max(0.01, camLens / 50);
-        const zoomFactor = Math.max(0.01, camZoom / 100);
-        const totalZoom = lensFactor * zoomFactor;
-        const camDist = CAMERA_DISTANCE * lensFactor * bufferScale;
-        const nearPlane = NEAR_PLANE * bufferScale;
-        const maxZ = camDist - nearPlane;
-        const zScale = posZ ? (camDist / Math.max(nearPlane, camDist - Math.min(posZ, maxZ))) : 1;
-        const finalScale = zScale * totalZoom;
-        if (finalScale !== 1) {
-          ctx.scale(finalScale, finalScale);
+
+        if (is3D && !this.isReady) {
+          const posZ = bounds.posZ || 0;
+          const camLens = Math.max(1, camera ? (camera.cameraLens !== undefined ? camera.cameraLens : 50) : 50);
+          const camZoom = camera ? (camera.cameraZoom !== undefined ? camera.cameraZoom : 100) : 100;
+          const lensFactor = Math.max(0.01, camLens / 50);
+          const zoomFactor = Math.max(0.01, camZoom / 100);
+          const totalZoom = lensFactor * zoomFactor;
+          const camDist = CAMERA_DISTANCE * lensFactor * bufferScale;
+          const nearPlane = NEAR_PLANE * bufferScale;
+          const maxZ = camDist - nearPlane;
+          const zScale = posZ ? (camDist / Math.max(nearPlane, camDist - Math.min(posZ, maxZ))) : 1;
+          const finalScale = zScale * totalZoom;
+          if (finalScale !== 1) {
+            ctx.scale(finalScale, finalScale);
+          }
         }
+
         if (bounds.rotation) {
           ctx.rotate((bounds.rotation * Math.PI) / 180);
         }
@@ -1369,18 +1391,16 @@
     renderScene(ctx, renderList, bufferScale = 1, camera = null, currentSec = null) {
       if (!ctx || !renderList || renderList.length === 0) return;
 
-      const hasCamera3D = !!(camera && (camera.rotX || camera.rotY || camera.posZ || camera.posX || camera.posY || (camera.cameraZoom && camera.cameraZoom !== 100) || (camera.cameraLens && camera.cameraLens !== 50)));
-
-      const has3D = hasCamera3D || renderList.some(item => {
+      const has3D = renderList.some(item => {
         const b = this.getBounds(item.animLayer || item.layer, bufferScale, camera);
         return b.is3D;
       });
 
-      // Pure 2D fast path: If no 3D layers exist and no camera 3D, render directly with native 2D canvas drawImage
+      // Pure 2D fast path: If no 3D layers exist, render directly with native 2D canvas drawImage
       if (!has3D || !this.isReady) {
         renderList.forEach(item => {
           const lSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((item.animLayer && item.animLayer._currentSec) || (item.layer && item.layer._currentSec));
-          this.renderLayer(ctx, item.el, item.animLayer || item.layer, bufferScale, camera, lSec);
+          this.renderLayer(ctx, item.el, item.animLayer || item.layer, bufferScale, null, lSec);
         });
         return;
       }
@@ -1399,15 +1419,19 @@
 
       renderList.forEach((item, idx) => {
         const layer = item.animLayer || item.layer;
+        const b = this.getBounds(layer, bufferScale, camera);
+        const isLayer3D = !!b.is3D;
         const hasCustomBlend = layer.blendMode && layer.blendMode !== 'normal';
         const hasEffects = (Array.isArray(layer.effects) && layer.effects.some(f => !f.disabled)) ||
           (window.FishEffects && typeof window.FishEffects.buildFilter === 'function' && window.FishEffects.buildFilter(layer) !== '');
-        const hasDofBlur = layer._dofBlur && layer._dofBlur > 0.5;
+        const hasDofBlur = isLayer3D && layer._dofBlur && layer._dofBlur > 0.5;
 
-        if (hasCustomBlend || hasEffects || hasDofBlur) {
+        // In After Effects, 2D layers break 3D space:
+        // Flush any preceding 3D layers in the depth buffer, composite the 2D layer, then resume 3D batching
+        if (!isLayer3D || hasCustomBlend || hasEffects || hasDofBlur) {
           flushBatch();
           const lSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : null);
-          this.renderLayer(ctx, item.el, layer, bufferScale, camera, lSec);
+          this.renderLayer(ctx, item.el, layer, bufferScale, isLayer3D ? camera : null, lSec);
         } else {
           currentBatch.push({ ...item, batchIndex: idx });
         }

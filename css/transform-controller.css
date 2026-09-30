@@ -478,6 +478,15 @@
   cursor: not-allowed;
 }
 
+.transform-val-card.is-3d-hidden,
+.transform-val-card[style*="display: none"],
+.transform-z-ruler-wrap.is-3d-hidden,
+.transform-z-ruler-wrap[style*="display: none"],
+.rotate-axis-switch.is-3d-hidden,
+.rotate-axis-switch[style*="display: none"] {
+  display: none !important;
+}
+
 /* --- MODE 2: ROTATE DIAL --- */
 .rotate-axis-switch {
   width: 100%;

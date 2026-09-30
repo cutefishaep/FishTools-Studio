@@ -1221,6 +1221,79 @@
           mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
         }
 
+        let btn3D = controlCol.querySelector('.desktop-layer-3d-btn');
+        const is3DOn = !!(layer && layer.is3D);
+        const canBe3D = layer && layer.type !== 'audio';
+
+        if (!canBe3D) {
+          if (btn3D) btn3D.style.display = 'none';
+        } else if (!btn3D) {
+          btn3D = document.createElement('button');
+          btn3D.type = 'button';
+          btn3D.className = 'desktop-layer-3d-btn' + (is3DOn ? ' is-active' : '');
+          btn3D.title = is3DOn ? '3D Layer: Enabled' : '3D Layer: Disabled (Click to enable)';
+          btn3D.setAttribute('aria-label', btn3D.title);
+          btn3D.innerHTML = '<span class="svg-icon svg-icon-3d" aria-hidden="true"></span>';
+          controlCol.appendChild(btn3D);
+
+          btn3D.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          });
+          btn3D.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+            const isMulti = window.selectedLayerIds && (window.selectedLayerIds.has(layerId) || window.selectedLayerIds.has(String(layerId))) && window.selectedLayerIds.size > 1;
+            const targetIds = isMulti ? new Set(Array.from(window.selectedLayerIds).map(String)) : new Set([String(layerId)]);
+            const target = curLayers.find(l => String(l.id) === String(layerId)) || layer;
+            const nextState = target ? !target.is3D : true;
+
+            curLayers.forEach(l => {
+              if (targetIds.has(String(l.id))) {
+                l.is3D = nextState;
+                if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+                  window.invalidatePreviewCacheForLayer(l);
+                }
+              }
+            });
+
+            // Update all corresponding pill buttons in DOM
+            targetIds.forEach(id => {
+              const pillSlot = overlayContainer ? overlayContainer.querySelector(`.timeline-lane-pill-slot[data-layer-id="${id}"]`) : null;
+              if (pillSlot) {
+                const b = pillSlot.querySelector('.desktop-layer-3d-btn');
+                if (b) {
+                  b.classList.toggle('is-active', nextState);
+                  b.title = nextState ? '3D Layer: Enabled' : '3D Layer: Disabled (Click to enable)';
+                  b.setAttribute('aria-label', b.title);
+                }
+              }
+            });
+
+            const topHeader3D = document.getElementById('btn-layer-header-3d');
+            if (topHeader3D) topHeader3D.classList.toggle('is-active', nextState);
+
+            if (!nextState && typeof window.currentRotateAxis !== 'undefined') {
+              window.currentRotateAxis = 'z';
+            }
+
+            if (typeof window.syncTransform3DVisibility === 'function') {
+              window.syncTransform3DVisibility();
+            } else if (typeof window.syncTransformControllerValues === 'function') {
+              window.syncTransformControllerValues();
+            }
+            if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers(true);
+            if (typeof window.renderTimelineLayers === 'function') window.renderTimelineLayers();
+            if (typeof window.redrawComposition === 'function') window.redrawComposition();
+          });
+        } else {
+          btn3D.style.display = '';
+          btn3D.classList.toggle('is-active', is3DOn);
+          btn3D.title = is3DOn ? '3D Layer: Enabled' : '3D Layer: Disabled (Click to enable)';
+        }
+
         // 4. Parent & Link Column (Pickwhip + Parent Badge)
         if (!parentCol) parentCol = pill.querySelector('.desktop-layer-parent-col');
         if (!parentCol) {

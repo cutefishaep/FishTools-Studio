@@ -69,6 +69,7 @@
         'varying vec2 v_uv;',
         'uniform sampler2D u_image;',
         'uniform float u_threshold;',
+        'uniform float u_softness;',
         'void main(void) {',
         '  vec4 col = texture2D(u_image, v_uv);',
         '  if (col.a <= 0.001) {',
@@ -77,7 +78,7 @@
         '  }',
         '  vec3 rgb = col.rgb / max(0.001, col.a);',
         '  float lum = dot(rgb, vec3(0.2126, 0.7152, 0.0722));',
-        '  float knee = 0.12;',
+        '  float knee = max(0.01, u_softness);',
         '  float t = u_threshold;',
         '  float weight = smoothstep(t - knee, t + knee, lum);',
         '  if (weight <= 0.0001) {',
@@ -114,7 +115,7 @@
         '}'
       ].join('\n');
 
-      // 3. Flare composite shader: chromatic fringe + tinted wings + white-hot specular core
+      // 3. Flare composite shader: pure horizontal streak with chromatic dispersion and tinted wings
       const compFs = [
         '#ifdef GL_FRAGMENT_PRECISION_HIGH',
         'precision highp float;',
@@ -123,14 +124,15 @@
         '#endif',
         'varying vec2 v_uv;',
         'uniform sampler2D u_streak;',
-        'uniform sampler2D u_core;',
         'uniform vec3 u_tint;',
         'uniform float u_chromatic;',
-        'uniform float u_coreGlow;',
         'uniform float u_intensity;',
         'uniform vec2 u_texel;',
+        'uniform float u_reflection;',
+        'uniform float u_reflBoost;',
         'void main(void) {',
         '  vec2 shift = vec2(u_chromatic * 10.0 * u_texel.x, 0.0);',
+        '  // Primary streak sampling with chromatic fringe',
         '  float r = texture2D(u_streak, v_uv - shift).r;',
         '  float g = texture2D(u_streak, v_uv).g;',
         '  float b = texture2D(u_streak, v_uv + shift).b;',
@@ -138,11 +140,21 @@
         '  vec3 streakRgb = mix(vec3(a), vec3(r, g, b), min(1.0, u_chromatic * 1.8));',
         '  // White-hot core preservation: wings get tint, intense center stays white',
         '  float hot = clamp((r + g + b) / 3.0 - 0.55, 0.0, 0.45) / 0.45;',
-        '  vec3 tintedStreak = mix(streakRgb * u_tint, vec3(1.0), hot * 0.85);',
-        '  // Specular core hotspot',
-        '  vec4 coreCol = texture2D(u_core, v_uv);',
-        '  vec3 finalRgb = tintedStreak + coreCol.rgb * (u_coreGlow * 1.5);',
-        '  float finalA = clamp(a * 1.35 + coreCol.a * u_coreGlow, 0.0, 1.0) * u_intensity;',
+        '  vec3 finalRgb = mix(streakRgb * u_tint, vec3(1.0), hot * 0.85);',
+        '  float finalA = clamp(a * 1.35, 0.0, 1.0);',
+        '  // Optional secondary reflection ghost (reflect streak only, NEVER raw photo)',
+        '  if (u_reflection > 0.001) {',
+        '    vec2 reflUv = vec2(1.0 - v_uv.x, 1.0 - v_uv.y);',
+        '    float rr = texture2D(u_streak, reflUv - shift * 0.6).r;',
+        '    float rg = texture2D(u_streak, reflUv).g;',
+        '    float rb = texture2D(u_streak, reflUv + shift * 0.6).b;',
+        '    float ra = (rr + rg + rb) / 3.0;',
+        '    vec3 reflRgb = mix(vec3(ra), vec3(rr, rg, rb), min(1.0, u_chromatic * 1.2)) * u_tint;',
+        '    float reflGain = u_reflection * u_reflBoost;',
+        '    finalRgb += reflRgb * reflGain;',
+        '    finalA = clamp(finalA + ra * reflGain, 0.0, 1.0);',
+        '  }',
+        '  finalA *= u_intensity;',
         '  gl_FragColor = vec4(finalRgb * finalA, finalA);',
         '}'
       ].join('\n');
@@ -181,7 +193,8 @@
 
       _extractUniforms = {
         image: gl.getUniformLocation(_extractProg, 'u_image'),
-        threshold: gl.getUniformLocation(_extractProg, 'u_threshold')
+        threshold: gl.getUniformLocation(_extractProg, 'u_threshold'),
+        softness: gl.getUniformLocation(_extractProg, 'u_softness')
       };
 
       _streakUniforms = {
@@ -192,12 +205,12 @@
 
       _compUniforms = {
         streak: gl.getUniformLocation(_compProg, 'u_streak'),
-        core: gl.getUniformLocation(_compProg, 'u_core'),
         tint: gl.getUniformLocation(_compProg, 'u_tint'),
         chromatic: gl.getUniformLocation(_compProg, 'u_chromatic'),
-        coreGlow: gl.getUniformLocation(_compProg, 'u_coreGlow'),
         intensity: gl.getUniformLocation(_compProg, 'u_intensity'),
-        texel: gl.getUniformLocation(_compProg, 'u_texel')
+        texel: gl.getUniformLocation(_compProg, 'u_texel'),
+        reflection: gl.getUniformLocation(_compProg, 'u_reflection'),
+        reflBoost: gl.getUniformLocation(_compProg, 'u_reflBoost')
       };
 
       _posBuf = gl.createBuffer();
@@ -206,7 +219,7 @@
 
       _uvBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 0, 1, 1, 0, 1, 1]), gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
 
       function createTex() {
         const t = gl.createTexture();
@@ -282,16 +295,19 @@
     name: 'Anamorphic Flare',
     category: 'lightning',
     icon: 'assets/FXPH.svg',
-    description: 'Authentic Hollywood Panavision/Cooke style anamorphic streak flare with specular isolation, exponential horizontal falloff, chromatic dispersion, and white-hot core',
+    description: 'Magic Bullet Looks style anamorphic streak flare with specular highlight isolation, threshold softness, exponential horizontal falloff, chromatic dispersion, white-hot specular core, and secondary optical reflection bounce',
     params: [
-      { id: 'intensity', label: 'Intensity', type: 'number', min: 0, max: 100, default: 60, unit: '%' },
+      { id: 'boost', label: 'Boost', type: 'number', min: 0, max: 200, default: 80, unit: '%' },
       { id: 'threshold', label: 'Threshold', type: 'number', min: 0, max: 100, default: 70, unit: '%' },
-      { id: 'length', label: 'Streak Length', type: 'number', min: 10, max: 100, default: 80, unit: '%' },
+      { id: 'thresholdSoftness', label: 'Threshold Softness', type: 'number', min: 0, max: 100, default: 20, unit: '%' },
+      { id: 'size', label: 'Size', type: 'number', min: 10, max: 100, default: 80, unit: '%' },
       { id: 'thickness', label: 'Thickness', type: 'number', min: 1, max: 25, default: 3, unit: 'px' },
-      { id: 'coreGlow', label: 'Core Glow', type: 'number', min: 0, max: 100, default: 40, unit: '%' },
+      { id: 'reflection', label: 'Reflection', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
+      { id: 'reflectionBoost', label: 'Reflection Boost', type: 'number', min: 0, max: 200, default: 80, unit: '%' },
       { id: 'tint', label: 'Tint', type: 'color', default: '#3a86ff' },
+      { id: 'coreGlow', label: 'Core Glow', type: 'number', min: 0, max: 100, default: 40, unit: '%' },
       { id: 'chromatic', label: 'Chromatic Fringe', type: 'number', min: 0, max: 100, default: 35, unit: '%' },
-      { id: 'blendMode', label: 'Blend', type: 'select', options: ['screen', 'lighter', 'soft-light'], default: 'screen' },
+      { id: 'blendMode', label: 'Blend', type: 'select', options: ['screen', 'lighter'], default: 'screen' },
       { id: 'flareOnly', label: 'Flare Only', type: 'switch', default: false }
     ],
     render(ctx, el, layer, bounds, fx) {
@@ -306,12 +322,17 @@
         try { ctx.drawImage(el, bx, by, w, h); } catch (_) {}
       }
 
-      const intensity = Math.max(0, Math.min(100, fx && fx.intensity !== undefined ? Number(fx.intensity) : 60)) / 100;
+      const boostVal = fx && fx.boost !== undefined ? Number(fx.boost) : (fx && fx.intensity !== undefined ? Number(fx.intensity) : 80);
+      const intensity = Math.max(0, Math.min(200, boostVal)) / 100;
       if (intensity <= 0.005) return;
 
       const threshold = Math.max(0, Math.min(100, fx && fx.threshold !== undefined ? Number(fx.threshold) : 70)) / 100;
-      const lengthPct = Math.max(10, Math.min(100, fx && fx.length !== undefined ? Number(fx.length) : 80)) / 100;
+      const thresholdSoftness = Math.max(0, Math.min(100, fx && fx.thresholdSoftness !== undefined ? Number(fx.thresholdSoftness) : 20)) / 100;
+      const sizeVal = fx && fx.size !== undefined ? Number(fx.size) : (fx && fx.length !== undefined ? Number(fx.length) : 80);
+      const lengthPct = Math.max(10, Math.min(100, sizeVal)) / 100;
       const thickness = Math.max(1, Math.min(25, fx && fx.thickness !== undefined ? Number(fx.thickness) : 3));
+      const reflection = Math.max(0, Math.min(100, fx && fx.reflection !== undefined ? Number(fx.reflection) : 0)) / 100;
+      const reflectionBoost = Math.max(0, Math.min(200, fx && fx.reflectionBoost !== undefined ? Number(fx.reflectionBoost) : 80)) / 100;
       const coreGlow = Math.max(0, Math.min(100, fx && fx.coreGlow !== undefined ? Number(fx.coreGlow) : 40)) / 100;
       const tintHex = (fx && fx.tint) || '#3a86ff';
       const chromatic = Math.max(0, Math.min(100, fx && fx.chromatic !== undefined ? Number(fx.chromatic) : 35)) / 100;
@@ -336,9 +357,10 @@
 
           resizeFBOs(gl, bw, bh);
 
-          // Upload source layer to texture
+          // Upload source layer to texture with standard OpenGL top-to-bottom orientation
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, _srcTex);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
           let uploaded = false;
           try {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
@@ -372,13 +394,20 @@
               gl.vertexAttribPointer(uLoc, 2, gl.FLOAT, false, 0, 0);
             };
 
+            const bindClear = (fbo) => {
+              gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+              gl.clearColor(0, 0, 0, 0);
+              gl.clear(gl.COLOR_BUFFER_BIT);
+            };
+
             // Pass 1: Extract specular highlights -> _coreFBO
             bindAttr(_extractProg);
-            gl.bindFramebuffer(gl.FRAMEBUFFER, _coreFBO);
+            bindClear(_coreFBO);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, _srcTex);
             gl.uniform1i(_extractUniforms.image, 0);
             gl.uniform1f(_extractUniforms.threshold, threshold);
+            gl.uniform1f(_extractUniforms.softness, thresholdSoftness);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
             // Pass 2: Progressive Horizontal Streak Blur (Ping-Pong)
@@ -395,7 +424,7 @@
             let stepSpread = 1.0;
 
             for (let p = 0; p < passes; p++) {
-              gl.bindFramebuffer(gl.FRAMEBUFFER, dstFBO);
+              bindClear(dstFBO);
               gl.activeTexture(gl.TEXTURE0);
               gl.bindTexture(gl.TEXTURE_2D, srcTex);
 
@@ -411,26 +440,26 @@
               stepSpread *= 2.2;
             }
 
-            // Pass 3: Final Composite to canvas
+            // Pass 3: Final Composite -> default framebuffer (_glCanvas)
             bindAttr(_compProg);
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, srcTex);
             gl.uniform1i(_compUniforms.streak, 0);
 
-            gl.activeTexture(gl.TEXTURE1);
-            gl.bindTexture(gl.TEXTURE_2D, _coreTex);
-            gl.uniform1i(_compUniforms.core, 1);
-
             gl.uniform3f(_compUniforms.tint, tintRgb.r, tintRgb.g, tintRgb.b);
             gl.uniform1f(_compUniforms.chromatic, chromatic);
-            gl.uniform1f(_compUniforms.coreGlow, coreGlow);
             gl.uniform1f(_compUniforms.intensity, intensity);
             gl.uniform2f(_compUniforms.texel, 1.0 / bw, 1.0 / bh);
+            gl.uniform1f(_compUniforms.reflection, reflection);
+            gl.uniform1f(_compUniforms.reflBoost, reflectionBoost);
 
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-            // Draw WebGL canvas onto target 2D context
+            // Composite WebGL flare canvas onto 2D ctx
             ctx.save();
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
@@ -457,7 +486,7 @@
         const imgData = thresh.x.getImageData(0, 0, w, h);
         const d = imgData.data;
         const threshVal = threshold * 255;
-        const knee = 30;
+        const knee = Math.max(3, thresholdSoftness * 75);
 
         for (let i = 0; i < d.length; i += 4) {
           const a = d[i + 3];
@@ -530,12 +559,14 @@
       streakA.x.fillRect(0, 0, w, h);
       streakA.x.restore();
 
-      // Add specular core
-      if (coreGlow > 0.05) {
+      // Secondary inverted reflection ghost (reflect streak only, NEVER raw photo)
+      if (reflection > 0.005 && reflectionBoost > 0.005) {
         streakA.x.save();
         streakA.x.globalCompositeOperation = 'lighter';
-        streakA.x.globalAlpha = coreGlow * 1.3;
-        streakA.x.drawImage(thresh.c, 0, 0);
+        streakA.x.globalAlpha = Math.min(1.0, reflection * reflectionBoost);
+        streakA.x.translate(w, h);
+        streakA.x.scale(-1, -1);
+        streakA.x.drawImage(curSrc.c, 0, 0);
         streakA.x.restore();
       }
 

@@ -29,11 +29,13 @@
   let _highTex = null;
   let _pingTex = null;
   let _pongTex = null;
-  let _haloTex = null;
+  let _hazeTex = null;
+  let _reachTex = null;
   let _highFBO = null;
   let _pingFBO = null;
   let _pongFBO = null;
-  let _haloFBO = null;
+  let _hazeFBO = null;
+  let _reachFBO = null;
   let _fboW = 0;
   let _fboH = 0;
   let _glFailed = false;
@@ -61,7 +63,7 @@
         '}'
       ].join('\n');
 
-      // 1. Soft-shoulder Rec.709 highlight extraction
+      // 1. Spillage-driven highlight extraction with matte box shading
       const extractFs = [
         '#ifdef GL_FRAGMENT_PRECISION_HIGH',
         'precision highp float;',
@@ -70,7 +72,9 @@
         '#endif',
         'varying vec2 v_uv;',
         'uniform sampler2D u_image;',
-        'uniform float u_threshold;',
+        'uniform float u_spillage;',
+        'uniform float u_matteSize;',
+        'uniform float u_matteShade;',
         'void main(void) {',
         '  vec4 col = texture2D(u_image, v_uv);',
         '  if (col.a <= 0.001) {',
@@ -79,12 +83,23 @@
         '  }',
         '  vec3 rgb = col.rgb / max(0.001, col.a);',
         '  float lum = dot(rgb, vec3(0.2126, 0.7152, 0.0722));',
-        '  float knee = 0.16;',
-        '  float t = u_threshold;',
-        '  float weight = smoothstep(t - knee, t + knee, lum);',
+        '  // Spillage determines threshold and knee:',
+        '  // Low spillage = high threshold (~0.88), tight knee (~0.08)',
+        '  // High spillage = low threshold (~0.22), wide soft knee (~0.35)',
+        '  float thresh = mix(0.88, 0.22, u_spillage);',
+        '  float knee = mix(0.08, 0.35, u_spillage);',
+        '  float weight = smoothstep(thresh - knee, thresh + knee, lum);',
         '  if (weight <= 0.0001) {',
         '    gl_FragColor = vec4(0.0);',
         '    return;',
+        '  }',
+        '  // Matte box lens hood boundary shading',
+        '  if (u_matteSize > 0.001 && u_matteShade > 0.001) {',
+        '    vec2 dist = abs(v_uv - 0.5) * 2.0;',
+        '    float edge = max(dist.x, dist.y);',
+        '    float boxLimit = 1.0 - u_matteSize * 0.45;',
+        '    float shade = 1.0 - smoothstep(boxLimit, 1.0, edge) * u_matteShade;',
+        '    weight *= shade;',
         '  }',
         '  gl_FragColor = vec4(rgb * weight * col.a, col.a * weight);',
         '}'
@@ -112,7 +127,7 @@
         '}'
       ].join('\n');
 
-      // 3. Halation & Atmospheric Haze Composite
+      // 3. Magic Bullet Looks Haze/Flare Composite (Haze + Horizontal Reach + Inverted Reflection Ghost)
       const compFs = [
         '#ifdef GL_FRAGMENT_PRECISION_HIGH',
         'precision highp float;',
@@ -120,22 +135,34 @@
         'precision mediump float;',
         '#endif',
         'varying vec2 v_uv;',
-        'uniform sampler2D u_bloom;',
-        'uniform sampler2D u_halation;',
+        'uniform sampler2D u_haze;',
+        'uniform sampler2D u_reach;',
         'uniform vec3 u_tint;',
-        'uniform vec3 u_warmthCol;',
-        'uniform float u_halationAmt;',
-        'uniform float u_amount;',
+        'uniform float u_reachAmt;',
+        'uniform float u_exposure;',
+        'uniform float u_reflection;',
+        'uniform float u_reflExposure;',
         'void main(void) {',
-        '  vec4 bloom = texture2D(u_bloom, v_uv);',
-        '  vec4 halo = texture2D(u_halation, v_uv);',
-        '  // 35mm film halation is characteristic warm red-orange scatter at highlight borders',
-        '  vec3 halationRgb = vec3(1.0, 0.24, 0.05) * halo.a * (u_halationAmt * 1.6);',
-        '  // Atmospheric haze tinted and temperature-shifted',
-        '  vec3 hazeRgb = bloom.rgb * u_tint * u_warmthCol;',
-        '  vec3 combined = hazeRgb + halationRgb;',
-        '  float alpha = clamp(bloom.a * 1.2 + halo.a * u_halationAmt, 0.0, 1.0) * u_amount;',
-        '  gl_FragColor = vec4(combined * alpha, alpha);',
+        '  vec4 haze = texture2D(u_haze, v_uv);',
+        '  vec4 reach = texture2D(u_reach, v_uv);',
+        '  vec3 primaryRgb = (haze.rgb + reach.rgb * (u_reachAmt * 1.5)) * u_tint;',
+        '  float primaryA = clamp(haze.a + reach.a * u_reachAmt, 0.0, 1.0);',
+        '  vec3 finalRgb = primaryRgb;',
+        '  float finalA = primaryA;',
+        '  // Secondary inverted reflection ghost (reflected through optical center 1.0 - v_uv)',
+        '  if (u_reflection > 0.001) {',
+        '    vec2 reflUv = vec2(1.0 - v_uv.x, 1.0 - v_uv.y);',
+        '    vec4 reflHaze = texture2D(u_haze, reflUv);',
+        '    vec4 reflReach = texture2D(u_reach, reflUv);',
+        '    vec3 reflRgb = (reflHaze.rgb + reflReach.rgb * (u_reachAmt * 1.5)) * u_tint;',
+        '    float reflA = clamp(reflHaze.a + reflReach.a * u_reachAmt, 0.0, 1.0);',
+        '    float reflGain = u_reflection * u_reflExposure;',
+        '    finalRgb += reflRgb * reflGain;',
+        '    finalA = clamp(finalA + reflA * reflGain, 0.0, 1.0);',
+        '  }',
+        '  finalA = clamp(finalA * u_exposure, 0.0, 1.0);',
+        '  finalRgb *= u_exposure;',
+        '  gl_FragColor = vec4(finalRgb * finalA, finalA);',
         '}'
       ].join('\n');
 
@@ -173,7 +200,9 @@
 
       _extractUniforms = {
         image: gl.getUniformLocation(_extractProg, 'u_image'),
-        threshold: gl.getUniformLocation(_extractProg, 'u_threshold')
+        spillage: gl.getUniformLocation(_extractProg, 'u_spillage'),
+        matteSize: gl.getUniformLocation(_extractProg, 'u_matteSize'),
+        matteShade: gl.getUniformLocation(_extractProg, 'u_matteShade')
       };
 
       _blurUniforms = {
@@ -182,12 +211,13 @@
       };
 
       _compUniforms = {
-        bloom: gl.getUniformLocation(_compProg, 'u_bloom'),
-        halation: gl.getUniformLocation(_compProg, 'u_halation'),
+        haze: gl.getUniformLocation(_compProg, 'u_haze'),
+        reach: gl.getUniformLocation(_compProg, 'u_reach'),
         tint: gl.getUniformLocation(_compProg, 'u_tint'),
-        warmthCol: gl.getUniformLocation(_compProg, 'u_warmthCol'),
-        halationAmt: gl.getUniformLocation(_compProg, 'u_halationAmt'),
-        amount: gl.getUniformLocation(_compProg, 'u_amount')
+        reachAmt: gl.getUniformLocation(_compProg, 'u_reachAmt'),
+        exposure: gl.getUniformLocation(_compProg, 'u_exposure'),
+        reflection: gl.getUniformLocation(_compProg, 'u_reflection'),
+        reflExposure: gl.getUniformLocation(_compProg, 'u_reflExposure')
       };
 
       _posBuf = gl.createBuffer();
@@ -196,7 +226,7 @@
 
       _uvBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, _uvBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 0, 1, 1, 0, 1, 1]), gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
 
       function createTex() {
         const t = gl.createTexture();
@@ -212,12 +242,14 @@
       _highTex = createTex();
       _pingTex = createTex();
       _pongTex = createTex();
-      _haloTex = createTex();
+      _hazeTex = createTex();
+      _reachTex = createTex();
 
       _highFBO = gl.createFramebuffer();
       _pingFBO = gl.createFramebuffer();
       _pongFBO = gl.createFramebuffer();
-      _haloFBO = gl.createFramebuffer();
+      _hazeFBO = gl.createFramebuffer();
+      _reachFBO = gl.createFramebuffer();
 
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
@@ -243,13 +275,14 @@
     setupFBO(_highFBO, _highTex);
     setupFBO(_pingFBO, _pingTex);
     setupFBO(_pongFBO, _pongTex);
-    setupFBO(_haloFBO, _haloTex);
+    setupFBO(_hazeFBO, _hazeTex);
+    setupFBO(_reachFBO, _reachTex);
   }
 
   // --- Universal 2D Buffers for Fallback ---
   let _threshBuf = null, _threshCtx = null;
-  let _bloomBuf = null, _bloomCtx = null;
-  let _haloBuf = null, _haloCtx = null;
+  let _hazeBuf = null, _hazeCtx = null;
+  let _reachBuf = null, _reachCtx = null;
 
   function getFallbackBuf(name, w, h) {
     if (typeof document === 'undefined') return null;
@@ -259,12 +292,12 @@
     if (name === 'thresh') {
       if (!_threshBuf) { _threshBuf = document.createElement('canvas'); _threshCtx = _threshBuf.getContext('2d', { willReadFrequently: true }); }
       c = _threshBuf; x = _threshCtx;
-    } else if (name === 'bloom') {
-      if (!_bloomBuf) { _bloomBuf = document.createElement('canvas'); _bloomCtx = _bloomBuf.getContext('2d'); }
-      c = _bloomBuf; x = _bloomCtx;
+    } else if (name === 'haze') {
+      if (!_hazeBuf) { _hazeBuf = document.createElement('canvas'); _hazeCtx = _hazeBuf.getContext('2d'); }
+      c = _hazeBuf; x = _hazeCtx;
     } else {
-      if (!_haloBuf) { _haloBuf = document.createElement('canvas'); _haloCtx = _haloBuf.getContext('2d'); }
-      c = _haloBuf; x = _haloCtx;
+      if (!_reachBuf) { _reachBuf = document.createElement('canvas'); _reachCtx = _reachBuf.getContext('2d'); }
+      c = _reachBuf; x = _reachCtx;
     }
     if (c.width !== rw || c.height !== rh) { c.width = rw; c.height = rh; }
     return { c, x };
@@ -275,14 +308,17 @@
     name: 'Haze / Flare',
     category: 'lightning',
     icon: 'assets/FXPH.svg',
-    description: 'Cinematic atmospheric diffusion haze with authentic 35mm film halation rim bleed and highlight roll-off without milky shadow fogging',
+    description: 'Magic Bullet Looks style optical diffusion haze with light spillage, softness control, horizontal reach flare, matte box shading, and secondary inverted reflection bounce',
     params: [
-      { id: 'amount', label: 'Amount', type: 'number', min: 0, max: 100, default: 50, unit: '%' },
-      { id: 'highlight', label: 'Highlight Threshold', type: 'number', min: 0, max: 100, default: 65, unit: '%' },
-      { id: 'bloom', label: 'Bloom Size', type: 'number', min: 5, max: 150, default: 45, unit: 'px' },
-      { id: 'halation', label: 'Film Halation', type: 'number', min: 0, max: 100, default: 40, unit: '%' },
-      { id: 'warmth', label: 'Warmth', type: 'number', min: -50, max: 50, default: 15 },
-      { id: 'color', label: 'Tint', type: 'color', default: '#ffeedd' },
+      { id: 'spillage', label: 'Spillage', type: 'number', min: 0, max: 100, default: 40, unit: '%' },
+      { id: 'softness', label: 'Softness', type: 'number', min: 5, max: 150, default: 50, unit: 'px' },
+      { id: 'reach', label: 'Reach', type: 'number', min: 0, max: 100, default: 40, unit: '%' },
+      { id: 'exposure', label: 'Exposure', type: 'number', min: 0, max: 200, default: 100, unit: '%' },
+      { id: 'reflection', label: 'Reflection', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
+      { id: 'reflectionExposure', label: 'Reflection Exposure', type: 'number', min: 0, max: 200, default: 80, unit: '%' },
+      { id: 'matteBoxSize', label: 'Matte Box Size', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
+      { id: 'matteBoxShade', label: 'Matte Box Shade', type: 'number', min: 0, max: 100, default: 50, unit: '%' },
+      { id: 'tint', label: 'Tint', type: 'color', default: '#ffeedd' },
       { id: 'blendMode', label: 'Blend Mode', type: 'select', options: ['screen', 'lighter'], default: 'screen' },
       { id: 'hazeOnly', label: 'Haze Only', type: 'switch', default: false }
     ],
@@ -298,31 +334,30 @@
         try { ctx.drawImage(el, bx, by, w, h); } catch (_) {}
       }
 
-      const amount = Math.max(0, Math.min(100, fx && fx.amount !== undefined ? Number(fx.amount) : 50)) / 100;
-      if (amount <= 0.005) return;
+      // Read parameters with fallback aliases for backward compatibility
+      const spillage = Math.max(0, Math.min(100, fx && fx.spillage !== undefined ? Number(fx.spillage) : (fx && fx.highlight !== undefined ? 100 - Number(fx.highlight) : 40))) / 100;
+      const softness = Math.max(5, Math.min(150, fx && fx.softness !== undefined ? Number(fx.softness) : (fx && fx.bloom !== undefined ? Number(fx.bloom) : 50)));
+      const reach = Math.max(0, Math.min(100, fx && fx.reach !== undefined ? Number(fx.reach) : 40)) / 100;
+      const expVal = fx && fx.exposure !== undefined ? Number(fx.exposure) : (fx && fx.amount !== undefined ? Number(fx.amount) * 2 : 100);
+      const exposure = Math.max(0, Math.min(200, expVal)) / 100;
+      if (exposure <= 0.005) return;
 
-      const threshold = Math.max(0, Math.min(100, fx && fx.highlight !== undefined ? Number(fx.highlight) : (fx && fx.threshold !== undefined ? Number(fx.threshold) : 65))) / 100;
-      const bloomSize = Math.max(5, Math.min(150, fx && fx.bloom !== undefined ? Number(fx.bloom) : 45));
-      const halation = Math.max(0, Math.min(100, fx && fx.halation !== undefined ? Number(fx.halation) : 40)) / 100;
-      const warmth = Math.max(-50, Math.min(50, fx && fx.warmth !== undefined ? Number(fx.warmth) : 15));
-      const tintHex = (fx && fx.color) || (fx && fx.tint) || '#ffeedd';
+      const reflection = Math.max(0, Math.min(100, fx && fx.reflection !== undefined ? Number(fx.reflection) : 0)) / 100;
+      const reflExposure = Math.max(0, Math.min(200, fx && fx.reflectionExposure !== undefined ? Number(fx.reflectionExposure) : 80)) / 100;
+      const matteBoxSize = Math.max(0, Math.min(100, fx && fx.matteBoxSize !== undefined ? Number(fx.matteBoxSize) : 0)) / 100;
+      const matteBoxShade = Math.max(0, Math.min(100, fx && fx.matteBoxShade !== undefined ? Number(fx.matteBoxShade) : 50)) / 100;
+      const tintHex = (fx && fx.tint) || (fx && fx.color) || '#ffeedd';
       const blendMode = (fx && fx.blendMode) || 'screen';
 
       const tintRgb = hexToRgb(tintHex);
-      const wNorm = warmth / 50;
-      const warmthCol = {
-        r: 1.0 + Math.max(0, wNorm) * 0.25 - Math.max(0, -wNorm) * 0.15,
-        g: 1.0 + wNorm * 0.05,
-        b: 1.0 - Math.max(0, wNorm) * 0.25 + Math.max(0, -wNorm) * 0.25
-      };
 
       // --- 1. GPU WEBGL PIPELINE ---
       if (!_glFailed && initHazeGL()) {
         try {
           const gl = _gl;
 
-          // Adaptive downscale for smooth wide bloom
-          const downscale = bloomSize <= 20 ? 1 : (bloomSize <= 60 ? 2 : 4);
+          // Adaptive downscale for smooth wide haze bloom
+          const downscale = softness <= 20 ? 1 : (softness <= 60 ? 2 : 4);
           const bw = Math.max(2, Math.round(w / downscale));
           const bh = Math.max(2, Math.round(h / downscale));
 
@@ -336,6 +371,7 @@
           // Upload source layer to texture
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, _srcTex);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
           let uploaded = false;
           try {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
@@ -368,64 +404,91 @@
               gl.vertexAttribPointer(uLoc, 2, gl.FLOAT, false, 0, 0);
             };
 
-            // Pass 1: Extract Highlights -> _highFBO
+            const bindClear = (fbo) => {
+              gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+              gl.clearColor(0, 0, 0, 0);
+              gl.clear(gl.COLOR_BUFFER_BIT);
+            };
+
+            // Pass 1: Extract Highlights via Spillage & Matte Box -> _highFBO
             bindAttr(_extractProg);
-            gl.bindFramebuffer(gl.FRAMEBUFFER, _highFBO);
+            bindClear(_highFBO);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, _srcTex);
             gl.uniform1i(_extractUniforms.image, 0);
-            gl.uniform1f(_extractUniforms.threshold, threshold);
+            gl.uniform1f(_extractUniforms.spillage, spillage);
+            gl.uniform1f(_extractUniforms.matteSize, matteBoxSize);
+            gl.uniform1f(_extractUniforms.matteShade, matteBoxShade);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-            // Pass 2: Tight Halation Rim Blur (around highlight boundaries)
             bindAttr(_blurProg);
             gl.uniform1i(_blurUniforms.texture, 0);
 
-            const haloRadius = Math.max(2.0, (bloomSize / downscale) * 0.28);
-            // Horizontal
-            gl.bindFramebuffer(gl.FRAMEBUFFER, _pingFBO);
+            // Pass 2: Spherical Haze Diffusion (Multi-octave Separable Blur)
+            // Octave 1: Inner core glow (_highTex -> _pingFBO (H) -> _pongFBO (V))
+            const r1 = Math.max(1.5, (softness / downscale) * 0.45);
+            bindClear(_pingFBO);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, _highTex);
-            gl.uniform2f(_blurUniforms.delta, haloRadius / bw, 0.0);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            // Vertical -> _haloFBO
-            gl.bindFramebuffer(gl.FRAMEBUFFER, _haloFBO);
-            gl.bindTexture(gl.TEXTURE_2D, _pingTex);
-            gl.uniform2f(_blurUniforms.delta, 0.0, haloRadius / bh);
+            gl.uniform2f(_blurUniforms.delta, r1 / bw, 0.0);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-            // Pass 3: Wide Multi-Octave Atmospheric Diffusion Bloom
-            const bloomRadius = Math.max(3.0, (bloomSize / downscale) * 0.85);
-            // Horizontal -> _pingFBO
-            gl.bindFramebuffer(gl.FRAMEBUFFER, _pingFBO);
-            gl.bindTexture(gl.TEXTURE_2D, _highTex);
-            gl.uniform2f(_blurUniforms.delta, bloomRadius / bw, 0.0);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            // Vertical -> _pongFBO
-            gl.bindFramebuffer(gl.FRAMEBUFFER, _pongFBO);
+            bindClear(_pongFBO);
             gl.bindTexture(gl.TEXTURE_2D, _pingTex);
-            gl.uniform2f(_blurUniforms.delta, 0.0, bloomRadius / bh);
+            gl.uniform2f(_blurUniforms.delta, 0.0, r1 / bh);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-            // Pass 4: Final Composite to canvas
+            // Octave 2: Wide atmospheric wash (_pongTex -> _pingFBO (H) -> _hazeFBO (V))
+            const r2 = Math.max(3.0, (softness / downscale) * 1.15);
+            bindClear(_pingFBO);
+            gl.bindTexture(gl.TEXTURE_2D, _pongTex);
+            gl.uniform2f(_blurUniforms.delta, r2 / bw, 0.0);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            bindClear(_hazeFBO);
+            gl.bindTexture(gl.TEXTURE_2D, _pingTex);
+            gl.uniform2f(_blurUniforms.delta, 0.0, r2 / bh);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            // Pass 3: Horizontal Reach Flare Streak
+            bindClear(_reachFBO);
+            if (reach > 0.01) {
+              const reachRad1 = Math.max(2.0, (reach * 35.0) / downscale);
+              bindClear(_pingFBO);
+              gl.bindTexture(gl.TEXTURE_2D, _highTex);
+              gl.uniform2f(_blurUniforms.delta, reachRad1 / bw, 0.0);
+              gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+              const reachRad2 = Math.max(4.0, (reach * 90.0) / downscale);
+              bindClear(_reachFBO);
+              gl.bindTexture(gl.TEXTURE_2D, _pingTex);
+              gl.uniform2f(_blurUniforms.delta, reachRad2 / bw, 0.0);
+              gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            }
+
+            // Pass 4: Composite -> default framebuffer (_glCanvas)
             bindAttr(_compProg);
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, _pongTex);
-            gl.uniform1i(_compUniforms.bloom, 0);
+            gl.bindTexture(gl.TEXTURE_2D, _hazeTex);
+            gl.uniform1i(_compUniforms.haze, 0);
 
             gl.activeTexture(gl.TEXTURE1);
-            gl.bindTexture(gl.TEXTURE_2D, _haloTex);
-            gl.uniform1i(_compUniforms.halation, 1);
+            gl.bindTexture(gl.TEXTURE_2D, _reachTex);
+            gl.uniform1i(_compUniforms.reach, 1);
 
             gl.uniform3f(_compUniforms.tint, tintRgb.r, tintRgb.g, tintRgb.b);
-            gl.uniform3f(_compUniforms.warmthCol, warmthCol.r, warmthCol.g, warmthCol.b);
-            gl.uniform1f(_compUniforms.halationAmt, halation);
-            gl.uniform1f(_compUniforms.amount, amount);
+            gl.uniform1f(_compUniforms.reachAmt, reach);
+            gl.uniform1f(_compUniforms.exposure, exposure);
+            gl.uniform1f(_compUniforms.reflection, reflection);
+            gl.uniform1f(_compUniforms.reflExposure, reflExposure);
 
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-            // Draw WebGL canvas onto target 2D context
+            // Composite WebGL flare canvas onto 2D ctx
             ctx.save();
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
@@ -442,31 +505,48 @@
 
       // --- 2. UNIVERSAL CANVAS 2D FALLBACK ---
       const thresh = getFallbackBuf('thresh', w, h);
-      const bloomBuf = getFallbackBuf('bloom', w, h);
-      const haloBuf = getFallbackBuf('halo', w, h);
-      if (!thresh || !bloomBuf || !haloBuf) return;
+      const hazeBuf = getFallbackBuf('haze', w, h);
+      const reachBuf = getFallbackBuf('reach', w, h);
+      if (!thresh || !hazeBuf || !reachBuf) return;
 
       thresh.x.clearRect(0, 0, w, h);
       try {
         thresh.x.drawImage(el, 0, 0, w, h);
         const imgData = thresh.x.getImageData(0, 0, w, h);
         const d = imgData.data;
-        const threshVal = threshold * 255;
-        const knee = 35;
+        const threshVal = (0.88 - spillage * 0.66) * 255;
+        const knee = Math.max(10, Math.round((0.08 + spillage * 0.27) * 255));
 
-        for (let i = 0; i < d.length; i += 4) {
-          const a = d[i + 3];
-          if (a <= 3) continue;
-          const r = d[i];
-          const g = d[i + 1];
-          const b = d[i + 2];
-          const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        for (let y = 0; y < h; y++) {
+          const dyNorm = Math.abs((y / h) - 0.5) * 2.0;
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const a = d[idx + 3];
+            if (a <= 3) continue;
+            const r = d[idx];
+            const g = d[idx + 1];
+            const b = d[idx + 2];
+            const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-          if (luma < threshVal - knee) {
-            d[i + 3] = 0;
-          } else {
-            const factor = Math.min(1.0, Math.max(0.0, (luma - (threshVal - knee)) / (knee * 2)));
-            d[i + 3] = Math.round(a * factor * factor);
+            if (luma < threshVal - knee) {
+              d[idx + 3] = 0;
+            } else {
+              let factor = Math.min(1.0, Math.max(0.0, (luma - (threshVal - knee)) / (knee * 2)));
+              factor = factor * factor;
+
+              // Matte box lens hood boundary shading
+              if (matteBoxSize > 0.01 && matteBoxShade > 0.01) {
+                const dxNorm = Math.abs((x / w) - 0.5) * 2.0;
+                const edge = Math.max(dxNorm, dyNorm);
+                const boxLimit = 1.0 - matteBoxSize * 0.45;
+                if (edge > boxLimit) {
+                  const shade = 1.0 - Math.min(1.0, (edge - boxLimit) / (1.0 - boxLimit)) * matteBoxShade;
+                  factor *= shade;
+                }
+              }
+
+              d[idx + 3] = Math.round(a * factor);
+            }
           }
         }
         thresh.x.putImageData(imgData, 0, 0);
@@ -474,70 +554,63 @@
         return;
       }
 
-      // Multi-Octave Diffusion Passes
-      bloomBuf.x.clearRect(0, 0, w, h);
-      const octaves = [
-        { radius: bloomSize * 0.35, alpha: 0.55 },
-        { radius: bloomSize * 0.85, alpha: 0.35 },
-        { radius: bloomSize * 1.80, alpha: 0.20 }
-      ];
-
-      for (let i = 0; i < octaves.length; i++) {
-        const oct = octaves[i];
-        haloBuf.x.clearRect(0, 0, w, h);
-        if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
-          window.FishEffects.drawBlurred(haloBuf.x, thresh.c, w, h, oct.radius);
-        } else {
-          try {
-            haloBuf.x.filter = `blur(${oct.radius.toFixed(1)}px)`;
-            haloBuf.x.drawImage(thresh.c, 0, 0);
-          } catch (_) {}
-        }
-        bloomBuf.x.save();
-        bloomBuf.x.globalCompositeOperation = i === 0 ? 'source-over' : 'lighter';
-        bloomBuf.x.globalAlpha = oct.alpha;
-        bloomBuf.x.drawImage(haloBuf.c, 0, 0);
-        bloomBuf.x.restore();
+      // Spherical Haze Diffusion
+      hazeBuf.x.clearRect(0, 0, w, h);
+      const rad = Math.max(3, softness * 0.6);
+      if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+        window.FishEffects.drawBlurred(hazeBuf.x, thresh.c, w, h, rad);
+      } else {
+        try {
+          hazeBuf.x.filter = `blur(${rad.toFixed(1)}px)`;
+          hazeBuf.x.drawImage(thresh.c, 0, 0);
+        } catch (_) {}
       }
 
-      // Tint the diffusion bloom
-      bloomBuf.x.save();
-      bloomBuf.x.globalCompositeOperation = 'source-in';
-      bloomBuf.x.fillStyle = tintHex;
-      bloomBuf.x.fillRect(0, 0, w, h);
-      bloomBuf.x.restore();
-
-      // Film Halation Rim Bleed (tight red-orange scatter)
-      if (halation > 0.05) {
-        haloBuf.x.clearRect(0, 0, w, h);
-        const rimRad = Math.max(3, bloomSize * 0.25);
-        if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
-          window.FishEffects.drawBlurred(haloBuf.x, thresh.c, w, h, rimRad);
-        } else {
-          try {
-            haloBuf.x.filter = `blur(${rimRad.toFixed(1)}px)`;
-            haloBuf.x.drawImage(thresh.c, 0, 0);
-          } catch (_) {}
+      // Horizontal Reach Flare Stretch
+      reachBuf.x.clearRect(0, 0, w, h);
+      if (reach > 0.01) {
+        reachBuf.x.drawImage(thresh.c, 0, 0);
+        const offsets = [4, 16, 48, 120, 300];
+        const count = Math.min(offsets.length, Math.max(2, Math.round(reach * offsets.length)));
+        reachBuf.x.save();
+        reachBuf.x.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < count; i++) {
+          const off = offsets[i];
+          reachBuf.x.globalAlpha = 0.55 / (i + 1);
+          reachBuf.x.drawImage(thresh.c, -off, 0);
+          reachBuf.x.drawImage(thresh.c, off, 0);
         }
-        haloBuf.x.save();
-        haloBuf.x.globalCompositeOperation = 'source-in';
-        haloBuf.x.fillStyle = '#ff3c0e'; // 35mm film halation red-orange
-        haloBuf.x.fillRect(0, 0, w, h);
-        haloBuf.x.restore();
+        reachBuf.x.restore();
+      }
 
-        // Blend halation onto bloom buffer
-        bloomBuf.x.save();
-        bloomBuf.x.globalCompositeOperation = 'lighter';
-        bloomBuf.x.globalAlpha = halation * 1.4;
-        bloomBuf.x.drawImage(haloBuf.c, 0, 0);
-        bloomBuf.x.restore();
+      // Tint Haze Buffer
+      hazeBuf.x.save();
+      if (reach > 0.01) {
+        hazeBuf.x.globalCompositeOperation = 'lighter';
+        hazeBuf.x.globalAlpha = reach * 1.5;
+        hazeBuf.x.drawImage(reachBuf.c, 0, 0);
+      }
+      hazeBuf.x.globalCompositeOperation = 'source-in';
+      hazeBuf.x.fillStyle = tintHex;
+      hazeBuf.x.fillRect(0, 0, w, h);
+      hazeBuf.x.restore();
+
+      // Secondary inverted reflection ghost (1.0 - uv across optical center)
+      if (reflection > 0.005 && reflExposure > 0.005) {
+        hazeBuf.x.save();
+        hazeBuf.x.globalCompositeOperation = 'lighter';
+        hazeBuf.x.globalAlpha = Math.min(1.0, reflection * reflExposure);
+        hazeBuf.x.translate(w, h);
+        hazeBuf.x.scale(-1, -1);
+        hazeBuf.x.drawImage(hazeBuf.c, 0, 0);
+        hazeBuf.x.restore();
       }
 
       // Composite onto target canvas
       ctx.save();
       ctx.globalCompositeOperation = blendMode;
-      ctx.globalAlpha = Math.min(1.0, amount * 1.3);
-      try { ctx.drawImage(bloomBuf.c, bx, by, w, h); } catch (_) {}
+      ctx.globalAlpha = Math.min(1.0, exposure);
+      try { ctx.drawImage(hazeBuf.c, bx, by, w, h); } catch (_) {}
       ctx.restore();
     }
   });

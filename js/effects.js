@@ -931,8 +931,8 @@
           else if (currentChan === 'b') rawPts = fx.curveB;
           else rawPts = fx[p.id] || fx.points;
 
-          if (!rawPts) rawPts = [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]];
-          const pts = (Array.isArray(rawPts) ? rawPts : [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]])
+          if (!rawPts) rawPts = [[0, 0], [1, 1]];
+          const pts = (Array.isArray(rawPts) ? rawPts : [[0, 0], [1, 1]])
             .map(pt => Array.isArray(pt) ? [Number(pt[0]), Number(pt[1])] : [Number(pt.x || 0), Number(pt.y || 0)])
             .sort((a, b) => a[0] - b[0]);
 
@@ -941,11 +941,18 @@
             ? curveDef.buildSpline(pts)
             : function(x) { return x; };
 
+          const contrast = (fx && fx.contrast !== undefined) ? Number(fx.contrast) : 0;
+          const c = Math.max(-1, Math.min(1, contrast / 100.0));
+
           let pathD = '';
           const steps = 30;
           for (let s = 0; s <= steps; s++) {
             const u = s / steps;
-            const vy = Math.max(0, Math.min(1, spline(u)));
+            let vy = Math.max(0, Math.min(1, spline(u)));
+            if (c !== 0) {
+              vy = vy - c * 0.22 * Math.sin(Math.PI * 2 * vy);
+              vy = Math.max(0, Math.min(1, vy));
+            }
             const sx = (u * 200).toFixed(1);
             const sy = ((1.0 - vy) * 200).toFixed(1);
             pathD += (s === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`);
@@ -959,7 +966,7 @@
           const pointsMarkup = pts.map((pt, idx) => {
             const cx = (pt[0] * 200).toFixed(1);
             const cy = ((1.0 - pt[1]) * 200).toFixed(1);
-            return `<circle class="effects-curve-point" data-index="${idx}" cx="${cx}" cy="${cy}" r="6" fill="${strokeColor}"></circle>`;
+            return `<circle class="effects-curve-point" data-index="${idx}" cx="${cx}" cy="${cy}" r="5.5" fill="${strokeColor}"></circle>`;
           }).join('');
 
           controlsHTMLArr.push(`
@@ -972,15 +979,11 @@
                     <button type="button" class="effects-curve-chan-btn ${currentChan === 'g' ? 'is-active' : ''}" data-channel="g" title="Green Channel">G</button>
                     <button type="button" class="effects-curve-chan-btn ${currentChan === 'b' ? 'is-active' : ''}" data-channel="b" title="Blue Channel">B</button>
                   </div>
-                  <div class="effects-curve-presets-wrap">
-                    <select class="effects-curve-presets-select" data-effect-id="${fx.id}" title="Curve Presets">
-                      <option value="" disabled selected>Presets</option>
-                      <option value="linear">Linear</option>
-                      <option value="s_curve">S-Curve</option>
-                      <option value="hard_contrast">Hard Contrast</option>
-                      <option value="lift_blacks">Lift Blacks</option>
-                      <option value="invert">Invert</option>
-                    </select>
+                  <div class="effects-curve-presets-bar">
+                    <button type="button" class="effects-curve-preset-pill" data-preset="s_curve" title="Smooth S-Curve Contrast">S-Curve</button>
+                    <button type="button" class="effects-curve-preset-pill" data-preset="hard_contrast" title="Hard Contrast S-Curve">Hard S</button>
+                    <button type="button" class="effects-curve-preset-pill" data-preset="lift_blacks" title="Lifted Blacks Film Tone">Film</button>
+                    <button type="button" class="effects-curve-preset-pill" data-preset="linear" title="Reset to Flat Linear">Linear</button>
                   </div>
                 </div>
 
@@ -1000,7 +1003,10 @@
 
                 <div class="effects-curve-footer">
                   <span class="effects-curve-coord" data-effect-id="${fx.id}">In: 128 | Out: 128</span>
-                  <button type="button" class="effects-curve-reset-btn" data-effect-id="${fx.id}" title="Reset Curve to Linear">Reset</button>
+                  <div class="effects-curve-footer-actions">
+                    <span class="effects-curve-tip">Double-click point to delete</span>
+                    <button type="button" class="effects-curve-reset-btn" data-effect-id="${fx.id}" title="Reset Curve to Linear">Reset</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1240,11 +1246,11 @@
 
       const curveDef = FishEffectsRegistry.get('curve');
       const presets = (curveDef && curveDef.presets) || {
-        linear: [[0, 0], [0.25, 0.25], [0.5, 0.5], [0.75, 0.75], [1, 1]],
-        s_curve: [[0, 0], [0.25, 0.18], [0.5, 0.5], [0.75, 0.82], [1, 1]],
-        hard_contrast: [[0, 0], [0.25, 0.12], [0.5, 0.5], [0.75, 0.88], [1, 1]],
-        lift_blacks: [[0, 0.12], [0.25, 0.28], [0.5, 0.5], [0.75, 0.75], [1, 1]],
-        invert: [[0, 1], [0.25, 0.75], [0.5, 0.5], [0.75, 0.25], [1, 0]]
+        linear: [[0, 0], [1, 1]],
+        s_curve: [[0, 0], [0.25, 0.18], [0.75, 0.82], [1, 1]],
+        hard_contrast: [[0, 0], [0.25, 0.10], [0.5, 0.5], [0.75, 0.90], [1, 1]],
+        lift_blacks: [[0, 0.14], [0.25, 0.28], [0.75, 0.82], [1, 0.96]],
+        invert: [[0, 1], [1, 0]]
       };
 
       function getCurrentPoints() {
@@ -1278,11 +1284,18 @@
           ? curveDef.buildSpline(pts)
           : function(x) { return x; };
 
+        const contrast = (fx && fx.contrast !== undefined) ? Number(fx.contrast) : 0;
+        const c = Math.max(-1, Math.min(1, contrast / 100.0));
+
         let pathD = '';
         const steps = 30;
         for (let s = 0; s <= steps; s++) {
           const u = s / steps;
-          const vy = Math.max(0, Math.min(1, spline(u)));
+          let vy = Math.max(0, Math.min(1, spline(u)));
+          if (c !== 0) {
+            vy = vy - c * 0.22 * Math.sin(Math.PI * 2 * vy);
+            vy = Math.max(0, Math.min(1, vy));
+          }
           const sx = (u * 200).toFixed(1);
           const sy = ((1.0 - vy) * 200).toFixed(1);
           pathD += (s === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`);
@@ -1309,11 +1322,25 @@
           circle.setAttribute('data-index', idx);
           circle.setAttribute('cx', (pt[0] * 200).toFixed(1));
           circle.setAttribute('cy', ((1.0 - pt[1]) * 200).toFixed(1));
-          circle.setAttribute('r', '6');
+          circle.setAttribute('r', '5.5');
           circle.setAttribute('fill', strokeColor);
           svg.appendChild(circle);
         });
+
+        // Highlight matching preset button
+        widget.querySelectorAll('.effects-curve-preset-pill').forEach(pill => {
+          const pName = pill.dataset.preset;
+          const targetPts = presets[pName];
+          if (targetPts && targetPts.length === pts.length) {
+            const matches = targetPts.every((tp, i) => Math.abs(tp[0] - pts[i][0]) < 0.02 && Math.abs(tp[1] - pts[i][1]) < 0.02);
+            pill.classList.toggle('is-active', matches);
+          } else {
+            pill.classList.remove('is-active');
+          }
+        });
       }
+
+      widget._updateCurveSVG = updateSVG;
 
       // Channel Buttons
       widget.querySelectorAll('.effects-curve-chan-btn').forEach(btn => {
@@ -1328,12 +1355,11 @@
         });
       });
 
-      // Presets Dropdown
-      const presetsSel = widget.querySelector('.effects-curve-presets-select');
-      if (presetsSel) {
-        presetsSel.addEventListener('change', (e) => {
+      // Preset Pills
+      widget.querySelectorAll('.effects-curve-preset-pill').forEach(pill => {
+        pill.addEventListener('click', (e) => {
           e.stopPropagation();
-          const pName = presetsSel.value;
+          const pName = pill.dataset.preset;
           if (presets[pName]) {
             setCurrentPoints(JSON.parse(JSON.stringify(presets[pName])));
             updateSVG();
@@ -1341,9 +1367,8 @@
             if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-preset');
             if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
           }
-          presetsSel.value = '';
         });
-      }
+      });
 
       // Reset Button
       const resetBtn = widget.querySelector('.effects-curve-reset-btn');
@@ -1351,6 +1376,13 @@
         resetBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           setCurrentPoints(JSON.parse(JSON.stringify(presets.linear)));
+          if (fx.contrast !== undefined) {
+            fx.contrast = 0;
+            const track = card.querySelector('.fx-track-contrast');
+            const badge = card.querySelector('.fx-badge-contrast');
+            if (track) track.style.width = '50%';
+            if (badge) badge.textContent = '0%';
+          }
           updateSVG();
           if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
           if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-reset');
@@ -1401,10 +1433,10 @@
               closestIdx = i;
             }
           });
-          if (minDist < 0.10) {
+          if (minDist < 0.16) {
             activePointIdx = closestIdx;
-          } else if (pts.length < 12 && nx > 0.02 && nx < 0.98) {
-            // Click empty area to add a new point
+          } else if (pts.length < 5 && nx > 0.04 && nx < 0.96) {
+            // Click empty area to add a new point (max 5 points)
             pts.push([Number(nx.toFixed(3)), Number(ny.toFixed(3))]);
             pts.sort((a, b) => a[0] - b[0]);
             setCurrentPoints(pts);
@@ -1412,6 +1444,8 @@
             updateSVG();
             if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
             if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-add-point');
+          } else {
+            activePointIdx = closestIdx;
           }
         }
 
@@ -1433,8 +1467,8 @@
             } else if (activePointIdx === curPts.length - 1) {
               x = 1;
             } else {
-              const prevX = (curPts[activePointIdx - 1] ? curPts[activePointIdx - 1][0] : 0) + 0.015;
-              const nextX = (curPts[activePointIdx + 1] ? curPts[activePointIdx + 1][0] : 1) - 0.015;
+              const prevX = (curPts[activePointIdx - 1] ? curPts[activePointIdx - 1][0] : 0) + 0.02;
+              const nextX = (curPts[activePointIdx + 1] ? curPts[activePointIdx + 1][0] : 1) - 0.02;
               x = Math.max(prevX, Math.min(nextX, x));
             }
 

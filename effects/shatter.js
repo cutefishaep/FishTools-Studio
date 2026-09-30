@@ -450,19 +450,19 @@
     icon: 'assets/FXPH.svg',
     description: 'Hardware WebGL 3D glass shatter explosion with true perspective projection, realistic radial glass cracks, specular glints, and thickness extrusion',
     params: [
-      { id: 'progress', label: 'Progress', type: 'number', min: 0, max: 100, default: 20, unit: '%' },
-      { id: 'autoAnimate', label: 'Auto Animate', type: 'switch', default: 0 },
-      { id: 'duration', label: 'Explosion Duration', type: 'number', min: 0.2, max: 10, default: 2.0, unit: 's' },
-      { id: 'force', label: 'Explosion Force', type: 'number', min: 10, max: 1000, default: 350 },
-      { id: 'pieces', label: 'Glass Pieces', type: 'number', min: 12, max: 120, default: 48 },
-      { id: 'thickness', label: 'Glass Thickness', type: 'number', min: 0, max: 50, default: 12, unit: 'px' },
-      { id: 'spin', label: 'Tumble / Spin', type: 'number', min: 0, max: 300, default: 140 },
+      { id: 'progress', label: 'Progress', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
+      { id: 'autoAnimate', label: 'Auto Animate', type: 'switch', default: 1 },
+      { id: 'duration', label: 'Explosion Duration', type: 'number', min: 0.2, max: 10, default: 6.0, unit: 's' },
+      { id: 'force', label: 'Explosion Force', type: 'number', min: 10, max: 1000, default: 162 },
+      { id: 'pieces', label: 'Glass Pieces', type: 'number', min: 12, max: 120, default: 58 },
+      { id: 'thickness', label: 'Glass Thickness', type: 'number', min: 0, max: 50, default: 0, unit: 'px' },
+      { id: 'spin', label: 'Tumble / Spin', type: 'number', min: 0, max: 300, default: 65 },
       { id: 'gravity', label: 'Gravity', type: 'number', min: -200, max: 400, default: 80 },
-      { id: 'glint', label: 'Glass Shine', type: 'number', min: 0, max: 100, default: 75, unit: '%' },
+      { id: 'glint', label: 'Glass Shine', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
       { id: 'originX', label: 'Impact X', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
       { id: 'originY', label: 'Impact Y', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
       { id: 'pattern', label: 'Pattern', type: 'select', options: ['glass', 'hexagons'], default: 'glass' },
-      { id: 'motionBlur', label: 'Motion Blur', type: 'number', min: 0, max: 100, default: 60, unit: '%' },
+      { id: 'motionBlur', label: 'Motion Blur', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
       { id: 'easing', label: 'Easing', type: 'select', options: ['ease-out', 'linear', 'ease-in-out'], default: 'ease-out' }
     ],
     render(ctx, el, layer, bounds, fx, currentSec) {
@@ -476,11 +476,11 @@
       const elH = el.videoHeight || el.naturalHeight || el.height || 0;
       if (elW <= 0 || elH <= 0) return;
 
-      let prog = Math.max(0, Math.min(100, fx.progress !== undefined ? fx.progress : 20)) / 100;
-      if (fx.autoAnimate === 1 || fx.autoAnimate === true) {
+      let prog = Math.max(0, Math.min(100, fx.progress !== undefined ? fx.progress : 0)) / 100;
+      if (fx.autoAnimate === 1 || fx.autoAnimate === true || fx.autoAnimate === undefined) {
         const curTime = getCurrentTime(layer, currentSec);
         const start = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
-        const dur = Math.max(0.2, fx.duration || 2.0);
+        const dur = Math.max(0.2, fx.duration !== undefined ? fx.duration : 6.0);
         prog = Math.max(0, Math.min(1.0, (curTime - start) / dur));
       }
 
@@ -507,16 +507,16 @@
         return;
       }
 
-      const force = Math.max(0, fx.force !== undefined ? Number(fx.force) : 350);
-      const pieces = Math.max(12, Math.min(120, Math.round(fx.pieces !== undefined ? Number(fx.pieces) : 48)));
-      const thickness = Math.max(0, (fx.thickness !== undefined ? Number(fx.thickness) : (fx.extrusion !== undefined ? Number(fx.extrusion) : 12)));
-      const spin = Math.max(0, fx.spin !== undefined ? Number(fx.spin) : 140);
+      const force = Math.max(0, fx.force !== undefined ? Number(fx.force) : 162);
+      const pieces = Math.max(12, Math.min(120, Math.round(fx.pieces !== undefined ? Number(fx.pieces) : 58)));
+      const thickness = Math.max(0, (fx.thickness !== undefined ? Number(fx.thickness) : (fx.extrusion !== undefined ? Number(fx.extrusion) : 0)));
+      const spin = Math.max(0, fx.spin !== undefined ? Number(fx.spin) : 65);
       const gravity = (fx.gravity !== undefined ? Number(fx.gravity) : 80) / 100;
-      const glint = Math.max(0, Math.min(100, fx.glint !== undefined ? Number(fx.glint) : 75));
+      const glint = Math.max(0, Math.min(100, fx.glint !== undefined ? Number(fx.glint) : 0));
       const oxPercent = fx.originX !== undefined ? Number(fx.originX) : 0;
       const oyPercent = fx.originY !== undefined ? Number(fx.originY) : 0;
       const pattern = fx.pattern || 'glass';
-      const motionBlur = Math.max(0, Math.min(100, fx.motionBlur !== undefined ? Number(fx.motionBlur) : 60)) / 100;
+      const motionBlur = Math.max(0, Math.min(100, fx.motionBlur !== undefined ? Number(fx.motionBlur) : 0)) / 100;
 
       // Motion blur: number of temporal sub-samples and time spread
       // More samples = smoother blur but heavier; 1 sample = no blur

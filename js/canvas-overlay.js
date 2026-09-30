@@ -135,10 +135,24 @@
       ctx.restore();
     },
 
+    _getProjectBaseDims(fallbackW, fallbackH) {
+      const proj = window.currentProjectState || {};
+      const aspect = proj.aspectRatio || '16:9';
+      const res = proj.resolution || '1080p';
+      let baseDims = (window.resMap && window.resMap[res] && window.resMap[res][aspect]) || [1920, 1080];
+      if (window.currentActivePrecomp) {
+        const cw = Math.round(Math.abs(window.currentActivePrecomp.mediaWidth || window.currentActivePrecomp.scaleW || baseDims[0]));
+        const ch = Math.round(Math.abs(window.currentActivePrecomp.mediaHeight || window.currentActivePrecomp.scaleH || baseDims[1]));
+        baseDims = [cw, ch];
+      }
+      const baseW = proj._baseW || proj.width || baseDims[0] || fallbackW;
+      const baseH = proj._baseH || proj.height || baseDims[1] || fallbackH;
+      return { baseW, baseH };
+    },
+
     _drawSnapGuides(ctx, w, h) {
       if (!window.activeSnapGuides) return;
-      const baseW = (window.currentProjectState && window.currentProjectState._baseW) || w;
-      const baseH = (window.currentProjectState && window.currentProjectState._baseH) || h;
+      const { baseW, baseH } = this._getProjectBaseDims(w, h);
       const themePrimary = this._getThemeColors().primary;
 
       ctx.save();
@@ -171,14 +185,15 @@
       if (!window.CanvasWireframe || typeof window.CanvasWireframe.drawMotionPath !== 'function') return;
 
       const colors = this._getThemeColors();
-      const bufferScale = (window._lastBufferScale) || 1;
+      const { baseW, baseH } = this._getProjectBaseDims(w, h);
+      const bufferScale = (window._lastBufferScale) || (w / (baseW || 1920));
       const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
       const currentSec = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : 0;
 
       window.CanvasWireframe.drawMotionPath(ctx, selectedLayer, {
         bufferScale,
-        baseW: w,
-        baseH: h,
+        baseW,
+        baseH,
         fps,
         currentSec,
         color: colors.primary,

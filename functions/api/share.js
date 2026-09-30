@@ -108,33 +108,62 @@ export async function onRequestPost(context) {
     const safeFilename = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) + '.ofts';
     catboxForm.append('fileToUpload', file, safeFilename);
 
-    let catboxRes;
+    let catboxRes = null;
+    let catboxUrl = '';
     try {
       catboxRes = await fetch('https://catbox.moe/user/api.php', {
         method: 'POST',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        },
         body: catboxForm,
+        headers: {
+          'User-Agent': 'FishTools-Studio/1.0 (WebMotionEditor)'
+        },
         signal: AbortSignal.timeout(15000)
       });
-    } catch (netErr) {
-      return new Response(JSON.stringify({ error: 'Storage provider unavailable or timed out. Please try again.' }), {
-        status: 504,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
+      if (catboxRes && catboxRes.ok) {
+        const text = (await catboxRes.text()).trim();
+        if (text.startsWith('https://files.catbox.moe/')) {
+          catboxUrl = text;
+        }
+      }
+    } catch (_) {}
 
-    if (!catboxRes.ok) {
-      return new Response(JSON.stringify({ error: `Storage provider error (${catboxRes.status}). Please try again later.` }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
+    // Fallback: If Catbox blocks or returns 412/520, store project package directly in KV if <= 10MB
+    if (!catboxUrl) {
+      if (kv && file.size <= 10 * 1024 * 1024) {
+        const fileBuffer = await file.arrayBuffer();
+        const base64Data = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+        const fallbackId = generateSecureShortId();
+        const fallbackRecord = {
+          id: fallbackId,
+          name: sanitizedName,
+          specs: sanitizedSpecs,
+          size: sanitizedSize,
+          aspectRatio: sanitizedAspect,
+          thumbnail: sanitizedThumbnail,
+          dataBase64: base64Data,
+          fileUrl: `${new URL(context.request.url).origin}/api/project?id=${fallbackId}&download=1`,
+          createdAt: Date.now()
+        };
+        await kv.put(fallbackId, JSON.stringify(fallbackRecord));
+        const origin = new URL(context.request.url).origin;
+        return new Response(JSON.stringify({
+          success: true,
+          id: fallbackId,
+          shareUrl: `${origin}/${fallbackId}`,
+          catboxUrl: fallbackRecord.fileUrl,
+          record: fallbackRecord
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'X-Content-Type-Options': 'nosniff'
+          }
+        });
+      }
 
-    const catboxUrl = (await catboxRes.text()).trim();
-    if (!catboxUrl.startsWith('https://files.catbox.moe/')) {
-      return new Response(JSON.stringify({ error: 'Storage provider error: ' + catboxUrl }), {
+      const status = catboxRes ? catboxRes.status : 502;
+      return new Response(JSON.stringify({ error: `Storage provider error (${status}). Please try again later.` }), {
         status: 502,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

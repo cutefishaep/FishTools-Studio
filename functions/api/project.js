@@ -41,13 +41,34 @@ export async function onRequestGet(context) {
       }
     }
 
-    if (!record || !record.fileUrl) {
+    if (!record || (!record.fileUrl && !record.dataBase64)) {
       return new Response(JSON.stringify({ success: false, error: 'Project Not Found' }), {
         status: 404,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
           'X-Content-Type-Options': 'nosniff'
+        }
+      });
+    }
+
+    // Direct KV base64 file download mode
+    if (isDownload && record.dataBase64) {
+      const binaryString = atob(record.dataBase64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const safeFilename = String(record.name || 'Project').slice(0, 60).replace(/[^a-zA-Z0-9_\-]/g, '_') + '.ofts';
+      return new Response(bytes.buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${safeFilename}"`,
+          'Content-Length': String(bytes.byteLength),
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400, immutable'
         }
       });
     }

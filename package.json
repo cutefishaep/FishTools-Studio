@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
+    "build": "node scripts/sync-effects.js",
     "tunnel": "node server.js --tunnel",
     "bump": "node scripts/sync-version.js",
     "version:sync": "node scripts/sync-version.js",

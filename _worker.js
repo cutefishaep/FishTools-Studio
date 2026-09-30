@@ -76,22 +76,22 @@ export default {
 
         if (project) {
           const origin = url.origin;
-          const projectName = (project.name || 'Untitled Preset').replace(/["<>]/g, '');
-          const specs = (project.specs || '1080p • 60 fps').replace(/["<>]/g, '');
+          const projectName = (project.name || 'Untitled Project').replace(/["<>]/g, '');
+          const specs = (project.specs || '').replace(/["<>]/g, '');
           const size = (project.size || '').replace(/["<>]/g, '');
-          const aspect = (project.aspectRatio || '16:9').replace(/["<>]/g, '');
-          const desc = `${specs} • ${size} • ${aspect} — Motion Graphics Preset di OpenFishTools Studio`;
+          const aspect = (project.aspectRatio || '').replace(/["<>]/g, '');
+          const desc = [specs, size, aspect].filter(Boolean).join(' • ');
           const thumbUrl = `${origin}/api/project?id=${cleanPath}&thumb=1`;
           const shareUrl = `${origin}/${cleanPath}`;
 
           const ogTags = `
-    <!-- Dynamic OpenGraph & Twitter Card Tags for WhatsApp, Telegram, Discord, etc. -->
-    <title>${projectName} — OpenFishTools Studio</title>
+    <!-- Essential OpenGraph Metadata -->
+    <title>${projectName}</title>
     <meta name="description" content="${desc}">
     <meta property="og:site_name" content="OpenFishTools Studio">
     <meta property="og:type" content="website">
     <meta property="og:url" content="${shareUrl}">
-    <meta property="og:title" content="${projectName} • Preset">
+    <meta property="og:title" content="${projectName}">
     <meta property="og:description" content="${desc}">
     <meta property="og:image" content="${thumbUrl}">
     <meta property="og:image:secure_url" content="${thumbUrl}">

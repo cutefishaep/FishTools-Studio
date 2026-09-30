@@ -3349,3 +3349,29 @@
   }
 }
 
+/* Universal Toast Notification */
+.editor-toast,
+.dashboard-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  font-family: var(--font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 102000;
+}
+
+.editor-toast.is-visible,
+.dashboard-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+

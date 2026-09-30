@@ -31421,6 +31421,24 @@
         });
       }
 
+      // Editor Toast Notification
+      let _editorToastTimer = null;
+      function showEditorToast(text, duration = 2200) {
+        let toast = document.querySelector('.editor-toast');
+        if (!toast) {
+          toast = document.createElement('div');
+          toast.className = 'editor-toast';
+          document.body.appendChild(toast);
+        }
+        toast.textContent = text;
+        toast.classList.add('is-visible');
+        if (_editorToastTimer) clearTimeout(_editorToastTimer);
+        _editorToastTimer = setTimeout(() => {
+          toast.classList.remove('is-visible');
+        }, duration);
+      }
+      window.showEditorToast = showEditorToast;
+
       // QR Copy button
       const _qrCopyBtn = document.getElementById('qr-btn-copy');
       if (_qrCopyBtn) {
@@ -31430,8 +31448,19 @@
               await navigator.clipboard.writeText(_qrShareUrl);
               const origTitle = _qrCopyBtn.title;
               _qrCopyBtn.title = 'Copied!';
+              showEditorToast('Link copied to clipboard!');
               setTimeout(() => { _qrCopyBtn.title = origTitle; }, 1800);
-            } catch (_) {}
+            } catch (_) {
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = _qrShareUrl;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showEditorToast('Link copied to clipboard!');
+              } catch (_) {}
+            }
           }
         });
       }

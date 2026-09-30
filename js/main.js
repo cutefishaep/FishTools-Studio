@@ -1377,6 +1377,7 @@ document.addEventListener('DOMContentLoaded', () => {
           await navigator.clipboard.writeText(input.value);
           const orig = btnIndexCopy.textContent;
           btnIndexCopy.textContent = 'Copied!';
+          showDashboardToast('Link copied to clipboard!');
           setTimeout(() => { btnIndexCopy.textContent = orig; }, 1800);
         } catch (_) {}
       }

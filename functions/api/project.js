@@ -15,6 +15,7 @@ export async function onRequestGet(context) {
     const url = new URL(context.request.url);
     const rawId = url.searchParams.get('id');
     const isDownload = url.searchParams.get('download') === '1';
+    const isThumb = url.searchParams.get('thumb') === '1' || url.searchParams.get('thumbnail') === '1';
 
     if (!rawId || typeof rawId !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing or invalid project id' }), {
@@ -50,6 +51,36 @@ export async function onRequestGet(context) {
           'X-Content-Type-Options': 'nosniff'
         }
       });
+    }
+
+    // Direct thumbnail serving for OpenGraph / social preview
+    if (isThumb) {
+      if (record.thumbnail && typeof record.thumbnail === 'string') {
+        const match = record.thumbnail.match(/^data:(image\/[a-zA-Z0-9\+\-]+);base64,(.+)$/);
+        if (match) {
+          const mime = match[1];
+          const b64 = match[2];
+          let bytes;
+          if (typeof Buffer !== 'undefined') {
+            bytes = Buffer.from(b64, 'base64');
+          } else {
+            const binaryString = atob(b64);
+            bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+          }
+          return new Response(bytes.buffer || bytes, {
+            status: 200,
+            headers: {
+              'Content-Type': mime,
+              'Cache-Control': 'public, max-age=86400, immutable',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      }
+      return Response.redirect(`${url.origin}/assets/icon-192.png`, 302);
     }
 
     // Direct KV base64 file mode (download or metadata)

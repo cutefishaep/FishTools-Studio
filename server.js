@@ -516,6 +516,27 @@ function handleRequest(req, res) {
           return;
         }
 
+        const isThumb = parsedUrl.searchParams.get('thumb') === '1' || parsedUrl.searchParams.get('thumbnail') === '1';
+        if (isThumb) {
+          if (record.thumbnail && typeof record.thumbnail === 'string') {
+            const match = record.thumbnail.match(/^data:(image\/[a-zA-Z0-9\+\-]+);base64,(.+)$/);
+            if (match) {
+              const mime = match[1];
+              const buf = Buffer.from(match[2], 'base64');
+              res.writeHead(200, {
+                'Content-Type': mime,
+                'Cache-Control': 'public, max-age=86400',
+                'Access-Control-Allow-Origin': '*'
+              });
+              res.end(buf);
+              return;
+            }
+          }
+          res.writeHead(302, { 'Location': '/assets/icon-192.png' });
+          res.end();
+          return;
+        }
+
         let isCatbox = false;
         let isLocal = false;
 

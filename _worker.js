@@ -58,13 +58,62 @@ export default {
         return assets.fetch(new Request(new URL('/demo.html', request.url), request));
       }
 
-      // 5. Shortlink support: e.g. /1, /project-id -> /index.html (served via / to avoid 307 redirect)
+      // 5. Shortlink support: e.g. /1, /project-id -> /index.html with dynamic OpenGraph meta tags
       const cleanPath = pathname.replace(/^\/+|\/+$/g, '');
       if (/^[a-zA-Z0-9_-]+$/.test(cleanPath) && !cleanPath.includes('.') && cleanPath !== 'api') {
         const indexRes = await assets.fetch(new Request(new URL('/', request.url), request));
-        return new Response(indexRes.body, {
+        let html = await indexRes.text();
+
+        // Fetch project metadata from KV to inject rich social preview tags
+        const kv = env.PROJECTS_KV;
+        let project = null;
+        if (kv) {
+          try {
+            const raw = await kv.get(cleanPath);
+            if (raw) project = JSON.parse(raw);
+          } catch (_) {}
+        }
+
+        if (project) {
+          const origin = url.origin;
+          const projectName = (project.name || 'Untitled Preset').replace(/["<>]/g, '');
+          const specs = (project.specs || '1080p • 60 fps').replace(/["<>]/g, '');
+          const size = (project.size || '').replace(/["<>]/g, '');
+          const aspect = (project.aspectRatio || '16:9').replace(/["<>]/g, '');
+          const desc = `${specs} • ${size} • ${aspect} — Motion Graphics Preset di OpenFishTools Studio`;
+          const thumbUrl = `${origin}/api/project?id=${cleanPath}&thumb=1`;
+          const shareUrl = `${origin}/${cleanPath}`;
+
+          const ogTags = `
+    <!-- Dynamic OpenGraph & Twitter Card Tags for WhatsApp, Telegram, Discord, etc. -->
+    <title>${projectName} — OpenFishTools Studio</title>
+    <meta name="description" content="${desc}">
+    <meta property="og:site_name" content="OpenFishTools Studio">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${shareUrl}">
+    <meta property="og:title" content="${projectName} • Preset">
+    <meta property="og:description" content="${desc}">
+    <meta property="og:image" content="${thumbUrl}">
+    <meta property="og:image:secure_url" content="${thumbUrl}">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="600">
+    <meta property="og:image:height" content="600">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${projectName}">
+    <meta name="twitter:description" content="${desc}">
+    <meta name="twitter:image" content="${thumbUrl}">
+`;
+
+          html = html.replace(/<title>.*?<\/title>/i, '');
+          html = html.replace('<head>', `<head>${ogTags}`);
+        }
+
+        return new Response(html, {
           status: 200,
-          headers: indexRes.headers
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=60'
+          }
         });
       }
 

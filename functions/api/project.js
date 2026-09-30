@@ -52,23 +52,44 @@ export async function onRequestGet(context) {
       });
     }
 
-    // Direct KV base64 file download mode
-    if (isDownload && record.dataBase64) {
-      const binaryString = atob(record.dataBase64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+    // Direct KV base64 file mode (download or metadata)
+    if (record.dataBase64) {
+      if (isDownload) {
+        let bytes;
+        if (typeof Buffer !== 'undefined') {
+          bytes = Buffer.from(record.dataBase64, 'base64');
+        } else {
+          const binaryString = atob(record.dataBase64);
+          const len = binaryString.length;
+          bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+        }
+        const safeFilename = String(record.name || 'Project').slice(0, 60).replace(/[^a-zA-Z0-9_\-]/g, '_') + '.ofts';
+        return new Response(bytes.buffer || bytes, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${safeFilename}"`,
+            'Content-Length': String(bytes.byteLength),
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=86400, immutable'
+          }
+        });
       }
-      const safeFilename = String(record.name || 'Project').slice(0, 60).replace(/[^a-zA-Z0-9_\-]/g, '_') + '.ofts';
-      return new Response(bytes.buffer, {
+
+      // Return clean metadata without bulky base64 payload
+      const { dataBase64, ...cleanMeta } = record;
+      return new Response(JSON.stringify({
+        success: true,
+        project: cleanMeta
+      }), {
         status: 200,
         headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${safeFilename}"`,
-          'Content-Length': String(bytes.byteLength),
+          'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=86400, immutable'
+          'X-Content-Type-Options': 'nosniff'
         }
       });
     }

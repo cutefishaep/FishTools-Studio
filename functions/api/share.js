@@ -22,6 +22,20 @@ function generateSecureShortId() {
   return id;
 }
 
+function arrayBufferToBase64(buffer) {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(buffer).toString('base64');
+  }
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  const chunkSize = 32768;
+  for (let i = 0; i < len; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, len)));
+  }
+  return btoa(binary);
+}
+
 export async function onRequestPost(context) {
   try {
     const clientIp = context.request.headers.get('CF-Connecting-IP') || 'anonymous';
@@ -106,7 +120,8 @@ export async function onRequestPost(context) {
     const catboxForm = new FormData();
     catboxForm.append('reqtype', 'fileupload');
     const safeFilename = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) + '.ofts';
-    catboxForm.append('fileToUpload', file, safeFilename);
+    const fileBuffer = await file.arrayBuffer();
+    catboxForm.append('fileToUpload', new Blob([fileBuffer], { type: 'application/octet-stream' }), safeFilename);
 
     let catboxRes = null;
     let catboxUrl = '';
@@ -115,7 +130,7 @@ export async function onRequestPost(context) {
         method: 'POST',
         body: catboxForm,
         headers: {
-          'User-Agent': 'FishTools-Studio/1.0 (WebMotionEditor)'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
         },
         signal: AbortSignal.timeout(15000)
       });
@@ -130,8 +145,7 @@ export async function onRequestPost(context) {
     // Fallback: If Catbox blocks or returns 412/520, store project package directly in KV if <= 10MB
     if (!catboxUrl) {
       if (kv && file.size <= 10 * 1024 * 1024) {
-        const fileBuffer = await file.arrayBuffer();
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+        const base64Data = arrayBufferToBase64(fileBuffer);
         const fallbackId = generateSecureShortId();
         const fallbackRecord = {
           id: fallbackId,
@@ -213,7 +227,8 @@ export async function onRequestPost(context) {
       }
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+    console.error('[Share Post Error]', err);
+    return new Response(JSON.stringify({ error: (err && err.message) || 'Internal Server Error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });

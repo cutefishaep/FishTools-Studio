@@ -2252,10 +2252,11 @@ window.FishDatabase = (function () {
     if (typeof document === 'undefined') return;
     var modal = document.getElementById('modal-ofts-progress');
     if (!modal) return;
-    if (window.Modal && window.Modal.activeModal === modal && typeof window.Modal.close === 'function') {
-      window.Modal.close();
-    } else {
-      modal.classList.remove('is-active');
+    modal.classList.remove('is-active');
+    if (window.Modal) {
+      if (window.Modal.activeModal === modal) {
+        window.Modal.close(false);
+      }
     }
   }
 

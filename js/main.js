@@ -2085,6 +2085,13 @@ async function openDashboardQRModal(record) {
 
 // Bind QR backdrop controls on dashboard
 document.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('popstate', () => {
+    const backdrop = document.getElementById('qr-share-backdrop');
+    if (backdrop && backdrop.classList.contains('is-active')) {
+      backdrop.classList.remove('is-active');
+    }
+  });
+
   const qrCloseBtn = document.getElementById('qr-btn-close');
   if (qrCloseBtn) {
     qrCloseBtn.addEventListener('click', () => {

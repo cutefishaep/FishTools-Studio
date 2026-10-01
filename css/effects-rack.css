@@ -96,6 +96,43 @@
   position: relative;
 }
 
+.btn-effects-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  background-color: var(--bg-panel-inner);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
+}
+
+.btn-effects-header-action:hover {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+}
+
+.btn-effects-header-action:active {
+  transform: scale(0.96);
+}
+
+.btn-effects-header-action svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
 /* 3. Small "Add Effects" Button (Compact Pill / Action Button) */
 .btn-add-effect {
   display: inline-flex;

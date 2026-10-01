@@ -473,6 +473,12 @@
                       </svg>
                       <span class="category-label">Text</span>
                     </button>
+                    <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="element" title="Element Gallery (Saved Layers)" aria-label="Element">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
+                      </svg>
+                      <span class="category-label">Element</span>
+                    </button>
                   </div>
 
                   <!-- 2. Bottom Media Pool Area -->
@@ -617,6 +623,16 @@
                   <div class="add-layer-text-panel" id="add-layer-text-panel" style="display: none; width: 100%; padding: 4px 0;">
                     <div class="drawer-text-preset-grid" id="drawer-text-preset-grid">
                       <!-- Dynamically rendered via FishTextEngine -->
+                    </div>
+                  </div>
+
+                  <!-- 6. Category Panel: Element Gallery (Saved Layer Templates) -->
+                  <div class="add-layer-element-panel" id="add-layer-element-panel" style="display: none; width: 100%; padding: 4px 0;">
+                    <div class="drawer-element-gallery-controls">
+                      <input type="text" class="element-gallery-search-input" id="drawer-element-search-input" placeholder="Search saved elements..." />
+                    </div>
+                    <div class="drawer-element-preset-grid" id="drawer-element-preset-grid">
+                      <!-- Dynamically rendered saved elements -->
                     </div>
                   </div>
                 </div>
@@ -1323,6 +1339,18 @@
                       <header class="effects-rack-header">
                         <span class="effects-rack-title">Effects</span>
                         <div class="effects-rack-header-right">
+                          <button type="button" class="btn-effects-header-action" id="btn-effects-presets" title="Preset Gallery" aria-label="Preset Gallery">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+                            </svg>
+                            <span>Presets</span>
+                          </button>
+                          <button type="button" class="btn-effects-header-action" id="btn-effects-save-preset" title="Save Current Effects as Preset" aria-label="Save Preset">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                              <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                            </svg>
+                            <span>Save</span>
+                          </button>
                           <button type="button" class="btn-add-effect" id="btn-add-effect" title="Add Effects" aria-label="Add Effects">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                               <path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/>
@@ -3013,6 +3041,11 @@
         <span class="context-menu-shortcut">Ctrl+G</span>
       </button>
 
+      <!-- 5. Save as Element -->
+      <button type="button" class="popover-menu-item" id="popover-btn-save-element" title="Save Layer as Element Template">
+        <span id="popover-label-save-element">Save as Element</span>
+      </button>
+
       <!-- Audio Divider -->
       <div class="popover-menu-divider" id="popover-layer-audio-divider"></div>
 
@@ -3675,6 +3708,128 @@
         <div class="quick-effects-hint"><kbd class="quick-effects-kbd">↵</kbd> add effect</div>
         <div class="quick-effects-hint"><kbd class="quick-effects-kbd">esc</kbd> dismiss</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR POP-UP: EFFECT PRESET GALLERY MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-effect-presets" role="dialog" aria-modal="true" aria-label="Effect Preset Gallery">
+    <div class="modal-card preset-gallery-modal-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <div class="preset-gallery-header-left">
+          <div class="modal-header-icon-wrap" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+            </svg>
+          </div>
+          <h3 class="modal-title">Preset Gallery</h3>
+        </div>
+        <div class="preset-gallery-header-right">
+          <button type="button" class="studio-top-btn" id="btn-export-all-presets" title="Export Presets JSON">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Export</span>
+          </button>
+          <label class="studio-top-btn" style="cursor: pointer;" title="Import Presets JSON">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"/></svg>
+            <span>Import</span>
+            <input type="file" id="input-import-presets" accept=".json,.fishpreset" style="display: none;" />
+          </label>
+          <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-effect-presets')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="preset-gallery-filter-bar">
+        <div class="preset-gallery-search-wrap">
+          <svg class="preset-search-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+          <input type="text" class="preset-search-input" id="preset-search-input" placeholder="Search presets..." autocomplete="off" />
+        </div>
+        <div class="preset-category-pills" id="preset-category-pills">
+          <button type="button" class="preset-category-pill is-active" data-cat="all">All</button>
+          <button type="button" class="preset-category-pill" data-cat="Color">Color</button>
+          <button type="button" class="preset-category-pill" data-cat="Stylize">Stylize</button>
+          <button type="button" class="preset-category-pill" data-cat="Blur">Blur</button>
+          <button type="button" class="preset-category-pill" data-cat="Custom">Custom</button>
+        </div>
+      </div>
+
+      <div class="preset-gallery-list" id="preset-gallery-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR POP-UP: SAVE EFFECT PRESET DIALOG
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-save-effect-preset" role="dialog" aria-modal="true" aria-label="Save Effect Preset Dialog">
+    <div class="modal-card form-modal-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title">Save Effect Preset</h3>
+        <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-save-effect-preset')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </header>
+      <div class="modal-form-body">
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="input-preset-name">Preset Name</label>
+          <input type="text" id="input-preset-name" class="modal-form-input" placeholder="e.g. Cinematic Warm Glow" autocomplete="off" />
+        </div>
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="select-preset-category">Category</label>
+          <select id="select-preset-category" class="modal-form-select">
+            <option value="Custom">Custom</option>
+            <option value="Color">Color</option>
+            <option value="Stylize">Stylize</option>
+            <option value="Blur">Blur</option>
+            <option value="Motion">Motion</option>
+          </select>
+        </div>
+        <div class="modal-form-preview-box" id="save-preset-effects-summary">
+          <!-- Summary of effects to save -->
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="Modal.close('modal-save-effect-preset')">Cancel</button>
+        <button type="button" class="modal-btn modal-btn-primary" id="btn-confirm-save-preset">Save Preset</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODULAR POP-UP: SAVE ELEMENT TEMPLATE DIALOG
+       ========================================================================== -->
+  <div class="modal-backdrop" id="modal-save-element" role="dialog" aria-modal="true" aria-label="Save Element Dialog">
+    <div class="modal-card form-modal-card" onclick="event.stopPropagation()">
+      <header class="modal-header">
+        <h3 class="modal-title">Save as Element</h3>
+        <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-save-element')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </header>
+      <div class="modal-form-body">
+        <div class="modal-form-group">
+          <label class="modal-form-label" for="input-element-name">Element Name</label>
+          <input type="text" id="input-element-name" class="modal-form-input" placeholder="e.g. Animated Headline Lower Third" autocomplete="off" />
+        </div>
+        <div class="modal-form-preview-box" id="save-element-layer-summary">
+          <!-- Summary of layer properties to save -->
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="Modal.close('modal-save-element')">Cancel</button>
+        <button type="button" class="modal-btn modal-btn-primary" id="btn-confirm-save-element">Save Element</button>
+      </footer>
     </div>
   </div>
 

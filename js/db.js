@@ -50,6 +50,8 @@ window.FishDatabase = (function () {
       customPalettes: [],
       toolboxPresets: {},
       customEasingPresets: [],
+      effectPresets: [],
+      savedElements: [],
       recentColors: []
     };
   }
@@ -2652,6 +2654,136 @@ window.FishDatabase = (function () {
     } catch (_) {}
   }
 
+  // --- Effect Presets Library API ---
+  var EFFECT_PRESETS_KEY = 'oft_effect_presets';
+
+  async function getEffectPresets() {
+    try {
+      const s = await getSettings();
+      if (s && Array.isArray(s.effectPresets) && s.effectPresets.length > 0) {
+        return s.effectPresets;
+      }
+      const raw = localStorage.getItem(EFFECT_PRESETS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function saveEffectPreset(preset) {
+    if (!preset || !preset.name || !Array.isArray(preset.effects)) return null;
+    try {
+      const list = await getEffectPresets();
+      const p = {
+        id: preset.id || ('ep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
+        name: String(preset.name).trim() || 'Untitled Preset',
+        category: preset.category || 'General',
+        createdAt: preset.createdAt || Date.now(),
+        effects: JSON.parse(JSON.stringify(preset.effects))
+      };
+      const existingIdx = list.findIndex(item => item.id === p.id);
+      if (existingIdx >= 0) {
+        list[existingIdx] = p;
+      } else {
+        list.unshift(p);
+      }
+      localStorage.setItem(EFFECT_PRESETS_KEY, JSON.stringify(list));
+      const s = await getSettings();
+      s.effectPresets = list;
+      await saveSettings(s);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fish-db-effect-presets-updated', { detail: list }));
+      }
+      return p;
+    } catch (err) {
+      console.warn('[DB] saveEffectPreset error:', err);
+      return null;
+    }
+  }
+
+  async function deleteEffectPreset(id) {
+    try {
+      let list = await getEffectPresets();
+      list = list.filter(item => String(item.id) !== String(id));
+      localStorage.setItem(EFFECT_PRESETS_KEY, JSON.stringify(list));
+      const s = await getSettings();
+      s.effectPresets = list;
+      await saveSettings(s);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fish-db-effect-presets-updated', { detail: list }));
+      }
+      return true;
+    } catch (err) {
+      console.warn('[DB] deleteEffectPreset error:', err);
+      return false;
+    }
+  }
+
+  // --- Saved Elements (Layer Templates) Library API ---
+  var SAVED_ELEMENTS_KEY = 'oft_saved_elements';
+
+  async function getSavedElements() {
+    try {
+      const s = await getSettings();
+      if (s && Array.isArray(s.savedElements) && s.savedElements.length > 0) {
+        return s.savedElements;
+      }
+      const raw = localStorage.getItem(SAVED_ELEMENTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function saveSavedElement(element) {
+    if (!element || !element.name || !element.layerData) return null;
+    try {
+      const list = await getSavedElements();
+      const elem = {
+        id: element.id || ('elem_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
+        name: String(element.name).trim() || 'Untitled Element',
+        type: element.type || (element.layerData ? element.layerData.type : 'layer'),
+        createdAt: element.createdAt || Date.now(),
+        layerData: JSON.parse(JSON.stringify(element.layerData))
+      };
+      const existingIdx = list.findIndex(item => item.id === elem.id);
+      if (existingIdx >= 0) {
+        list[existingIdx] = elem;
+      } else {
+        list.unshift(elem);
+      }
+      localStorage.setItem(SAVED_ELEMENTS_KEY, JSON.stringify(list));
+      const s = await getSettings();
+      s.savedElements = list;
+      await saveSettings(s);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fish-db-saved-elements-updated', { detail: list }));
+      }
+      return elem;
+    } catch (err) {
+      console.warn('[DB] saveSavedElement error:', err);
+      return null;
+    }
+  }
+
+  async function deleteSavedElement(id) {
+    try {
+      let list = await getSavedElements();
+      list = list.filter(item => String(item.id) !== String(id));
+      localStorage.setItem(SAVED_ELEMENTS_KEY, JSON.stringify(list));
+      const s = await getSettings();
+      s.savedElements = list;
+      await saveSettings(s);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fish-db-saved-elements-updated', { detail: list }));
+      }
+      return true;
+    } catch (err) {
+      console.warn('[DB] deleteSavedElement error:', err);
+      return false;
+    }
+  }
+
   /**
    * Purges extracted video frames from FishFrameCacheDB.
    * Leaves user projects and user media 100% untouched.
@@ -2837,6 +2969,12 @@ window.FishDatabase = (function () {
     getStorageEstimate: checkStoragePersistence,
     getUploadedProjects: getUploadedProjects,
     saveUploadedProject: saveUploadedProject,
-    removeUploadedProject: removeUploadedProject
+    removeUploadedProject: removeUploadedProject,
+    getEffectPresets: getEffectPresets,
+    saveEffectPreset: saveEffectPreset,
+    deleteEffectPreset: deleteEffectPreset,
+    getSavedElements: getSavedElements,
+    saveSavedElement: saveSavedElement,
+    deleteSavedElement: deleteSavedElement
   };
 })();

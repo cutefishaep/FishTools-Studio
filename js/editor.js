@@ -16062,6 +16062,575 @@
     })();
 
     /* ==========================================================================
+       EFFECT PRESET GALLERY ENGINE & MODAL CONTROLLER
+       - Save current layer effects & keyframes as reusable preset
+       - Apply presets to active layer with unique IDs & cache invalidation
+       - Search, category filter, import & export
+       ========================================================================== */
+    (function () {
+      let activeCategoryFilter = 'all';
+
+      // 1. Open Save Preset Modal
+      const btnSavePreset = document.getElementById('btn-effects-save-preset');
+      if (btnSavePreset) {
+        btnSavePreset.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) {
+            showEffectsRackToast('Select a layer first');
+            return;
+          }
+          const effects = ensureLayerEffects(layer);
+          if (effects.length === 0) {
+            showEffectsRackToast('No effects to save');
+            return;
+          }
+
+          const nameInput = document.getElementById('input-preset-name');
+          if (nameInput) {
+            nameInput.value = `${layer.name || 'Layer'} Preset`;
+          }
+
+          const summaryBox = document.getElementById('save-preset-effects-summary');
+          if (summaryBox) {
+            const listHtml = effects.map(fx => {
+              const def = (window.FishEffectsRegistry && window.FishEffectsRegistry.get(fx.type)) || null;
+              const name = def ? (def.name || def.id) : (fx.name || fx.id);
+              return `<div style="display:flex;align-items:center;gap:6px;"><span style="color:var(--color-primary);">✓</span> <span>${name}</span></div>`;
+            }).join('');
+            summaryBox.innerHTML = `<span style="font-weight:700;color:var(--text-secondary);margin-bottom:2px;">Included Effects (${effects.length}):</span>${listHtml}`;
+          }
+
+          if (window.Modal) window.Modal.open('modal-save-effect-preset');
+        });
+      }
+
+      // 2. Confirm Save Preset
+      const btnConfirmSavePreset = document.getElementById('btn-confirm-save-preset');
+      if (btnConfirmSavePreset) {
+        btnConfirmSavePreset.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+          const effects = ensureLayerEffects(layer);
+          if (effects.length === 0) return;
+
+          const nameInput = document.getElementById('input-preset-name');
+          const catSelect = document.getElementById('select-preset-category');
+          const presetName = (nameInput && nameInput.value.trim()) || 'Custom Preset';
+          const presetCat = (catSelect && catSelect.value) || 'Custom';
+
+          const clonedEffects = JSON.parse(JSON.stringify(effects));
+          const keyframesData = {};
+          if (layer.keyframes) {
+            clonedEffects.forEach(fx => {
+              getEffectParamIds(fx).forEach(p => {
+                const k = `${fx.id}:${p}`;
+                if (layer.keyframes[k]) {
+                  keyframesData[k] = JSON.parse(JSON.stringify(layer.keyframes[k]));
+                }
+              });
+            });
+          }
+
+          const presetObj = {
+            id: 'ep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            name: presetName,
+            category: presetCat,
+            createdAt: Date.now(),
+            effects: clonedEffects,
+            keyframes: keyframesData
+          };
+
+          if (window.FishDatabase && typeof window.FishDatabase.saveEffectPreset === 'function') {
+            await window.FishDatabase.saveEffectPreset(presetObj);
+          }
+
+          if (window.Modal) window.Modal.close('modal-save-effect-preset');
+          showEffectsRackToast(`Preset "${presetName}" saved`);
+          renderEffectPresetsUI();
+        });
+      }
+
+      // 3. Open Preset Gallery
+      const btnPresets = document.getElementById('btn-effects-presets');
+      if (btnPresets) {
+        btnPresets.addEventListener('click', (e) => {
+          e.stopPropagation();
+          renderEffectPresetsUI();
+          if (window.Modal) window.Modal.open('modal-effect-presets');
+        });
+      }
+
+      // 4. Render Preset Gallery List
+      async function renderEffectPresetsUI() {
+        const listEl = document.getElementById('preset-gallery-list');
+        if (!listEl) return;
+
+        let presets = [];
+        if (window.FishDatabase && typeof window.FishDatabase.getEffectPresets === 'function') {
+          presets = await window.FishDatabase.getEffectPresets();
+        }
+
+        const searchInput = document.getElementById('preset-search-input');
+        const query = (searchInput ? searchInput.value.trim().toLowerCase() : '');
+
+        let filtered = presets;
+        if (activeCategoryFilter !== 'all') {
+          filtered = filtered.filter(p => (p.category || '').toLowerCase() === activeCategoryFilter.toLowerCase());
+        }
+        if (query) {
+          filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(query) || (p.category || '').toLowerCase().includes(query));
+        }
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = `
+            <div class="preset-gallery-empty">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+              </svg>
+              <span>No presets found. Save effects from the rack to create one!</span>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = filtered.map(p => {
+          const fxCount = Array.isArray(p.effects) ? p.effects.length : 0;
+          const fxNames = Array.isArray(p.effects) ? p.effects.map(fx => {
+            const def = (window.FishEffectsRegistry && window.FishEffectsRegistry.get(fx.type)) || null;
+            return def ? (def.name || def.id) : (fx.name || fx.id);
+          }).join(', ') : '';
+
+          return `
+            <div class="preset-card-item" data-preset-id="${p.id}">
+              <div class="preset-card-info">
+                <div class="preset-card-title-row">
+                  <span class="preset-card-name">${p.name || 'Untitled'}</span>
+                  <span class="preset-card-badge">${p.category || 'General'}</span>
+                </div>
+                <span class="preset-card-desc" title="${fxNames}">${fxCount} effect${fxCount > 1 ? 's' : ''}: ${fxNames || 'None'}</span>
+              </div>
+              <div class="preset-card-actions">
+                <button type="button" class="btn-preset-apply" data-preset-id="${p.id}">Apply</button>
+                <button type="button" class="btn-preset-delete" data-preset-id="${p.id}" title="Delete Preset" aria-label="Delete Preset">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Bind Apply & Delete
+        listEl.querySelectorAll('.btn-preset-apply').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const pid = btn.dataset.presetId;
+            const preset = presets.find(item => item.id === pid);
+            if (!preset) return;
+            await applyEffectPresetToActiveLayer(preset);
+            if (window.Modal) window.Modal.close('modal-effect-presets');
+          });
+        });
+
+        listEl.querySelectorAll('.btn-preset-delete').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const pid = btn.dataset.presetId;
+            if (window.FishDatabase && typeof window.FishDatabase.deleteEffectPreset === 'function') {
+              await window.FishDatabase.deleteEffectPreset(pid);
+              showEffectsRackToast('Preset deleted');
+              renderEffectPresetsUI();
+            }
+          });
+        });
+      }
+
+      // 5. Apply Effect Preset to Active Layer
+      async function applyEffectPresetToActiveLayer(preset) {
+        if (!preset || !Array.isArray(preset.effects)) return;
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        if (!layer) {
+          showEffectsRackToast('Select a layer first');
+          return;
+        }
+
+        ensureLayerEffects(layer);
+
+        // Record Undo
+        if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
+          window.UndoRedoManager.recordSnapshot();
+        }
+
+        preset.effects.forEach(fx => {
+          const oldId = fx.id;
+          const newFx = JSON.parse(JSON.stringify(fx));
+          newFx.id = 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+          newFx.name = fx.name;
+          layer.effects.push(newFx);
+
+          if (preset.keyframes) {
+            layer.keyframes = layer.keyframes || {};
+            getEffectParamIds(fx).forEach(p => {
+              const oldK = `${oldId}:${p}`;
+              if (preset.keyframes[oldK]) {
+                layer.keyframes[`${newFx.id}:${p}`] = JSON.parse(JSON.stringify(preset.keyframes[oldK]));
+              }
+            });
+          }
+        });
+
+        layer.hasBrightnessContrast = true;
+        if (layer.effects.length > 0) {
+          layer.brightness = layer.effects[0].brightness;
+          layer.contrast = layer.effects[0].contrast;
+          layer.effectsDisabled = !!layer.effects[0].disabled;
+        }
+
+        syncEffectsRackUI();
+        if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+        if (typeof redrawComposition === 'function') redrawComposition('apply-effect-preset');
+        if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+        if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+        if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+
+        showEffectsRackToast(`Applied preset "${preset.name}"`);
+      }
+
+      // 6. Search & Category Filter Listeners
+      const presetSearch = document.getElementById('preset-search-input');
+      if (presetSearch) {
+        presetSearch.addEventListener('input', () => {
+          renderEffectPresetsUI();
+        });
+      }
+
+      const categoryPillsContainer = document.getElementById('preset-category-pills');
+      if (categoryPillsContainer) {
+        categoryPillsContainer.addEventListener('click', (e) => {
+          const pill = e.target.closest('.preset-category-pill');
+          if (!pill) return;
+          categoryPillsContainer.querySelectorAll('.preset-category-pill').forEach(p => p.classList.remove('is-active'));
+          pill.classList.add('is-active');
+          activeCategoryFilter = pill.dataset.cat || 'all';
+          renderEffectPresetsUI();
+        });
+      }
+
+      // 7. Export & Import Presets JSON
+      const btnExportPresets = document.getElementById('btn-export-all-presets');
+      if (btnExportPresets) {
+        btnExportPresets.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          let presets = [];
+          if (window.FishDatabase && typeof window.FishDatabase.getEffectPresets === 'function') {
+            presets = await window.FishDatabase.getEffectPresets();
+          }
+          if (presets.length === 0) {
+            showEffectsRackToast('No presets to export');
+            return;
+          }
+          const blob = new Blob([JSON.stringify(presets, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `fish_effect_presets_${Date.now()}.fishpreset`;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+          showEffectsRackToast('Exported presets');
+        });
+      }
+
+      const inputImportPresets = document.getElementById('input-import-presets');
+      if (inputImportPresets) {
+        inputImportPresets.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const list = Array.isArray(data) ? data : [data];
+            let count = 0;
+            for (const item of list) {
+              if (item && item.name && Array.isArray(item.effects)) {
+                if (window.FishDatabase && typeof window.FishDatabase.saveEffectPreset === 'function') {
+                  await window.FishDatabase.saveEffectPreset(item);
+                  count++;
+                }
+              }
+            }
+            showEffectsRackToast(`Imported ${count} preset${count > 1 ? 's' : ''}`);
+            renderEffectPresetsUI();
+          } catch (err) {
+            showEffectsRackToast('Invalid preset file');
+          }
+          inputImportPresets.value = '';
+        });
+      }
+
+      window.renderEffectPresetsUI = renderEffectPresetsUI;
+      window.applyEffectPresetToActiveLayer = applyEffectPresetToActiveLayer;
+    })();
+
+    /* ==========================================================================
+       ELEMENT GALLERY (SAVED LAYER TEMPLATES) CONTROLLER
+       - Save full layer (type, transform, keyframes, styles, effects) as Element
+       - Insert element at current timeline playhead as new active layer
+       - Search, delete, category integration
+       ========================================================================== */
+    (function () {
+      // 1. Save as Element Trigger from Layer Popover
+      const popoverBtnSaveElement = document.getElementById('popover-btn-save-element');
+      if (popoverBtnSaveElement) {
+        popoverBtnSaveElement.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close();
+          openSaveElementModal();
+        });
+      }
+
+      function openSaveElementModal() {
+        const layers = currentProjectState.layers || [];
+        const layer = layers.find(l => l.id === window.selectedLayerId);
+        if (!layer) {
+          showEffectsRackToast('Select a layer to save');
+          return;
+        }
+
+        const nameInput = document.getElementById('input-element-name');
+        if (nameInput) {
+          nameInput.value = layer.name || `${layer.type || 'Layer'} Element`;
+        }
+
+        const summaryBox = document.getElementById('save-element-layer-summary');
+        if (summaryBox) {
+          const fxCount = Array.isArray(layer.effects) ? layer.effects.length : 0;
+          const kfCount = layer.keyframes ? Object.keys(layer.keyframes).length : 0;
+          summaryBox.innerHTML = `
+            <div><strong>Type:</strong> <span style="text-transform: capitalize;">${layer.type || 'Custom'}</span></div>
+            <div><strong>Effects Rack:</strong> ${fxCount} active effect${fxCount !== 1 ? 's' : ''}</div>
+            <div><strong>Animated Properties:</strong> ${kfCount} keyframed track${kfCount !== 1 ? 's' : ''}</div>
+          `;
+        }
+
+        if (window.Modal) window.Modal.open('modal-save-element');
+      }
+      window.openSaveElementModal = openSaveElementModal;
+
+      // 2. Confirm Save Element
+      const btnConfirmSaveElement = document.getElementById('btn-confirm-save-element');
+      if (btnConfirmSaveElement) {
+        btnConfirmSaveElement.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const layers = currentProjectState.layers || [];
+          const layer = layers.find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+
+          const nameInput = document.getElementById('input-element-name');
+          const elemName = (nameInput && nameInput.value.trim()) || layer.name || 'Untitled Element';
+
+          // Clean clone layer without runtime references
+          const clonedData = JSON.parse(JSON.stringify(layer, (k, v) => {
+            if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') return undefined;
+            return v;
+          }));
+          delete clonedData._shapeBufferCanvas;
+          delete clonedData._precompBufferCanvas;
+          delete clonedData._fillBufferCanvas;
+          delete clonedData._fillMediaImg;
+          delete clonedData._alphaHitCanvas;
+          delete clonedData._alphaHitCtx;
+          delete clonedData._canvasBounds;
+
+          const elemObj = {
+            id: 'elem_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            name: elemName,
+            type: layer.type || 'layer',
+            createdAt: Date.now(),
+            layerData: clonedData
+          };
+
+          if (window.FishDatabase && typeof window.FishDatabase.saveSavedElement === 'function') {
+            await window.FishDatabase.saveSavedElement(elemObj);
+          }
+
+          if (window.Modal) window.Modal.close('modal-save-element');
+          showEffectsRackToast(`Saved element "${elemName}"`);
+          renderSavedElementsGrid();
+        });
+      }
+
+      // 3. Render Saved Elements in Add Layer Drawer
+      async function renderSavedElementsGrid() {
+        const gridEl = document.getElementById('drawer-element-preset-grid');
+        if (!gridEl) return;
+
+        let elements = [];
+        if (window.FishDatabase && typeof window.FishDatabase.getSavedElements === 'function') {
+          elements = await window.FishDatabase.getSavedElements();
+        }
+
+        const searchInput = document.getElementById('drawer-element-search-input');
+        const query = (searchInput ? searchInput.value.trim().toLowerCase() : '');
+
+        let filtered = elements;
+        if (query) {
+          filtered = filtered.filter(item => (item.name || '').toLowerCase().includes(query) || (item.type || '').toLowerCase().includes(query));
+        }
+
+        if (filtered.length === 0) {
+          gridEl.innerHTML = `
+            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 28px 12px; color: var(--text-muted); font-size: 12px; gap: 6px; text-align: center;">
+              <span>No saved elements. Right-click a layer on timeline and click "Save as Element"!</span>
+            </div>
+          `;
+          return;
+        }
+
+        const typeIconMap = {
+          text: '<svg viewBox="0 0 24 24"><path d="M3 4h9.5v3H6v3.5h5.5v3H6V20H3V4zm12 3.5h3v3h2.5v2.8H18v4.2c0 .9.5 1.5 1.4 1.5.5 0 .9-.1 1.2-.2v2.7c-.7.3-1.6.4-2.4.4-2.3 0-3.2-1.3-3.2-3.4v-5.2h-2v-2.8h2v-3z"/></svg>',
+          shape: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+          video: '<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>',
+          image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',
+          audio: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
+          adjustment: '<svg viewBox="0 0 24 24"><path d="M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zm0-18c4.41 0 8 3.59 8 8s-3.59 8-8 8V4z"/></svg>',
+          group: '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg>'
+        };
+
+        gridEl.innerHTML = filtered.map(item => {
+          const lData = item.layerData || {};
+          const type = (item.type || lData.type || 'layer').toLowerCase();
+          const icon = typeIconMap[type] || typeIconMap.shape;
+
+          return `
+            <div class="element-gallery-card" data-element-id="${item.id}" title="Click to insert to timeline">
+              <button type="button" class="element-gallery-card-delete" data-element-id="${item.id}" title="Delete Element" aria-label="Delete Element">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </button>
+              <div class="element-gallery-card-icon">${icon}</div>
+              <span class="element-gallery-card-title">${item.name || 'Untitled'}</span>
+              <span class="element-gallery-card-meta">${type}</span>
+            </div>
+          `;
+        }).join('');
+
+        // Bind Insert & Delete
+        gridEl.querySelectorAll('.element-gallery-card').forEach(card => {
+          card.addEventListener('click', async (e) => {
+            if (e.target.closest('.element-gallery-card-delete')) return;
+            e.stopPropagation();
+            const eid = card.dataset.elementId;
+            const element = elements.find(item => item.id === eid);
+            if (!element) return;
+            insertSavedElementToTimeline(element);
+          });
+        });
+
+        gridEl.querySelectorAll('.element-gallery-card-delete').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const eid = btn.dataset.elementId;
+            if (window.FishDatabase && typeof window.FishDatabase.deleteSavedElement === 'function') {
+              await window.FishDatabase.deleteSavedElement(eid);
+              showEffectsRackToast('Element removed');
+              renderSavedElementsGrid();
+            }
+          });
+        });
+      }
+
+      // 4. Insert Element into Timeline at current playhead
+      function insertSavedElementToTimeline(element) {
+        if (!element || !element.layerData) return;
+        currentProjectState.layers = currentProjectState.layers || [];
+
+        // Record Undo
+        if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
+          window.UndoRedoManager.recordSnapshot();
+        }
+
+        const pps = window.currentPixelsPerSecond || 80;
+        const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+        const playheadSec = Number((Math.abs(currentPanX) / pps).toFixed(3));
+
+        const base = JSON.parse(JSON.stringify(element.layerData));
+        const newLayerId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const durationSec = base.durationSec || (base.widthPx ? (base.widthPx / pps) : 4);
+
+        base.id = newLayerId;
+        base.name = `${element.name || base.name || 'Element'}`;
+        base.startSec = playheadSec;
+        base.startPx = Math.round(playheadSec * pps);
+        base.durationSec = durationSec;
+        base.widthPx = Math.round(durationSec * pps);
+
+        // Regenerate unique IDs for all nested effects & remap keyframes
+        if (Array.isArray(base.effects)) {
+          const oldEffects = base.effects;
+          base.effects = [];
+          const kfMap = {};
+
+          oldEffects.forEach(fx => {
+            const oldFxId = fx.id;
+            const newFx = JSON.parse(JSON.stringify(fx));
+            newFx.id = 'fx_' + (fx.type || 'fx') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            base.effects.push(newFx);
+
+            if (base.keyframes) {
+              getEffectParamIds(fx).forEach(p => {
+                const oldK = `${oldFxId}:${p}`;
+                if (base.keyframes[oldK]) {
+                  kfMap[`${newFx.id}:${p}`] = JSON.parse(JSON.stringify(base.keyframes[oldK]));
+                  delete base.keyframes[oldK];
+                }
+              });
+            }
+          });
+
+          if (base.keyframes) {
+            Object.assign(base.keyframes, kfMap);
+          }
+        }
+
+        currentProjectState.layers.push(base);
+        window.selectedLayerId = newLayerId;
+        if (window.selectedLayerIds) {
+          window.selectedLayerIds.clear();
+          window.selectedLayerIds.add(newLayerId);
+        }
+
+        if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+        if (typeof selectTimelineLayer === 'function') selectTimelineLayer(newLayerId, false);
+        if (typeof redrawComposition === 'function') redrawComposition('insert-element');
+        if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+
+        // Close Add Drawer
+        const drawer = document.getElementById('timeline-add-drawer');
+        if (drawer && typeof window.closeDrawer === 'function') {
+          window.closeDrawer(drawer);
+        }
+
+        showEffectsRackToast(`Inserted "${element.name}"`);
+      }
+
+      // 5. Search Filter in Drawer
+      const elemSearch = document.getElementById('drawer-element-search-input');
+      if (elemSearch) {
+        elemSearch.addEventListener('input', () => {
+          renderSavedElementsGrid();
+        });
+      }
+
+      window.renderSavedElementsGrid = renderSavedElementsGrid;
+      window.insertSavedElementToTimeline = insertSavedElementToTimeline;
+    })();
+
+    /* ==========================================================================
        QUICK EFFECTS SEARCH PALETTE (Ctrl + Space)
        ========================================================================== */
     function getSelectedTimelineLayers() {
@@ -19240,12 +19809,15 @@
         const controlPanel = document.getElementById('add-layer-control-panel');
         const shapePanel = document.getElementById('add-layer-shape-panel');
         const textPanel = document.getElementById('add-layer-text-panel');
+        const elementPanel = document.getElementById('add-layer-element-panel');
         if (mediaPool) mediaPool.style.display = (cat === 'media') ? '' : 'none';
         if (controlPanel) controlPanel.style.display = (cat === 'control') ? '' : 'none';
         if (shapePanel) shapePanel.style.display = (cat === 'shape') ? '' : 'none';
         if (textPanel) textPanel.style.display = (cat === 'text') ? '' : 'none';
+        if (elementPanel) elementPanel.style.display = (cat === 'element') ? '' : 'none';
         if (cat === 'media') renderMediaGrid();
         if (cat === 'text' && typeof renderTextPresetsGrid === 'function') renderTextPresetsGrid();
+        if (cat === 'element' && typeof renderSavedElementsGrid === 'function') renderSavedElementsGrid();
       }
 
       window.addEventListener('drawer-opened', (e) => {
@@ -22852,6 +23424,17 @@
           }
         }
 
+        // 3c. Save as Element State (Single layer only)
+        const saveElemBtn = document.getElementById('popover-btn-save-element');
+        if (saveElemBtn) {
+          if (!hasKeyframesSelected && selectedCount === 1 && !isFromEmptyTimeline) {
+            saveElemBtn.removeAttribute('disabled');
+            saveElemBtn.style.display = 'flex';
+          } else {
+            saveElemBtn.setAttribute('disabled', 'true');
+            saveElemBtn.style.display = 'none';
+          }
+        }
 
         // 4. Extract Audio State (Only for single selected video)
         let isSingleVideo = false;

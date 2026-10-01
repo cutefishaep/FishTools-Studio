@@ -3123,6 +3123,30 @@
           }
         }
 
+        // AI Background Removal: Substitute transparent cutout if ready, otherwise fallback to raw media seamlessly
+        if (el && window.FishBgRemovalEngine && window.FishBgRemovalEngine.isLayerMattingActive(layer)) {
+          if (layer.type === 'video') {
+            const sourceKey = (window.VideoFrameExtractor && window.VideoFrameExtractor._getSourceKey)
+              ? window.VideoFrameExtractor._getSourceKey(layer)
+              : (layer.mediaId || layer.dataUrl || layer.id);
+            const cachedSource = window.VideoFrameExtractor ? window.VideoFrameExtractor.getSourceCache(sourceKey) : null;
+            const fIdx = Math.round(timeInClip * ((cachedSource && cachedSource.fps) || (currentProjectState.fps || 60)));
+            const cutoutFrame = window.FishBgRemovalEngine.getVideoCutoutFrame(sourceKey, fIdx);
+            if (cutoutFrame) {
+              el = cutoutFrame;
+            } else if (!isExport && !isIdleCache) {
+              window.FishBgRemovalEngine.processLayer(layer);
+            }
+          } else {
+            const photoCutout = window.FishBgRemovalEngine.getPhotoCutout(layer);
+            if (photoCutout) {
+              el = photoCutout;
+            } else if (!isExport && !isIdleCache) {
+              window.FishBgRemovalEngine.processLayer(layer);
+            }
+          }
+        }
+
         if (el) {
           const origW = layer.mediaWidth || (media && media.el && media.el.videoWidth > 0 ? media.el.videoWidth : 0);
           const origH = layer.mediaHeight || (media && media.el && media.el.videoHeight > 0 ? media.el.videoHeight : 0);
@@ -5425,6 +5449,13 @@
           baseProps.effects.forEach((fxEff, idx) => {
             getEffectParamIds(fxEff).forEach(pId => {
               const scopedKey = `${fxEff.id}:${pId}`;
+              if (window.activeScrubbingParam === scopedKey) {
+                const liveFx = layer.effects && layer.effects[idx];
+                if (liveFx && liveFx[pId] !== undefined) {
+                  fxEff[pId] = liveFx[pId];
+                  return;
+                }
+              }
               const list = layer.keyframes[scopedKey] || (idx === 0 && layer.keyframes[pId] ? layer.keyframes[pId] : null);
               if (!list || list.length === 0) return;
 
@@ -5866,8 +5897,8 @@
       let kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, prop, currentSec, frameTol) : null;
       if (kf) {
         kf.value = currentVal;
-      } else {
-        // Stepped away from existing keyframe and changed value: auto-create new keyframe!
+      } else if (!isAnyPlaybackActive()) {
+        // Stepped away from existing keyframe and changed value: auto-create new keyframe (only when stopped/paused)!
         const defaultEasing = (layer._defaultEasing && layer._defaultEasing[prop]) ? layer._defaultEasing[prop] : [0.0, 0.0, 1.0, 1.0];
         layer.keyframes[prop].push({
           time: currentSec,
@@ -7662,7 +7693,7 @@
         startCoord = isVertical ? e.clientY : e.clientX;
         lastCoord = startCoord;
         virtualDelta = 0;
-        el.setPointerCapture(e.pointerId);
+        try { el.setPointerCapture(e.pointerId); } catch (_) {}
         if (callbacks.onStart) callbacks.onStart(e);
         e.preventDefault();
       });
@@ -7713,7 +7744,9 @@
 
       const onEnd = (e) => {
         if (!isDragging) return;
-        try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+        if (e && e.pointerId !== undefined) {
+          try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
         isDragging = false;
         window.isTransformInteracting = false;
         if (callbacks.onEnd) callbacks.onEnd();
@@ -7722,6 +7755,7 @@
 
       el.addEventListener('pointerup', onEnd);
       el.addEventListener('pointercancel', onEnd);
+      el.addEventListener('lostpointercapture', onEnd);
     }
     window.bindJogWheel = bindJogWheel;
 
@@ -14346,10 +14380,20 @@
             const val = isDecimal
               ? Math.max(min, Math.min(max, Number(parseFloat(valNum).toFixed(2))))
               : Math.max(min, Math.min(max, Math.round(valNum)));
+            if (paramBtn) {
+              const isSelected = (window.activeKeyframeProperty === propKey) ||
+                (!window.activeKeyframeProperty && fx === layer.effects[0] && pId === (def && def.params[0] ? def.params[0].id : 'brightness'));
+              paramBtn.classList.toggle('is-active', isSelected);
+            }
+
+            if (window.activeScrubbingParam === propKey) {
+              // Actively dragging this param scrubber: preserve live drag visual without jitter
+              return;
+            }
+
             const ratio = (max > min) ? (val - min) / (max - min) : 0;
             const indicator = card.querySelector(`.fx-indicator-${pId}`);
             const badge = card.querySelector(`.fx-badge-${pId}`);
-            const paramBtn = card.querySelector(`.fx-param-btn-${pId}`);
 
             if (indicator) indicator.style.left = (ratio * 100) + '%';
             const track = card.querySelector(`.fx-track-${pId}`);
@@ -14369,11 +14413,6 @@
             } else {
               const formattedVal = isDecimal ? val.toFixed(2) : val;
               if (badge) badge.textContent = (val >= 0 && min < 0 ? '+' : '') + formattedVal + unit;
-            }
-            if (paramBtn) {
-              const isSelected = (window.activeKeyframeProperty === propKey) ||
-                (!window.activeKeyframeProperty && fx === layer.effects[0] && pId === (def && def.params[0] ? def.params[0].id : 'brightness'));
-              paramBtn.classList.toggle('is-active', isSelected);
             }
           });
         });
@@ -15036,6 +15075,14 @@
                   layer[param] = val;
                 }
 
+                if (fx && fx.type === 'remove_bg' && param === 'model') {
+                  delete layer._bgCutoutBitmap;
+                  if (window.FishBgRemovalEngine) {
+                    window.FishBgRemovalEngine.clearLayerCutouts(layer);
+                    window.FishBgRemovalEngine.processLayer(layer, true);
+                  }
+                }
+
                 const propKey = `${fx.id}:${param}`;
                 if (typeof recordLayerPropertyChange === 'function') {
                   recordLayerPropertyChange(layer, propKey);
@@ -15132,6 +15179,7 @@
       let startPointerY = 0;
       let hasDragged = false;
       let isBadgeClick = false;
+      let cachedRect = null;
       const propKey = `${fx.id}:${paramName}`;
 
       bindJogWheel(container, {
@@ -15139,10 +15187,13 @@
           startPointerX = e ? e.clientX : 0;
           startPointerY = e ? e.clientY : 0;
           hasDragged = false;
+          cachedRect = container.getBoundingClientRect();
           isBadgeClick = !!(e && e.target && e.target.closest('.effects-param-pill-val'));
           window.activeKeyframeProperty = propKey;
+          window.activeScrubbingParam = propKey;
           window.isTransformInteracting = true;
-          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          const isActivelyPlaying = isAnyPlaybackActive();
+          if (!isActivelyPlaying && typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
 
           startVal = fx[paramName] !== undefined ? Number(fx[paramName]) : (defParam && defParam.default !== undefined ? Number(defParam.default) : 0);
           currentVal = startVal;
@@ -15159,7 +15210,7 @@
 
           // If user clicked directly on the slider track (not the badge), immediately position slider
           if (!isBadgeClick && !isAngle && !isHue && e) {
-            const rect = container.getBoundingClientRect();
+            const rect = cachedRect || container.getBoundingClientRect();
             const pillW = Math.max(10, rect.width);
             const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : 0);
             const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : 100);
@@ -15193,8 +15244,10 @@
               if (typeof recordLayerPropertyChange === 'function') {
                 recordLayerPropertyChange(layer, propKey);
               }
-              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-              if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+              if (!isActivelyPlaying) {
+                if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+                if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+              }
               const curveWidget = card.querySelector('.effects-curve-editor');
               if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
               if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
@@ -15241,7 +15294,7 @@
             const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x' || unit.includes('.');
             const stepVal = (defParam && defParam.step) ? defParam.step : (isDecimal ? 0.05 : 1);
 
-            const rect = container.getBoundingClientRect();
+            const rect = cachedRect || container.getBoundingClientRect();
             const pillW = Math.max(10, rect.width);
 
             if (e && e.shiftKey) {
@@ -15284,8 +15337,11 @@
             recordLayerPropertyChange(layer, propKey);
           }
 
-          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-          if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+          const isActivelyPlaying = isAnyPlaybackActive();
+          if (!isActivelyPlaying) {
+            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+            if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+          }
           const curveWidget = card.querySelector('.effects-curve-editor');
           if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
 
@@ -15299,10 +15355,18 @@
 
         onEnd: () => {
           window.isTransformInteracting = false;
+          window.activeScrubbingParam = null;
+          cachedRect = null;
+          if (typeof recordLayerPropertyChange === 'function') {
+            recordLayerPropertyChange(layer, propKey);
+          }
           if (window.PreviewCacheManager && typeof window.PreviewCacheManager.invalidateAll === 'function') {
             window.PreviewCacheManager.invalidateAll();
           }
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          if (!isAnyPlaybackActive() && typeof redrawComposition === 'function') {
+            redrawComposition('effect-scrubber-end');
+          }
           if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
           if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
           if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
@@ -15549,7 +15613,7 @@
               catCard.setAttribute('role', 'button');
               catCard.setAttribute('tabindex', '0');
               catCard.dataset.category = catLower;
-              const displayName = catLower.charAt(0).toUpperCase() + catLower.slice(1);
+              const displayName = def.category;
               catCard.title = displayName;
               catCard.innerHTML = `
                 <div class="effects-category-card-overlay"></div>
@@ -15662,6 +15726,10 @@
           layer.brightness = layer.effects[0].brightness !== undefined ? layer.effects[0].brightness : 0;
           layer.contrast = layer.effects[0].contrast !== undefined ? layer.effects[0].contrast : 0;
           layer.effectsDisabled = !!layer.effects[0].disabled;
+        }
+
+        if (effectTypeId === 'remove_bg' && window.FishBgRemovalEngine) {
+          window.FishBgRemovalEngine.processLayer(layer, true);
         }
 
         if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
@@ -15891,6 +15959,9 @@
           layer.brightness = layer.effects[0].brightness !== undefined ? layer.effects[0].brightness : 0;
           layer.contrast = layer.effects[0].contrast !== undefined ? layer.effects[0].contrast : 0;
           layer.effectsDisabled = !!layer.effects[0].disabled;
+        }
+        if (effectTypeId === 'remove_bg' && window.FishBgRemovalEngine) {
+          window.FishBgRemovalEngine.processLayer(layer, true);
         }
         if (typeof invalidatePreviewCacheForLayer === 'function') {
           invalidatePreviewCacheForLayer(layer);
@@ -30730,6 +30801,34 @@
           e.preventDefault();
           e.stopPropagation();
           if (window.Popover) window.Popover.close(false);
+
+          if (window.FishBgRemovalEngine) {
+            let isPending = (typeof window.FishBgRemovalEngine.hasPendingTasks === 'function')
+              ? window.FishBgRemovalEngine.hasPendingTasks()
+              : (window.FishBgRemovalEngine.getActiveTasks ? window.FishBgRemovalEngine.getActiveTasks().some(t => !t.cancelled && t.status !== 'done') : false);
+
+            if (!isPending && currentProjectState && currentProjectState.layers) {
+              const checkLayers = (layers) => {
+                for (let l of layers) {
+                  if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
+                    if (l.type !== 'video' && !window.FishBgRemovalEngine.getPhotoCutout(l)) {
+                      window.FishBgRemovalEngine.processLayer(l);
+                      return true;
+                    }
+                  }
+                  if (Array.isArray(l.layers) && checkLayers(l.layers)) return true;
+                }
+                return false;
+              };
+              isPending = checkLayers(currentProjectState.layers);
+            }
+
+            if (isPending) {
+              showEditorToast('Please wait until all layers are processed');
+              return;
+            }
+          }
+
           openExportOverlay();
         });
       }
@@ -30828,6 +30927,34 @@
       if (_exportNextBtn) {
         _exportNextBtn.addEventListener('click', async (e) => {
           e.preventDefault();
+
+          if (window.FishBgRemovalEngine) {
+            let isPending = (typeof window.FishBgRemovalEngine.hasPendingTasks === 'function')
+              ? window.FishBgRemovalEngine.hasPendingTasks()
+              : (window.FishBgRemovalEngine.getActiveTasks ? window.FishBgRemovalEngine.getActiveTasks().some(t => !t.cancelled && t.status !== 'done') : false);
+
+            if (!isPending && currentProjectState && currentProjectState.layers) {
+              const checkLayers = (layers) => {
+                for (let l of layers) {
+                  if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
+                    if (l.type !== 'video' && !window.FishBgRemovalEngine.getPhotoCutout(l)) {
+                      window.FishBgRemovalEngine.processLayer(l);
+                      return true;
+                    }
+                  }
+                  if (Array.isArray(l.layers) && checkLayers(l.layers)) return true;
+                }
+                return false;
+              };
+              isPending = checkLayers(currentProjectState.layers);
+            }
+
+            if (isPending) {
+              showEditorToast('Please wait until all layers are processed');
+              return;
+            }
+          }
+
           closeExportOverlay();
 
           switch (_currentExportType) {
@@ -31538,3 +31665,141 @@
         if (arrow) arrow.classList.remove('is-open');
       }
     };
+
+    // =========================================================================
+    // Preview AI Matting Progress Single Morphing Widget (Circle -> Card)
+    // =========================================================================
+    function initPreviewMattingWidget() {
+      const widget = document.getElementById('preview-matting-widget');
+      const percentEl = document.getElementById('preview-matting-percent');
+      const ringFill = document.getElementById('preview-matting-ring-fill');
+      const list = document.getElementById('matting-widget-list');
+      const closeBtn = document.getElementById('matting-widget-close');
+
+      if (!widget || !window.FishBgRemovalEngine) return;
+
+      let isExpanded = false;
+
+      function expandWidget() {
+        if (isExpanded) return;
+        isExpanded = true;
+        widget.classList.add('is-expanded');
+        try {
+          history.pushState({ mattingWidgetOpen: true }, '');
+        } catch (_) {}
+      }
+
+      function collapseWidget(fromPopstate = false) {
+        if (!isExpanded) return;
+        isExpanded = false;
+        widget.classList.remove('is-expanded');
+        if (!fromPopstate && history.state && history.state.mattingWidgetOpen) {
+          try {
+            history.back();
+          } catch (_) {}
+        }
+      }
+
+      widget.addEventListener('click', (e) => {
+        if (!isExpanded) {
+          e.stopPropagation();
+          expandWidget();
+        }
+      });
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          collapseWidget();
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (isExpanded && !widget.contains(e.target)) {
+          collapseWidget();
+        }
+      });
+
+      window.addEventListener('popstate', (e) => {
+        if (isExpanded) {
+          collapseWidget(true);
+        }
+      });
+
+      function updateUI(activeTasks) {
+        if (!activeTasks || activeTasks.length === 0) {
+          widget.classList.add('hidden');
+          if (isExpanded) collapseWidget();
+          return;
+        }
+
+        widget.classList.remove('hidden');
+
+        const totalPct = activeTasks.reduce((sum, t) => sum + (t.percent || 0), 0);
+        const avgPct = Math.round(totalPct / activeTasks.length);
+        if (percentEl) {
+          percentEl.textContent = `${avgPct}%`;
+        }
+
+        if (ringFill) {
+          const circumference = 84.823;
+          const offset = circumference * (1 - Math.max(0, Math.min(100, avgPct)) / 100);
+          ringFill.style.strokeDashoffset = offset;
+        }
+
+        widget.title = `${activeTasks.length} task(s) processing (${avgPct}%) - Click to expand`;
+
+        if (!list) return;
+        list.innerHTML = '';
+
+        activeTasks.forEach(task => {
+          const row = document.createElement('div');
+          row.className = 'matting-task-row';
+
+          let statusText = '';
+          if (task.status && task.status.startsWith('Downloading model')) {
+            statusText = task.status;
+          } else if (task.status === 'downloading_model') {
+            statusText = 'Downloading model...';
+          } else if (task.type === 'video') {
+            statusText = `Frame ${task.currentFrame || 0}/${task.totalFrames || 0} (${task.percent}%)`;
+          } else {
+            statusText = task.status === 'done' ? 'Ready' : `Processing (${task.percent}%)`;
+          }
+
+          row.innerHTML = `
+            <div class="matting-task-meta">
+              <span class="matting-task-name">${task.layerName || 'Media'}</span>
+              <button type="button" class="matting-task-cancel" title="Cancel" data-task-id="${task.id}">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div class="matting-task-status">${statusText}</div>
+            <div class="matting-task-bar">
+              <div class="matting-task-fill" style="width: ${task.percent || 0}%;"></div>
+            </div>
+          `;
+
+          const cancelBtn = row.querySelector('.matting-task-cancel');
+          if (cancelBtn) {
+            cancelBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (window.FishBgRemovalEngine) {
+                window.FishBgRemovalEngine.cancelTask(task.id);
+              }
+            });
+          }
+
+          list.appendChild(row);
+        });
+      }
+
+      window.FishBgRemovalEngine.addProgressListener(updateUI);
+      updateUI(window.FishBgRemovalEngine.getActiveTasks());
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPreviewMattingWidget);
+    } else {
+      initPreviewMattingWidget();
+    }

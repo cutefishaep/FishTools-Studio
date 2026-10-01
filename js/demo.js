@@ -1511,3 +1511,30 @@
         }
       }, 160);
     };
+
+    // Interactive Demo for 6c. Background Processing Single Morphing Widget
+    (function initDemoMattingWidget() {
+      const widget = document.getElementById('demo-matting-widget');
+      const closeBtn = document.getElementById('demo-matting-close');
+      if (!widget) return;
+
+      widget.addEventListener('click', (e) => {
+        if (!widget.classList.contains('is-expanded')) {
+          e.stopPropagation();
+          widget.classList.add('is-expanded');
+        }
+      });
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          widget.classList.remove('is-expanded');
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (widget.classList.contains('is-expanded') && !widget.contains(e.target)) {
+          widget.classList.remove('is-expanded');
+        }
+      });
+    })();

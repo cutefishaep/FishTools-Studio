@@ -72,6 +72,26 @@
                     </svg>
                   </div>
                 </div>
+
+                <!-- Floating Background Removal Progress Widget (Single Morphing Element) -->
+                <div class="preview-matting-widget hidden" id="template-matting-widget" role="button" tabindex="0" title="Background Removal Progress" aria-label="Background Removal Progress">
+                  <div class="matting-widget-circle">
+                    <svg class="preview-matting-ring-svg" viewBox="0 0 34 34">
+                      <circle class="preview-matting-ring-track" cx="17" cy="17" r="13.5"/>
+                      <circle class="preview-matting-ring-fill" id="template-matting-ring-fill" cx="17" cy="17" r="13.5"/>
+                    </svg>
+                    <span class="preview-matting-percent-text" id="template-matting-percent">0%</span>
+                  </div>
+                  <div class="matting-widget-expanded">
+                    <div class="matting-widget-header">
+                      <span class="matting-widget-title" id="template-matting-widget-title">Background Processing</span>
+                      <button type="button" class="matting-widget-close" id="template-matting-widget-close" aria-label="Close">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      </button>
+                    </div>
+                    <div class="matting-widget-list" id="template-matting-widget-list"></div>
+                  </div>
+                </div>
               </div>
 
               <!-- Scrubber & Timeline Section -->
@@ -147,6 +167,11 @@
         canvas: overlay.querySelector('#template-preview-canvas'),
         previewBox: overlay.querySelector('#template-preview-box'),
         playOverlay: overlay.querySelector('#template-play-overlay'),
+        mattingWidget: overlay.querySelector('#template-matting-widget'),
+        mattingPercent: overlay.querySelector('#template-matting-percent'),
+        mattingRingFill: overlay.querySelector('#template-matting-ring-fill'),
+        mattingList: overlay.querySelector('#template-matting-widget-list'),
+        mattingClose: overlay.querySelector('#template-matting-widget-close'),
         scrubberWrap: overlay.querySelector('#template-scrubber-wrap'),
         scrubberTrack: overlay.querySelector('#template-scrubber-track'),
         mediaRange: overlay.querySelector('#template-scrubber-media-range'),
@@ -163,9 +188,179 @@
       };
     },
 
+    _hasUnfinishedLayers() {
+      if (!window.FishBgRemovalEngine) return false;
+      if (typeof window.FishBgRemovalEngine.hasPendingTasks === 'function' && window.FishBgRemovalEngine.hasPendingTasks()) {
+        return true;
+      }
+      const activeTasks = window.FishBgRemovalEngine.getActiveTasks ? window.FishBgRemovalEngine.getActiveTasks() : [];
+      if (activeTasks.some(t => !t.cancelled && t.status !== 'done')) {
+        return true;
+      }
+
+      const state = window.currentProjectState;
+      if (state && Array.isArray(state.layers)) {
+        const checkLayers = (layers) => {
+          for (let l of layers) {
+            if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
+              if (l.type === 'video') {
+                if (activeTasks.some(t => t.layerId === l.id && !t.cancelled && t.status !== 'done')) return true;
+              } else {
+                const cutout = window.FishBgRemovalEngine.getPhotoCutout(l);
+                if (!cutout) {
+                  window.FishBgRemovalEngine.processLayer(l);
+                  return true;
+                }
+              }
+            }
+            if (Array.isArray(l.layers) && checkLayers(l.layers)) return true;
+          }
+          return false;
+        };
+        if (checkLayers(state.layers)) return true;
+      }
+      return false;
+    },
+
+    _initMattingWidget() {
+      const widget = this._elements.mattingWidget;
+      const percentEl = this._elements.mattingPercent;
+      const ringFill = this._elements.mattingRingFill;
+      const list = this._elements.mattingList;
+      const closeBtn = this._elements.mattingClose;
+
+      if (!widget || !window.FishBgRemovalEngine) return;
+
+      let isExpanded = false;
+
+      const expandWidget = () => {
+        if (isExpanded) return;
+        isExpanded = true;
+        widget.classList.add('is-expanded');
+        try {
+          history.pushState({ templateMattingWidgetOpen: true }, '');
+        } catch (_) {}
+      };
+
+      const collapseWidget = (fromPopstate = false) => {
+        if (!isExpanded) return;
+        isExpanded = false;
+        widget.classList.remove('is-expanded');
+        if (!fromPopstate && history.state && history.state.templateMattingWidgetOpen) {
+          try {
+            history.back();
+          } catch (_) {}
+        }
+      };
+
+      widget.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!isExpanded) {
+          expandWidget();
+        }
+      });
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          collapseWidget();
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (isExpanded && !widget.contains(e.target)) {
+          collapseWidget();
+        }
+      });
+
+      window.addEventListener('popstate', () => {
+        if (isExpanded) {
+          collapseWidget(true);
+        }
+      });
+
+      const updateUI = (activeTasks) => {
+        if (!activeTasks || activeTasks.length === 0) {
+          widget.classList.add('hidden');
+          if (isExpanded) collapseWidget();
+          return;
+        }
+
+        widget.classList.remove('hidden');
+
+        const totalPct = activeTasks.reduce((sum, t) => sum + (t.percent || 0), 0);
+        const avgPct = Math.round(totalPct / activeTasks.length);
+        if (percentEl) {
+          percentEl.textContent = `${avgPct}%`;
+        }
+
+        if (ringFill) {
+          const circumference = 84.823;
+          const offset = circumference * (1 - Math.max(0, Math.min(100, avgPct)) / 100);
+          ringFill.style.strokeDashoffset = offset;
+        }
+
+        widget.title = `${activeTasks.length} task(s) processing (${avgPct}%) - Click to expand`;
+
+        if (!list) return;
+        list.innerHTML = '';
+
+        activeTasks.forEach(task => {
+          const row = document.createElement('div');
+          row.className = 'matting-task-row';
+
+          let statusText = '';
+          if (task.status && task.status.startsWith('Downloading model')) {
+            statusText = task.status;
+          } else if (task.status === 'downloading_model') {
+            statusText = 'Downloading model...';
+          } else if (task.type === 'video') {
+            statusText = `Frame ${task.currentFrame || 0}/${task.totalFrames || 0} (${task.percent}%)`;
+          } else {
+            statusText = task.status === 'done' ? 'Ready' : `Processing (${task.percent}%)`;
+          }
+
+          row.innerHTML = `
+            <div class="matting-task-meta">
+              <span class="matting-task-name">${task.layerName || 'Media'}</span>
+              <button type="button" class="matting-task-cancel" title="Cancel" data-task-id="${task.id}">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div class="matting-task-status">${statusText}</div>
+            <div class="matting-task-bar">
+              <div class="matting-task-fill" style="width: ${task.percent || 0}%;"></div>
+            </div>
+          `;
+
+          const cancelBtn = row.querySelector('.matting-task-cancel');
+          if (cancelBtn) {
+            cancelBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              if (window.FishBgRemovalEngine) {
+                window.FishBgRemovalEngine.cancelTask(task.id);
+              }
+            });
+          }
+
+          list.appendChild(row);
+        });
+
+        // Trigger template preview render update
+        if (this.isOpen) {
+          this.renderFrame();
+        }
+      };
+
+      window.FishBgRemovalEngine.addProgressListener(updateUI);
+      updateUI(window.FishBgRemovalEngine.getActiveTasks());
+    },
+
     _bindEvents() {
       const el = this._elements;
       if (!el.overlay) return;
+
+      this._initMattingWidget();
 
       // Back button -> Navigate back to index.html (Projects hub)
       el.btnBack.addEventListener('click', () => {
@@ -199,6 +394,16 @@
           e.preventDefault();
           e.stopPropagation();
           if (window.Popover) window.Popover.close(false);
+
+          if (this._hasUnfinishedLayers()) {
+            if (typeof window.showEditorToast === 'function') {
+              window.showEditorToast('Please wait until all layers are processed');
+            } else if (typeof window.showEffectsRackToast === 'function') {
+              window.showEffectsRackToast('Please wait until all layers are processed');
+            }
+            return;
+          }
+
           const exportBtn = document.getElementById('btn-editor-export');
           if (exportBtn) {
             exportBtn.click();
@@ -810,15 +1015,36 @@
         return null;
       };
 
-      const targetLayerIds = (Array.isArray(slot.layerIds) && slot.layerIds.length > 0)
-        ? slot.layerIds
-        : [slot.layerId];
+      const occLayerIds = (Array.isArray(slot.occurrences) && slot.occurrences.length > 0)
+        ? slot.occurrences.map(o => o.layerId).filter(Boolean)
+        : [];
+      const slotLayerIds = Array.isArray(slot.layerIds) ? slot.layerIds : [];
+      const singleLayerId = slot.layerId ? [slot.layerId] : [];
+      const allTargetIds = Array.from(new Set([...occLayerIds, ...slotLayerIds, ...singleLayerId]));
 
       const targetLayers = [];
-      targetLayerIds.forEach((id) => {
+      allTargetIds.forEach((id) => {
         const found = findLayerRecursive(state.layers, id);
-        if (found) targetLayers.push(found);
+        if (found && !targetLayers.includes(found)) targetLayers.push(found);
       });
+
+      // Extra check: also grab any layers that share slot mediaId or dataUrl
+      if (slot.mediaId || slot.dataUrl) {
+        const checkExtraMatches = (layers) => {
+          if (!Array.isArray(layers)) return;
+          layers.forEach(l => {
+            if (!targetLayers.includes(l)) {
+              if (slot.mediaId && (l.mediaId === slot.mediaId || l.fillMediaId === slot.mediaId)) {
+                targetLayers.push(l);
+              } else if (slot.dataUrl && (l.dataUrl === slot.dataUrl || l.fillMediaUrl === slot.dataUrl)) {
+                targetLayers.push(l);
+              }
+            }
+            if (Array.isArray(l.layers)) checkExtraMatches(l.layers);
+          });
+        };
+        checkExtraMatches(state.layers);
+      }
 
       if (targetLayers.length === 0) return;
 
@@ -841,6 +1067,7 @@
       let mediaHeight = 720;
       let mediaDuration = null;
       let thumbUrl = '';
+      let freshImg = null;
 
       if (isVideoFile) {
         await new Promise((resolve) => {
@@ -882,23 +1109,33 @@
         });
       } else {
         thumbUrl = dataUrl;
+        freshImg = new Image();
+        freshImg.crossOrigin = 'anonymous';
         await new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            mediaWidth = img.naturalWidth || 1280;
-            mediaHeight = img.naturalHeight || 720;
+          freshImg.onload = () => {
+            mediaWidth = freshImg.naturalWidth || 1280;
+            mediaHeight = freshImg.naturalHeight || 720;
             resolve();
           };
-          img.onerror = () => resolve();
-          img.src = dataUrl;
+          freshImg.onerror = () => resolve();
+          freshImg.src = dataUrl;
         });
       }
 
       // Update all linked layers simultaneously
       targetLayers.forEach((layer) => {
-        layer.name = file.name || layer.name;
-        layer.dataUrl = dataUrl;
-        layer.mediaId = sharedNewMediaId;
+        const oldKeys = [
+          layer.id,
+          layer.mediaId,
+          layer.fillMediaId,
+          layer.dataUrl,
+          layer.thumbUrl,
+          layer.fillMediaUrl,
+          slot.mediaId,
+          slot.mediaPoolId,
+          slot.dataUrl,
+          slot.thumbUrl
+        ].filter(Boolean);
 
         // Detach old audio/media element if attached
         if (window.FishAudioEngine) {
@@ -911,11 +1148,48 @@
           } catch (_) {}
         }
 
-        // Clear video / image media cache
-        if (window.layerMediaCache) {
-          window.layerMediaCache.delete(layer.id);
-          if (layer.mediaId) window.layerMediaCache.delete(layer.mediaId);
+        // Clear all cached cutouts and video frame caches for old and current keys
+        if (window.FishBgRemovalEngine) {
+          window.FishBgRemovalEngine.clearLayerCutouts(layer);
+          oldKeys.forEach(k => {
+            window.FishBgRemovalEngine._photoCutoutCache.delete(k);
+            window.FishBgRemovalEngine._videoFrameCache.delete(k);
+          });
         }
+
+        // Clear VideoFrameExtractor
+        if (window.VideoFrameExtractor) {
+          if (typeof window.VideoFrameExtractor.clearLayer === 'function') {
+            try { window.VideoFrameExtractor.clearLayer(layer); } catch (_) {}
+          }
+          oldKeys.forEach(k => {
+            if (typeof window.VideoFrameExtractor.clearSource === 'function') {
+              try { window.VideoFrameExtractor.clearSource(k); } catch (_) {}
+            } else if (typeof window.VideoFrameExtractor.clearSourceCache === 'function') {
+              try { window.VideoFrameExtractor.clearSourceCache(k); } catch (_) {}
+            }
+          });
+        }
+
+        // Clear layerMediaCache
+        if (window.layerMediaCache) {
+          oldKeys.forEach(k => window.layerMediaCache.delete(k));
+          window.layerMediaCache.delete(sharedNewMediaId);
+        }
+
+        // Reset layer cutout and cache properties
+        delete layer._bgCutoutBitmap;
+        delete layer._bgMaskCanvas;
+        delete layer._bgSrcElement;
+        delete layer._lastRenderedFrame;
+        delete layer._lastFillRenderKey;
+        if (layer._shapeBufferCanvas) {
+          layer._shapeBufferCanvas._lastShapeKey = null;
+        }
+
+        layer.name = file.name || layer.name;
+        layer.dataUrl = dataUrl;
+        layer.mediaId = sharedNewMediaId;
 
         if (isVideoFile) {
           layer.type = 'video';
@@ -947,23 +1221,56 @@
           }
         } else {
           layer.type = 'image';
-          layer.thumbUrl = thumbUrl;
+          layer.thumbUrl = thumbUrl || dataUrl;
           layer.mediaWidth = mediaWidth;
           layer.mediaHeight = mediaHeight;
         }
 
-        if (layer.fillType === 'media') {
+        if (layer.fillType === 'media' || layer.type === 'shape') {
           layer.fillMediaUrl = dataUrl;
           layer.fillMediaName = file.name;
           layer.fillMediaId = sharedNewMediaId;
           layer._fillDirty = true;
-          layer._fillMediaImg = null;
+          layer._fillMediaImg = freshImg;
+        }
+
+        // Seed layerMediaCache immediately so rendering has the new Image synchronously
+        if (window.layerMediaCache && freshImg && !isVideoFile && !isAudioFile) {
+          const freshEntry = {
+            type: 'image',
+            el: freshImg,
+            poster: null,
+            isReady: true,
+            freezeCanvas: null,
+            hasFreezeFrame: false
+          };
+          window.layerMediaCache.set(layer.id, freshEntry);
+          window.layerMediaCache.set(sharedNewMediaId, freshEntry);
         }
 
         if (typeof window.invalidatePreviewCacheForLayer === 'function') {
           window.invalidatePreviewCacheForLayer(layer);
         }
+
       });
+
+      // Auto background removal for preset / template media replacement (deduplicated by footage)
+      const queuedKeys = new Set();
+      targetLayers.forEach((layer) => {
+        if (window.FishBgRemovalEngine && window.FishBgRemovalEngine.isLayerMattingActive(layer)) {
+          const sk = layer.mediaId || layer.dataUrl || layer.id;
+          if (!queuedKeys.has(sk)) {
+            queuedKeys.add(sk);
+            window.FishBgRemovalEngine.processLayer(layer, true);
+          }
+        }
+      });
+
+      // Invalidate and clear global preview cache
+      if (window.PreviewCacheManager) {
+        if (typeof window.PreviewCacheManager.clearAll === 'function') window.PreviewCacheManager.clearAll('all');
+        if (typeof window.PreviewCacheManager.clear === 'function') window.PreviewCacheManager.clear();
+      }
 
       // Sync slot properties in memory
       slot.type = isVideoFile ? 'video' : (isAudioFile ? 'audio' : 'image');

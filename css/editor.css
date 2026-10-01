@@ -3134,9 +3134,233 @@ body.has-active-drawer .timeline-fab-add {
   opacity: 0.22;
   pointer-events: none;
 }
-
 .timeline-clip-block.is-marquee-candidate {
   border: 1.5px solid var(--color-primary) !important;
 }
 
+/* ==========================================================================
+   Preview Floating AI Matting / Background Removal Circular Progress Widget
+   ========================================================================== */
+/* ==========================================================================
+   Preview Floating AI Matting Progress Widget (Single Morphing Element)
+   ========================================================================== */
+.preview-matting-widget {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 45;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle, transparent);
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  user-select: none;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              height 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-radius 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.15s ease,
+              transform 0.15s ease;
+}
 
+.preview-matting-widget.hidden {
+  display: none !important;
+}
+
+/* Collapsed circular progress state */
+.preview-matting-widget:not(.is-expanded) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-matting-widget:not(.is-expanded):hover {
+  background-color: var(--bg-panel-hover);
+  transform: scale(1.05);
+}
+
+.matting-widget-circle {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.preview-matting-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.preview-matting-ring-track {
+  fill: none;
+  stroke: var(--bg-canvas);
+  stroke-width: 2.6;
+}
+
+.preview-matting-ring-fill {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 84.823;
+  stroke-dashoffset: 84.823;
+  transition: stroke-dashoffset 0.2s ease;
+}
+
+.preview-matting-percent-text {
+  font-family: 'Cal Sans', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Expanded state: morphs smoothly to task list */
+.preview-matting-widget.is-expanded {
+  width: 260px;
+  height: auto;
+  min-height: 72px;
+  max-height: 320px;
+  border-radius: 12px;
+  cursor: default;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-matting-widget.is-expanded .matting-widget-circle {
+  display: none;
+}
+
+.matting-widget-expanded {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-matting-widget.is-expanded .matting-widget-expanded {
+  display: flex;
+}
+
+.matting-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle, var(--bg-canvas));
+}
+
+.matting-widget-title {
+  font-family: 'Cal Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.matting-widget-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.matting-widget-close:hover {
+  background-color: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.matting-widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 240px;
+}
+
+.matting-task-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background-color: var(--bg-panel-inner, var(--bg-dashboard));
+}
+
+.matting-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.matting-task-name {
+  font-family: 'Cal Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.matting-task-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+}
+
+.matting-task-cancel:hover {
+  color: var(--color-danger);
+  background-color: var(--color-danger-bg);
+}
+
+.matting-task-status {
+  font-family: 'Cal Sans', sans-serif;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.matting-task-bar {
+  width: 100%;
+  height: 3px;
+  background-color: var(--bg-canvas);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.matting-task-fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.15s ease;
+}

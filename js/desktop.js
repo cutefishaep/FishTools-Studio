@@ -3888,7 +3888,7 @@
     force = Boolean(force);
     if (!force) {
       try {
-        if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay') {
+        if (localStorage.getItem(MOBILE_DISMISS_KEY) === 'stay' || localStorage.getItem('oft_preferred_view') === 'desktop') {
           return;
         }
       } catch (_) {}
@@ -3925,11 +3925,9 @@
 
   function dismissMobileSwitchModal() {
     mobilePromptDismissedThisSession = true;
-    const checkbox = document.getElementById('checkbox-remember-mobile-switch');
     try {
-      if (checkbox && checkbox.checked) {
-        localStorage.setItem(MOBILE_DISMISS_KEY, 'stay');
-      }
+      localStorage.setItem(MOBILE_DISMISS_KEY, 'stay');
+      localStorage.setItem('oft_preferred_view', 'desktop');
     } catch (_) {}
 
     if (window.Modal && typeof window.Modal.close === 'function') {

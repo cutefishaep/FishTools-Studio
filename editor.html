@@ -119,7 +119,7 @@
               <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
             </svg>
           </button>
-          <button type="button" class="editor-settings-btn" id="btn-editor-desktop" title="Desktop View" aria-label="Desktop View" onclick="window.location.href = 'desktop.html' + (window.location.search || '');">
+          <button type="button" class="editor-settings-btn" id="btn-editor-desktop" title="Desktop View" aria-label="Desktop View" onclick="try{localStorage.setItem('oft_desktop_mobile_dismissed','stay');localStorage.setItem('oft_preferred_view','desktop');}catch(_){}window.location.href = 'desktop.html' + (window.location.search || '');">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
               <line x1="8" y1="21" x2="16" y2="21"/>
@@ -277,6 +277,31 @@
             <div id="editor-video-mount-pool" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 0;"></div>
             <canvas id="editor-active-canvas" class="editor-active-canvas" style="position: relative; z-index: 1;"></canvas>
             <canvas id="editor-overlay-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;"></canvas>
+          </div>
+
+          <!-- Floating Background Removal Progress Widget (Single Morphing Element) -->
+          <div class="preview-matting-widget hidden" id="preview-matting-widget" role="button" tabindex="0" title="Background Removal Progress" aria-label="Background Removal Progress">
+            <!-- Collapsed state: circular progress ring -->
+            <div class="matting-widget-circle">
+              <svg class="preview-matting-ring-svg" viewBox="0 0 34 34">
+                <circle class="preview-matting-ring-track" cx="17" cy="17" r="13.5"/>
+                <circle class="preview-matting-ring-fill" id="preview-matting-ring-fill" cx="17" cy="17" r="13.5"/>
+              </svg>
+              <span class="preview-matting-percent-text" id="preview-matting-percent">0%</span>
+            </div>
+
+            <!-- Expanded state: task list -->
+            <div class="matting-widget-expanded">
+              <div class="matting-widget-header">
+                <span class="matting-widget-title" id="matting-widget-title">Background Processing</span>
+                <button type="button" class="matting-widget-close" id="matting-widget-close" aria-label="Close">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+              <div class="matting-widget-list" id="matting-widget-list">
+                <!-- Dynamically populated tasks -->
+              </div>
+            </div>
           </div>
         </main>
 
@@ -1366,6 +1391,10 @@
                         <div class="effects-category-card" role="button" tabindex="0" data-category="background" title="Background">
                           <div class="effects-category-card-overlay"></div>
                           <span class="effects-category-name">Background</span>
+                        </div>
+                        <div class="effects-category-card" role="button" tabindex="0" data-category="artificial intelligence" title="Artificial Intelligence">
+                          <div class="effects-category-card-overlay"></div>
+                          <span class="effects-category-name">Artificial Intelligence</span>
                         </div>
                         <div class="effects-category-card" role="button" tabindex="0" data-category="expression" title="Expression Controls">
                           <div class="effects-category-card-overlay"></div>
@@ -5545,12 +5574,14 @@
   <script src="effects/haze_flare.js"></script>
   <script src="effects/vignette.js"></script>
   <script src="effects/optic_compensation.js"></script>
+  <script src="effects/remove_bg.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/fishtools-adapter.js?v=4"></script>
   <script src="js/fish-audio-engine.js"></script>
   <script src="js/frame-extractor.js"></script>
   <script src="js/preview-cache.js"></script>
+  <script src="js/bg-removal-engine.js"></script>
   <script src="js/template-editor.js"></script>
   <script src="js/text-engine.js"></script>
   <script src="text/default.js"></script>

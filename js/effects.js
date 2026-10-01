@@ -1452,10 +1452,12 @@
         if (activePointIdx !== null) {
           e.stopPropagation();
           e.preventDefault();
+          window.isTransformInteracting = true;
           try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+          const cachedRect = svg.getBoundingClientRect();
 
           function onPointerMove(ev) {
-            const r = svg.getBoundingClientRect();
+            const r = cachedRect || svg.getBoundingClientRect();
             const rw_ = r.width || 200;
             const rh_ = r.height || 200;
             let x = Math.max(0, Math.min(1, (ev.clientX - r.left) / rw_));
@@ -1480,16 +1482,22 @@
               coordEl.textContent = `In: ${Math.round(x * 255)} | Out: ${Math.round(y * 255)}`;
             }
 
-            if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
-            if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-drag');
+            const isPlaying = typeof window.isAnyPlaybackActive === 'function' ? window.isAnyPlaybackActive() : !!window.isTimelinePlaying;
+            if (!isPlaying) {
+              if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+              if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-drag');
+            }
           }
 
           function onPointerUp(ev) {
             try { svg.releasePointerCapture(ev.pointerId); } catch (_) {}
+            window.isTransformInteracting = false;
             svg.removeEventListener('pointermove', onPointerMove);
             svg.removeEventListener('pointerup', onPointerUp);
             svg.removeEventListener('pointercancel', onPointerUp);
             activePointIdx = null;
+            if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(layer);
+            if (typeof window.redrawComposition === 'function') window.redrawComposition('curve-drag-end');
             if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
           }
 

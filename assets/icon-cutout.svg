@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Dashed outer frame (cutout crop border) -->
+  <rect x="2.5" y="2.5" width="19" height="19" rx="3.5" stroke-dasharray="2.5 2" opacity="0.6"/>
+
+  <!-- Background cut hatch lines (removed background indication) -->
+  <line x1="3" y1="8" x2="8" y2="3" stroke-dasharray="1.8 1.8" opacity="0.75"/>
+  <line x1="3" y1="13" x2="6.5" y2="9.5" stroke-dasharray="1.8 1.8" opacity="0.75"/>
+  <line x1="16" y1="3" x2="21" y2="8" stroke-dasharray="1.8 1.8" opacity="0.75"/>
+  <line x1="17.5" y1="9.5" x2="21" y2="13" stroke-dasharray="1.8 1.8" opacity="0.75"/>
+
+  <!-- Person cutout subject in center -->
+  <circle cx="12" cy="8" r="3.2" stroke-width="2"/>
+  <path d="M6 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" stroke-width="2"/>
+
+  <!-- Cut line baseline -->
+  <line x1="3" y1="19.5" x2="6" y2="19.5" stroke-dasharray="1.5 1.5"/>
+  <line x1="18" y1="19.5" x2="21" y2="19.5" stroke-dasharray="1.5 1.5"/>
+</svg>

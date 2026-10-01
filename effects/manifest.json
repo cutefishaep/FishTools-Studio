@@ -245,6 +245,13 @@
     "icon": "assets/FXPH.svg"
   },
   {
+    "file": "remove_bg.js",
+    "id": "remove_bg",
+    "name": "Remove Background (AI)",
+    "category": "Artificial Intelligence",
+    "icon": "assets/FXPH.svg"
+  },
+  {
     "file": "rgb_split.js",
     "id": "rgb-split",
     "name": "RGB Split",

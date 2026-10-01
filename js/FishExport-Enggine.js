@@ -1762,6 +1762,44 @@
       logExportWarn('Init', 'Export already in progress. Aborting duplicate request.');
       return;
     }
+
+    // Check if any layer background removal is pending / processing
+    if (window.FishBgRemovalEngine) {
+      var isPending = (typeof window.FishBgRemovalEngine.hasPendingTasks === 'function')
+        ? window.FishBgRemovalEngine.hasPendingTasks()
+        : (window.FishBgRemovalEngine.getActiveTasks ? window.FishBgRemovalEngine.getActiveTasks().some(function(t) { return !t.cancelled && t.status !== 'done'; }) : false);
+
+      if (!isPending && ps.layers) {
+        var checkLayersPending = function(layers) {
+          for (var i = 0; i < layers.length; i++) {
+            var l = layers[i];
+            if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
+              if (l.type !== 'video' && !window.FishBgRemovalEngine.getPhotoCutout(l)) {
+                window.FishBgRemovalEngine.processLayer(l);
+                return true;
+              }
+            }
+            if (Array.isArray(l.layers) && checkLayersPending(l.layers)) return true;
+          }
+          return false;
+        };
+        isPending = checkLayersPending(ps.layers);
+      }
+
+      if (isPending) {
+        var toastMsg = 'Please wait until all layers are processed';
+        if (typeof window.showEditorToast === 'function') {
+          window.showEditorToast(toastMsg);
+        } else if (typeof window.showEffectsRackToast === 'function') {
+          window.showEffectsRackToast(toastMsg);
+        } else {
+          alert(toastMsg);
+        }
+        logExportWarn('Init', toastMsg);
+        return;
+      }
+    }
+
     isCancelled = false;
 
     // 1. Tier 1: WebCodecs + Mp4Muxer deterministic frame-by-frame (.mp4)

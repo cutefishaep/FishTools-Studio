@@ -649,7 +649,12 @@
   user-select: none;
   overflow: hidden;
   box-sizing: border-box;
+  touch-action: none;
   transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.effects-ruler-scrubber {
+  touch-action: none;
 }
 
 .effects-param-pill:hover {

@@ -2060,6 +2060,13 @@
     }
 
     /**
+     * Backward-compat alias for clearSource(target)
+     */
+    clearSourceCache(target) {
+      return this.clearSource(target);
+    }
+
+    /**
      * Backward-compat shim for extract(layer)
      */
     extract(layer) {

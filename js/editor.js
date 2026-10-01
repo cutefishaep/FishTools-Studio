@@ -2356,7 +2356,8 @@
 
           try {
             if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function' && Array.isArray(targetChild.effects) && targetChild.effects.length > 0) {
-              window.FishEffects.renderLayer(targetCtx, targetEl, Object.assign({}, targetChild, eff), { x: -curAbsW / 2 - curAx, y: -curAbsH / 2 - curAy, w: curAbsW, h: curAbsH }, innerSec);
+              const childRenderSec = (eff && typeof eff._currentSec === 'number') ? eff._currentSec : innerSec;
+              window.FishEffects.renderLayer(targetCtx, targetEl, Object.assign({}, targetChild, eff), { x: -curAbsW / 2 - curAx, y: -curAbsH / 2 - curAy, w: curAbsW, h: curAbsH }, childRenderSec);
             } else {
               targetCtx.drawImage(targetEl, -curAbsW / 2 - curAx, -curAbsH / 2 - curAy, curAbsW, curAbsH);
             }
@@ -2374,6 +2375,7 @@
             innerSec,
             (subCtx, subEl, subChild, subScale, subCam, subSec) => {
               const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subChild, subSec, null, childLayers) : subChild;
+              if (subEff) subEff._currentSec = subSec;
               drawChildSinglePass(subCtx, subEl, subChild, subEff);
             },
             precompLayer
@@ -2700,7 +2702,8 @@
               if (isMbActive) {
                 flushStaticBatch();
                 const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
-                if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild) {
+                const hasMoveFx = mbEngine && typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer);
+                if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
                   engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
                 } else {
                   mbEngine.renderLayerWithMotionBlur(
@@ -2726,18 +2729,20 @@
                             rotX: worldAtSub.rotX,
                             rotY: worldAtSub.rotY,
                             rotZ: worldAtSub.rotZ,
-                            rotation: worldAtSub.rotZ
+                            rotation: worldAtSub.rotZ,
+                            _currentSec: subSec
                           });
                           if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                          engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                          engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
                           return;
                         }
                       }
                       const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
                       const subAnimLayer = Object.assign({}, subLayer, subEff);
+                      subAnimLayer._currentSec = subSec;
                       if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
                       else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
                     },
                     compState
                   );
@@ -2846,23 +2851,54 @@
           bufCtx.clearRect(0, 0, w, h);
           bufCtx.drawImage(canvas, 0, 0);
 
-          // Apply layer effects to snapshot
+          const isAdjMbActive = mbEngine && mbEngine.isLayerActive(layer, compState) && (mbEngine.hasMovementEffect(layer) || mbEngine.hasMotion(layer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || []));
+
           procCtx.clearRect(0, 0, w, h);
-          procCtx.save();
-          if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
-            window.FishEffects.applyToContext(procCtx, animLayer);
-          }
-
-          if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-            window.FishEffects.renderLayer(procCtx, buf, animLayer, { x: 0, y: 0, w: w, h: h }, currentSec);
+          if (isAdjMbActive) {
+            mbEngine.renderLayerWithMotionBlur(
+              procCtx,
+              buf,
+              animLayer,
+              bufferScale,
+              null,
+              currentSec,
+              (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, subSec) : subLayer;
+                const subAnim = Object.assign({}, subLayer, subEff);
+                subAnim._currentSec = subSec;
+                subCtx.save();
+                if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
+                  window.FishEffects.applyToContext(subCtx, subAnim);
+                }
+                if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
+                  window.FishEffects.renderLayer(subCtx, subEl, subAnim, { x: 0, y: 0, w: w, h: h }, subSec);
+                } else {
+                  subCtx.drawImage(subEl, 0, 0);
+                }
+                if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {
+                  window.FishEffects.applyPostEffects(subCtx, subEl, subAnim, { x: 0, y: 0, w: w, h: h });
+                }
+                subCtx.restore();
+              },
+              compState
+            );
           } else {
-            procCtx.drawImage(buf, 0, 0);
-          }
+            procCtx.save();
+            if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
+              window.FishEffects.applyToContext(procCtx, animLayer);
+            }
 
-          if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {
-            window.FishEffects.applyPostEffects(procCtx, buf, animLayer, { x: 0, y: 0, w: w, h: h });
+            if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
+              window.FishEffects.renderLayer(procCtx, buf, animLayer, { x: 0, y: 0, w: w, h: h }, currentSec);
+            } else {
+              procCtx.drawImage(buf, 0, 0);
+            }
+
+            if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {
+              window.FishEffects.applyPostEffects(procCtx, buf, animLayer, { x: 0, y: 0, w: w, h: h });
+            }
+            procCtx.restore();
           }
-          procCtx.restore();
 
           // 5. Composite back onto ctx, clipped to the adjustment layer's transformed boundary
           ctx.save();
@@ -3696,7 +3732,8 @@
             if (isMbActive) {
               flushStaticBatch();
               const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
-              if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild) {
+              const hasMoveFx = mbEngine && typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer);
+              if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
                 engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
               } else {
                 mbEngine.renderLayerWithMotionBlur(
@@ -3723,18 +3760,20 @@
                           rotX: worldAtSub.rotX,
                           rotY: worldAtSub.rotY,
                           rotZ: worldAtSub.rotZ,
-                          rotation: worldAtSub.rotZ
+                          rotation: worldAtSub.rotZ,
+                          _currentSec: subSec
                         });
                         if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                        engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                        engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
                         return;
                       }
                     }
                     const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
                     const subAnimLayer = Object.assign({}, subLayer, subEff);
+                    subAnimLayer._currentSec = subSec;
                     if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
                     else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam);
+                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
                   },
                   compState
                 );

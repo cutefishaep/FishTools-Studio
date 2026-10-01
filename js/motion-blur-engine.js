@@ -93,6 +93,38 @@
     }
 
     /**
+     * Check if a layer has active procedural movement effects (shake, oscillate, swing, etc.)
+     */
+    hasMovementEffect(layer) {
+      if (!layer || !Array.isArray(layer.effects)) return false;
+      return layer.effects.some(f => {
+        if (!f || f.disabled) return false;
+        if (f.type === 'shake' || f.type === 'oscillate' || f.type === 'swing' || f.type === 'wave-warp' || f.type === 'transform') {
+          if (f.type === 'shake') {
+            const amp = f.amplitude !== undefined ? f.amplitude : (f.amp !== undefined ? f.amp : 1.0);
+            const ampX = f.amplitudeX !== undefined ? f.amplitudeX : 25;
+            const ampY = f.amplitudeY !== undefined ? f.amplitudeY : 25;
+            const rot = f.rotation !== undefined ? f.rotation : 3;
+            return amp > 0.001 && (ampX > 0.1 || ampY > 0.1 || rot > 0.1);
+          }
+          if (f.type === 'oscillate') {
+            const amp = f.amplitude !== undefined ? f.amplitude : 50;
+            return amp > 0.1;
+          }
+          if (f.type === 'swing') {
+            const angle = f.swingAngle !== undefined ? f.swingAngle : 25;
+            return angle > 0.1;
+          }
+          return true;
+        }
+        const def = (typeof window !== 'undefined' && window.FishEffectsRegistry && typeof window.FishEffectsRegistry.get === 'function')
+          ? window.FishEffectsRegistry.get(f.type)
+          : null;
+        return def && def.category === 'movement';
+      });
+    }
+
+    /**
      * Fast-path check: Did the layer actually move during the shutter exposure interval?
      * If static, multi-sampling is completely bypassed with zero performance overhead.
      * For collapsed precomp children (_precompParentLayer), also checks parent motion.
@@ -108,14 +140,20 @@
       const tStart = currentSec + (cfg.shutterPhase / 360) * frameDur;
       const tEnd = tStart + exposureTime;
 
-      if (typeof window.getLayerEffectivePropsAtTime !== 'function') return false;
-
       // For collapsed precomp children: check both child keyframes AND parent layer keyframes
       const parentLayer = layer._precompParentLayer || null;
       const childOrig = layer._childOrigLayer || null;
 
       // Check child's own keyframes (using original child layer if available)
       const checkLayer = childOrig || layer;
+
+      // Check if layer or parent has active procedural movement effects (shake, oscillate, swing, etc.)
+      if (this.hasMovementEffect(checkLayer) || (parentLayer && this.hasMovementEffect(parentLayer))) {
+        return true;
+      }
+
+      if (typeof window.getLayerEffectivePropsAtTime !== 'function') return false;
+
       const hasKeyframes = checkLayer.keyframes && Object.keys(checkLayer.keyframes).length > 0;
       const parentHasKeyframes = parentLayer && parentLayer.keyframes && Object.keys(parentLayer.keyframes).length > 0;
 

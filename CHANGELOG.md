@@ -5,6 +5,21 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.87] - 2026-10-01
+
+### Added
+- **Linear Wipe Effect (`effects/linear_wipe.js`)**: Added smooth angle-guided directional wipe transition with completion scrubber, rotation angle, and edge feathering.
+- **Flicker Effect (`effects/flicker.js`)**: Added lightning flicker effect with frequency, amount, randomness, seed, and multi-mode support (brightness, opacity, exposure).
+- **Shake Effect (`effects/shake.js`)**: Added randomized camera shake movement effect with frequency, amplitude X/Y, rotation, and seed controls.
+
+### Fixed
+- **OpenFishTools Warp 2 & Warp 3 Preset Purge & Cache Busting (`js/openfishtools-controller.js`, `editor.html`, `desktop.html`, `sw.js`)**:
+  - Replaced Warp 2 with exact single Hue Spin adjustment layer (70 frames ~ 1.167s, hue shift 0 to 360).
+  - Replaced Warp 3 with exact 4-layer stack: Mid-Wave (145 frames), Warp Effect (63 frames), Ghost Effect (125 frames), and Hue Spin (70 frames).
+  - Added pre-purge logic `purgeExistingPresetLayers` to cleanly delete existing warp preset layers before inserting new ones.
+  - Added explicit version cache-busting `?v=0.5.87` to `openfishtools-controller.js`, `fishtools-adapter.js`, and `openfishtools-generators3d.js` across `editor.html` and `desktop.html`.
+  - Registered controller scripts into Service Worker `CORE_ASSETS` to prevent serving stale cached scripts.
+
 ## [0.5.85] - 2026-09-30
 
 ### Changed

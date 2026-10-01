@@ -87,7 +87,28 @@ function syncEffects() {
 `;
 
   fs.writeFileSync(LOADER_PATH, loaderContent, 'utf8');
-  console.log(`[SyncEffects] Successfully synchronized ${files.length} effects to effects/loader.js and manifest.json`);
+
+  // 3. Synchronize static script tags in editor.html and desktop.html
+  const effectScriptsBlock = files.map(f => `  <script src="effects/${f}"></script>`).join('\n');
+  const htmlTargets = ['editor.html', 'desktop.html'];
+  const effectsBlockRegex = /(?:[ \t]*<script src="effects\/[^"]+"><\/script>\r?\n)+/;
+
+  htmlTargets.forEach(relPath => {
+    const fullPath = path.join(ROOT, relPath);
+    if (!fs.existsSync(fullPath)) return;
+    try {
+      let content = fs.readFileSync(fullPath, 'utf8');
+      if (effectsBlockRegex.test(content)) {
+        content = content.replace(effectsBlockRegex, effectScriptsBlock + '\n');
+        fs.writeFileSync(fullPath, content, 'utf8');
+        console.log(`[SyncEffects] Synchronized ${files.length} effect scripts in ${relPath}`);
+      }
+    } catch (err) {
+      console.error(`[SyncEffects] Error synchronizing ${relPath}:`, err);
+    }
+  });
+
+  console.log(`[SyncEffects] Successfully synchronized ${files.length} effects to effects/loader.js, manifest.json, and HTML templates`);
   return manifest;
 }
 

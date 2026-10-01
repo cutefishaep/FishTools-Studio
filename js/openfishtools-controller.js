@@ -795,6 +795,54 @@
     return JSON.stringify({ error: false, message: 'Hue Spin applied', layerId: adj.id });
   }
 
+  // Helper: Purge any existing warp preset adjustment layers around the current playhead or selection
+  function purgeExistingPresetLayers(names, rangeStart, rangeEnd, selectedId) {
+    const state = window.currentProjectState;
+    if (!state || !Array.isArray(state.layers)) return;
+    const targetNames = new Set(names);
+    const idsToDelete = new Set();
+    const searchStart = (typeof rangeStart === 'number' ? rangeStart : 0) - 0.6;
+    const searchEnd = (typeof rangeEnd === 'number' ? rangeEnd : 0) + 1.0;
+
+    state.layers.forEach(l => {
+      if (!l) return;
+      if (l.type === 'adjustment' && targetNames.has(l.name)) {
+        const start = Number(l.startSec || 0);
+        const dur = Number(l.durationSec || 0);
+        const end = start + dur;
+        if (l.id === selectedId || (end >= searchStart && start <= searchEnd)) {
+          idsToDelete.add(l.id);
+        }
+      }
+    });
+
+    if (idsToDelete.size === 0) return;
+
+    state.layers.forEach(l => {
+      if (idsToDelete.has(l.id)) {
+        if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+          window.invalidatePreviewCacheForLayer(l);
+        }
+        if (window.PreviewCacheManager && typeof window.PreviewCacheManager.deletePool === 'function') {
+          window.PreviewCacheManager.deletePool(l.id);
+        }
+        if (window.layerMediaCache) {
+          window.layerMediaCache.delete(l.id);
+          if (l.mediaId) window.layerMediaCache.delete(l.mediaId);
+        }
+      }
+    });
+
+    state.layers = state.layers.filter(l => !idsToDelete.has(l.id));
+
+    if (window.selectedLayerIds) {
+      idsToDelete.forEach(id => window.selectedLayerIds.delete(id));
+    }
+    if (idsToDelete.has(window.selectedLayerId)) {
+      window.selectedLayerId = null;
+    }
+  }
+
   // --- PRESET: WARP1 ---
   function applyPresetWarp1() {
     if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
@@ -833,6 +881,9 @@
     const mwT1 = midwaveStart;
     const mwT2 = Number((curSec + (2 / fps)).toFixed(4)); // Peak hits 2 frames after playhead (187px / 287px)
     const mwT3 = Number((midwaveStart + midwaveDur).toFixed(4));
+
+    // Clean up any old preset layers around this time range first
+    purgeExistingPresetLayers(['Hue Spin', 'Ghost Effect', 'Warp Effect', 'Mid-Wave'], midwaveStart, midwaveStart + midwaveDur, selId);
 
     const adjMidwave = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(midwaveDur, midwaveStart) : null;
     if (!adjMidwave) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
@@ -1142,6 +1193,9 @@
     const hueT1 = curSec;
     const hueT2 = Number((curSec + hueDur).toFixed(4));
 
+    // Clean up any old preset layers around this time range first
+    purgeExistingPresetLayers(['Hue Spin', 'Ghost Effect', 'Warp Effect', 'Mid-Wave'], hueStart, hueStart + hueDur, selId);
+
     const adjHue = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(hueDur, hueStart) : null;
     if (!adjHue) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
 
@@ -1253,6 +1307,9 @@
     const mwT1 = midwaveStart;
     const mwT2 = Number((curSec + (2 / fps)).toFixed(4)); // Peak hits 2 frames after playhead
     const mwT3 = Number((midwaveStart + midwaveDur).toFixed(4));
+
+    // Clean up any old preset layers around this time range first
+    purgeExistingPresetLayers(['Hue Spin', 'Ghost Effect', 'Warp Effect', 'Mid-Wave'], midwaveStart, midwaveStart + midwaveDur, selId);
 
     const adjMidwave = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(midwaveDur, midwaveStart) : null;
     if (!adjMidwave) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });

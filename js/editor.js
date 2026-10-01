@@ -6217,6 +6217,9 @@
           if (typeof window.closeGalleryCategory === 'function') {
             window.closeGalleryCategory();
           }
+          if (typeof window.autoFetchAndLoadEffects === 'function') {
+            window.autoFetchAndLoadEffects();
+          }
         } else {
           drawerCard.classList.remove('is-effects-gallery');
         }
@@ -15801,8 +15804,34 @@
         });
       }
 
+      // Dynamic automatic effects discovery & loader from manifest.json
+      async function autoFetchAndLoadEffects() {
+        if (typeof fetch !== 'function') return;
+        try {
+          const res = await fetch('effects/manifest.json');
+          if (!res.ok) return;
+          const manifest = await res.json();
+          if (!Array.isArray(manifest)) return;
+          manifest.forEach(item => {
+            if (item && item.id && (!window.FishEffectsRegistry || !window.FishEffectsRegistry.get(item.id))) {
+              const scriptId = 'script_fx_' + item.id.replace(/[^a-z0-9_-]/gi, '_');
+              if (!document.getElementById(scriptId)) {
+                const s = document.createElement('script');
+                s.id = scriptId;
+                s.src = 'effects/' + item.file;
+                s.async = true;
+                document.head.appendChild(s);
+              }
+            }
+          });
+        } catch (_) {}
+      }
+      window.autoFetchAndLoadEffects = autoFetchAndLoadEffects;
+
       // Initial auto-sync of registered effects & listen for runtime registrations
       syncGalleryItemsFromRegistry();
+      autoFetchAndLoadEffects();
+
       if (typeof window !== 'undefined') {
         window.addEventListener('fisheffects:registered', () => {
           syncGalleryItemsFromRegistry();

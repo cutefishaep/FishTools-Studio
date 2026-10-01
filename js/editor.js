@@ -22935,6 +22935,37 @@
             keyframes: clonedKeyframes
           });
 
+          // Preserve in-memory references & cache handles (AI cutout, media cache, frame extractor)
+          if (l._bgCutoutBitmap) clonedLayer._bgCutoutBitmap = l._bgCutoutBitmap;
+          if (l._lastMattingModel) clonedLayer._lastMattingModel = l._lastMattingModel;
+          if (l._fillMediaImg) clonedLayer._fillMediaImg = l._fillMediaImg;
+          if (l._lastRenderedFrame) clonedLayer._lastRenderedFrame = l._lastRenderedFrame;
+
+          if (window.FishBgRemovalEngine) {
+            const cutout = l._bgCutoutBitmap || window.FishBgRemovalEngine.getPhotoCutout(l);
+            if (cutout) {
+              clonedLayer._bgCutoutBitmap = cutout;
+              if (window.FishBgRemovalEngine._photoCutoutCache) {
+                window.FishBgRemovalEngine._photoCutoutCache.set(newId, cutout);
+                if (clonedLayer.mediaId) window.FishBgRemovalEngine._photoCutoutCache.set(clonedLayer.mediaId, cutout);
+              }
+            }
+          }
+
+          if (window.layerMediaCache) {
+            const origMedia = window.layerMediaCache.get(l.id) || (l.mediaId ? window.layerMediaCache.get(l.mediaId) : null);
+            if (origMedia) {
+              window.layerMediaCache.set(newId, origMedia);
+            }
+          }
+
+          if (l.type === 'video' && window.VideoFrameExtractor) {
+            const origSourceKey = window.VideoFrameExtractor._getSourceKey(l);
+            if (origSourceKey && !clonedLayer.mediaId) {
+              clonedLayer.mediaId = l.mediaId || origSourceKey;
+            }
+          }
+
           invalidatePreviewCacheForLayer(clonedLayer);
           currentProjectState.layers.unshift(clonedLayer);
           newPastedIds.push(newId);
@@ -23018,9 +23049,9 @@
           const cloned = Object.assign({}, JSON.parse(JSON.stringify(orig)), {
             id: newId,
             name: orig.name ? (orig.name + ' (Copy)') : 'Layer (Copy)',
-            startSec: orig.startSec !== undefined ? orig.startSec : ((orig.startPx || 0) / pixelsPerSecond),
+            startSec: orig.startSec !== undefined ? orig.startSec : ((orig.startPx || 0) / (window.currentPixelsPerSecond || 80)),
             startPx: orig.startPx || 0,
-            durationSec: orig.durationSec !== undefined ? orig.durationSec : ((orig.widthPx || 320) / pixelsPerSecond),
+            durationSec: orig.durationSec !== undefined ? orig.durationSec : ((orig.widthPx || 320) / (window.currentPixelsPerSecond || 80)),
             widthPx: orig.widthPx || 320,
             parentId: newParentId,
             parentBind: orig.parentBind ? JSON.parse(JSON.stringify(orig.parentBind)) : undefined,
@@ -23028,6 +23059,37 @@
             audioEffects: clonedAudioEffects,
             keyframes: clonedKeyframes
           });
+
+          // Preserve in-memory references & cache handles (AI cutout, media cache, frame extractor)
+          if (orig._bgCutoutBitmap) cloned._bgCutoutBitmap = orig._bgCutoutBitmap;
+          if (orig._lastMattingModel) cloned._lastMattingModel = orig._lastMattingModel;
+          if (orig._fillMediaImg) cloned._fillMediaImg = orig._fillMediaImg;
+          if (orig._lastRenderedFrame) cloned._lastRenderedFrame = orig._lastRenderedFrame;
+
+          if (window.FishBgRemovalEngine) {
+            const cutout = orig._bgCutoutBitmap || window.FishBgRemovalEngine.getPhotoCutout(orig);
+            if (cutout) {
+              cloned._bgCutoutBitmap = cutout;
+              if (window.FishBgRemovalEngine._photoCutoutCache) {
+                window.FishBgRemovalEngine._photoCutoutCache.set(newId, cutout);
+                if (cloned.mediaId) window.FishBgRemovalEngine._photoCutoutCache.set(cloned.mediaId, cutout);
+              }
+            }
+          }
+
+          if (window.layerMediaCache) {
+            const origMedia = window.layerMediaCache.get(orig.id) || (orig.mediaId ? window.layerMediaCache.get(orig.mediaId) : null);
+            if (origMedia) {
+              window.layerMediaCache.set(newId, origMedia);
+            }
+          }
+
+          if (orig.type === 'video' && window.VideoFrameExtractor) {
+            const origSourceKey = window.VideoFrameExtractor._getSourceKey(orig);
+            if (origSourceKey && !cloned.mediaId) {
+              cloned.mediaId = orig.mediaId || origSourceKey;
+            }
+          }
 
           // Insert directly above original layer in timeline stack (in-place timecode)
           invalidatePreviewCacheForLayer(cloned);

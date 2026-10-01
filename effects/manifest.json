@@ -133,6 +133,13 @@
     "icon": "assets/FXPH.svg"
   },
   {
+    "file": "flicker.js",
+    "id": "flicker",
+    "name": "Flicker",
+    "category": "lightning",
+    "icon": "assets/FXPH.svg"
+  },
+  {
     "file": "fsmb.js",
     "id": "fsmb",
     "name": "FSMB (Motion Blur)",
@@ -193,6 +200,13 @@
     "id": "invert",
     "name": "Invert",
     "category": "lightning",
+    "icon": "assets/FXPH.svg"
+  },
+  {
+    "file": "linear_wipe.js",
+    "id": "linear_wipe",
+    "name": "Linear Wipe",
+    "category": "layer",
     "icon": "assets/FXPH.svg"
   },
   {
@@ -270,6 +284,13 @@
     "id": "scanline",
     "name": "Scanline",
     "category": "lightning",
+    "icon": "assets/FXPH.svg"
+  },
+  {
+    "file": "shake.js",
+    "id": "shake",
+    "name": "Shake",
+    "category": "movement",
     "icon": "assets/FXPH.svg"
   },
   {

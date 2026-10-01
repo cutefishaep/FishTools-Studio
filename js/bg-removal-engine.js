@@ -437,6 +437,28 @@
       if (this._photoCutoutCache.has(key)) {
         return this._photoCutoutCache.get(key);
       }
+      if (layer.mediaId && this._photoCutoutCache.has(layer.mediaId)) {
+        const bmp = this._photoCutoutCache.get(layer.mediaId);
+        layer._bgCutoutBitmap = bmp;
+        return bmp;
+      }
+      if (layer.dataUrl && this._photoCutoutCache.has(layer.dataUrl)) {
+        const bmp = this._photoCutoutCache.get(layer.dataUrl);
+        layer._bgCutoutBitmap = bmp;
+        return bmp;
+      }
+      if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
+        for (const l of window.currentProjectState.layers) {
+          if (l && l !== layer) {
+            const matchesMedia = (layer.mediaId && l.mediaId === layer.mediaId) || (layer.dataUrl && l.dataUrl === layer.dataUrl);
+            if (matchesMedia && l._bgCutoutBitmap) {
+              layer._bgCutoutBitmap = l._bgCutoutBitmap;
+              this._photoCutoutCache.set(key, l._bgCutoutBitmap);
+              return l._bgCutoutBitmap;
+            }
+          }
+        }
+      }
       if (!this._dbLoadingKeys) this._dbLoadingKeys = new Set();
       if (!this._dbLoadingKeys.has(key)) {
         this._dbLoadingKeys.add(key);

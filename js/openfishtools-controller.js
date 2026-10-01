@@ -1136,202 +1136,41 @@
 
     const uid = (prefix) => prefix + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
-    // 1. Layer: Mid-Wave (WARP2 parameters: direction 306/49, waveWidth 2652/2392, phase -75/-27)
-    const midwavePreFrames = Math.round(0.3667 * fps);
-    const midwaveStartFrame = Math.max(0, curFrame - midwavePreFrames);
-    const midwaveStart = Number((midwaveStartFrame / fps).toFixed(4));
-    const midwaveDur = 1.5914;
-    const mwT1 = midwaveStart;
-    const mwT2 = curSec; // Peak hits precisely on playhead frame
-    const mwT3 = Number((midwaveStart + midwaveDur).toFixed(4));
-
-    const adjMidwave = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(midwaveDur, midwaveStart) : null;
-    if (!adjMidwave) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
-    adjMidwave.name = 'Mid-Wave';
-    adjMidwave.isDurationExplicit = true;
-    adjMidwave.direction = 306;
-    adjMidwave.waveHeight = 85;
-    adjMidwave.waveWidth = 2652;
-    adjMidwave.speed = 1.6;
-
-    const ww1 = {
-      id: uid('fx_wave_warp_1'),
-      type: 'wave-warp',
-      name: 'Wave Warp',
-      isExpanded: true,
-      disabled: false,
-      waveType: 'sine',
-      waveHeight: 85,
-      waveWidth: 2652,
-      direction: 306,
-      speed: 1.6,
-      phase: -75,
-      tile: 1
-    };
-
-    const ww2 = {
-      id: uid('fx_wave_warp_2'),
-      type: 'wave-warp',
-      name: 'Wave Warp',
-      isExpanded: true,
-      disabled: false,
-      waveType: 'sine',
-      waveHeight: 85,
-      waveWidth: 2392,
-      direction: 49,
-      speed: 1.6,
-      phase: -27,
-      tile: 1
-    };
-
-    adjMidwave.effects = [ww1, ww2];
-    adjMidwave.keyframes = {
-      [`${ww1.id}:waveWidth`]: [],
-      [`${ww1.id}:waveHeight`]: [
-        { time: mwT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
-        { time: mwT2, value: { waveHeight: 85 }, easing: [0.002, 1, 0.224, 1] },
-        { time: mwT3, value: { waveHeight: 0 }, easing: [0, 0, 1, 1] }
-      ],
-      [`${ww2.id}:waveHeight`]: [
-        { time: mwT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
-        { time: mwT2, value: { waveHeight: 85 }, easing: [0.002, 1, 0.138, 1] },
-        { time: mwT3, value: { waveHeight: 0 }, easing: [0, 0, 1, 1] }
-      ]
-    };
-    adjMidwave.defaultEasing = {
-      [`${ww1.id}:waveWidth`]: [0, 0, 1, 1],
-      [`${ww1.id}:waveHeight`]: [0.002, 1, 0.224, 1],
-      [`${ww2.id}:waveHeight`]: [0.002, 1, 0.138, 1]
-    };
-    adjMidwave._defaultEasing = adjMidwave.defaultEasing;
-    createdLayers.push(adjMidwave);
-
-    // 2. Layer: Ghost Effect
-    const ghostStart = curSec;
-    const ghostDur = 0.7714;
-    const ghT1 = curSec;
-    const ghT2 = Number((curSec + 0.7135).toFixed(4));
-
-    const adjGhost = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(ghostDur, ghostStart) : null;
-    if (adjGhost) {
-      adjGhost.name = 'Ghost Effect';
-      adjGhost.isDurationExplicit = true;
-
-      const transformFx = {
-        id: uid('fx_transform'),
-        type: 'transform',
-        name: 'Transform',
-        isExpanded: true,
-        disabled: false,
-        posX: 0,
-        posY: 0,
-        scale: 100,
-        rotation: 0,
-        skew: 0,
-        anchorX: 0,
-        anchorY: 0,
-        opacity: 100
-      };
-      adjGhost.effects = [transformFx];
-
-      const easeGhost = [0, 0, 0.2, 1];
-      adjGhost.keyframes = {
-        [`${transformFx.id}:scale`]: [
-          { time: ghT1, value: { scale: 100 }, easing: [...easeGhost] },
-          { time: ghT2, value: { scale: 220 }, easing: [...easeGhost] }
-        ],
-        [`${transformFx.id}:opacity`]: [],
-        opacity: [
-          { time: ghT1, value: { opacity: 1 }, easing: [...easeGhost] },
-          { time: ghT2, value: { opacity: 0 }, easing: [...easeGhost] }
-        ]
-      };
-      adjGhost.defaultEasing = {
-        [`${transformFx.id}:scale`]: [...easeGhost],
-        [`${transformFx.id}:opacity`]: [...easeGhost],
-        opacity: [...easeGhost]
-      };
-      adjGhost._defaultEasing = adjGhost.defaultEasing;
-      createdLayers.push(adjGhost);
-    }
-
-    // 3. Layer: Hue Spin
+    // 1. Layer: Hue Spin (Duration: 70 frames ~ 1.1667s)
     const hueStart = curSec;
-    const hueDur = 0.7125;
+    const hueDur = Number((70 / fps).toFixed(4));
     const hueT1 = curSec;
-    const hueT2 = Number((curSec + 0.417).toFixed(4));
+    const hueT2 = Number((curSec + hueDur).toFixed(4));
 
     const adjHue = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(hueDur, hueStart) : null;
-    if (adjHue) {
-      adjHue.name = 'Hue Spin';
-      adjHue.isDurationExplicit = true;
+    if (!adjHue) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
 
-      const hueFx = {
-        id: uid('fx_hue_shift'),
-        type: 'hue-shift',
-        name: 'Hue Shift',
-        isExpanded: true,
-        disabled: false,
-        hue: 0
-      };
-      adjHue.effects = [hueFx];
+    adjHue.name = 'Hue Spin';
+    adjHue.isDurationExplicit = true;
 
-      const linearEase = [0, 0, 1, 1];
-      adjHue.keyframes = {
-        [`${hueFx.id}:hue`]: [
-          { time: hueT1, value: { hue: 0 }, easing: [...linearEase] },
-          { time: hueT2, value: { hue: 360 }, easing: [...linearEase] }
-        ]
-      };
-      adjHue.defaultEasing = {
-        [`${hueFx.id}:hue`]: [...linearEase]
-      };
-      adjHue._defaultEasing = adjHue.defaultEasing;
-      createdLayers.push(adjHue);
-    }
+    const hueFx = {
+      id: uid('fx_hue_shift'),
+      type: 'hue-shift',
+      name: 'Hue Shift',
+      isExpanded: true,
+      disabled: false,
+      hue: 360
+    };
+    adjHue.effects = [hueFx];
 
-    // 4. Layer: Warp Effect
-    const warpStart = curSec;
-    const warpDur = 0.133;
-    const warpT1 = warpStart;
-    const warpT2 = Number((curSec + warpDur).toFixed(4));
+    const hueEase = [0, 1, 0.58, 1];
+    adjHue.keyframes = {
+      [`${hueFx.id}:hue`]: [
+        { time: hueT1, value: { hue: 0 }, easing: [...hueEase] },
+        { time: hueT2, value: { hue: 360 }, easing: [...hueEase] }
+      ]
+    };
+    adjHue.defaultEasing = {
+      [`${hueFx.id}:hue`]: [0, 0, 1, 1]
+    };
+    adjHue._defaultEasing = adjHue.defaultEasing;
+    createdLayers.push(adjHue);
 
-    const adjWarp = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(warpDur, warpStart) : null;
-    if (adjWarp) {
-      adjWarp.name = 'Warp Effect';
-
-      const warpWw = {
-        id: uid('fx_wave_warp'),
-        type: 'wave-warp',
-        name: 'Wave Warp',
-        isExpanded: true,
-        disabled: false,
-        waveType: 'smooth-noise',
-        waveHeight: 19,
-        waveWidth: 10,
-        direction: 90,
-        speed: 0,
-        phase: 0,
-        tile: 1
-      };
-      adjWarp.effects = [warpWw];
-
-      const easeOut = [0, 0, 0.2, 1];
-      adjWarp.keyframes = {
-        [`${warpWw.id}:waveHeight`]: [
-          { time: warpT1, value: { waveHeight: 19 }, easing: [...easeOut] },
-          { time: warpT2, value: { waveHeight: 0 }, easing: [...easeOut] }
-        ]
-      };
-      adjWarp.defaultEasing = {
-        [`${warpWw.id}:waveHeight`]: [...easeOut]
-      };
-      adjWarp._defaultEasing = adjWarp.defaultEasing;
-      createdLayers.push(adjWarp);
-    }
-
-    // Timeline stacking order: [Warp Effect, Ghost Effect, Hue Spin, Mid-Wave] from top to bottom
-    const stackInOrder = [adjWarp, adjGhost, adjHue, adjMidwave].filter(Boolean);
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
 
     const idsToRemove = new Set(createdLayers.map(l => l.id));
@@ -1344,23 +1183,22 @@
     if (selId) {
       const selIdx = layers.findIndex(l => l.id === selId);
       if (selIdx >= 0) {
-        layers.splice(selIdx, 0, ...stackInOrder);
+        layers.splice(selIdx, 0, adjHue);
       } else {
-        layers.unshift(...stackInOrder);
+        layers.unshift(adjHue);
       }
     } else {
-      layers.unshift(...stackInOrder);
+      layers.unshift(adjHue);
     }
 
-    const topLayer = adjWarp || adjMidwave;
     if (typeof window.selectTimelineLayer === 'function') {
-      window.selectTimelineLayer(topLayer.id, false);
+      window.selectTimelineLayer(adjHue.id, false);
     }
     if (window.selectedLayerIds) {
       window.selectedLayerIds.clear();
       createdLayers.forEach(l => window.selectedLayerIds.add(l.id));
     }
-    window.selectedLayerId = topLayer.id;
+    window.selectedLayerId = adjHue.id;
 
     createdLayers.forEach(l => {
       if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(l);
@@ -1407,81 +1245,160 @@
 
     const uid = (prefix) => prefix + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
-    // 1. Layer: Mid-Wave (WARP3 parameters: direction -346/460, speed 0.6/-2.28, phase -73/0, waveWidth 2652/2392)
-    const midwavePreFrames = Math.round(0.3667 * fps);
+    // 1. Layer: Mid-Wave (145 frames ~ 2.4167s, starts 20 frames before playhead)
+    const midwavePreFrames = Math.round((20 / 60) * fps);
     const midwaveStartFrame = Math.max(0, curFrame - midwavePreFrames);
     const midwaveStart = Number((midwaveStartFrame / fps).toFixed(4));
-    const midwaveDur = 1.5914;
+    const midwaveDur = Number(((145 / 60) * (60 / fps)).toFixed(4));
     const mwT1 = midwaveStart;
-    const mwT2 = curSec; // Peak hits precisely on playhead frame
+    const mwT2 = Number((curSec + (2 / fps)).toFixed(4)); // Peak hits 2 frames after playhead
     const mwT3 = Number((midwaveStart + midwaveDur).toFixed(4));
 
     const adjMidwave = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(midwaveDur, midwaveStart) : null;
     if (!adjMidwave) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
     adjMidwave.name = 'Mid-Wave';
     adjMidwave.isDurationExplicit = true;
-    adjMidwave.direction = -346;
-    adjMidwave.waveHeight = 85;
-    adjMidwave.waveWidth = 2652;
-    adjMidwave.speed = 0.6;
+    adjMidwave.direction = 45;
+    adjMidwave.waveHeight = 187;
+    adjMidwave.waveWidth = 4000;
+    adjMidwave.speed = 1.6;
 
-    const ww1 = {
+    const mwWw1 = {
       id: uid('fx_wave_warp_1'),
       type: 'wave-warp',
       name: 'Wave Warp',
       isExpanded: true,
       disabled: false,
       waveType: 'sine',
-      waveHeight: 85,
-      waveWidth: 2652,
-      direction: -346,
-      speed: 0.6,
-      phase: -73,
+      waveHeight: 187,
+      waveWidth: 4000,
+      direction: 45,
+      speed: 1.5,
+      phase: 0,
       tile: 1
     };
 
-    const ww2 = {
+    const mwWw2 = {
       id: uid('fx_wave_warp_2'),
       type: 'wave-warp',
       name: 'Wave Warp',
       isExpanded: true,
       disabled: false,
       waveType: 'sine',
-      waveHeight: 85,
-      waveWidth: 2392,
-      direction: 460,
-      speed: -2.28,
-      phase: 0,
+      waveHeight: 177,
+      waveWidth: 4000,
+      direction: -28,
+      speed: 1.5,
+      phase: -164,
       tile: 1
     };
 
-    adjMidwave.effects = [ww1, ww2];
+    adjMidwave.effects = [mwWw1, mwWw2];
     adjMidwave.keyframes = {
-      [`${ww1.id}:waveWidth`]: [],
-      [`${ww1.id}:waveHeight`]: [
+      [`${mwWw1.id}:waveWidth`]: [],
+      [`${mwWw1.id}:waveHeight`]: [
         { time: mwT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
-        { time: mwT2, value: { waveHeight: 85 }, easing: [0.002, 1, 0.224, 1] },
+        { time: mwT2, value: { waveHeight: 187 }, easing: [0.002, 1, 0.291, 1] },
         { time: mwT3, value: { waveHeight: 0 }, easing: [0, 0, 1, 1] }
       ],
-      [`${ww2.id}:waveHeight`]: [
+      [`${mwWw2.id}:waveHeight`]: [
         { time: mwT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
-        { time: mwT2, value: { waveHeight: 85 }, easing: [0.002, 1, 0.138, 1] },
+        { time: mwT2, value: { waveHeight: 177 }, easing: [0.002, 1, 0.291, 1] },
         { time: mwT3, value: { waveHeight: 0 }, easing: [0, 0, 1, 1] }
       ]
     };
     adjMidwave.defaultEasing = {
-      [`${ww1.id}:waveWidth`]: [0, 0, 1, 1],
-      [`${ww1.id}:waveHeight`]: [0.002, 1, 0.224, 1],
-      [`${ww2.id}:waveHeight`]: [0.002, 1, 0.138, 1]
+      [`${mwWw1.id}:waveWidth`]: [0, 0, 1, 1],
+      [`${mwWw1.id}:waveHeight`]: [0.002, 1, 0.224, 1],
+      [`${mwWw2.id}:waveHeight`]: [0.002, 1, 0.138, 1]
     };
     adjMidwave._defaultEasing = adjMidwave.defaultEasing;
     createdLayers.push(adjMidwave);
 
-    // 2. Layer: Ghost Effect
+    // 2. Layer: Warp Effect (63 frames ~ 1.05s, starts 16 frames before playhead)
+    const warpPreFrames = Math.round((16 / 60) * fps);
+    const warpStartFrame = Math.max(0, curFrame - warpPreFrames);
+    const warpStart = Number((warpStartFrame / fps).toFixed(4));
+    const warpDur = Number(((63 / 60) * (60 / fps)).toFixed(4));
+    const warpT1 = warpStart;
+    const warpT2 = curSec;
+    const warpT3 = Number((warpStart + warpDur).toFixed(4));
+
+    const adjWarp = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(warpDur, warpStart) : null;
+    if (adjWarp) {
+      adjWarp.name = 'Warp Effect';
+      adjWarp.isDurationExplicit = true;
+      adjWarp.sourceOffsetSec = 0.4667;
+      adjWarp.waveHeight = 0;
+      adjWarp.waveWidth = 10;
+      adjWarp.speed = 10;
+      adjWarp.phase = 273;
+
+      const warpWw1 = {
+        id: uid('fx_wave_warp_1'),
+        type: 'wave-warp',
+        name: 'Wave Warp',
+        isExpanded: true,
+        disabled: false,
+        waveType: 'smooth-noise',
+        waveHeight: 0,
+        waveWidth: 10,
+        direction: 90,
+        speed: 10,
+        phase: 273,
+        tile: 1
+      };
+
+      const warpWw2 = {
+        id: uid('fx_wave_warp_2'),
+        type: 'wave-warp',
+        name: 'Wave Warp',
+        isExpanded: true,
+        disabled: false,
+        waveType: 'smooth-noise',
+        waveHeight: 0,
+        waveWidth: 10,
+        direction: 90,
+        speed: 10,
+        phase: 273,
+        tile: 1
+      };
+
+      adjWarp.effects = [warpWw1, warpWw2];
+
+      const easeWarpOut = [0, 0, 0.2, 1];
+      adjWarp.keyframes = {
+        [`${warpWw1.id}:waveHeight`]: [
+          { time: warpT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
+          { time: warpT2, value: { waveHeight: 20 }, easing: [0, 1, 0, 1] },
+          { time: warpT3, value: { waveHeight: 0 }, easing: [...easeWarpOut] }
+        ],
+        [`${warpWw1.id}:speed`]: [
+          { time: warpT1, value: { speed: 10 }, easing: [0, 0, 1, 1] }
+        ],
+        [`${warpWw2.id}:waveHeight`]: [
+          { time: warpT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
+          { time: warpT2, value: { waveHeight: 20 }, easing: [0, 0, 0, 1] },
+          { time: warpT3, value: { waveHeight: 0 }, easing: [...easeWarpOut] }
+        ],
+        [`${warpWw2.id}:speed`]: [
+          { time: warpT1, value: { speed: 10 }, easing: [0, 0, 1, 1] }
+        ]
+      };
+      adjWarp.defaultEasing = {
+        [`${warpWw1.id}:waveHeight`]: [...easeWarpOut],
+        [`${warpWw2.id}:waveHeight`]: [...easeWarpOut]
+      };
+      adjWarp._defaultEasing = adjWarp.defaultEasing;
+      createdLayers.push(adjWarp);
+    }
+
+    // 3. Layer: Ghost Effect (125 frames ~ 2.0833s, starts on playhead)
     const ghostStart = curSec;
-    const ghostDur = 0.7714;
+    const ghostDur = Number(((125 / 60) * (60 / fps)).toFixed(4));
     const ghT1 = curSec;
-    const ghT2 = Number((curSec + 0.7135).toFixed(4));
+    const ghT2 = Number((curSec + ghostDur).toFixed(4));
+    const ghOpT2 = Number((curSec + ((65 / 60) * (60 / fps))).toFixed(4));
 
     const adjGhost = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(ghostDur, ghostStart) : null;
     if (adjGhost) {
@@ -1514,7 +1431,7 @@
         [`${transformFx.id}:opacity`]: [],
         opacity: [
           { time: ghT1, value: { opacity: 1 }, easing: [...easeGhost] },
-          { time: ghT2, value: { opacity: 0 }, easing: [...easeGhost] }
+          { time: ghOpT2, value: { opacity: 0 }, easing: [...easeGhost] }
         ]
       };
       adjGhost.defaultEasing = {
@@ -1526,11 +1443,11 @@
       createdLayers.push(adjGhost);
     }
 
-    // 3. Layer: Hue Spin
+    // 4. Layer: Hue Spin (70 frames ~ 1.1667s, starts on playhead)
     const hueStart = curSec;
-    const hueDur = 0.7125;
+    const hueDur = Number(((70 / 60) * (60 / fps)).toFixed(4));
     const hueT1 = curSec;
-    const hueT2 = Number((curSec + 0.417).toFixed(4));
+    const hueT2 = Number((curSec + hueDur).toFixed(4));
 
     const adjHue = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(hueDur, hueStart) : null;
     if (adjHue) {
@@ -1543,66 +1460,26 @@
         name: 'Hue Shift',
         isExpanded: true,
         disabled: false,
-        hue: 0
+        hue: 360
       };
       adjHue.effects = [hueFx];
 
-      const linearEase = [0, 0, 1, 1];
+      const hueEase = [0, 1, 0.58, 1];
       adjHue.keyframes = {
         [`${hueFx.id}:hue`]: [
-          { time: hueT1, value: { hue: 0 }, easing: [...linearEase] },
-          { time: hueT2, value: { hue: 360 }, easing: [...linearEase] }
+          { time: hueT1, value: { hue: 0 }, easing: [...hueEase] },
+          { time: hueT2, value: { hue: 360 }, easing: [...hueEase] }
         ]
       };
       adjHue.defaultEasing = {
-        [`${hueFx.id}:hue`]: [...linearEase]
+        [`${hueFx.id}:hue`]: [0, 0, 1, 1]
       };
       adjHue._defaultEasing = adjHue.defaultEasing;
       createdLayers.push(adjHue);
     }
 
-    // 4. Layer: Warp Effect
-    const warpStart = curSec;
-    const warpDur = 0.133;
-    const warpT1 = warpStart;
-    const warpT2 = Number((curSec + warpDur).toFixed(4));
-
-    const adjWarp = (typeof window.addAdjustmentLayer === 'function') ? window.addAdjustmentLayer(warpDur, warpStart) : null;
-    if (adjWarp) {
-      adjWarp.name = 'Warp Effect';
-
-      const warpWw = {
-        id: uid('fx_wave_warp'),
-        type: 'wave-warp',
-        name: 'Wave Warp',
-        isExpanded: true,
-        disabled: false,
-        waveType: 'smooth-noise',
-        waveHeight: 19,
-        waveWidth: 10,
-        direction: 90,
-        speed: 0,
-        phase: 0,
-        tile: 1
-      };
-      adjWarp.effects = [warpWw];
-
-      const easeOut = [0, 0, 0.2, 1];
-      adjWarp.keyframes = {
-        [`${warpWw.id}:waveHeight`]: [
-          { time: warpT1, value: { waveHeight: 19 }, easing: [...easeOut] },
-          { time: warpT2, value: { waveHeight: 0 }, easing: [...easeOut] }
-        ]
-      };
-      adjWarp.defaultEasing = {
-        [`${warpWw.id}:waveHeight`]: [...easeOut]
-      };
-      adjWarp._defaultEasing = adjWarp.defaultEasing;
-      createdLayers.push(adjWarp);
-    }
-
-    // Timeline stacking order: [Warp Effect, Ghost Effect, Hue Spin, Mid-Wave] from top to bottom
-    const stackInOrder = [adjWarp, adjGhost, adjHue, adjMidwave].filter(Boolean);
+    // Timeline stacking order: [Mid-Wave, Warp Effect, Ghost Effect, Hue Spin] in layers overview
+    const stackInOrder = [adjMidwave, adjWarp, adjGhost, adjHue].filter(Boolean);
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
 
     const idsToRemove = new Set(createdLayers.map(l => l.id));
@@ -1623,7 +1500,7 @@
       layers.unshift(...stackInOrder);
     }
 
-    const topLayer = adjWarp || adjMidwave;
+    const topLayer = stackInOrder[0];
     if (typeof window.selectTimelineLayer === 'function') {
       window.selectTimelineLayer(topLayer.id, false);
     }

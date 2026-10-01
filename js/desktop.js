@@ -525,6 +525,7 @@
       if (inspectorTitle) inspectorTitle.textContent = 'Inspector';
     }
   }
+  window.syncInspectorState = syncInspectorState;
 
   // Observe headerNavLayer style changes (which toggles when a layer is selected/deselected)
   if (headerNavLayer) {
@@ -1745,6 +1746,7 @@
 
   // --- 7. AE-Style Left-Anchored Timeline Engine ---
   let isLeftTimelineInited = false;
+  let desktopScrollX = 0;
   function patchDesktopLeftTimeline() {
     if (isLeftTimelineInited) return;
     const rulerTrack = document.getElementById('timeline-ruler-track');
@@ -1755,7 +1757,7 @@
     if (!rulerTrack || !layersTrack || !needle) return;
     isLeftTimelineInited = true;
 
-    let desktopScrollX = 0;
+    desktopScrollX = 0;
 
     // Cache ruler viewport width to eliminate forced synchronous layout (layout thrashing) per frame
     let _cachedViewW = rulerViewport ? rulerViewport.clientWidth : 800;
@@ -2617,8 +2619,13 @@
           const totalContentW = durSec * pps;
           const viewW = layersViewport.clientWidth || 800;
           const maxScrollX = Math.max(0, totalContentW - viewW + 160);
-          desktopScrollX = Math.max(0, Math.min(maxScrollX, desktopScrollX + scrollDx));
-          syncDesktopPlayhead();
+          const curScroll = (typeof window.getDesktopScrollX === 'function') ? window.getDesktopScrollX() : (desktopScrollX || 0);
+          desktopScrollX = Math.max(0, Math.min(maxScrollX, curScroll + scrollDx));
+          if (typeof window.syncDesktopPlayhead === 'function') {
+            window.syncDesktopPlayhead();
+          } else if (typeof syncDesktopPlayhead === 'function') {
+            syncDesktopPlayhead();
+          }
         }
 
         if (scrollDy !== 0) {

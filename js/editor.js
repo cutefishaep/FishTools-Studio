@@ -80,6 +80,158 @@
     }
     window.getProjectFps = getProjectFps;
 
+    // Global Playback State Helper
+    function isAnyPlaybackActive() {
+      return !!(
+        window.isTimelinePlaying ||
+        (typeof window.isPlaying !== 'undefined' && window.isPlaying) ||
+        (window.FishTemplateEditor && window.FishTemplateEditor.isPlaying)
+      );
+    }
+    window.isAnyPlaybackActive = isAnyPlaybackActive;
+
+    // Universal Root Function Delegates (prevents lexical closure ReferenceErrors)
+    function renderTimelineLayers(...args) {
+      if (typeof window.renderTimelineLayers === 'function') {
+        return window.renderTimelineLayers.apply(this, args);
+      }
+    }
+    function selectTimelineLayer(...args) {
+      if (typeof window.selectTimelineLayer === 'function') {
+        return window.selectTimelineLayer.apply(this, args);
+      }
+    }
+    function deselectTimelineLayer(...args) {
+      if (typeof window.deselectTimelineLayer === 'function') {
+        return window.deselectTimelineLayer.apply(this, args);
+      }
+    }
+    function centerSelectedTimelineLayer(...args) {
+      if (typeof window.centerSelectedTimelineLayer === 'function') {
+        return window.centerSelectedTimelineLayer.apply(this, args);
+      }
+    }
+    function updateEditorHeaderMode(...args) {
+      if (typeof window.updateEditorHeaderMode === 'function') {
+        return window.updateEditorHeaderMode.apply(this, args);
+      }
+    }
+    function updatePlayButtonUI(...args) {
+      if (typeof window.updatePlayButtonUI === 'function') {
+        return window.updatePlayButtonUI.apply(this, args);
+      }
+    }
+    function updateGraphEditorUI(...args) {
+      if (typeof window.updateGraphEditorUI === 'function') {
+        return window.updateGraphEditorUI.apply(this, args);
+      }
+    }
+    function syncLayerKeyframeMarkersInPlace(...args) {
+      if (typeof window.syncLayerKeyframeMarkersInPlace === 'function') {
+        return window.syncLayerKeyframeMarkersInPlace.apply(this, args);
+      }
+    }
+    function syncBeatmarkDrawerUI(...args) {
+      if (typeof window.syncBeatmarkDrawerUI === 'function') {
+        return window.syncBeatmarkDrawerUI.apply(this, args);
+      }
+    }
+    function updateVolumeAndSpeedBtnState(...args) {
+      if (typeof window.updateVolumeAndSpeedBtnState === 'function') {
+        return window.updateVolumeAndSpeedBtnState.apply(this, args);
+      }
+    }
+    function enterPrecompose(...args) {
+      if (typeof window.enterPrecompose === 'function') {
+        return window.enterPrecompose.apply(this, args);
+      }
+    }
+    function exitPrecompose(...args) {
+      if (typeof window.exitPrecompose === 'function') {
+        return window.exitPrecompose.apply(this, args);
+      }
+    }
+    function toggleBeatmarkAtCurrentTime(...args) {
+      if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
+        return window.toggleBeatmarkAtCurrentTime.apply(this, args);
+      }
+    }
+    function seekTimelineToTime(...args) {
+      if (typeof window.seekTimelineToTime === 'function') {
+        return window.seekTimelineToTime.apply(this, args);
+      }
+    }
+    function updateGraphPlayheadLine(...args) {
+      if (typeof window.updateGraphPlayheadLine === 'function') {
+        return window.updateGraphPlayheadLine.apply(this, args);
+      }
+    }
+    function updateBeatmarkPlayheadNeedle(...args) {
+      if (typeof window.updateBeatmarkPlayheadNeedle === 'function') {
+        return window.updateBeatmarkPlayheadNeedle.apply(this, args);
+      }
+    }
+    function pausePlayback(...args) {
+      if (typeof window.pausePlayback === 'function') {
+        return window.pausePlayback.apply(this, args);
+      }
+    }
+    function formatTransformNumber(val) {
+      if (typeof window.formatTransformNumber === 'function') {
+        return window.formatTransformNumber(val);
+      }
+      if (val === null || val === undefined || isNaN(val)) return '0';
+      const n = Number(val);
+      if (Math.abs(n - Math.round(n)) < 0.01) return Math.round(n).toString();
+      return n.toFixed(1);
+    }
+    function findSnapTarget(val, targets, threshold) {
+      if (typeof window.findSnapTarget === 'function') {
+        return window.findSnapTarget(val, targets, threshold);
+      }
+      if (!targets || !targets.length) return null;
+      let closest = null;
+      let minDiff = threshold;
+      for (let i = 0; i < targets.length; i++) {
+        const diff = Math.abs(val - targets[i]);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = targets[i];
+        }
+      }
+      return closest;
+    }
+    function renderMediaGrid(...args) {
+      if (typeof window.renderMediaGrid === 'function') {
+        return window.renderMediaGrid.apply(this, args);
+      }
+    }
+    function decodeAudioFromBlob(...args) {
+      if (typeof window.decodeAudioFromBlob === 'function') {
+        return window.decodeAudioFromBlob.apply(this, args);
+      }
+    }
+    function audioBufferToMp3(...args) {
+      if (typeof window.audioBufferToMp3 === 'function') {
+        return window.audioBufferToMp3.apply(this, args);
+      }
+    }
+    function showOFTSProgressModal(...args) {
+      if (typeof window.showOFTSProgressModal === 'function') {
+        return window.showOFTSProgressModal.apply(this, args);
+      }
+    }
+    function updateOFTSProgress(...args) {
+      if (typeof window.updateOFTSProgress === 'function') {
+        return window.updateOFTSProgress.apply(this, args);
+      }
+    }
+    function hideOFTSProgressModal(...args) {
+      if (typeof window.hideOFTSProgressModal === 'function') {
+        return window.hideOFTSProgressModal.apply(this, args);
+      }
+    }
+
     // 100% Functional Undo / Redo Manager
     const UndoRedoManager = {
       stack: [],
@@ -2432,8 +2584,8 @@
       let selectedWireframeBounds = null;
       let cachedBitmap = null;
       let hasUnreadyMedia = false;
-      const isScrubbing = !!(window.isTimelineScrubbing || window.isTimelinePanning || (typeof isPanning !== 'undefined' && isPanning));
-      const isTransformDragging = !!(window.isTransformInteracting || (typeof activeOp !== 'undefined' && activeOp));
+      const isScrubbing = !!(window.isTimelineScrubbing || window.isTimelinePanning || (typeof window.isPanning !== 'undefined' && window.isPanning));
+      const isTransformDragging = !!(window.isTransformInteracting || (typeof window.activeOp !== 'undefined' && window.activeOp));
       // RAM preview cache: used during playback, scrubbing, and frame park for instant 60fps blit.
       // Canvas wireframe transform interaction bypasses cache to track cursor movements live.
       if (!isExport && !isIdleCache && !isTransformDragging && window.PreviewCacheManager && window.isPreviewCacheEnabled !== false) {
@@ -2747,6 +2899,7 @@
 
         let el = null;
         let media = null;
+        let timeInClip = 0;
         const isNativeMedia = (layer.type === 'video' || layer.type === 'image' || layer.type === 'precomp');
         const isShape = (layer.type === 'shape');
         const isText = (layer.type === 'text');
@@ -3002,9 +3155,10 @@
           if (!media) return;
 
           el = media.el;
+          timeInClip = 0;
           if (layer.type === 'video') {
             const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
-            let timeInClip = 0;
+            timeInClip = 0;
             if (layer.speedMode === 'time_remap') {
               const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
                 ? getLayerEffectivePropsAtTime(layer, currentSec)
@@ -3411,8 +3565,9 @@
               if (signX < 0 || signY < 0) {
                 ctx.scale(signX, signY);
               }
+              let animLayerPost = null;
               try {
-                const animLayerPost = Object.assign({}, layer, effProps);
+                animLayerPost = Object.assign({}, layer, effProps);
                 if (Array.isArray(effProps.effects)) animLayerPost.effects = effProps.effects;
                 else if (Array.isArray(layer.effects)) animLayerPost.effects = layer.effects;
 
@@ -5522,7 +5677,7 @@
           const parentEff = getLayerEffectivePropsAtTime(parent, currentSec, visited, pool);
           let bind = layer.parentBind;
           if (!bind) {
-            const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+            const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0) ? window.currentPixelsPerSecond : 80;
             const pInitSec = parent.startSec !== undefined ? parent.startSec : ((parent.startPx || 0) / pps);
             const parentInit = getLayerEffectivePropsAtTime(parent, pInitSec, visited, pool);
             bind = {
@@ -5647,7 +5802,7 @@
       }
 
       if (layer.type === 'text' && window.FishTextEngine) {
-        const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+        const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0) ? window.currentPixelsPerSecond : 80;
         const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
         const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
         const localSec = Math.max(0, currentSec - clipStart);
@@ -5700,7 +5855,7 @@
     // Helper: Compute forward-only integrated source time from speed keyframes (eliminates maju-mundur in Twixtor)
     function getLayerIntegratedSpeedTime(layer, currentSec) {
       if (!layer) return 0;
-      const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+      const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0) ? window.currentPixelsPerSecond : 80;
       const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
       const srcOffset = layer.sourceOffsetSec || 0;
 
@@ -5884,7 +6039,17 @@
       if (typeof invalidatePreviewCacheForLayer === 'function') {
         invalidatePreviewCacheForLayer(layer);
       }
-      if (!layer.keyframes || !layer.keyframes[prop] || !Array.isArray(layer.keyframes[prop]) || layer.keyframes[prop].length === 0) {
+
+      let targetPropKey = prop;
+      let kfList = (layer.keyframes && Array.isArray(layer.keyframes[prop])) ? layer.keyframes[prop] : null;
+      if ((!kfList || kfList.length === 0) && prop.includes(':') && layer.effects && layer.effects[0] && prop.startsWith(layer.effects[0].id + ':')) {
+        const pName = prop.split(':')[1];
+        if (layer.keyframes && Array.isArray(layer.keyframes[pName]) && layer.keyframes[pName].length > 0) {
+          kfList = layer.keyframes[pName];
+          targetPropKey = pName;
+        }
+      }
+      if (!kfList || kfList.length === 0) {
         return false; // NO keyframes exist: strictly DO NOT auto-create!
       }
 
@@ -5894,18 +6059,18 @@
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
       const frameTol = Math.max(0.04, 0.5 / fps);
 
-      let kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, prop, currentSec, frameTol) : null;
+      let kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, targetPropKey, currentSec, frameTol) : null;
       if (kf) {
         kf.value = currentVal;
       } else if (!isAnyPlaybackActive()) {
         // Stepped away from existing keyframe and changed value: auto-create new keyframe (only when stopped/paused)!
-        const defaultEasing = (layer._defaultEasing && layer._defaultEasing[prop]) ? layer._defaultEasing[prop] : [0.0, 0.0, 1.0, 1.0];
-        layer.keyframes[prop].push({
+        const defaultEasing = (layer._defaultEasing && layer._defaultEasing[targetPropKey]) ? layer._defaultEasing[targetPropKey] : [0.0, 0.0, 1.0, 1.0];
+        kfList.push({
           time: currentSec,
           value: currentVal,
           easing: [...defaultEasing]
         });
-        layer.keyframes[prop].sort((a, b) => a.time - b.time);
+        kfList.sort((a, b) => a.time - b.time);
         if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
         if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
         if (typeof updateVolumeKeyframeBtnState === 'function') updateVolumeKeyframeBtnState();
@@ -6371,7 +6536,7 @@
 
     function getSelectedLayerAndBaseDims() {
       const layers = (window.currentProjectState && window.currentProjectState.layers) || currentProjectState.layers || [];
-      const targetId = window.selectedLayerId || (typeof selectedLayerId !== 'undefined' ? selectedLayerId : null) || (window.selectedLayerIds && window.selectedLayerIds.size > 0 ? Array.from(window.selectedLayerIds)[0] : null);
+      const targetId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0 ? Array.from(window.selectedLayerIds)[0] : null);
       const layer = layers.find(l => l.id === targetId);
       if (!layer) return null;
       const proj = window.currentProjectState || currentProjectState || {};
@@ -6396,7 +6561,8 @@
       const is3D = !!(layer && layer.is3D);
       const pps = window.currentPixelsPerSecond || 80;
       const isParented = !!(layer && layer.parentId);
-      const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec, null, null, isParented) : layer;
+      const curSec = (typeof window.currentSec === 'number') ? window.currentSec : (Math.max(0, -(window.timelinePanX || 0)) / pps);
+      const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, curSec, null, null, isParented) : layer;
 
       // 1. Determine layer natural resolution
       let naturalW = baseW;
@@ -6446,7 +6612,7 @@
     }
     window.formatTransformNumber = formatTransformNumber;
 
-      const isAnchorSubmode = (typeof moveAnchorSubmode !== 'undefined' && moveAnchorSubmode === 'anchor');
+      const isAnchorSubmode = (window.moveAnchorSubmode === 'anchor');
       if (isAnchorSubmode) {
         if (valPosX) valPosX.textContent = formatTransformNumber(curAnchorX);
         if (valPosY) valPosY.textContent = formatTransformNumber(curAnchorY);
@@ -9918,8 +10084,9 @@
           }
         }
         if (window.FishAudioEngine && window.isTimelinePlaying) {
-          const pps = (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
-          const curSec = Math.max(0, -panX / pps);
+          const pps = window.currentPixelsPerSecond || 80;
+          const curPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+          const curSec = (typeof window.currentSec === 'number') ? window.currentSec : Math.max(0, -curPanX / pps);
           const tlSpeed = (typeof window.timelinePlaybackSpeed === 'number' && window.timelinePlaybackSpeed > 0)
             ? window.timelinePlaybackSpeed : 1.0;
           window.FishAudioEngine.syncPlayback(currentProjectState.layers || [], curSec, pps, tlSpeed);
@@ -11986,15 +12153,16 @@
     window.reorderLayersBatch = reorderLayersBatch;
 
     function openLayerLinkPopover(triggerEl, explicitLayerId) {
+      const selIds = window.selectedLayerIds || null;
       const currentLayerId = (explicitLayerId !== undefined && explicitLayerId !== null)
         ? explicitLayerId
-        : (window.selectedLayerId || (selectedLayerIds && selectedLayerIds.size === 1 ? Array.from(selectedLayerIds)[0] : null));
+        : (window.selectedLayerId || (selIds && selIds.size === 1 ? Array.from(selIds)[0] : null));
       const layers = currentProjectState.layers || [];
       const currentLayer = layers.find(l => String(l.id) === String(currentLayerId));
       if (!currentLayer) return;
 
-      const isMulti = selectedLayerIds && selectedLayerIds.size > 1;
-      const targetIds = isMulti ? new Set(Array.from(selectedLayerIds).map(String)) : new Set([String(currentLayer.id)]);
+      const isMulti = selIds && selIds.size > 1;
+      const targetIds = isMulti ? new Set(Array.from(selIds).map(String)) : new Set([String(currentLayer.id)]);
       const targetLayers = layers.filter(l => targetIds.has(String(l.id)));
       if (targetLayers.length === 0) targetLayers.push(currentLayer);
 
@@ -15838,14 +16006,6 @@
           window.selectedLayerIds.forEach(id => { if (id) ids.add(String(id)); });
         }
       }
-      if (typeof selectedLayerId !== 'undefined' && selectedLayerId) ids.add(String(selectedLayerId));
-      if (typeof selectedLayerIds !== 'undefined' && selectedLayerIds) {
-        if (typeof selectedLayerIds.forEach === 'function') {
-          selectedLayerIds.forEach(id => { if (id) ids.add(String(id)); });
-        } else if (Array.isArray(selectedLayerIds)) {
-          selectedLayerIds.forEach(id => { if (id) ids.add(String(id)); });
-        }
-      }
 
       // DOM fallback if JS sets are empty
       if (ids.size === 0) {
@@ -17806,8 +17966,9 @@
         // Attempt 3: Fast playback capture via MediaRecorder (16x speed)
         try {
           const blobUrl = URL.createObjectURL(blob);
+          let videoEl = null;
           try {
-            const videoEl = document.createElement('video');
+            videoEl = document.createElement('video');
             videoEl.src = blobUrl;
             videoEl.muted = false;
             videoEl.crossOrigin = 'anonymous';
@@ -17976,6 +18137,7 @@
 
       window.deleteMediaItem = deleteMediaItem;
       window.convertVideoMediaToAudio = convertVideoMediaToAudio;
+      window.renderMediaGrid = renderMediaGrid;
 
       // 1. Render all stored media for current project
       async function renderMediaGrid() {
@@ -18406,7 +18568,8 @@
                         if (l.mediaId === mediaItem.id && !l._userResized) {
                           l.durationSec = meta.duration;
                           l.mediaDuration = meta.duration;
-                          l.widthPx = Math.max(80, Math.round(meta.duration * pixelsPerSecond));
+                          const pps = window.currentPixelsPerSecond || 80;
+                          l.widthPx = Math.max(80, Math.round(meta.duration * pps));
                           if (meta.duration > (currentProjectState.defaultDuration || 5)) {
                             currentProjectState.defaultDuration = Math.ceil(meta.duration);
                             if (typeof window.updateTimelineDuration === 'function') {
@@ -18453,7 +18616,8 @@
                       if (l.mediaId === mediaItem.id && !l._userResized) {
                         l.durationSec = a.duration;
                         l.mediaDuration = a.duration;
-                        l.widthPx = Math.max(80, Math.round(a.duration * pixelsPerSecond));
+                        const pps = window.currentPixelsPerSecond || 80;
+                        l.widthPx = Math.max(80, Math.round(a.duration * pps));
                         if (a.duration > (currentProjectState.defaultDuration || 5)) {
                           currentProjectState.defaultDuration = Math.ceil(a.duration);
                           if (typeof window.updateTimelineDuration === 'function') {
@@ -18865,14 +19029,14 @@
           if (!timelineVp) return { sec: 0, x: 0 };
           const rect = timelineVp.getBoundingClientRect();
           const mouseXInVp = clientX - rect.left;
-          const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+          const pps = window.currentPixelsPerSecond || 80;
           const isDesktop = Boolean(document.querySelector('.desktop-workstation, .desktop-viewport'));
           let sec = 0;
           if (isDesktop) {
             const scrollX = typeof window.getDesktopScrollX === 'function' ? window.getDesktopScrollX() : 0;
             sec = Math.max(0, (mouseXInVp + scrollX) / pps);
           } else {
-            const curPan = window.timelinePanX !== undefined ? window.timelinePanX : (typeof panX !== 'undefined' ? panX : 0);
+            const curPan = window.timelinePanX !== undefined ? window.timelinePanX : 0;
             sec = Math.max(0, (mouseXInVp - curPan) / pps);
           }
           return { sec, x: mouseXInVp };
@@ -21676,8 +21840,8 @@
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
         }
-        if (typeof updateClipboardButtonsVisibility === 'function') {
-          updateClipboardButtonsVisibility();
+        if (typeof window.updateClipboardButtonsVisibility === 'function') {
+          window.updateClipboardButtonsVisibility();
         }
       }
       window.selectTimelineLayer = selectTimelineLayer;
@@ -21707,8 +21871,8 @@
         }
 
         syncSelectionClassesInPlace();
-        if (typeof syncInspectorState === 'function') {
-          syncInspectorState();
+        if (typeof window.syncInspectorState === 'function') {
+          window.syncInspectorState();
         }
         if (typeof updateEditorHeaderMode === 'function') {
           updateEditorHeaderMode();
@@ -21716,8 +21880,8 @@
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
         }
-        if (typeof updateClipboardButtonsVisibility === 'function') {
-          updateClipboardButtonsVisibility();
+        if (typeof window.updateClipboardButtonsVisibility === 'function') {
+          window.updateClipboardButtonsVisibility();
         }
         redrawComposition();
       }
@@ -21825,8 +21989,8 @@
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
         }
-        if (typeof updateClipboardButtonsVisibility === 'function') {
-          updateClipboardButtonsVisibility();
+        if (typeof window.updateClipboardButtonsVisibility === 'function') {
+          window.updateClipboardButtonsVisibility();
         }
       }
       window.deselectTimelineLayer = deselectTimelineLayer;
@@ -22452,7 +22616,7 @@
 
         let baseSec = (typeof window.getCurrentPlayheadTime === 'function')
           ? window.getCurrentPlayheadTime()
-          : ((typeof currentSec === 'number') ? currentSec : (window.currentSec || 0));
+          : (typeof window.currentSec === 'number' ? window.currentSec : 0);
         if (lastContextClickSec !== null && typeof lastContextClickSec === 'number') {
           baseSec = lastContextClickSec;
         }
@@ -22993,7 +23157,7 @@
 
         if (autoCrop) {
           let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          const engine = (typeof FishToolEngine !== 'undefined' && FishToolEngine) || (typeof LayerTransform !== 'undefined' && LayerTransform);
+          const engine = window.FishToolEngine || window.LayerTransform;
           targetLayers.forEach(l => {
             if (l.type === 'camera' || l.type === 'audio' || l.type === 'null') return;
             const effProps = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(l, minStartSec, null, targetLayers) : {};
@@ -23679,8 +23843,8 @@
         window.selectedLayerId = null;
         window.selectedLayerIds = selectedLayerIds;
         isSelectorMode = false;
-        if (typeof closeLayerDrawer === 'function') {
-          closeLayerDrawer();
+        if (typeof window.closeLayerDrawer === 'function') {
+          window.closeLayerDrawer();
         }
         if (window.Drawer && typeof window.Drawer.close === 'function') {
           window.Drawer.close(false);
@@ -24402,7 +24566,7 @@
               }
 
               if (window.selectedLayerId !== layer.id) {
-                selectLayer(layer.id);
+                selectTimelineLayer(layer.id);
               }
               if (window.Popover) {
                 const mouseAnchor = {
@@ -27004,7 +27168,7 @@
 
       function renderTimelineLinkConnectors() {
         // Suppress connector lines on desktop workstations (matches After Effects left-column parenting)
-        if (window.isDesktop || (typeof isDesktop !== 'undefined' && isDesktop) || document.querySelector('.desktop-viewport')) {
+        if (window.isDesktop || document.querySelector('.desktop-viewport')) {
           const staleSvg = document.querySelector('.timeline-link-connectors-svg');
           if (staleSvg) staleSvg.remove();
           return;
@@ -28982,7 +29146,7 @@
           if (isPanning) {
             isPanning = false;
             try { previewContainer.releasePointerCapture(e.pointerId); } catch (_) {}
-            previewContainer.style.cursor = isSpacePressed ? 'grab' : '';
+            previewContainer.style.cursor = window.isSpacePressed ? 'grab' : '';
           }
         };
 
@@ -29048,10 +29212,12 @@
         e.stopPropagation();
 
         // 1. Toggle Popover anchored to button immediately
-        Popover.toggle(triggerBtn, 'popover-editor-fishtools');
+        if (window.Popover) {
+          window.Popover.toggle(triggerBtn, 'popover-editor-fishtools');
+        }
 
         // 2. Perform on-demand lazy load only on first click
-        if (!isLoaded && Popover.isOpen && Popover.isOpen()) {
+        if (!isLoaded && window.Popover && window.Popover.isOpen && window.Popover.isOpen()) {
           isLoaded = true;
           if (loaderEl) loaderEl.style.display = 'flex';
 

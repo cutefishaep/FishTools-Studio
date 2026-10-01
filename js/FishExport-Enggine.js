@@ -222,7 +222,7 @@
       var dur   = vl.durationSec !== undefined ? vl.durationSec : ((vl.widthPx || 400) / pps);
       if (t < start || t >= start + dur) continue;
 
-      var eff   = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(vl, t) : vl;
+      var eff   = (typeof window.getLayerEffectivePropsAtTime === 'function') ? window.getLayerEffectivePropsAtTime(vl, t) : vl;
       var speed = (eff && eff.speed > 0) ? eff.speed : (vl.speed > 0 ? vl.speed : 1);
       var clip  = Math.max(0, (vl.sourceOffsetSec || 0) + (t - start) * speed);
 

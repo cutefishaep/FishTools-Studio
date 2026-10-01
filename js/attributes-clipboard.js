@@ -67,8 +67,7 @@
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
     const ids = [];
     if (window.selectedLayerId && !ids.includes(window.selectedLayerId)) ids.push(window.selectedLayerId);
-    if (typeof selectedLayerId !== 'undefined' && selectedLayerId && !ids.includes(selectedLayerId)) ids.push(selectedLayerId);
-    const set = window.selectedLayerIds || (typeof selectedLayerIds !== 'undefined' ? selectedLayerIds : null);
+    const set = window.selectedLayerIds || null;
     if (set && set.size > 0) {
       set.forEach(id => { if (!ids.includes(id)) ids.push(id); });
     }
@@ -103,7 +102,7 @@
         hasSelection = true;
       }
     } else {
-      const sId = window.selectedLayerId || (typeof selectedLayerId !== 'undefined' ? selectedLayerId : null);
+      const sId = window.selectedLayerId || null;
       if (sId && sId !== '') {
         if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
           hasSelection = window.currentProjectState.layers.some(l => l.id === sId);
@@ -242,7 +241,7 @@
    * Build attributes clipboard payload from source layer
    */
   function extractAttributesPayload(layer, categoriesSet) {
-    const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+    const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0) ? window.currentPixelsPerSecond : 80;
     const startSec = (layer.startSec !== undefined) ? layer.startSec : ((layer.startPx || 0) / pps);
     const durationSec = (layer.durationSec !== undefined) ? layer.durationSec : ((layer.widthPx || 400) / pps);
 
@@ -374,7 +373,7 @@
    * Apply attributes payload to target layer
    */
   function applyAttributesToTarget(targetLayer, payload, categoriesSet) {
-    const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0) ? pixelsPerSecond : (window.currentPixelsPerSecond || 80);
+    const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0) ? window.currentPixelsPerSecond : 80;
     const targetStartSec = (targetLayer.startSec !== undefined) ? targetLayer.startSec : ((targetLayer.startPx || 0) / pps);
     const targetDur = (targetLayer.durationSec !== undefined) ? targetLayer.durationSec : ((targetLayer.widthPx || 400) / pps);
     const sourceStartSec = (payload.sourceStartSec !== undefined) ? payload.sourceStartSec : 0;
@@ -842,10 +841,10 @@
     if (!ps || !Array.isArray(ps.layers)) return;
 
     // Resolve playhead position for layer start
-    const pps = (typeof pixelsPerSecond === 'number' && pixelsPerSecond > 0)
-      ? pixelsPerSecond
-      : (window.currentPixelsPerSecond || 80);
-    const panXVal = (typeof panX === 'number') ? panX : (window.timelinePanX !== undefined ? window.timelinePanX : 0);
+    const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0)
+      ? window.currentPixelsPerSecond
+      : 80;
+    const panXVal = (typeof window.timelinePanX === 'number') ? window.timelinePanX : 0;
     const playheadSec = Math.max(0, -panXVal / pps);
 
     const durSec = (clip.sourceDurationSec && clip.sourceDurationSec > 0.1) ? clip.sourceDurationSec : 5;

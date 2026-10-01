@@ -995,9 +995,9 @@
         if (signX < 0 || signY < 0) {
           ctx.scale(signX, signY);
         }
+        const drawX = -absW / 2 - (bounds.anchorX || 0);
+        const drawY = -absH / 2 - (bounds.anchorY || 0);
         try {
-          const drawX = -absW / 2 - (bounds.anchorX || 0);
-          const drawY = -absH / 2 - (bounds.anchorY || 0);
           const curSec = (typeof currentSec === 'number' && !isNaN(currentSec))
             ? currentSec
             : ((layer && typeof layer._currentSec === 'number')

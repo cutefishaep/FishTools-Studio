@@ -679,7 +679,7 @@
         }
 
         // Pause idle hydration during playback, scrubbing, or user interaction to ensure 60fps UI
-        if (window.isTimelinePlaying || window.isTransformInteracting || (typeof isPanning !== 'undefined' && isPanning)) {
+        if (window.isTimelinePlaying || window.isTransformInteracting || window.isTimelinePanning || window.isPanning) {
           setTimeout(step, 250);
           return;
         }

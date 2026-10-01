@@ -2260,6 +2260,12 @@ window.FishDatabase = (function () {
     }
   }
 
+  if (typeof window !== 'undefined') {
+    window.showOFTSProgressModal = showOFTSProgressModal;
+    window.updateOFTSProgress = updateOFTSProgress;
+    window.hideOFTSProgressModal = hideOFTSProgressModal;
+  }
+
   /**
    * Saves project as a compressed .ofts file (project.json + media/)
    * Includes DEFLATE level 9 compression and live progress modal.

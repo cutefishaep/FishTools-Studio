@@ -846,7 +846,7 @@
         }
 
         // Pause during playback, dragging, or scrubbing
-        if (window.isTimelinePlaying || window.isTransformInteracting || window.isExporting || (typeof isPanning !== 'undefined' && isPanning)) {
+        if (window.isTimelinePlaying || window.isTransformInteracting || window.isExporting || window.isTimelinePanning || window.isPanning) {
           bakerState.timer = setTimeout(step, 200);
           return;
         }

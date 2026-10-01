@@ -1774,7 +1774,12 @@
           for (var i = 0; i < layers.length; i++) {
             var l = layers[i];
             if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
-              if (l.type !== 'video' && !window.FishBgRemovalEngine.getPhotoCutout(l)) {
+              if (l.type === 'video') {
+                if (!l._extractComplete) {
+                  window.FishBgRemovalEngine.processLayer(l);
+                  return true;
+                }
+              } else if (!window.FishBgRemovalEngine.getPhotoCutout(l)) {
                 window.FishBgRemovalEngine.processLayer(l);
                 return true;
               }

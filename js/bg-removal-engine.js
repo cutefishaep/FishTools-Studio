@@ -624,6 +624,19 @@
         ? window.VideoFrameExtractor._getSourceKey(layer)
         : (layer.mediaId || layer.dataUrl || layer.id);
 
+      // If video layer raw extraction is still in progress or incomplete, revert half-rendered raw frames immediately
+      if (isVideo && window.VideoFrameExtractor) {
+        const source = window.VideoFrameExtractor.getSourceCache(sourceKey);
+        const fps = (window.currentProjectState && window.currentProjectState.fps) || 60;
+        const pps = window.currentPixelsPerSecond || 80;
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+        const totalFrames = Math.max(1, Math.round(durSec * fps));
+        const isRawIncomplete = !layer._extractComplete || (source && (source.isExtracting || (source.frames && source.frames.size < totalFrames)));
+        if (isRawIncomplete && typeof window.VideoFrameExtractor.abortAndRevertPartialSequence === 'function') {
+          await window.VideoFrameExtractor.abortAndRevertPartialSequence(layer);
+        }
+      }
+
       // Check if already cached (bypass when forced)
       if (!force && !isVideo && this.getPhotoCutout(layer)) {
         return;
@@ -859,57 +872,220 @@
       let cachedSource = null;
       if (window.VideoFrameExtractor) {
         cachedSource = window.VideoFrameExtractor.getSourceCache(sourceKey);
+        if (!cachedSource) {
+          cachedSource = window.VideoFrameExtractor._getOrCreateSource(sourceKey, layer.dataUrl, layer.name, layer.id);
+        }
       }
 
-      // Process sequentially for temporal recurrent state stability
-      for (let i = 0; i < totalFramesToProcess; i++) {
-        if (task.cancelled) break;
+      // Resolve video URL for dedicated decoding element
+      let videoUrl = layer.dataUrl || (cachedSource && cachedSource.dataUrl);
+      if (!videoUrl && window.FishDatabase && window.currentProjectState && window.currentProjectState.id) {
+        try {
+          const medias = await window.FishDatabase.getProjectMedia(window.currentProjectState.id);
+          let m = (medias || []).find(item => item.id === (layer.mediaId || sourceKey));
+          if (!m && layer.name) m = (medias || []).find(item => item.name === layer.name);
+          if (m) {
+            if (m.dataUrl) videoUrl = m.dataUrl;
+            else if (m.blob) videoUrl = URL.createObjectURL(m.blob);
+          }
+        } catch (_) {}
+      }
 
-        const timeInClip = (layer.sourceOffsetSec || 0) + (i / fps) * effSpeed;
-        const fIdx = Math.round(timeInClip * ((cachedSource && cachedSource.fps) || fps));
+      let decoderVideo = null;
+      let offCanvas = null;
+      let offCtx = null;
 
-        // Skip if already in cache
-        if (frameCache.has(fIdx)) {
+      if (videoUrl) {
+        decoderVideo = document.createElement('video');
+        decoderVideo.muted = true;
+        decoderVideo.playsInline = true;
+        decoderVideo.preload = 'auto';
+        decoderVideo.style.cssText = 'position:fixed;bottom:0;right:0;width:32px;height:32px;opacity:0.01;pointer-events:none;z-index:-9999;';
+        const mountPool = document.getElementById('editor-video-mount-pool') || document.body;
+        mountPool.appendChild(decoderVideo);
+        decoderVideo.src = videoUrl;
+
+        await new Promise(resolve => {
+          let ready = false;
+          const onReady = () => { if (!ready) { ready = true; cleanup(); resolve(); } };
+          const timer = setTimeout(() => { if (!ready) { ready = true; cleanup(); resolve(); } }, 2500);
+          const cleanup = () => {
+            clearTimeout(timer);
+            decoderVideo.removeEventListener('loadedmetadata', onReady);
+            decoderVideo.removeEventListener('loadeddata', onReady);
+            decoderVideo.removeEventListener('canplay', onReady);
+            decoderVideo.removeEventListener('error', onReady);
+          };
+          decoderVideo.addEventListener('loadedmetadata', onReady, { once: true });
+          decoderVideo.addEventListener('loadeddata', onReady, { once: true });
+          decoderVideo.addEventListener('canplay', onReady, { once: true });
+          decoderVideo.addEventListener('error', onReady, { once: true });
+        });
+
+        const vw = decoderVideo.videoWidth || layer.mediaWidth || 640;
+        const vh = decoderVideo.videoHeight || layer.mediaHeight || 360;
+        const maxDim = 960;
+        const scale = Math.min(1, maxDim / Math.max(vw, vh));
+        const targetW = Math.max(160, Math.round(vw * scale));
+        const targetH = Math.max(90, Math.round(vh * scale));
+
+        if (typeof OffscreenCanvas !== 'undefined') {
+          offCanvas = new OffscreenCanvas(targetW, targetH);
+        } else {
+          offCanvas = document.createElement('canvas');
+          offCanvas.width = targetW;
+          offCanvas.height = targetH;
+        }
+        offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+      }
+
+      try {
+        // Process sequentially for temporal recurrent state stability
+        for (let i = 0; i < totalFramesToProcess; i++) {
+          if (task.cancelled) break;
+
+          const timeInClip = (layer.sourceOffsetSec || 0) + (i / fps) * effSpeed;
+          const fIdx = Math.round(timeInClip * ((cachedSource && cachedSource.fps) || fps));
+
+          // Skip if already in cache
+          if (frameCache.has(fIdx)) {
+            task.currentFrame = i + 1;
+            task.percent = Math.round(((i + 1) / totalFramesToProcess) * 100);
+            layer._extractProgress = (i + 1) / totalFramesToProcess;
+            continue;
+          }
+
+          let rawFrame = null;
+          // Check if previously extracted raw frame exists in RAM or DB
+          if (cachedSource && cachedSource.frames && cachedSource.frames.has(fIdx)) {
+            rawFrame = cachedSource.frames.get(fIdx);
+          } else if (cachedSource && window.VideoFrameExtractor && typeof window.VideoFrameExtractor.fetchFrameFromDB === 'function') {
+            try {
+              rawFrame = await window.VideoFrameExtractor.fetchFrameFromDB(cachedSource, fIdx);
+            } catch (_) {}
+          }
+
+          // Otherwise seek dedicated decoder video directly to exact timestamp
+          if (!rawFrame && decoderVideo && decoderVideo.readyState >= 1) {
+            const targetTime = Math.min(Math.max(0, (decoderVideo.duration || 3600) - 0.01), Math.max(0, timeInClip));
+            await new Promise(resolve => {
+              if (Math.abs(decoderVideo.currentTime - targetTime) < 0.003) return resolve(true);
+              let resolved = false;
+              const cleanup = () => {
+                decoderVideo.removeEventListener('seeked', onSeek);
+                decoderVideo.removeEventListener('error', onError);
+              };
+              const timer = setTimeout(() => {
+                if (!resolved) { resolved = true; cleanup(); resolve(false); }
+              }, 600);
+              const onSeek = () => {
+                if (resolved) return;
+                resolved = true;
+                clearTimeout(timer);
+                cleanup();
+                resolve(true);
+              };
+              const onError = () => {
+                if (resolved) return;
+                resolved = true;
+                clearTimeout(timer);
+                cleanup();
+                resolve(false);
+              };
+              decoderVideo.addEventListener('seeked', onSeek, { once: true });
+              decoderVideo.addEventListener('error', onError, { once: true });
+              try { decoderVideo.currentTime = targetTime; } catch (_) { onError(); }
+            });
+
+            if (offCtx && offCanvas) {
+              offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+              offCtx.drawImage(decoderVideo, 0, 0, offCanvas.width, offCanvas.height);
+              rawFrame = offCanvas;
+            } else {
+              rawFrame = decoderVideo;
+            }
+          }
+
+          if (rawFrame) {
+            try {
+              const maskCanvas = await this.segmentSource(rawFrame, modelId, sessionObj);
+              const cutout = await this.compositeCutout(rawFrame, maskCanvas);
+              frameCache.set(fIdx, cutout);
+
+              // Seamlessly populate VideoFrameExtractor so timeline scrubbing and playback read the cutouts directly
+              if (cachedSource) {
+                cachedSource.frames.set(fIdx, cutout);
+                if (!cachedSource.cachedFrameIndices) cachedSource.cachedFrameIndices = new Set();
+                cachedSource.cachedFrameIndices.add(fIdx);
+                cachedSource._hasNewExtractedFrames = true;
+
+                // Queue save to IndexedDB as WebP (with alpha) so cutouts persist across reloads
+                if (window.VideoFrameExtractor && typeof window.VideoFrameExtractor._queueFrameSave === 'function') {
+                  if (typeof cutout.convertToBlob === 'function') {
+                    cutout.convertToBlob({ type: 'image/webp', quality: 0.85 }).then(blob => {
+                      if (blob) window.VideoFrameExtractor._queueFrameSave(sourceKey, fIdx, blob, fps);
+                    }).catch(() => {});
+                  } else if (typeof cutout.toBlob === 'function') {
+                    cutout.toBlob(blob => {
+                      if (blob) window.VideoFrameExtractor._queueFrameSave(sourceKey, fIdx, blob, fps);
+                    }, 'image/webp', 0.85);
+                  }
+                }
+              }
+            } catch (segErr) {
+              console.warn('[FishBgRemovalEngine] Frame segment error at', fIdx, segErr);
+            }
+          }
+
           task.currentFrame = i + 1;
           task.percent = Math.round(((i + 1) / totalFramesToProcess) * 100);
-          continue;
-        }
+          layer._extractProgress = (i + 1) / totalFramesToProcess;
+          if (i + 1 >= totalFramesToProcess) {
+            layer._extractComplete = true;
+          }
 
-        // Get raw frame from VideoFrameExtractor
-        let rawFrame = null;
-        if (cachedSource && cachedSource.frames && cachedSource.frames.has(fIdx)) {
-          rawFrame = cachedSource.frames.get(fIdx);
-        } else if (cachedSource && window.VideoFrameExtractor && typeof window.VideoFrameExtractor.fetchFrameFromDB === 'function') {
+          if (window.VideoFrameExtractor) {
+            window.VideoFrameExtractor.updateLayerProgressBar(layer);
+          }
+
+          // Notify progress every 2 frames or at completion
+          if (i % 2 === 0 || i === totalFramesToProcess - 1) {
+            this._notifyProgress();
+          }
+
+          // Selectively redraw composition to show live cutouts
+          if (typeof window.redrawComposition === 'function' && (i % 3 === 0 || i === totalFramesToProcess - 1)) {
+            window.redrawComposition('cutoutFrameReady');
+          }
+
+          // Yield to browser UI loop so scrubbing & playback remain 60 FPS smooth
+          await yieldToUI();
+        }
+      } finally {
+        if (decoderVideo) {
           try {
-            rawFrame = await window.VideoFrameExtractor.fetchFrameFromDB(cachedSource, fIdx);
+            decoderVideo.removeAttribute('src');
+            decoderVideo.load();
+            if (decoderVideo.parentNode) decoderVideo.parentNode.removeChild(decoderVideo);
           } catch (_) {}
+          decoderVideo = null;
         }
-
-        // If raw frame not extracted yet, trigger extractor or fallback to video element
-        if (!rawFrame && cachedSource && cachedSource.activeVideo) {
-          rawFrame = cachedSource.activeVideo;
+        if (cachedSource && window.VideoFrameExtractor && typeof window.VideoFrameExtractor._flushSaveQueue === 'function') {
+          window.VideoFrameExtractor._flushSaveQueue();
         }
-
-        if (rawFrame) {
-          try {
-            const maskCanvas = await this.segmentSource(rawFrame, modelId, sessionObj);
-            const cutout = await this.compositeCutout(rawFrame, maskCanvas);
-            frameCache.set(fIdx, cutout);
-          } catch (segErr) {
-            console.warn('[FishBgRemovalEngine] Frame segment error at', fIdx, segErr);
+        if (!task.cancelled) {
+          layer._extractComplete = true;
+          layer._extractProgress = 1;
+          task.percent = 100;
+          task.status = 'done';
+          this._notifyProgress();
+          if (window.VideoFrameExtractor) {
+            window.VideoFrameExtractor.updateLayerProgressBar(layer);
+          }
+          if (typeof window.redrawComposition === 'function') {
+            window.redrawComposition('bgRemovalDone');
           }
         }
-
-        task.currentFrame = i + 1;
-        task.percent = Math.round(((i + 1) / totalFramesToProcess) * 100);
-
-        // Notify progress every 2 frames or at completion
-        if (i % 2 === 0 || i === totalFramesToProcess - 1) {
-          this._notifyProgress();
-        }
-
-        // Yield to browser UI loop so scrubbing & playback remain 60 FPS smooth
-        await yieldToUI();
       }
     }
   }

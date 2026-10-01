@@ -3403,6 +3403,37 @@
   gap: 8px;
 }
 
+.preset-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-panel);
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  user-select: none;
+}
+
+.preset-header-btn:hover {
+  background-color: var(--bg-panel-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.preset-header-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
 .preset-gallery-filter-bar {
   display: flex;
   flex-direction: column;
@@ -3431,8 +3462,8 @@
 .preset-search-input,
 .element-gallery-search-input {
   width: 100%;
-  height: 34px;
-  padding: 0 12px 0 32px;
+  height: 36px;
+  padding: 0 12px 0 34px;
   background-color: var(--bg-dashboard);
   color: var(--text-primary);
   border: 1px solid var(--border-panel);
@@ -3446,34 +3477,6 @@
 .preset-search-input:focus,
 .element-gallery-search-input:focus {
   border-color: var(--color-primary);
-}
-
-.preset-category-pills {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.preset-category-pill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background-color: var(--bg-panel-inner);
-  color: var(--text-secondary);
-  border: none;
-  font-family: var(--font-brand);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 0.12s ease, color 0.12s ease;
-}
-
-.preset-category-pill:hover,
-.preset-category-pill.is-active {
-  background-color: var(--color-primary);
-  color: var(--bg-canvas);
 }
 
 .preset-gallery-list {
@@ -3645,55 +3648,7 @@
   border-color: var(--color-primary);
 }
 
-.modal-form-preview-box {
-  padding: 10px 12px;
-  background-color: var(--bg-panel);
-  border-radius: 8px;
-  border: 1px solid var(--border-panel);
-  font-size: 12px;
-  color: var(--text-muted);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 
-.modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 12px 20px 16px;
-  border-top: 1px solid var(--border-panel);
-}
-
-.modal-btn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-family: var(--font-brand);
-  font-size: 13px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.12s ease;
-}
-
-.modal-btn-secondary {
-  background-color: var(--bg-panel-inner);
-  color: var(--text-primary);
-}
-
-.modal-btn-secondary:hover {
-  background-color: var(--bg-panel-hover);
-}
-
-.modal-btn-primary {
-  background-color: var(--color-primary);
-  color: var(--bg-canvas);
-}
-
-.modal-btn-primary:hover {
-  opacity: 0.9;
-}
 
 /* Saved Elements in Timeline Add Drawer */
 .add-layer-element-panel {
@@ -3709,7 +3664,7 @@
 
 .drawer-element-preset-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 8px;
   max-height: 240px;
   overflow-y: auto;
@@ -3722,64 +3677,84 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px 8px;
-  background-color: var(--bg-panel);
-  border-radius: 12px;
+  height: 74px;
+  min-height: 72px;
+  padding: 8px 6px;
+  background-color: var(--bg-dashboard);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
   cursor: pointer;
   text-align: center;
   position: relative;
-  transition: background-color 0.12s ease, transform 0.08s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   user-select: none;
+  box-sizing: border-box;
+  outline: none !important;
 }
 
 .element-gallery-card:hover {
   background-color: var(--bg-panel-hover);
+  color: var(--color-primary);
+  border-color: var(--border-subtle);
 }
 
 .element-gallery-card:active {
-  transform: scale(0.96);
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  border-color: transparent !important;
 }
 
 .element-gallery-card-icon {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 6px;
-  fill: var(--color-primary);
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  fill: currentColor;
 }
 
 .element-gallery-card-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
 }
 
 .element-gallery-card-title {
-  font-size: 12px;
+  font-family: var(--font-brand);
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  line-height: 1.2;
 }
 
 .element-gallery-card-meta {
-  font-size: 10px;
+  font-family: var(--font-brand);
+  font-size: 9px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
   text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.element-gallery-card:active .element-gallery-card-meta {
+  color: var(--bg-canvas);
+  opacity: 0.8;
 }
 
 .element-gallery-card-delete {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
   border-radius: 4px;
-  background: transparent;
+  background: var(--bg-panel-inner);
   color: var(--text-muted);
   border: none;
   cursor: pointer;
@@ -3787,6 +3762,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+  z-index: 2;
 }
 
 .element-gallery-card:hover .element-gallery-card-delete {
@@ -3795,7 +3771,7 @@
 
 .element-gallery-card-delete:hover {
   color: #ff5555;
-  background-color: var(--bg-panel-inner);
+  background-color: var(--bg-dashboard);
 }
 
 

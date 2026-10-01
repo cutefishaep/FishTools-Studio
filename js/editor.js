@@ -1549,8 +1549,9 @@
     let _lastPlaceholderW = 0;
     let _lastPlaceholderH = 0;
     let _lastPlaceholderProgress = -1;
+    let _lastPlaceholderStatus = '';
 
-    function getMediaNotReadyPlaceholder(w = 640, h = 360, progress = 0) {
+    function getMediaNotReadyPlaceholder(w = 640, h = 360, progress = 0, customStatus = '') {
       const targetW = Math.max(320, Math.min(1920, Math.round(w)));
       const targetH = Math.max(180, Math.min(1080, Math.round(h)));
       const pct = Math.round((progress || 0) * 100);
@@ -1558,10 +1559,11 @@
       if (!_unreadyPlaceholderCanvas) {
         _unreadyPlaceholderCanvas = document.createElement('canvas');
       }
-      if (_unreadyPlaceholderCanvas.width !== targetW || _unreadyPlaceholderCanvas.height !== targetH || _lastPlaceholderProgress !== pct) {
+      if (_unreadyPlaceholderCanvas.width !== targetW || _unreadyPlaceholderCanvas.height !== targetH || _lastPlaceholderProgress !== pct || _lastPlaceholderStatus !== customStatus) {
         _unreadyPlaceholderCanvas.width = targetW;
         _unreadyPlaceholderCanvas.height = targetH;
         _lastPlaceholderProgress = pct;
+        _lastPlaceholderStatus = customStatus;
 
         const pctx = _unreadyPlaceholderCanvas.getContext('2d');
         if (pctx) {
@@ -1620,7 +1622,8 @@
           const subFontSize = Math.max(11, Math.min(15, Math.round(fontSize * 0.75)));
           pctx.font = `500 ${subFontSize}px "Cal Sans", sans-serif`;
           pctx.fillStyle = pct > 0 ? colorPrimary : textMuted;
-          const statusText = pct > 0 ? `Preparing frames... ${pct}%` : 'Extracting image sequence...';
+          const defaultText = pct > 0 ? `Preparing frames... ${pct}%` : 'Extracting image sequence...';
+          const statusText = customStatus ? (pct > 0 ? `${customStatus} ${pct}%` : customStatus) : defaultText;
           pctx.fillText(statusText, cx, cy + 12 + fontSize);
 
           // Visual Progress Bar (clean flat track & fill)
@@ -3324,8 +3327,18 @@
             const cutoutFrame = window.FishBgRemovalEngine.getVideoCutoutFrame(sourceKey, fIdx);
             if (cutoutFrame) {
               el = cutoutFrame;
-            } else if (!isExport && !isIdleCache) {
-              window.FishBgRemovalEngine.processLayer(layer);
+              layer._lastRenderedCutoutFrame = cutoutFrame;
+            } else {
+              if (!isExport && !isIdleCache) {
+                window.FishBgRemovalEngine.processLayer(layer);
+              }
+              if (layer._lastRenderedCutoutFrame) {
+                el = layer._lastRenderedCutoutFrame;
+              } else {
+                const placeholderW = layer.mediaWidth || 1920;
+                const placeholderH = layer.mediaHeight || 1080;
+                el = getMediaNotReadyPlaceholder(placeholderW, placeholderH, layer._extractProgress || 0, 'Removing background...');
+              }
             }
           } else {
             const photoCutout = window.FishBgRemovalEngine.getPhotoCutout(layer);
@@ -14331,6 +14344,8 @@
           });
         }
       }
+      // Filter out null or non-object items in layer.effects to prevent corruption
+      layer.effects = layer.effects.filter(f => f && typeof f === 'object');
       const seenIds = new Set();
       layer.effects.forEach((fx, i) => {
         if (!fx.id || seenIds.has(fx.id)) {
@@ -14461,6 +14476,7 @@
       const btnEffectsKeyframe = document.getElementById('btn-effects-keyframe');
 
       if (!layer) {
+        if (rackList) rackList.dataset.currentLayerId = '';
         if (rackEmpty) rackEmpty.style.display = 'flex';
         if (rackList) {
           rackList.style.display = 'none';
@@ -14473,6 +14489,7 @@
       const effects = ensureLayerEffects(layer);
 
       if (effects.length === 0) {
+        if (rackList) rackList.dataset.currentLayerId = layer.id;
         if (rackEmpty) rackEmpty.style.display = 'flex';
         if (rackList) {
           rackList.style.display = 'none';
@@ -14485,16 +14502,37 @@
       if (rackEmpty) rackEmpty.style.display = 'none';
       if (rackList) rackList.style.display = 'flex';
 
+      // Bulletproof delegated deletion handler on container (never misses clicks)
+      if (rackList && !rackList._hasDeleteDelegation) {
+        rackList._hasDeleteDelegation = true;
+        rackList.addEventListener('click', (e) => {
+          const delBtn = e.target.closest('.effects-card-delete-btn');
+          const kebabDelItem = e.target.closest('.effects-kebab-item[data-action="delete"]');
+          if (delBtn || kebabDelItem) {
+            e.stopPropagation();
+            const card = e.target.closest('.effects-card');
+            if (card) {
+              const fxId = card.dataset.effectId;
+              const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+              card.style.display = 'none';
+              deleteEffectFromLayer(fxId, curLayer);
+            }
+          }
+        });
+      }
+
       const pps = window.currentPixelsPerSecond || 80;
       const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
       const currentSec = Number((Math.abs(currentPanX) / pps).toFixed(3));
       const eff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(layer, currentSec) : null;
 
-      // Check if rendered DOM cards match current effects IDs
+      // Check if rendered DOM cards match current effects IDs and active layer
       const domCards = [...rackList.querySelectorAll('.effects-card')];
       const domCardIds = domCards.map(c => c.dataset.effectId);
       const currentFxIds = effects.map(fx => fx.id);
-      const needsFullRebuild = domCardIds.length !== currentFxIds.length || !domCardIds.every((id, i) => id === currentFxIds[i]);
+      const layerChanged = rackList.dataset.currentLayerId !== layer.id;
+      rackList.dataset.currentLayerId = layer.id;
+      const needsFullRebuild = layerChanged || domCardIds.length !== currentFxIds.length || !domCardIds.every((id, i) => id === currentFxIds[i]);
 
       if (needsFullRebuild) {
         rackList.innerHTML = effects.map(fx => renderEffectCardHTML(fx, layer, currentSec)).join('');
@@ -14635,24 +14673,63 @@
     window.syncEffectsRackUI = syncEffectsRackUI;
 
     function deleteEffectFromLayer(fxId, layer) {
-      if (!layer || !Array.isArray(layer.effects)) return;
-      const idx = layer.effects.findIndex(f => f.id === fxId || (f && f.id === fxId));
-      if (idx === -1) return;
-      const removedFx = layer.effects.splice(idx, 1)[0];
+      // 1. Safely resolve live layer from currentProjectState.layers
+      let targetLayer = layer;
+      if (!targetLayer || !targetLayer.effects || (targetLayer.id && currentProjectState.layers)) {
+        const targetId = (targetLayer && targetLayer.id) || window.selectedLayerId;
+        const found = (currentProjectState.layers || []).find(l => l.id === targetId);
+        if (found) targetLayer = found;
+      }
+      if (!targetLayer && window.selectedLayerId) {
+        targetLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+      }
+
+      // If targetLayer still doesn't have this effect, search all layers in currentProjectState
+      if (!targetLayer || !Array.isArray(targetLayer.effects) || !targetLayer.effects.some(f => f && (f.id === fxId || String(f.id) === String(fxId)))) {
+        const layerWithFx = (currentProjectState.layers || []).find(l => Array.isArray(l.effects) && l.effects.some(f => f && (f.id === fxId || String(f.id) === String(fxId))));
+        if (layerWithFx) {
+          targetLayer = layerWithFx;
+        }
+      }
+
+      if (!targetLayer || !Array.isArray(targetLayer.effects)) return;
+
+      // Safe index finding (handles nulls, string vs number, or fallback matching)
+      let idx = targetLayer.effects.findIndex(f => f && (f.id === fxId || String(f.id) === String(fxId)));
+      if (idx === -1 && fxId) {
+        idx = targetLayer.effects.findIndex(f => f && (f.type === fxId || f.name === fxId));
+      }
+      if (idx === -1 && targetLayer.effects.length === 1) {
+        idx = 0;
+      }
+      if (idx === -1) {
+        console.warn('[deleteEffectFromLayer] Effect not found:', fxId, targetLayer);
+        syncEffectsRackUI();
+        return;
+      }
+
+      // Record undo snapshot before mutating
+      if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
+        window.UndoRedoManager.recordSnapshot();
+      }
+
+      const removedFx = targetLayer.effects.splice(idx, 1)[0];
+      const realFxId = (removedFx && removedFx.id) || fxId;
 
       // Purge all keyframes belonging to this effect instance
-      if (layer.keyframes) {
-        Object.keys(layer.keyframes).forEach(k => {
-          if (k.startsWith(`${fxId}:`)) {
-            delete layer.keyframes[k];
+      if (targetLayer.keyframes) {
+        const keysToDelete = [realFxId, fxId].filter(Boolean);
+        Object.keys(targetLayer.keyframes).forEach(k => {
+          if (keysToDelete.some(id => k.startsWith(`${id}:`))) {
+            delete targetLayer.keyframes[k];
           }
         });
       }
 
       // Update active keyframe property
-      if (window.activeKeyframeProperty && window.activeKeyframeProperty.startsWith(`${fxId}:`)) {
-        if (layer.effects.length > 0) {
-          const firstFx = layer.effects[0];
+      if (window.activeKeyframeProperty && (window.activeKeyframeProperty.startsWith(`${realFxId}:`) || (fxId && window.activeKeyframeProperty.startsWith(`${fxId}:`)))) {
+        if (targetLayer.effects.length > 0) {
+          const firstFx = targetLayer.effects[0];
           const firstParam = (window.FishEffects && typeof window.FishEffects.getParamIds === 'function')
             ? (window.FishEffects.getParamIds(firstFx)[0] || 'brightness')
             : 'brightness';
@@ -14662,18 +14739,19 @@
         }
       }
 
-      if (layer.effects.length === 0) {
-        delete layer.hasBrightnessContrast;
-        delete layer.brightness;
-        delete layer.contrast;
-        delete layer.effectsDisabled;
-        if (layer.keyframes) {
-          delete layer.keyframes.brightness;
-          delete layer.keyframes.contrast;
+      if (targetLayer.effects.length === 0) {
+        delete targetLayer.hasBrightnessContrast;
+        delete targetLayer.brightness;
+        delete targetLayer.contrast;
+        delete targetLayer.effectsDisabled;
+        if (targetLayer.keyframes) {
+          delete targetLayer.keyframes.brightness;
+          delete targetLayer.keyframes.contrast;
         }
       } else {
-        layer.brightness = layer.effects[0].brightness !== undefined ? layer.effects[0].brightness : 0;
-        layer.contrast = layer.effects[0].contrast !== undefined ? layer.effects[0].contrast : 0;
+        targetLayer.brightness = targetLayer.effects[0].brightness !== undefined ? targetLayer.effects[0].brightness : 0;
+        targetLayer.contrast = targetLayer.effects[0].contrast !== undefined ? targetLayer.effects[0].contrast : 0;
+        targetLayer.effectsDisabled = !!targetLayer.effects[0].disabled;
       }
       // Call effect onRemove lifecycle if defined (e.g. 3D Element WebGL disposal)
       const def = (window.FishEffects && window.FishEffects.registry)
@@ -14683,8 +14761,19 @@
         try { def.onRemove(removedFx); } catch (e) { console.warn('Error during effect onRemove:', e); }
       }
 
+      if (removedFx && (removedFx.type === 'remove_bg' || removedFx.id === 'remove_bg' || (typeof removedFx.id === 'string' && removedFx.id.startsWith('fx_remove_bg')))) {
+        if (window.FishBgRemovalEngine) {
+          window.FishBgRemovalEngine.clearLayerCutouts(targetLayer);
+        }
+        delete targetLayer._lastRenderedCutoutFrame;
+        if (targetLayer.type === 'video' && window.VideoFrameExtractor) {
+          window.VideoFrameExtractor.abortAndRevertPartialSequence(targetLayer);
+          window.VideoFrameExtractor.extractLayerRange(targetLayer);
+        }
+      }
+
       syncEffectsRackUI();
-      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(targetLayer);
       showEffectsRackToast('Effect removed');
 
       // Defer heavy composition redraw and timeline DOM reconstruction to next animation frame
@@ -14946,7 +15035,9 @@
                   card.style.paddingBottom = '0px';
                   card.style.borderWidth = '0px';
                   setTimeout(() => {
-                    deleteEffectFromLayer(fx.id, layer);
+                    const curFxId = card.dataset.effectId || fx.id;
+                    const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId) || layer;
+                    deleteEffectFromLayer(curFxId, curLayer);
                   }, 180);
                 });
               }, 80);
@@ -14971,6 +15062,21 @@
             e.stopPropagation();
             fx.disabled = !fx.disabled;
             eyeBtn.classList.toggle('is-active', !fx.disabled);
+            if (fx.type === 'remove_bg' || fx.id === 'remove_bg' || (typeof fx.id === 'string' && fx.id.startsWith('fx_remove_bg'))) {
+              if (fx.disabled) {
+                if (window.FishBgRemovalEngine) window.FishBgRemovalEngine.clearLayerCutouts(layer);
+                delete layer._lastRenderedCutoutFrame;
+                if (layer.type === 'video' && window.VideoFrameExtractor) {
+                  window.VideoFrameExtractor.abortAndRevertPartialSequence(layer);
+                  window.VideoFrameExtractor.extractLayerRange(layer);
+                }
+              } else {
+                if (layer.type === 'video' && window.VideoFrameExtractor && !layer._extractComplete) {
+                  window.VideoFrameExtractor.abortAndRevertPartialSequence(layer);
+                }
+                if (window.FishBgRemovalEngine) window.FishBgRemovalEngine.processLayer(layer, true);
+              }
+            }
             if (fx === layer.effects[0]) layer.effectsDisabled = fx.disabled;
             if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
             if (typeof redrawComposition === 'function') redrawComposition('effect-toggle');
@@ -15032,22 +15138,26 @@
                 } catch (_) {}
                 showEffectsRackToast('Effect copied');
               } else if (action === 'delete') {
+                const curFxId = card.dataset.effectId || fx.id;
+                const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId) || layer;
                 card.style.display = 'none';
-                deleteEffectFromLayer(fx.id, layer);
+                deleteEffectFromLayer(curFxId, curLayer);
               }
             });
           });
         }
 
         // 4. Delete Effect Button (Expanded State)
-        const delBtn = card.querySelector('.effects-card-delete-btn');
-        if (delBtn) {
+        const delBtns = card.querySelectorAll('.effects-card-delete-btn');
+        delBtns.forEach(delBtn => {
           delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            const curFxId = card.dataset.effectId || fx.id;
+            const curLayer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId) || layer;
             card.style.display = 'none';
-            deleteEffectFromLayer(fx.id, layer);
+            deleteEffectFromLayer(curFxId, curLayer);
           });
-        }
+        });
 
         // 5. Drag Handle (Reorder)
         const handle = card.querySelector('.effects-card-drag-handle');
@@ -15962,8 +16072,13 @@
           layer.effectsDisabled = !!layer.effects[0].disabled;
         }
 
-        if (effectTypeId === 'remove_bg' && window.FishBgRemovalEngine) {
-          window.FishBgRemovalEngine.processLayer(layer, true);
+        if (effectTypeId === 'remove_bg') {
+          if (layer.type === 'video' && window.VideoFrameExtractor && !layer._extractComplete) {
+            window.VideoFrameExtractor.abortAndRevertPartialSequence(layer);
+          }
+          if (window.FishBgRemovalEngine) {
+            window.FishBgRemovalEngine.processLayer(layer, true);
+          }
         }
 
         if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
@@ -16091,16 +16206,6 @@
             nameInput.value = `${layer.name || 'Layer'} Preset`;
           }
 
-          const summaryBox = document.getElementById('save-preset-effects-summary');
-          if (summaryBox) {
-            const listHtml = effects.map(fx => {
-              const def = (window.FishEffectsRegistry && window.FishEffectsRegistry.get(fx.type)) || null;
-              const name = def ? (def.name || def.id) : (fx.name || fx.id);
-              return `<div style="display:flex;align-items:center;gap:6px;"><span style="color:var(--color-primary);">✓</span> <span>${name}</span></div>`;
-            }).join('');
-            summaryBox.innerHTML = `<span style="font-weight:700;color:var(--text-secondary);margin-bottom:2px;">Included Effects (${effects.length}):</span>${listHtml}`;
-          }
-
           if (window.Modal) window.Modal.open('modal-save-effect-preset');
         });
       }
@@ -16116,9 +16221,7 @@
           if (effects.length === 0) return;
 
           const nameInput = document.getElementById('input-preset-name');
-          const catSelect = document.getElementById('select-preset-category');
           const presetName = (nameInput && nameInput.value.trim()) || 'Custom Preset';
-          const presetCat = (catSelect && catSelect.value) || 'Custom';
 
           const clonedEffects = JSON.parse(JSON.stringify(effects));
           const keyframesData = {};
@@ -16136,7 +16239,6 @@
           const presetObj = {
             id: 'ep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             name: presetName,
-            category: presetCat,
             createdAt: Date.now(),
             effects: clonedEffects,
             keyframes: keyframesData
@@ -16176,11 +16278,8 @@
         const query = (searchInput ? searchInput.value.trim().toLowerCase() : '');
 
         let filtered = presets;
-        if (activeCategoryFilter !== 'all') {
-          filtered = filtered.filter(p => (p.category || '').toLowerCase() === activeCategoryFilter.toLowerCase());
-        }
         if (query) {
-          filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(query) || (p.category || '').toLowerCase().includes(query));
+          filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(query));
         }
 
         if (filtered.length === 0) {
@@ -16207,7 +16306,6 @@
               <div class="preset-card-info">
                 <div class="preset-card-title-row">
                   <span class="preset-card-name">${p.name || 'Untitled'}</span>
-                  <span class="preset-card-badge">${p.category || 'General'}</span>
                 </div>
                 <span class="preset-card-desc" title="${fxNames}">${fxCount} effect${fxCount > 1 ? 's' : ''}: ${fxNames || 'None'}</span>
               </div>
@@ -16403,17 +16501,6 @@
         const nameInput = document.getElementById('input-element-name');
         if (nameInput) {
           nameInput.value = layer.name || `${layer.type || 'Layer'} Element`;
-        }
-
-        const summaryBox = document.getElementById('save-element-layer-summary');
-        if (summaryBox) {
-          const fxCount = Array.isArray(layer.effects) ? layer.effects.length : 0;
-          const kfCount = layer.keyframes ? Object.keys(layer.keyframes).length : 0;
-          summaryBox.innerHTML = `
-            <div><strong>Type:</strong> <span style="text-transform: capitalize;">${layer.type || 'Custom'}</span></div>
-            <div><strong>Effects Rack:</strong> ${fxCount} active effect${fxCount !== 1 ? 's' : ''}</div>
-            <div><strong>Animated Properties:</strong> ${kfCount} keyframed track${kfCount !== 1 ? 's' : ''}</div>
-          `;
         }
 
         if (window.Modal) window.Modal.open('modal-save-element');
@@ -16755,8 +16842,13 @@
           layer.contrast = layer.effects[0].contrast !== undefined ? layer.effects[0].contrast : 0;
           layer.effectsDisabled = !!layer.effects[0].disabled;
         }
-        if (effectTypeId === 'remove_bg' && window.FishBgRemovalEngine) {
-          window.FishBgRemovalEngine.processLayer(layer, true);
+        if (effectTypeId === 'remove_bg') {
+          if (layer.type === 'video' && window.VideoFrameExtractor && !layer._extractComplete) {
+            window.VideoFrameExtractor.abortAndRevertPartialSequence(layer);
+          }
+          if (window.FishBgRemovalEngine) {
+            window.FishBgRemovalEngine.processLayer(layer, true);
+          }
         }
         if (typeof invalidatePreviewCacheForLayer === 'function') {
           invalidatePreviewCacheForLayer(layer);
@@ -31692,7 +31784,12 @@
               const checkLayers = (layers) => {
                 for (let l of layers) {
                   if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
-                    if (l.type !== 'video' && !window.FishBgRemovalEngine.getPhotoCutout(l)) {
+                    if (l.type === 'video') {
+                      if (!l._extractComplete) {
+                        window.FishBgRemovalEngine.processLayer(l);
+                        return true;
+                      }
+                    } else if (!window.FishBgRemovalEngine.getPhotoCutout(l)) {
                       window.FishBgRemovalEngine.processLayer(l);
                       return true;
                     }
@@ -31818,7 +31915,12 @@
               const checkLayers = (layers) => {
                 for (let l of layers) {
                   if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
-                    if (l.type !== 'video' && !window.FishBgRemovalEngine.getPhotoCutout(l)) {
+                    if (l.type === 'video') {
+                      if (!l._extractComplete) {
+                        window.FishBgRemovalEngine.processLayer(l);
+                        return true;
+                      }
+                    } else if (!window.FishBgRemovalEngine.getPhotoCutout(l)) {
                       window.FishBgRemovalEngine.processLayer(l);
                       return true;
                     }

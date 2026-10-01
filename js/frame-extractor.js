@@ -1141,6 +1141,10 @@
      */
     async extractLayerRange(layer) {
       if (!layer || layer.type !== 'video') return;
+      if (window.FishBgRemovalEngine && window.FishBgRemovalEngine.isLayerMattingActive(layer)) {
+        window.FishBgRemovalEngine.processLayer(layer);
+        return;
+      }
       if (layer._extractComplete) {
         const sourceKey = this._getSourceKey(layer);
         const source = this.sources.get(sourceKey);
@@ -1250,7 +1254,7 @@
     async ensureLayersCached(layers, onProgress = null, isCancelled = null) {
       if (!layers || layers.length === 0) return true;
 
-      const videoLayers = layers.filter(l => l && l.type === 'video' && !l.hidden);
+      const videoLayers = layers.filter(l => l && l.type === 'video' && !l.hidden && !(window.FishBgRemovalEngine && window.FishBgRemovalEngine.isLayerMattingActive(l)));
       if (videoLayers.length === 0) return true;
 
       if (window.currentProjectState && window.currentProjectState.fps) {
@@ -1916,6 +1920,101 @@
         } else {
           window._pendingVideoCacheInvalidation = true;
         }
+      }
+    }
+
+    /**
+     * Immediately abort ongoing raw video extraction and revert all half-rendered frames
+     * from RAM and IndexedDB for this layer / source, sterilizing caches to prevent collision with AI matting cutouts.
+     */
+    async abortAndRevertPartialSequence(target) {
+      if (!target) return;
+      let layer = null;
+      let sourceKey = null;
+
+      if (typeof target === 'object' && target !== null) {
+        if (target.type === 'video' || target.effects) {
+          layer = target;
+          sourceKey = this._getSourceKey(layer);
+        } else if (target.sourceKey) {
+          sourceKey = target.sourceKey;
+        } else if (target.id) {
+          sourceKey = target.id;
+        }
+      } else if (typeof target === 'string') {
+        sourceKey = target;
+      }
+
+      if (!sourceKey && layer) sourceKey = layer.mediaId || layer.dataUrl || layer.id;
+      if (!sourceKey) return;
+
+      const source = this.sources.get(sourceKey);
+      if (source) {
+        // 1. Immediately abort active extraction & release decoder video element
+        source.isExtracting = false;
+        if (source.activeVideo) {
+          try {
+            source.activeVideo.removeAttribute('src');
+            source.activeVideo.load();
+            if (source.activeVideo.parentNode) {
+              source.activeVideo.parentNode.removeChild(source.activeVideo);
+            }
+          } catch (_) {}
+          source.activeVideo = null;
+        }
+        if (source.pendingFrames) source.pendingFrames.clear();
+
+        // 2. Revert all half-rendered RAM frames
+        if (source.frames) {
+          source.frames.forEach(bmp => {
+            if (bmp && typeof bmp.close === 'function') {
+              try { bmp.close(); } catch (_) {}
+            }
+          });
+          source.frames.clear();
+        }
+        if (source.cachedFrameIndices) source.cachedFrameIndices.clear();
+        if (source._fetchingFrames) source._fetchingFrames.clear();
+        source._hasNewExtractedFrames = false;
+      }
+
+      // 3. Purge queued database writes for this source
+      if (this._saveQueue && this._saveQueue.length > 0) {
+        this._saveQueue = this._saveQueue.filter(item => item.sourceKey !== sourceKey);
+      }
+
+      // 4. Purge half-rendered frames from IndexedDB
+      await this._deleteFramesFromDB(sourceKey);
+
+      // 5. Reset progress flags on the layer and all layers referencing this source
+      const allLayers = (window.currentProjectState && Array.isArray(window.currentProjectState.layers))
+        ? window.currentProjectState.layers
+        : (layer ? [layer] : []);
+
+      allLayers.forEach(l => {
+        if (l && l.type === 'video') {
+          const matches = (this._getSourceKey(l) === sourceKey || l.mediaId === sourceKey || l.id === sourceKey || (source && l.name === source.name));
+          if (matches) {
+            l._extractProgress = 0;
+            l._extractComplete = false;
+            delete l._lastRenderedFrame;
+            delete l._lastRenderedCutoutFrame;
+            this.updateLayerProgressBar(l);
+          }
+        }
+      });
+
+      // 6. Invalidate canvas preview cache so half-rendered raw frames never linger on screen
+      if (window.PreviewCacheManager && layer) {
+        const pps = window.currentPixelsPerSecond || 80;
+        const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+        window.PreviewCacheManager.invalidateRange(start, start + dur);
+      }
+
+      // 7. Request composition redraw so canvas immediately shows clean unready placeholder
+      if (typeof window.redrawComposition === 'function') {
+        window.redrawComposition('abortAndRevertPartialSequence');
       }
     }
 

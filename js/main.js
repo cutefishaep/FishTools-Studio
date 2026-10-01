@@ -1452,7 +1452,15 @@ function showPresetConfirmModal(project) {
     }
   }
 
+  // Close welcome modal or any other modal before opening preset confirm to prevent modal collision/stacking
+  const welcomeEl = document.getElementById('modal-welcome');
+  if (welcomeEl && welcomeEl.classList.contains('is-active')) {
+    welcomeEl.classList.remove('is-active');
+  }
   if (window.Modal) {
+    if (window.Modal.activeModal && window.Modal.activeModal.id === 'modal-welcome') {
+      window.Modal.close(false);
+    }
     window.Modal.open('modal-preset-confirm');
   }
 }
@@ -1782,16 +1790,38 @@ window.requestStudioStoragePersist = async function () {
 };
 
 /**
+ * Checks if current page was opened with an incoming shared project/preset link
+ */
+function hasIncomingProjectPresetLink() {
+  try {
+    const url = new URL(window.location.href);
+    const importId = url.searchParams.get('import') || url.searchParams.get('p') || url.searchParams.get('project');
+    if (importId) return true;
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    if (segments.length === 1 && !['index.html', 'editor.html', 'desktop.html', 'demo.html', 'privacy.html', 'terms.html'].includes(segments[0])) {
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+/**
  * Automatically displays Welcome modal on first visit unless dismissed
  */
 function initWelcomeModal() {
   syncWelcomeVersionTags();
   updateStorageDurabilityUI().catch(() => {});
+  // Do NOT show welcome modal if user accessed studio from a shared project/preset link
+  if (hasIncomingProjectPresetLink()) {
+    return;
+  }
   try {
     const hasDismissed = localStorage.getItem('oft_seen_welcome_v1');
     if (!hasDismissed) {
       setTimeout(() => {
-        if (window.Modal) {
+        // Double check in case preset confirmation opened in the meantime
+        if (hasIncomingProjectPresetLink()) return;
+        if (window.Modal && (!window.Modal.activeModal || window.Modal.activeModal.id === 'modal-welcome')) {
           window.Modal.open('modal-welcome');
         }
       }, 450);

@@ -169,8 +169,12 @@
           const cutoutFrame = window.FishBgRemovalEngine.getVideoCutoutFrame(sourceKey, fIdx);
           if (cutoutFrame) {
             targetEl = cutoutFrame;
+            layer._lastRenderedCutoutFrame = cutoutFrame;
           } else {
             window.FishBgRemovalEngine.processLayer(layer);
+            if (layer._lastRenderedCutoutFrame) {
+              targetEl = layer._lastRenderedCutoutFrame;
+            }
           }
         } else if (layer) {
           const photoCutout = window.FishBgRemovalEngine.getPhotoCutout(layer);
@@ -190,6 +194,15 @@
         }
       } catch (_) {
         try { ctx.drawImage(el, x, y, w, h); } catch (e) {}
+      }
+    },
+    onRemove(fx, layer) {
+      if (layer && window.FishBgRemovalEngine) {
+        window.FishBgRemovalEngine.clearLayerCutouts(layer);
+      }
+      if (layer && layer.type === 'video' && window.VideoFrameExtractor) {
+        window.VideoFrameExtractor.abortAndRevertPartialSequence(layer);
+        window.VideoFrameExtractor.extractLayerRange(layer);
       }
     }
   });

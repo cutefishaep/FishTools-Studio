@@ -403,7 +403,7 @@
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   display: grid !important;
-  grid-template-columns: repeat(4, 1fr) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   padding: 2px !important;
   gap: 2px !important;
   box-sizing: border-box !important;
@@ -418,6 +418,8 @@
 .desktop-panel-left .segmented-switch-item {
   width: 100% !important;
   min-width: 0 !important;
+  max-width: 100% !important;
+  flex: 1 1 0 !important;
   height: 100% !important;
   border-radius: var(--desktop-radius-sm) !important;
   border: none !important;
@@ -473,7 +475,7 @@
 
 .desktop-panel-left .drawer-media-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -511,7 +513,7 @@
 
 .desktop-panel-left #add-layer-shape-grid {
   display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 8px !important;
   width: 100% !important;
   box-sizing: border-box !important;
@@ -521,6 +523,8 @@
   grid-column: span 1 !important;
   aspect-ratio: 1 / 1 !important;
   width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: 80px !important;
@@ -560,7 +564,7 @@
   fill: currentColor !important;
 }
 
-/* CONTROL PANEL: 3-COLUMN TILES */
+/* CONTROL PANEL: STRICT 4-COLUMN TILES (Equal Width Guaranteed) */
 .desktop-panel-left .add-layer-control-panel {
   padding: 8px 10px !important;
   box-sizing: border-box !important;
@@ -568,15 +572,18 @@
 
 .desktop-panel-left #add-layer-control-grid {
   display: grid !important;
-  grid-template-columns: repeat(4, 1fr) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 8px !important;
   width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .desktop-panel-left #add-layer-control-grid .layer-action-btn {
   grid-column: span 1 !important;
   aspect-ratio: 1 / 1 !important;
   width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: 80px !important;
@@ -589,7 +596,7 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 4px !important;
-  padding: 4px !important;
+  padding: 4px 2px !important;
   margin: 0 !important;
   cursor: pointer;
   box-sizing: border-box !important;
@@ -619,6 +626,14 @@
 .desktop-panel-left #add-layer-control-grid .layer-action-label {
   font-size: 10px !important;
   font-weight: 600 !important;
+  text-align: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  padding: 0 2px !important;
 }
 
 /* TEXT PRESET GRID IN DESKTOP LEFT PANEL */

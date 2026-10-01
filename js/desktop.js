@@ -256,6 +256,7 @@
     const controlPanel = document.getElementById('add-layer-control-panel');
     const shapePanel = document.getElementById('add-layer-shape-panel');
     const textPanel = document.getElementById('add-layer-text-panel');
+    const elementPanel = document.getElementById('add-layer-element-panel');
 
     function switchCategory(category) {
       catSwitch.querySelectorAll('.segmented-switch-item').forEach((item) => {
@@ -270,12 +271,16 @@
       if (controlPanel) controlPanel.style.display = (category === 'control') ? '' : 'none';
       if (shapePanel) shapePanel.style.display = (category === 'shape') ? '' : 'none';
       if (textPanel) textPanel.style.display = (category === 'text') ? '' : 'none';
+      if (elementPanel) elementPanel.style.display = (category === 'element') ? '' : 'none';
 
       if (category === 'media' && typeof window.renderProjectMediaGrid === 'function') {
         window.renderProjectMediaGrid();
       }
       if (category === 'text' && typeof window.renderTextPresetsGrid === 'function') {
         window.renderTextPresetsGrid();
+      }
+      if (category === 'element' && typeof window.renderSavedElementsGrid === 'function') {
+        window.renderSavedElementsGrid();
       }
     }
 

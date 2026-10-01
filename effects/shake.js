@@ -89,7 +89,15 @@
         return;
       }
 
-      const tTotal = sec * freq;
+      const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) || 80;
+      const layerStart = (layer && layer.startSec !== undefined)
+        ? layer.startSec
+        : ((layer && layer.startPx !== undefined) ? (layer.startPx / pps) : 0);
+      const localSec = (layer && typeof layer._timeInClip === 'number' && !isNaN(layer._timeInClip))
+        ? Math.max(0, layer._timeInClip)
+        : Math.max(0, sec - layerStart);
+
+      const tTotal = localSec * freq;
       const randRatio = randomness / 100;
 
       // 1. Position X noise + harmonic wave

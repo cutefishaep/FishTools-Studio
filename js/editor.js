@@ -5450,7 +5450,7 @@
             getEffectParamIds(fxEff).forEach(pId => {
               const scopedKey = `${fxEff.id}:${pId}`;
               if (window.activeScrubbingParam === scopedKey) {
-                const liveFx = layer.effects && layer.effects[idx];
+                const liveFx = layer.effects && layer.effects.find(f => f && f.id === fxEff.id);
                 if (liveFx && liveFx[pId] !== undefined) {
                   fxEff[pId] = liveFx[pId];
                   return;
@@ -14380,6 +14380,7 @@
             const val = isDecimal
               ? Math.max(min, Math.min(max, Number(parseFloat(valNum).toFixed(2))))
               : Math.max(min, Math.min(max, Math.round(valNum)));
+            const paramBtn = card.querySelector(`.fx-param-btn-${pId}`);
             if (paramBtn) {
               const isSelected = (window.activeKeyframeProperty === propKey) ||
                 (!window.activeKeyframeProperty && fx === layer.effects[0] && pId === (def && def.params[0] ? def.params[0].id : 'brightness'));
@@ -15244,10 +15245,9 @@
               if (typeof recordLayerPropertyChange === 'function') {
                 recordLayerPropertyChange(layer, propKey);
               }
-              if (!isActivelyPlaying) {
-                if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-                if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
-              }
+              if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+              if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
               const curveWidget = card.querySelector('.effects-curve-editor');
               if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
               if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
@@ -15337,11 +15337,9 @@
             recordLayerPropertyChange(layer, propKey);
           }
 
-          const isActivelyPlaying = isAnyPlaybackActive();
-          if (!isActivelyPlaying) {
-            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-            if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
-          }
+          if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
           const curveWidget = card.querySelector('.effects-curve-editor');
           if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
 
@@ -19859,7 +19857,11 @@
             if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
           }
           if (typeof syncEffectsRackUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'effects') {
-            syncEffectsRackUI();
+            try {
+              syncEffectsRackUI();
+            } catch (err) {
+              console.error('[syncEffectsRackUI error]', err);
+            }
           }
           if (typeof syncCameraSettingsUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'camera') {
             syncCameraSettingsUI();

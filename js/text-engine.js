@@ -229,24 +229,54 @@
 
       const p = Object.assign({}, DEFAULT_TEXT_PROPS, layer.textProps || {});
 
+      const MAX_BUFFER_DIM = 2048;
       const baseFontSize = Number(p.fontSize) || 64;
-      const resScale = Math.min(4.0, Math.max(1.0, Number(layer && layer._textResScale) || 1.0));
-      const fontSize = baseFontSize * resScale;
-      const letterSpacing = (p.letterSpacing || 0) * resScale;
+      let resScale = Math.min(2.5, Math.max(1.0, Number(layer && layer._textResScale) || 1.0));
 
-      const font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + fontSize + 'px ' + (p.fontFamily || 'Cal Sans');
-      const measure = this.measureText(ctx, p.text || 'Text', font, letterSpacing, p.lineHeight);
+      // Guard: clamp effective font size to 240px to prevent buffer texture explosion
+      if (baseFontSize * resScale > 240) {
+        resScale = Math.max(1.0, 240 / baseFontSize);
+      }
 
-      const padX = (p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24) * resScale;
-      const padY = (p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16) * resScale;
-      const shadowPad = (p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0)) * resScale;
+      let fontSize = baseFontSize * resScale;
+      let letterSpacing = (p.letterSpacing || 0) * resScale;
 
-      const contentW = Math.max(Math.ceil((targetW || 0) * resScale), Math.ceil(measure.width  + padX + shadowPad * 2));
-      const contentH = Math.max(Math.ceil((targetH || 0) * resScale), Math.ceil(measure.height + padY + shadowPad * 2));
+      let font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + fontSize + 'px ' + (p.fontFamily || 'Cal Sans');
+      let measure = this.measureText(ctx, p.text || 'Text', font, letterSpacing, p.lineHeight);
+
+      let padX = (p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24) * resScale;
+      let padY = (p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16) * resScale;
+      let shadowPad = (p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0)) * resScale;
+
+      let contentW = Math.max(Math.ceil((targetW || 0) * resScale), Math.ceil(measure.width  + padX + shadowPad * 2));
+      let contentH = Math.max(Math.ceil((targetH || 0) * resScale), Math.ceil(measure.height + padY + shadowPad * 2));
 
       // Extra canvas padding so characters can animate/bounce freely outside the text box without clipping (AE style)
-      const animPadX = Math.ceil(Math.max(fontSize * 2, 80 * resScale));
-      const animPadY = Math.ceil(Math.max(fontSize * 3, 140 * resScale));
+      // Clamped to safe range to avoid GPU texture overflow
+      let animPadX = Math.min(120, Math.ceil(Math.max(fontSize * 0.75, 40 * resScale)));
+      let animPadY = Math.min(160, Math.ceil(Math.max(fontSize * 1.0, 60 * resScale)));
+
+      let reqW = contentW + animPadX * 2;
+      let reqH = contentH + animPadY * 2;
+
+      // Safe hardware texture clamp: automatically downscale resScale if buffer dimensions exceed MAX_BUFFER_DIM
+      if (reqW > MAX_BUFFER_DIM || reqH > MAX_BUFFER_DIM) {
+        const factor = Math.min(MAX_BUFFER_DIM / reqW, MAX_BUFFER_DIM / reqH);
+        resScale = Math.max(0.5, resScale * factor);
+        fontSize = baseFontSize * resScale;
+        letterSpacing = (p.letterSpacing || 0) * resScale;
+        font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + fontSize + 'px ' + (p.fontFamily || 'Cal Sans');
+        measure = this.measureText(ctx, p.text || 'Text', font, letterSpacing, p.lineHeight);
+        padX *= factor;
+        padY *= factor;
+        shadowPad *= factor;
+        contentW = Math.max(Math.ceil((targetW || 0) * resScale), Math.ceil(measure.width + padX + shadowPad * 2));
+        contentH = Math.max(Math.ceil((targetH || 0) * resScale), Math.ceil(measure.height + padY + shadowPad * 2));
+        animPadX = Math.min(120, Math.ceil(Math.max(fontSize * 0.75, 40 * resScale)));
+        animPadY = Math.min(160, Math.ceil(Math.max(fontSize * 1.0, 60 * resScale)));
+        reqW = Math.min(MAX_BUFFER_DIM, contentW + animPadX * 2);
+        reqH = Math.min(MAX_BUFFER_DIM, contentH + animPadY * 2);
+      }
 
       if (layer) {
         layer._textPadX = animPadX;
@@ -256,8 +286,8 @@
         layer._textResScaleApplied = resScale;
       }
 
-      const reqW = contentW + animPadX * 2;
-      const reqH = contentH + animPadY * 2;
+      reqW = Math.max(1, Math.min(MAX_BUFFER_DIM, reqW));
+      reqH = Math.max(1, Math.min(MAX_BUFFER_DIM, reqH));
 
       if (canvas.width !== reqW || canvas.height !== reqH) {
         canvas.width  = reqW;
@@ -377,7 +407,6 @@
           let charRotation = 0;
 
           const normIn = normalizeAnimIn(effectiveAnimIn);
-          const fontSize = p.fontSize || 64;
 
           // ── Spring parameters (shared by IN and OUT) ────────────────────────
           const animDecay     = Number(p.animDecay)     > 0 ? Number(p.animDecay)     : 7.0;

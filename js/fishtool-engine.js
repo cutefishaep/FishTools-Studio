@@ -758,7 +758,7 @@
       const anchorZ = (layer.anchorZ || 0) * bufferScale;
 
       const has3DFx = Array.isArray(layer.effects) && layer.effects.some(f => f && !f.disabled && (f.type === 'box_3d' || f.type === 'extrude_3d' || f.type === 'pyramid_3d' || f.type === 'sphere_3d'));
-      const is3D = !!layer.is3D || has3DFx || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera' || (!!camera && layer.type !== 'audio');
+      const is3D = !!layer.is3D || has3DFx || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera';
       const boxFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'box_3d') : null;
       const boxAngleX = (boxFx && boxFx.angleX !== undefined) ? Number(boxFx.angleX) : 0;
       const boxAngleY = (boxFx && boxFx.angleY !== undefined) ? Number(boxFx.angleY) : 0;
@@ -870,17 +870,23 @@
 
         isBehindCamera = (posZ >= maxZ) || [pTL, pTR, pBR, pBL].every(p => !p || p.isBehind);
       } else if (is3D) {
-        isBehindCamera = true;
-        pTL = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pTR = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pBR = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pBL = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pN  = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pE  = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pS  = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pW  = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        pAnchor = { x: 0, y: 0, z: 0, scale: 0, isBehind: true };
-        projectLocalPoint = () => ({ x: 0, y: 0, z: 0, scale: 0, isBehind: true });
+        const halfW = absW / 2;
+        const halfH = absH / 2;
+
+        projectLocalPoint = (lx, ly, lz = 0) => this.projectPoint(lx, ly, lz, transformParams);
+
+        pTL = this.projectPoint(-halfW, -halfH, 0, transformParams);
+        pTR = this.projectPoint( halfW, -halfH, 0, transformParams);
+        pBR = this.projectPoint( halfW,  halfH, 0, transformParams);
+        pBL = this.projectPoint(-halfW,  halfH, 0, transformParams);
+
+        pN  = this.projectPoint( 0,     -halfH, 0, transformParams);
+        pE  = this.projectPoint( halfW,  0,     0, transformParams);
+        pS  = this.projectPoint( 0,      halfH, 0, transformParams);
+        pW  = this.projectPoint(-halfW,  0,     0, transformParams);
+
+        pAnchor = this.projectPoint(anchorX, anchorY, anchorZ, transformParams);
+        isBehindCamera = (posZ >= maxZ) || [pTL, pTR, pBR, pBL].every(p => !p || p.isBehind);
       } else {
         const halfW = absW / 2;
         const halfH = absH / 2;
@@ -1129,8 +1135,8 @@
       const vw = targetCanvas ? targetCanvas.width : (bounds.cx * 2 || 1920);
       const vh = targetCanvas ? targetCanvas.height : (bounds.cy * 2 || 1080);
 
-      // Edge-on guard around 90 deg: skip invisible edge-on slivers
-      if (bounds.aabbW < 1.0 || bounds.aabbH < 1.0) {
+      // Edge-on guard around 90 deg: skip invisible edge-on slivers (only when true layer bounds are also sliver)
+      if ((bounds.aabbW < 1.0 && bounds.w < 1.0) || (bounds.aabbH < 1.0 && bounds.h < 1.0)) {
         return;
       }
 
@@ -2087,7 +2093,7 @@
       }
 
       const bounds = this.getBounds(layer, bufferScale, camera);
-      if (bounds.isBehindCamera || bounds.aabbW < 1.0 || bounds.aabbH < 1.0) {
+      if (bounds.isBehindCamera || ((bounds.aabbW < 1.0 && bounds.w < 1.0) || (bounds.aabbH < 1.0 && bounds.h < 1.0))) {
         return;
       }
 
@@ -2255,7 +2261,7 @@
     renderScene(ctx, renderList, bufferScale = 1, camera = null, currentSec = null) {
       if (!ctx || !renderList || renderList.length === 0) return;
 
-      const has3D = !!camera || renderList.some(item => {
+      const has3D = renderList.some(item => {
         const b = this.getBounds(item.animLayer || item.layer, bufferScale, camera);
         return b.is3D;
       });
@@ -2284,7 +2290,7 @@
       renderList.forEach((item, idx) => {
         const layer = item.animLayer || item.layer;
         const b = this.getBounds(layer, bufferScale, camera);
-        const isLayer3D = !!b.is3D || !!camera;
+        const isLayer3D = !!b.is3D;
         const hasCustomBlend = layer.blendMode && layer.blendMode !== 'normal';
         const hasEffects = (Array.isArray(layer.effects) && layer.effects.some(f => !f.disabled)) ||
           (window.FishEffects && typeof window.FishEffects.buildFilter === 'function' && window.FishEffects.buildFilter(layer) !== '');
@@ -2350,7 +2356,7 @@
         if (!el || !this._hasValidDimensions(el)) return;
 
         const bounds = this.getBounds(layer, bufferScale, camera);
-        if (bounds.isBehindCamera || bounds.aabbW < 1.0 || bounds.aabbH < 1.0) {
+        if (bounds.isBehindCamera || ((bounds.aabbW < 1.0 && bounds.w < 1.0) || (bounds.aabbH < 1.0 && bounds.h < 1.0))) {
           return;
         }
 
@@ -2607,7 +2613,15 @@
       }
 
       const wTrans = -rz / D;
-      if (wTrans <= 0.001) return null; // Behind camera lens
+      if (wTrans <= 0.001) {
+        // If anchor point is behind camera lens, check if any corner of the quad is still in front
+        const w0 = (-rz - 0.5 * m02 - 0.5 * m12) / D;
+        const w1 = (-rz + 0.5 * m02 - 0.5 * m12) / D;
+        const w2 = (-rz + 0.5 * m02 + 0.5 * m12) / D;
+        const w3 = (-rz - 0.5 * m02 + 0.5 * m12) / D;
+        if (Math.max(w0, w1, w2, w3) <= 0.001) return null; // Entire quad is behind camera lens
+      }
+      const safeWTrans = Math.max(0.001, wTrans);
 
       // Z Perspective Projection Parameters (maps distance [NEAR, FAR] monotonically to NDC [-1, 1])
       const a = (FAR + NEAR) / (FAR - NEAR);
@@ -2639,8 +2653,8 @@
       // Column 3 (Anchor Translation & W homogeneous component)
       out[12] = (2.0 * rx) / vw * totalZoom;
       out[13] = (-2.0 * ry) / vh * totalZoom;
-      out[14] = a * wTrans + b;
-      out[15] = wTrans;
+      out[14] = a * safeWTrans + b;
+      out[15] = safeWTrans;
 
       // 3. Anchor Offset Correction (Shift quad vertices relative to local anchor point)
       const uax = -(bounds.anchorX || 0) / bounds.w;

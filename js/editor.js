@@ -2131,20 +2131,7 @@
       const baseH = Math.round(Math.abs(precompLayer.mediaHeight || precompLayer.scaleH || ph || 1080));
       pctx.clearRect(0, 0, pw, ph);
 
-      // Fast Path: Check if this precompose already has this frame cached in its pool
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
-      const fInner = Math.round(innerSec * fps);
-      if (window.PreviewCacheManager && typeof window.PreviewCacheManager.getPool === 'function') {
-        const precompPool = window.PreviewCacheManager.getPool(precompLayer.id);
-        if (precompPool && precompPool.has(fInner)) {
-          const entry = precompPool.get(fInner);
-          if (entry && entry.bitmap) {
-            pctx.drawImage(entry.bitmap, 0, 0, pw, ph);
-            return;
-          }
-        }
-      }
-
       const pps = window.currentPixelsPerSecond || 80;
       const childLayers = precompLayer.layers || [];
       const activeChildren = childLayers.filter(child => {
@@ -2396,15 +2383,6 @@
           drawChildSinglePass(pctx, childEl, child, childEff);
         }
       });
-
-      // LIVE PRECOMPOSE RAM PREVIEW CACHING:
-      // Cache rendered precomp frame into its own pool (precompLayer.id)
-      // Enables fast-path blit during playback outside precompose and updates timeline precomp clip progress
-      if (window.PreviewCacheManager && !isExport && !window.isExporting && triggerSource !== 'export-video' && triggerSource !== 'prebake' && targetCanvas && targetCanvas.width > 0 && targetCanvas.height > 0) {
-        if (!window.isTimelinePlaying || (window.PreviewCacheManager._inFlightFrames && window.PreviewCacheManager._inFlightFrames.size <= 2)) {
-          window.PreviewCacheManager.setFrameFromCanvas(fInner, targetCanvas, false, precompLayer.id);
-        }
-      }
     }
 
     // Sync interactive canvas overlay & wireframe bounds strictly for visible player
@@ -2974,7 +2952,7 @@
           const curScaleH = Math.abs(layer.scaleH || ph);
           const scaleMultX = curScaleW / Math.max(1, pw);
           const scaleMultY = curScaleH / Math.max(1, ph);
-          const resScale = Math.min(4.0, Math.max(1.0, Math.max(scaleMultX, scaleMultY) * (bufferScale || 1.0)));
+          const resScale = Math.min(2.5, Math.max(1.0, Math.max(scaleMultX, scaleMultY) * (bufferScale || 1.0)));
           layer._textResScale = resScale;
 
           const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
@@ -10491,17 +10469,6 @@
         }
 
         if (layer.type === 'precomp') {
-          if (window.PreviewCacheManager) {
-            if (typeof window.PreviewCacheManager.cancelPrecompPrebake === 'function') {
-              window.PreviewCacheManager.cancelPrecompPrebake(layer.id);
-            }
-            if (typeof window.PreviewCacheManager.deletePool === 'function') {
-              window.PreviewCacheManager.deletePool(layer.id);
-            }
-            if (typeof window.PreviewCacheManager.prebakePrecomp === 'function') {
-              window.PreviewCacheManager.prebakePrecomp(layer);
-            }
-          }
           if (window.FishAudioEngine) {
             const pps = window.currentPixelsPerSecond || 80;
             const currentSec = Math.abs(window.timelinePanX || 0) / pps;
@@ -10673,17 +10640,6 @@
         }
 
         if (layer.type === 'precomp') {
-          if (window.PreviewCacheManager) {
-            if (typeof window.PreviewCacheManager.cancelPrecompPrebake === 'function') {
-              window.PreviewCacheManager.cancelPrecompPrebake(layer.id);
-            }
-            if (typeof window.PreviewCacheManager.deletePool === 'function') {
-              window.PreviewCacheManager.deletePool(layer.id);
-            }
-            if (typeof window.PreviewCacheManager.prebakePrecomp === 'function') {
-              window.PreviewCacheManager.prebakePrecomp(layer);
-            }
-          }
           if (window.FishAudioEngine) {
             window.FishAudioEngine.syncPlayback(currentProjectState.layers || [], currentSec, pps);
           }
@@ -11882,59 +11838,11 @@
     }
     window.initTextController = initTextController;
 
-    // Precomp clip cache progress helper
-    function updatePrecompClipProgress(layerOrId) {
-      if (!layerOrId) return;
-      const layerId = typeof layerOrId === 'string' ? layerOrId : layerOrId.id;
-      const layers = currentProjectState.layers || [];
-      const layer = (typeof layerOrId === 'object') ? layerOrId : layers.find(l => l.id === layerId);
-      if (!layer || layer.type !== 'precomp') return;
-
-      const pps = window.currentPixelsPerSecond || 80;
-      const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
-      const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
-      const totalFrames = Math.max(1, Math.round(dur * fps));
-      const pool = window.PreviewCacheManager ? window.PreviewCacheManager.getPool(layer.id) : null;
-      const cachedCount = pool ? pool.size : 0;
-      const progress = Math.min(1.0, cachedCount / totalFrames);
-      const isComplete = (cachedCount >= totalFrames && totalFrames > 0);
-      layer._precompCacheProgress = progress;
-      layer._precompCacheComplete = isComplete;
-
-      const clipBlock = document.querySelector(`.timeline-clip-block[data-layer-id="${layer.id}"]`);
-      if (clipBlock) {
-        let bar = clipBlock.querySelector('.timeline-clip-progress');
-        let track = clipBlock.querySelector('.timeline-clip-progress-track');
-        if (!track && !isComplete && progress > 0) {
-          track = document.createElement('div');
-          track.className = 'timeline-clip-progress-track';
-          bar = document.createElement('div');
-          bar.className = 'timeline-clip-progress';
-          track.appendChild(bar);
-          clipBlock.appendChild(track);
-        }
-        if (bar) {
-          bar.style.width = (progress * 100).toFixed(1) + '%';
-        }
-        if (isComplete) {
-          if (bar) bar.classList.add('is-complete');
-          if (track) track.classList.add('is-complete');
-        } else {
-          if (bar) bar.classList.remove('is-complete');
-          if (track) track.classList.remove('is-complete');
-        }
-      }
-    }
+    // Precomp clip cache progress helper (no-op: baked precomp removed)
+    function updatePrecompClipProgress(layerOrId) {}
     window.updatePrecompClipProgress = updatePrecompClipProgress;
 
-    function updateAllPrecompClipsProgress() {
-      const layers = currentProjectState.layers || [];
-      layers.forEach(l => {
-        if (l.type === 'precomp') {
-          updatePrecompClipProgress(l);
-        }
-      });
-    }
+    function updateAllPrecompClipsProgress() {}
     window.updateAllPrecompClipsProgress = updateAllPrecompClipsProgress;
 
     // ======================================================================
@@ -27237,19 +27145,6 @@
           const lane = document.createElement('div');
           lane.className = 'timeline-track-lane';
           lane.dataset.layerId = layer.id;
-
-          if (clipType === 'precomp') {
-            const pps = window.currentPixelsPerSecond || 80;
-            const dur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
-            const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
-            const totalFrames = Math.max(1, Math.round(dur * fps));
-            const pool = window.PreviewCacheManager ? window.PreviewCacheManager.getPool(layer.id) : null;
-            const cachedCount = pool ? pool.size : 0;
-            const progress = Math.min(1.0, cachedCount / totalFrames);
-            layer._precompCacheProgress = progress;
-            layer._precompCacheComplete = (cachedCount >= totalFrames && totalFrames > 0);
-          }
-
           lane.innerHTML = `
             <div class="track-content-lane">
               <div class="timeline-clip-block clip-${clipType} ${isSelected ? 'is-selected' : ''} ${isHidden ? 'is-hidden' : ''}" 
@@ -27264,9 +27159,9 @@
                 <button type="button" class="timeline-clip-handle handle-right" aria-label="Trim / Lengthen End" title="Drag to trim or lengthen end">
                   <span class="svg-icon svg-icon-chevron-right" style="width: 13px; height: 13px;" aria-hidden="true"></span>
                 </button>
-                ${(clipType === 'video' || clipType === 'precomp') ? `
-                <div class="timeline-clip-progress-track ${(clipType === 'video' ? layer._extractComplete : layer._precompCacheComplete) ? 'is-complete' : ''}">
-                  <div class="timeline-clip-progress ${(clipType === 'video' ? layer._extractComplete : layer._precompCacheComplete) ? 'is-complete' : ''}" style="width: ${((clipType === 'video' ? layer._extractProgress : layer._precompCacheProgress) || 0) * 100}%;"></div>
+                ${(clipType === 'video') ? `
+                <div class="timeline-clip-progress-track ${layer._extractComplete ? 'is-complete' : ''}">
+                  <div class="timeline-clip-progress ${layer._extractComplete ? 'is-complete' : ''}" style="width: ${(layer._extractProgress || 0) * 100}%;"></div>
                 </div>` : ''}
                 ${(clipType === 'text') ? (() => {
                   const pps = window.currentPixelsPerSecond || 80;
@@ -28594,10 +28489,6 @@
           });
         }
 
-        // Auto-start background prebaking for precomposition layers (autonomous pipeline like video)
-        if (window.PreviewCacheManager && currentProjectState.layers) {
-          window.PreviewCacheManager.prebakeAllPrecomps(currentProjectState.layers);
-        }
         if (typeof updateCutBarRowState === 'function') {
           updateCutBarRowState();
         }

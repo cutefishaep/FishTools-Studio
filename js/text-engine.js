@@ -238,6 +238,32 @@
         resScale = Math.max(1.0, 240 / baseFontSize);
       }
 
+      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_1');
+      const normIn = normalizeAnimIn(effectiveAnimIn);
+      const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
+
+      const effectiveAnimOut = p.animOut || 'none';
+      const normOut = normalizeAnimOut(effectiveAnimOut);
+      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+      const outStartSec = Math.max(inDur, clipDur - outDur);
+
+      // Fast-path: if text is static or resting in steady state and properties did not change, bypass re-rendering
+      const isContinuous = (normIn === 'wave' || normIn === 'glitch' || normOut === 'wave' || normOut === 'glitch');
+      const timeKey = isContinuous
+        ? Math.round(localSec * 60)
+        : (normIn === 'none' && normOut === 'none'
+            ? 'static'
+            : ((localSec >= inDur && (normOut === 'none' || localSec < outStartSec))
+                ? 'steady'
+                : Math.round(localSec * 60)));
+
+      const pKey = JSON.stringify(p);
+      const renderKey = `${pKey}_${resScale}_${targetW}_${targetH}_${timeKey}`;
+
+      if (!layer._textDirty && canvas._lastRenderKey === renderKey && canvas.width > 0 && canvas.height > 0) {
+        return canvas;
+      }
+
       let fontSize = baseFontSize * resScale;
       let letterSpacing = (p.letterSpacing || 0) * resScale;
 
@@ -299,15 +325,6 @@
 
       const cx = reqW / 2;
       const cy = reqH / 2;
-
-      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_1');
-      const normIn = normalizeAnimIn(effectiveAnimIn);
-      const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
-
-      const effectiveAnimOut = p.animOut || 'none';
-      const normOut = normalizeAnimOut(effectiveAnimOut);
-      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
-      const outStartSec = Math.max(inDur, clipDur - outDur);
 
       const lines = measure.lines;
       const lineH = measure.lineHeight;
@@ -765,6 +782,9 @@
       });
 
       ctx.restore();
+      canvas._lastRenderKey = renderKey;
+      canvas._contentVersion = (canvas._contentVersion || 0) + 1;
+      if (layer) layer._textDirty = false;
       return canvas;
     }
   }

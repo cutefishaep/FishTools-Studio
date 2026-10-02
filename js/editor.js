@@ -495,6 +495,10 @@
 
       if (layer) {
         if (layer.type === 'audio') return; // Audio produces no canvas pixels — never invalidate canvas RAM preview cache!
+        if (layer.type === 'text') {
+          layer._textDirty = true;
+          if (layer._textBufferCanvas) layer._textBufferCanvas._lastRenderKey = null;
+        }
         const curStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
         const curDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
         const curEnd = curStart + curDur;
@@ -2491,8 +2495,9 @@
         canvas._cachedCtxAlpha = needsAlphaCanvas;
         // Set smoothing quality once on new context — guard prevents per-frame GPU state write
         if (canvas._cachedCtx) {
+          const isMob = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
           canvas._cachedCtx.imageSmoothingEnabled = true;
-          canvas._cachedCtx.imageSmoothingQuality = 'high';
+          canvas._cachedCtx.imageSmoothingQuality = isMob ? 'medium' : 'high';
           canvas._cachedCtx._smoothingSet = true;
         }
       }
@@ -2952,7 +2957,11 @@
           const curScaleH = Math.abs(layer.scaleH || ph);
           const scaleMultX = curScaleW / Math.max(1, pw);
           const scaleMultY = curScaleH / Math.max(1, ph);
-          const resScale = Math.min(2.5, Math.max(1.0, Math.max(scaleMultX, scaleMultY) * (bufferScale || 1.0)));
+          const isMobileText = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
+          const draftBtn = document.getElementById('editor-icon-low-quality');
+          const isDraft = draftBtn && draftBtn.classList.contains('is-active');
+          const maxResScale = isDraft ? 1.0 : (isMobileText ? 1.5 : 2.5);
+          const resScale = Math.min(maxResScale, Math.max(0.75, Math.max(scaleMultX, scaleMultY) * (bufferScale || 1.0)));
           layer._textResScale = resScale;
 
           const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
@@ -3922,8 +3931,9 @@
         currentProjectState._baseH = baseDims[1];
         const draftBtn = document.getElementById('editor-icon-low-quality');
         const isDraft = draftBtn && draftBtn.classList.contains('is-active');
+        const isMobileDevice = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
 
-        const dpr = isDraft ? 0.5 : Math.min(2, window.devicePixelRatio || 1);
+        const dpr = isDraft ? 0.5 : (isMobileDevice ? 1.0 : Math.min(1.5, window.devicePixelRatio || 1));
         const targetW = Math.max(1, Math.min(baseDims[0], Math.round(w * dpr)));
         const targetH = Math.max(1, Math.min(baseDims[1], Math.round(h * dpr)));
 
@@ -21265,6 +21275,9 @@
         );
       }
 
+      let _cachedIsDesktop = null;
+      window.addEventListener('resize', () => { _cachedIsDesktop = null; }, { passive: true });
+
       function renderTimeline(force = false) {
         rafScheduled = false;
         if (!force && panX === lastRenderedPanX) return;
@@ -21274,7 +21287,9 @@
         window.currentPlaybackSec = curSec;
         window.currentSec = curSec;
 
-        const isDesktop = Boolean(document.querySelector('.desktop-workstation, .desktop-viewport'));
+        const isDesktop = (_cachedIsDesktop !== null)
+          ? _cachedIsDesktop
+          : (_cachedIsDesktop = Boolean(document.querySelector('.desktop-workstation, .desktop-viewport')));
         if (!isDesktop) {
           const panStr = `translate3d(${panX.toFixed(2)}px, 0, 0)`;
           rulerTrack.style.transform = panStr;
@@ -21285,7 +21300,8 @@
 
         // Calculate current timecode in exact milliseconds
         const currentMs = Math.round((Math.max(0, -panX) / pixelsPerSecond) * 1000);
-        if (currentMs !== lastDisplayedMs) {
+        const isActivelyPlaying = isAnyPlaybackActive();
+        if (currentMs !== lastDisplayedMs && (!isActivelyPlaying || force || Math.abs(currentMs - lastDisplayedMs) >= 40)) {
           lastDisplayedMs = currentMs;
           timecodeEl.textContent = formatTimecode(currentMs);
           if (typeof updateTimeBadgeBeatmarkState === 'function') {
@@ -21293,7 +21309,6 @@
           }
         }
 
-        const isActivelyPlaying = isAnyPlaybackActive();
         const syncDrawers = !isActivelyPlaying || ((_playTickCount || 0) % 6 === 0);
         if (syncDrawers) {
           if (typeof updateTransformKeyframeBtnState === 'function') {
@@ -22081,6 +22096,7 @@
           }
         }
 
+        renderTimeline(true);
         redrawComposition('playbackPause');
         if (typeof updateCutBarRowState === 'function') updateCutBarRowState();
         if (typeof updateReorderHandlesContrast === 'function') updateReorderHandlesContrast();

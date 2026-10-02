@@ -27,8 +27,10 @@
       this._pendingFrames = new Set();
       // Tracks frames whose createImageBitmap is currently in-flight (prevents double-encode race)
       this._inFlightFrames = new Set();
-      // LRU eviction: generous frame buffer (~20s+ at 60fps) to ensure smooth full-fps playback
-      this.maxFrames = 1200;
+      // Adaptive memory buffer: protect low-spec and mobile devices from heap pressure / OOM crashes
+      const isMobile = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
+      const devMem = (typeof navigator !== 'undefined' && navigator.deviceMemory) ? navigator.deviceMemory : 4;
+      this.maxFrames = isMobile ? 180 : (devMem <= 2 ? 150 : (devMem <= 4 ? 300 : 600));
     }
 
     get frames() {
@@ -187,7 +189,10 @@
         ? window.getProjectTotalDuration()
         : 0;
       const totalProjectFrames = Math.round(totalDur * this.fps);
-      const effectiveMax = Math.max(this.maxFrames || 1200, totalProjectFrames + 120);
+      const isMobile = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
+      const devMem = (typeof navigator !== 'undefined' && navigator.deviceMemory) ? navigator.deviceMemory : 4;
+      const memCap = isMobile ? 180 : (devMem <= 2 ? 150 : (devMem <= 4 ? 300 : (this.maxFrames || 600)));
+      const effectiveMax = Math.min(memCap, Math.max(60, totalProjectFrames + 60));
       if (pool.size <= effectiveMax) return;
 
       const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) ? window.currentPixelsPerSecond : 80;

@@ -378,11 +378,15 @@
       const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
 
       const isExport = (typeof window !== 'undefined' && (window._isExportingVideo === true || window._isExportingSequence === true));
+      const draftBtn = (typeof document !== 'undefined') ? document.getElementById('editor-icon-low-quality') : null;
+      const isDraft = draftBtn && draftBtn.classList.contains('is-active');
+      const isMobile = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
+
       const samples = isExport
         ? Math.max(4, config.samples || 16)
-        : 3;
-      const previewWeights = [0.25, 0.50, 0.25];
-      const previewOffsets = [0.15, 0.50, 0.85];
+        : ((isDraft || isMobile) ? 2 : 3);
+      const previewWeights = (samples === 2) ? [0.5, 0.5] : [0.25, 0.50, 0.25];
+      const previewOffsets = (samples === 2) ? [0.25, 0.75] : [0.15, 0.50, 0.85];
 
       const targetW = ctx.canvas.width;
       const targetH = ctx.canvas.height;
@@ -419,8 +423,8 @@
         : (camera && camera._rawCamera ? camera._rawCamera : null);
 
       for (let i = 0; i < samples; i++) {
-        const u = (samples === 3) ? previewOffsets[i] : ((i + 0.5) / samples);
-        const weight = (samples === 3) ? previewWeights[i] : (1 / samples);
+        const u = (samples <= 3) ? previewOffsets[i] : ((i + 0.5) / samples);
+        const weight = (samples <= 3) ? previewWeights[i] : (1 / samples);
         const subSec = tStart + u * exposureTime;
 
         const subCamera = (camLayer && typeof window.getLayerEffectivePropsAtTime === 'function')

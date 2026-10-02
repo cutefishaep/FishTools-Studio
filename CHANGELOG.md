@@ -5,6 +5,21 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.106] - 2026-10-03
+
+### Performance & Optimization
+- **Mobile & Low-End Laptop Performance Engine (`js/editor.js`, `js/text-engine.js`, `js/motion-blur-engine.js`, `js/fishtool-engine.js`, `js/preview-cache.js`)**:
+  - **Adaptive Canvas DPR**: Capped preview canvas to 1.0 DPR on mobile and 1.5 on desktop/laptop (0.5 in Draft Mode), cutting GPU pixel redraw load by up to 75% on high-DPI smartphone displays.
+  - **Text Buffer Cache & WebGL Texture Re-upload Bypass**: Implemented state-keyed buffer caching via `_lastRenderKey` and `_contentVersion` in `FishTextEngine.renderTextToCanvas`. Static and resting text layers bypass canvas clearing, glyph re-measurement, and `gl.texImage2D` texture re-uploads completely during playback and scrubbing.
+  - **Timeline Playhead DOM Thrashing Reduction**: Cached `.desktop-workstation, .desktop-viewport` query selector checks and throttled playhead timecode DOM string updates to ~25fps (40ms interval) during active playback, significantly relieving mobile browser main-thread load.
+  - **Adaptive Motion Blur Sampling**: Preview multi-sampling on mobile and Draft Mode is reduced to 2 passes with equal weight distribution, slashing multi-pass compositing overhead by 33% while preserving high-quality rendering (up to 64 samples) during export.
+  - **Adaptive RAM Preview Cache Memory Budget**: Dynamically scales RAM preview frame limits based on mobile detection and `navigator.deviceMemory` (180 frames on mobile, 150–300 on low-RAM machines), protecting mobile browsers from OS memory pressure and OOM tab crashes.
+
+### Fixed
+- **Baked Precompose Mechanism Removal (`js/preview-cache.js`, `js/editor.js`)**: Purged baked image sequence precompose pipeline that caused massive lag and memory pressure.
+- **Warp 1/2/3 Layer Purge Bug (`js/openfishtools-controller.js`)**: Fixed layer disappearance bug when repeatedly clicking Warp presets across different playback timestamps.
+- **Text Layer Canvas Boundary Disappearance (`js/text-engine.js`, `js/editor.js`, `js/fishtool-engine.js`)**: Fixed issue where large text or text positioned near canvas bounds disappeared due to premature bounding box clipping.
+
 ## [0.5.105] - 2026-10-02
 
 ### Added

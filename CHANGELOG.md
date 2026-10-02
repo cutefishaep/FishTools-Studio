@@ -5,7 +5,14 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.100] - 2026-10-02
+
+### Fixed
+- **Overlap Camera & Overlap Null — Flag Persistence Bug (`js/editor.js`)**: `isOverlapCamera` and `isOverlapNull` flags were missing from `serializeLayer`, causing them to be stripped on every IDB save. On project reload/refresh, layers silently reverted to plain Camera / Null with no leapfrog behavior. Both flags are now explicitly serialized and preserved across all save paths (IndexedDB, `.ofts` export).
+- **Overlap Keyframe Drag Delay (`js/editor.js`)**: During keyframe drag (`window.isTransformInteracting === true`), leapfrog accumulation is bypassed and standard linear interpolation is used instead. This makes the composition preview snap directly to the dragged keyframe's destination value, giving immediate visual feedback without the leapfrog phase offset delay.
+
 ## [0.5.99] - 2026-10-02
+
 
 ### Fixed
 - **Overlap Camera & Overlap Null — Authentic Leapfrog Math (`js/editor.js`)**: Rewrote leapfrog accumulation in `getLayerEffectivePropsAtTime` to correctly mirror the `_OVERLAP` null-rig architecture from `host/modules/misc.jsx`. Each transition `i` now contributes a **relative delta** `(K_{i+1} − K_i) × progress_i` additively on top of `K_0` baseline (`finalValue = K0 + Σ (K_{i+1} - K_i) × progress_i`), exactly matching the physical null-rig behavior in `applyKeyframeOverlap`. Previously, the label `accumulated` implied absolute interpolation but the math was computing sequential delta sums that double-counted intermediate keyframe values in 4+ keyframe scenarios.

@@ -782,6 +782,9 @@
                 cameraBlurAmount: l.cameraBlurAmount !== undefined ? l.cameraBlurAmount : undefined,
                 cameraBlurNearFar: l.cameraBlurNearFar !== undefined ? l.cameraBlurNearFar : undefined,
                 cameraBlurBalance: l.cameraBlurBalance !== undefined ? l.cameraBlurBalance : undefined,
+                // Overlap layer type flags — MUST be persisted or leapfrog behavior is lost on reload
+                isOverlapCamera: l.isOverlapCamera ? true : undefined,
+                isOverlapNull: l.isOverlapNull ? true : undefined,
                 // Audio & Volume settings
                 volume: l.volume !== undefined ? l.volume : 1.0,
                 audioEffects: Array.isArray(l.audioEffects) ? JSON.parse(JSON.stringify(l.audioEffects)) : undefined,
@@ -5648,7 +5651,8 @@
           list.sort((a, b) => a.time - b.time);
 
           // Overlap Camera & Overlap Null: Additive blended motion intervals with Bezier curves from Graph Panel
-          if ((layer.isOverlapCamera || layer.isOverlapNull) && list.length >= 2) {
+          // During keyframe drag, bypass leapfrog → use normal interpolation so preview snaps to destination keyframe value.
+          if ((layer.isOverlapCamera || layer.isOverlapNull) && list.length >= 2 && !window.isTransformInteracting) {
             const M = list.length - 1;
             const t0 = list[0].time;
             const tM = list[M].time;

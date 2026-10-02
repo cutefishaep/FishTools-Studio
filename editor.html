@@ -3893,7 +3893,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.99</span>
+          <span class="welcome-badge">v0.5.100</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3929,11 +3929,33 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.100 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.100</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 2, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Camera &amp; Overlap Null — Flag Persistence Bug (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">`isOverlapCamera` and `isOverlapNull` flags were missing from `serializeLayer`, causing them to be stripped on every IDB save. On project reload/refresh, layers silently reverted to plain Camera / Null with no leapfrog behavior. Both flags are now explicitly serialized and preserved across all save paths (IndexedDB, `.ofts` export).</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Keyframe Drag Delay (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">During keyframe drag (`window.isTransformInteracting === true`), leapfrog accumulation is bypassed and standard linear interpolation is used instead. This makes the composition preview snap directly to the dragged keyframe's destination value, giving immediate visual feedback without the leapfrog phase offset delay.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.99 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.99</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 2, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -5822,21 +5844,21 @@
   <script src="effects/wave_warp.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
-  <script src="js/fishtools-adapter.js?v=0.5.99"></script>
+  <script src="js/fishtools-adapter.js?v=0.5.100"></script>
   <script src="js/fish-audio-engine.js"></script>
   <script src="js/frame-extractor.js"></script>
   <script src="js/preview-cache.js"></script>
-  <script src="js/bg-removal-engine.js?v=0.5.99"></script>
+  <script src="js/bg-removal-engine.js?v=0.5.100"></script>
   <script src="js/template-editor.js"></script>
   <script src="js/text-engine.js"></script>
   <script src="text/default.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.99"></script>
-  <script src="js/editor.js?v=0.5.99"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.100"></script>
+  <script src="js/editor.js?v=0.5.100"></script>
   <script src="js/attributes-clipboard.js"></script>
-  <script src="js/openfishtools-generators3d.js?v=0.5.99"></script>
-  <script src="js/openfishtools-controller.js?v=0.5.99"></script>
+  <script src="js/openfishtools-generators3d.js?v=0.5.100"></script>
+  <script src="js/openfishtools-controller.js?v=0.5.100"></script>
 </body>
 </html>
 re.js"></script>
@@ -5897,20 +5919,20 @@ re.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
-  <script src="js/fishtools-adapter.js?v=0.5.99"></script>
+  <script src="js/fishtools-adapter.js?v=0.5.100"></script>
   <script src="js/fish-audio-engine.js"></script>
   <script src="js/frame-extractor.js"></script>
   <script src="js/preview-cache.js"></script>
-  <script src="js/bg-removal-engine.js?v=0.5.99"></script>
+  <script src="js/bg-removal-engine.js?v=0.5.100"></script>
   <script src="js/template-editor.js"></script>
   <script src="js/text-engine.js"></script>
   <script src="text/default.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.99"></script>
-  <script src="js/editor.js?v=0.5.99"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.100"></script>
+  <script src="js/editor.js?v=0.5.100"></script>
   <script src="js/attributes-clipboard.js"></script>
-  <script src="js/openfishtools-generators3d.js?v=0.5.99"></script>
-  <script src="js/openfishtools-controller.js?v=0.5.99"></script>
+  <script src="js/openfishtools-generators3d.js?v=0.5.100"></script>
+  <script src="js/openfishtools-controller.js?v=0.5.100"></script>
 </body>
 </html>

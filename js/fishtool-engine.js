@@ -370,15 +370,33 @@
       const w = Math.max(1, Math.round(nw));
       const h = Math.max(1, Math.round(nh));
 
+      let padX = 0;
+      let padY = 0;
+      const hasExpanding = activeFx.some(f => {
+        const d = (window.FishEffectsRegistry && window.FishEffectsRegistry.get) ? window.FishEffectsRegistry.get(f.type) : null;
+        return (d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform' || f.type === 'deep-glow';
+      });
+      if (hasExpanding) {
+        let maxRad = 80;
+        const dg = activeFx.find(f => f.type === 'deep-glow');
+        if (dg && dg.radius !== undefined) maxRad = Math.max(maxRad, Number(dg.radius) || 80);
+        const pad = Math.min(300, Math.round(maxRad * 1.5));
+        padX = pad;
+        padY = pad;
+      }
+
+      const fullW = w + padX * 2;
+      const fullH = h + padY * 2;
+
       if (!this._fxCanvas) {
         this._fxCanvas = document.createElement('canvas');
         this._fxCtx = this._fxCanvas.getContext('2d');
       }
-      if (this._fxCanvas.width !== w || this._fxCanvas.height !== h) {
-        this._fxCanvas.width = w;
-        this._fxCanvas.height = h;
+      if (this._fxCanvas.width !== fullW || this._fxCanvas.height !== fullH) {
+        this._fxCanvas.width = fullW;
+        this._fxCanvas.height = fullH;
       }
-      this._fxCtx.clearRect(0, 0, w, h);
+      this._fxCtx.clearRect(0, 0, fullW, fullH);
 
       const fakeLayer = Object.assign({}, layer, { effects: activeFx });
       const curSec = (typeof currentSec === 'number' && !isNaN(currentSec))
@@ -390,8 +408,8 @@
             : ((typeof window !== 'undefined' && typeof window.currentPlaybackSec === 'number')
               ? window.currentPlaybackSec
               : 0)));
-      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: 0, y: 0, w, h }, curSec);
-      return { el: this._fxCanvas, padX: 0, padY: 0, origW: w, origH: h };
+      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: padX, y: padY, w, h }, curSec);
+      return { el: this._fxCanvas, padX, padY, origW: w, origH: h };
     }
 
     /**

@@ -499,6 +499,10 @@
           layer._textDirty = true;
           if (layer._textBufferCanvas) layer._textBufferCanvas._lastRenderKey = null;
         }
+        if (layer.type === 'precomp') {
+          layer._dirty = true;
+          if (layer._precompBufferCanvas) layer._precompBufferCanvas._lastRenderKey = null;
+        }
         const curStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
         const curDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
         const curEnd = curStart + curDur;
@@ -1783,6 +1787,7 @@
         if (child._precompBufferCanvas.width !== childW || child._precompBufferCanvas.height !== childH) {
           child._precompBufferCanvas.width = childW;
           child._precompBufferCanvas.height = childH;
+          child._precompBufferCanvas._lastRenderKey = null;
         }
         child.mediaWidth = childW;
         child.mediaHeight = childH;
@@ -2133,11 +2138,40 @@
       const ph = targetH || targetCanvas.height || precompLayer.mediaHeight || Math.round(Math.abs(precompLayer.scaleH)) || 1080;
       const baseW = Math.round(Math.abs(precompLayer.mediaWidth || precompLayer.scaleW || pw || 1920));
       const baseH = Math.round(Math.abs(precompLayer.mediaHeight || precompLayer.scaleH || ph || 1080));
-      pctx.clearRect(0, 0, pw, ph);
 
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
       const pps = window.currentPixelsPerSecond || 80;
       const childLayers = precompLayer.layers || [];
+
+      // Check if any child layer has dynamic time-variance
+      const hasChildMotion = childLayers.some(c => {
+        if (!c || c.hidden) return false;
+        if (c.type === 'video') return true;
+        if (c.keyframes && Object.keys(c.keyframes).length > 0) return true;
+        if (Array.isArray(c.effects) && c.effects.some(f => f && !f.disabled && (f.type === 'shake' || f.type === 'oscillate' || f.type === 'swing' || f.type === 'wave-warp'))) return true;
+        if (c.type === 'text') {
+          const tp = c.textProps || {};
+          const animIn = tp.animIn || tp.animation;
+          const animOut = tp.animOut;
+          if (animIn && animIn !== 'none') return true;
+          if (animOut && animOut !== 'none') return true;
+        }
+        if (c.type === 'precomp') return true;
+        return false;
+      });
+
+      const frameKey = hasChildMotion ? `${Math.round(innerSec * fps)}_${pw}_${ph}` : `static_${pw}_${ph}`;
+      if (!precompLayer._dirty && targetCanvas._lastRenderKey === frameKey && targetCanvas.width === pw && targetCanvas.height === ph) {
+        return; // Fast-path: precomp content already rendered!
+      }
+
+      if (targetCanvas.width !== pw || targetCanvas.height !== ph) {
+        targetCanvas.width = pw;
+        targetCanvas.height = ph;
+      }
+
+      pctx.clearRect(0, 0, pw, ph);
+
       const activeChildren = childLayers.filter(child => {
         const cs = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
         const cd = child.durationSec !== undefined ? child.durationSec : ((child.widthPx || 320) / pps);
@@ -2156,25 +2190,34 @@
           if (!child._precompBufferCanvas || !(child._precompBufferCanvas instanceof HTMLCanvasElement) || typeof child._precompBufferCanvas.getContext !== 'function') {
             child._precompBufferCanvas = document.createElement('canvas');
           }
-          const childW = Math.round(Math.abs(child.mediaWidth || child.scaleW || pw));
-          const childH = Math.round(Math.abs(child.mediaHeight || child.scaleH || ph));
+          const childBaseW = Math.round(Math.abs(child.mediaWidth || child.scaleW || baseW));
+          const childBaseH = Math.round(Math.abs(child.mediaHeight || child.scaleH || baseH));
+          const childW = isExport ? childBaseW : Math.max(1, Math.round(childBaseW * (pw / baseW)));
+          const childH = isExport ? childBaseH : Math.max(1, Math.round(childBaseH * (ph / baseH)));
           if (child._precompBufferCanvas.width !== childW || child._precompBufferCanvas.height !== childH) {
             child._precompBufferCanvas.width = childW;
             child._precompBufferCanvas.height = childH;
+            child._precompBufferCanvas._lastRenderKey = null;
           }
-          child.mediaWidth = childW;
-          child.mediaHeight = childH;
+          child.mediaWidth = childBaseW;
+          child.mediaHeight = childBaseH;
           child._userResized = true;
           const cStart = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
           const cInnerSec = Math.max(0, (child.sourceOffsetSec || 0) + (innerSec - cStart) * effSpeed);
           renderPrecompToCanvas(child, child._precompBufferCanvas, cInnerSec, childW, childH, triggerSource);
           childEl = child._precompBufferCanvas;
         } else if (child.type === 'adjustment') {
-          const snap = document.createElement('canvas');
-          snap.width = pw;
-          snap.height = ph;
+          if (!child._adjSnapCanvas) {
+            child._adjSnapCanvas = document.createElement('canvas');
+          }
+          if (child._adjSnapCanvas.width !== pw || child._adjSnapCanvas.height !== ph) {
+            child._adjSnapCanvas.width = pw;
+            child._adjSnapCanvas.height = ph;
+          }
+          const snap = child._adjSnapCanvas;
           const sctx = snap.getContext('2d');
           if (sctx) {
+            sctx.clearRect(0, 0, pw, ph);
             sctx.drawImage(targetCanvas, 0, 0);
             const animChild = Object.assign({}, child, childEff);
             if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function' && Array.isArray(child.effects) && child.effects.length > 0) {
@@ -2303,10 +2346,10 @@
             window.FishEffects.applyToContext(targetCtx, animChild);
           }
 
-          const curCx = eff.posX !== undefined ? (eff.posX * pw / baseW) : cx;
-          const curCy = eff.posY !== undefined ? (eff.posY * ph / baseH) : cy;
-          const curBw = eff.scaleW !== undefined ? (eff.scaleW * pw / baseW) : bw;
-          const curBh = eff.scaleH !== undefined ? (eff.scaleH * ph / baseH) : bh;
+          const curCx = (eff.posX !== undefined ? eff.posX : (baseW / 2)) * (pw / baseW);
+          const curCy = (eff.posY !== undefined ? eff.posY : (baseH / 2)) * (ph / baseH);
+          const curBw = (eff.scaleW !== undefined ? eff.scaleW : (child.mediaWidth || baseW)) * (pw / baseW);
+          const curBh = (eff.scaleH !== undefined ? eff.scaleH : (child.mediaHeight || baseH)) * (ph / baseH);
           const curRotZ = eff.rotZ !== undefined ? eff.rotZ : (eff.rotation || 0);
           const curRotX = eff.rotX || 0;
           const curRotY = eff.rotY || 0;
@@ -2387,6 +2430,10 @@
           drawChildSinglePass(pctx, childEl, child, childEff);
         }
       });
+
+      targetCanvas._lastRenderKey = frameKey;
+      targetCanvas._contentVersion = (targetCanvas._contentVersion || 0) + 1;
+      precompLayer._dirty = false;
     }
 
     // Sync interactive canvas overlay & wireframe bounds strictly for visible player
@@ -3177,11 +3224,14 @@
           if (!layer._precompBufferCanvas || !(layer._precompBufferCanvas instanceof HTMLCanvasElement) || typeof layer._precompBufferCanvas.getContext !== 'function') {
             layer._precompBufferCanvas = document.createElement('canvas');
           }
-          const pw = Math.round(Math.abs(layer.mediaWidth || layer.scaleW || baseW));
-          const ph = Math.round(Math.abs(layer.mediaHeight || layer.scaleH || baseH));
+          const basePw = Math.round(Math.abs(layer.mediaWidth || layer.scaleW || baseW));
+          const basePh = Math.round(Math.abs(layer.mediaHeight || layer.scaleH || baseH));
+          const pw = isExport ? basePw : Math.max(1, Math.round(basePw * bufferScale));
+          const ph = isExport ? basePh : Math.max(1, Math.round(basePh * bufferScale));
           if (layer._precompBufferCanvas.width !== pw || layer._precompBufferCanvas.height !== ph) {
             layer._precompBufferCanvas.width = pw;
             layer._precompBufferCanvas.height = ph;
+            layer._precompBufferCanvas._lastRenderKey = null;
           }
           const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
           let innerSec = 0;
@@ -3197,8 +3247,8 @@
           }
           renderPrecompToCanvas(layer, layer._precompBufferCanvas, innerSec, pw, ph, triggerSource);
           el = layer._precompBufferCanvas;
-          layer.mediaWidth = pw;
-          layer.mediaHeight = ph;
+          layer.mediaWidth = basePw;
+          layer.mediaHeight = basePh;
           layer._userResized = true;
         } else {
           media = getOrLoadLayerMedia(layer);

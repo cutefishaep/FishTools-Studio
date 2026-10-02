@@ -151,23 +151,99 @@
       const showHandles = (options.showHandles !== false) && (!options.hideHandles);
 
       if (bounds.corners && Array.isArray(bounds.corners) && bounds.corners.length === 4) {
-        // 1. Crisp bounding quad or adaptive shape contour stroke
         ctx.lineWidth = lineWidth;
         ctx.strokeStyle = primaryColor;
-        ctx.beginPath();
-        if (bounds.shapeContour && Array.isArray(bounds.shapeContour) && bounds.shapeContour.length >= 3) {
-          ctx.moveTo(bounds.shapeContour[0].x, bounds.shapeContour[0].y);
-          for (let i = 1; i < bounds.shapeContour.length; i++) {
-            ctx.lineTo(bounds.shapeContour[i].x, bounds.shapeContour[i].y);
+
+        // A. 3D Volumetric Box / Extrude Wireframe Cage
+        if (bounds.backCorners && Array.isArray(bounds.backCorners) && bounds.backCorners.length === 4) {
+          const fc = bounds.corners;
+          const bc = bounds.backCorners;
+
+          // 1. Back Quad Face (receding depth face)
+          ctx.save();
+          ctx.globalAlpha = (options.depthAlpha !== undefined ? options.depthAlpha : 0.4);
+          ctx.beginPath();
+          ctx.moveTo(bc[0].x, bc[0].y);
+          ctx.lineTo(bc[1].x, bc[1].y);
+          ctx.lineTo(bc[2].x, bc[2].y);
+          ctx.lineTo(bc[3].x, bc[3].y);
+          ctx.closePath();
+          ctx.stroke();
+
+          // 2. 4 Depth Connecting Struts
+          ctx.beginPath();
+          ctx.moveTo(fc[0].x, fc[0].y); ctx.lineTo(bc[0].x, bc[0].y);
+          ctx.moveTo(fc[1].x, fc[1].y); ctx.lineTo(bc[1].x, bc[1].y);
+          ctx.moveTo(fc[2].x, fc[2].y); ctx.lineTo(bc[2].x, bc[2].y);
+          ctx.moveTo(fc[3].x, fc[3].y); ctx.lineTo(bc[3].x, bc[3].y);
+          ctx.stroke();
+          ctx.restore();
+
+          // 3. Front Face Quad
+          ctx.beginPath();
+          ctx.moveTo(fc[0].x, fc[0].y);
+          ctx.lineTo(fc[1].x, fc[1].y);
+          ctx.lineTo(fc[2].x, fc[2].y);
+          ctx.lineTo(fc[3].x, fc[3].y);
+          ctx.closePath();
+          ctx.stroke();
+
+          // If shapeContour exists, outline shape contour on front face
+          if (bounds.shapeContour && Array.isArray(bounds.shapeContour) && bounds.shapeContour.length >= 3) {
+            ctx.save();
+            ctx.globalAlpha = 0.75;
+            ctx.beginPath();
+            ctx.moveTo(bounds.shapeContour[0].x, bounds.shapeContour[0].y);
+            for (let i = 1; i < bounds.shapeContour.length; i++) {
+              ctx.lineTo(bounds.shapeContour[i].x, bounds.shapeContour[i].y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
           }
+
+        } else if (bounds.apexPoint) {
+          // B. 3D Pyramid Wireframe
+          const fc = bounds.corners;
+          const ap = bounds.apexPoint;
+
+          // 1. Base Quad
+          ctx.beginPath();
+          ctx.moveTo(fc[0].x, fc[0].y);
+          ctx.lineTo(fc[1].x, fc[1].y);
+          ctx.lineTo(fc[2].x, fc[2].y);
+          ctx.lineTo(fc[3].x, fc[3].y);
+          ctx.closePath();
+          ctx.stroke();
+
+          // 2. 4 Ridge Lines to Apex
+          ctx.save();
+          ctx.globalAlpha = (options.depthAlpha !== undefined ? options.depthAlpha : 0.6);
+          ctx.beginPath();
+          ctx.moveTo(fc[0].x, fc[0].y); ctx.lineTo(ap.x, ap.y);
+          ctx.moveTo(fc[1].x, fc[1].y); ctx.lineTo(ap.x, ap.y);
+          ctx.moveTo(fc[2].x, fc[2].y); ctx.lineTo(ap.x, ap.y);
+          ctx.moveTo(fc[3].x, fc[3].y); ctx.lineTo(ap.x, ap.y);
+          ctx.stroke();
+          ctx.restore();
+
         } else {
-          ctx.moveTo(bounds.corners[0].x, bounds.corners[0].y);
-          for (let i = 1; i < bounds.corners.length; i++) {
-            ctx.lineTo(bounds.corners[i].x, bounds.corners[i].y);
+          // C. Standard 3D Quad or Shape Contour
+          ctx.beginPath();
+          if (bounds.shapeContour && Array.isArray(bounds.shapeContour) && bounds.shapeContour.length >= 3) {
+            ctx.moveTo(bounds.shapeContour[0].x, bounds.shapeContour[0].y);
+            for (let i = 1; i < bounds.shapeContour.length; i++) {
+              ctx.lineTo(bounds.shapeContour[i].x, bounds.shapeContour[i].y);
+            }
+          } else {
+            ctx.moveTo(bounds.corners[0].x, bounds.corners[0].y);
+            for (let i = 1; i < bounds.corners.length; i++) {
+              ctx.lineTo(bounds.corners[i].x, bounds.corners[i].y);
+            }
           }
+          ctx.closePath();
+          ctx.stroke();
         }
-        ctx.closePath();
-        ctx.stroke();
 
         // 2. Center Anchor Point
         if (showAnchor) {
@@ -213,6 +289,26 @@
             const innerSize = Math.max(1, handleSize - handleBorder * 2);
             ctx.fillRect(px - half + handleBorder, py - half + handleBorder, innerSize, innerSize);
           });
+
+          // Draw subtle depth corner nodes at the back 4 corners of a 3D box
+          if (bounds.backCorners && Array.isArray(bounds.backCorners) && bounds.backCorners.length === 4) {
+            const backDotSize = Math.max(3, Math.round(handleSize * 0.65));
+            const backHalf = backDotSize / 2;
+            ctx.save();
+            ctx.globalAlpha = 0.55;
+            bounds.backCorners.forEach(bp => {
+              if (bp && !bp.isBehind) {
+                const bpx = Math.round(bp.x);
+                const bpy = Math.round(bp.y);
+                ctx.fillStyle = primaryColor;
+                ctx.fillRect(bpx - backHalf, bpy - backHalf, backDotSize, backDotSize);
+                ctx.fillStyle = canvasBg;
+                const bInner = Math.max(1, backDotSize - handleBorder);
+                ctx.fillRect(bpx - backHalf + Math.floor(handleBorder / 2), bpy - backHalf + Math.floor(handleBorder / 2), bInner, bInner);
+              }
+            });
+            ctx.restore();
+          }
         }
 
       } else if (bounds.cx !== undefined && bounds.cy !== undefined) {

@@ -5,6 +5,24 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.105] - 2026-10-02
+
+### Added
+- **Volumetric 3D Effects Suite (`effects/box_3d.js`, `effects/extrude_3d.js`, `effects/pyramid_3d.js`, `effects/sphere_3d.js`)**:
+  - Added dedicated standalone 3D plugins: **3D Box / Cube**, **3D Extrude**, **3D Pyramid**, and **3D Sphere**.
+  - All 3D plugins feature unified `sideMode` (`['texture', 'solid color']`, default `'texture'`), clean 0% default shading and edge opacity, and depth/height driven directly by the layer's Transform Scale Z.
+  - Hardware WebGL mesh rendering in `js/fishtool-engine.js` with UV texture mapping, normal shading, and wireframe edge support.
+
+### Fixed
+- **Invisible 3D Layer Rendering Without Effects (`js/fishtool-engine.js`)**:
+  - Fixed issue where enabling 3D on a layer without adding 3D mesh effects rendered the layer invisible (only showing the wireframe) until an effect was added and removed.
+  - Resolved uninitialized WebGL `a_color` attribute state by explicitly resetting `u_mode = 0`, disabling `locations.color`, and setting `vertexAttrib4f(locations.color, 1.0, 1.0, 1.0, 1.0)` in `_initGL`, `renderLayer`, `_drawQuadOrTile`, `_renderBatch`, and `render3DMotionBlur`.
+  - Added defensive fallback in fragment shader (`FS_SOURCE`) to ensure full luminance `vec4(1.0)` is used whenever `v_color` is uninitialized.
+- **Duplicate 3D Cube Gallery Item (`effects/box_3d.js`)**:
+  - Removed redundant `cube_3d` registration, keeping only the single official **3D Box / Cube** (`box_3d`) entry in the Effects Gallery.
+- **Transform Scale Z Auto-Reveal (`js/editor.js`)**:
+  - Adding any 3D effect now automatically initializes `layer.scaleZ` based on layer dimensions and reveals the Z-axis scrubber in the Transform Scale tab.
+
 ## [0.5.100] - 2026-10-02
 
 ### Fixed

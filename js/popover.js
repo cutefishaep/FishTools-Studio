@@ -162,14 +162,22 @@ const Popover = (function () {
     if (activePopover.style.width) activePopover.style.width = '';
     if (activePopover.style.height) activePopover.style.height = '';
 
-    if (isMobile && isControllerTrigger) {
-      // On mobile, other controller triggers pop DOWNWARD over timeline
-      placement = 'bottom';
+    if (explicitPlacement) {
+      placement = explicitPlacement;
+    } else if (isMobile && isControllerTrigger) {
+      // On mobile, flexible smart placement: dynamically choose top or bottom based on available clearance
+      const fitsAbove = spaceAbove >= popoverHeight;
+      const fitsBelow = spaceBelow >= popoverHeight;
+      if (fitsAbove && !fitsBelow) {
+        placement = 'top';
+      } else if (fitsBelow && !fitsAbove) {
+        placement = 'bottom';
+      } else {
+        placement = spaceAbove >= spaceBelow ? 'top' : 'bottom';
+      }
     } else if (!isMobile && (isControllerTrigger || isEmbedPanel)) {
       // On desktop, controller sits at bottom of preview pane. Always pop UPWARD above button ("kalau desktop muncul di atas")
       placement = 'top';
-    } else if (explicitPlacement) {
-      placement = explicitPlacement;
     } else if (isControllerTrigger || effectiveTriggerRect.top > vh / 2) {
       // In bottom half of screen or desktop controller bar, pop UPWARD above button (tail at bottom pointing down)
       if (spaceAbove >= popoverHeight || spaceAbove >= spaceBelow) {

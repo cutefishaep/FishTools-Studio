@@ -581,22 +581,41 @@
    MOBILE RESPONSIVE TOUCH SCALING (<= 600px)
    ========================================================================== */
 @media (max-width: 600px) {
+  /* Mobile Grid Icon Dock: Space-saving multi-column wrap layout with horizontal zoom stepper */
   .popover-card.is-icon-dock {
-    width: 52px;
-    padding: 8px 6px;
+    width: 154px;
+    padding: 8px;
     border-radius: 14px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
     gap: 6px;
+    box-sizing: border-box;
   }
 
+  .popover-card.is-icon-dock .popover-icon-btn,
   .popover-icon-btn {
     width: 40px;
     height: 40px;
     border-radius: 8px;
+    flex-shrink: 0;
   }
 
+  .popover-card.is-icon-dock .popover-icon-btn svg,
   .popover-icon-btn svg {
     width: 22px;
     height: 22px;
+  }
+
+  .popover-card.is-icon-dock .popover-icon-divider {
+    width: 100%;
+    flex-basis: 100%;
+    height: 1px;
+    background-color: var(--bg-panel-hover);
+    margin: 3px 0;
+    flex-shrink: 0;
   }
 
   .popover-icon-divider {
@@ -604,27 +623,61 @@
     margin: 3px 0;
   }
 
+  .popover-card.is-icon-dock .popover-v-stepper,
   .popover-v-stepper {
-    width: 40px;
+    width: 100%;
+    flex-basis: 100%;
+    height: 36px;
     border-radius: 8px;
-    padding: 3px;
-    gap: 3px;
+    padding: 3px 4px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    box-sizing: border-box;
+    background-color: var(--bg-canvas);
   }
 
+  .popover-card.is-icon-dock .popover-v-stepper .stepper-btn-v,
   .popover-v-stepper .stepper-btn-v {
-    width: 34px;
-    height: 28px;
-    font-size: 16px;
+    width: 36px;
+    height: 30px;
+    font-size: 18px;
     border-radius: 6px;
+    flex-shrink: 0;
   }
 
+  .popover-card.is-icon-dock .popover-v-stepper .stepper-btn-v:last-of-type,
+  .popover-v-stepper .stepper-btn-v:last-of-type {
+    order: 1; /* '-' on left */
+  }
+
+  .popover-card.is-icon-dock .popover-v-stepper .stepper-val-v,
   .popover-v-stepper .stepper-val-v {
-    font-size: 10.5px;
-    padding: 4px 0;
+    order: 2; /* '100%' in middle */
+    font-size: 11px;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  .popover-card.is-icon-dock .popover-v-stepper .stepper-btn-v:first-of-type,
+  .popover-v-stepper .stepper-btn-v:first-of-type {
+    order: 3; /* '+' on right */
   }
 
   .popover-card[data-placement^="top"] > .popover-tail {
     bottom: -7px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .popover-card[data-placement^="bottom"] > .popover-tail {
+    top: -7px;
     width: 14px;
     height: 14px;
   }

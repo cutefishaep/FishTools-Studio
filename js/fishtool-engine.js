@@ -21,17 +21,31 @@
     return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
   }
 
-  // 1. Minimal Vertex & Fragment Shaders
+  function hexToRgb(hex) {
+    let c = (hex || '#000000').replace('#', '');
+    if (c.length === 3) c = c.split('').map(ch => ch + ch).join('');
+    const num = parseInt(c, 16) || 0;
+    return {
+      r: (num >> 16) & 255,
+      g: (num >> 8) & 255,
+      b: num & 255
+    };
+  }
+
+  // 1. Minimal Vertex & Fragment Shaders (Supports 2D Quads and 3D Volumetric Meshes)
   const VS_SOURCE = `
-    attribute vec2 a_position;
+    attribute vec3 a_position;
     attribute vec2 a_texCoord;
+    attribute vec4 a_color;
     uniform mat4 u_matrix;
     uniform float u_lensDistort;
     varying vec2 v_texCoord;
+    varying vec4 v_color;
 
     void main() {
       v_texCoord = a_texCoord;
-      vec4 pos = u_matrix * vec4(a_position, 0.0, 1.0);
+      v_color = a_color;
+      vec4 pos = u_matrix * vec4(a_position, 1.0);
       if (abs(u_lensDistort) > 0.001 && pos.w > 0.001) {
         vec2 ndc = pos.xy / pos.w;
         float r2 = dot(ndc, ndc);
@@ -45,13 +59,21 @@
   const FS_SOURCE = `
     precision mediump float;
     varying vec2 v_texCoord;
+    varying vec4 v_color;
     uniform sampler2D u_texture;
     uniform float u_opacity;
+    uniform int u_mode;
 
     void main() {
-      vec4 col = texture2D(u_texture, v_texCoord);
-      if (col.a <= 0.003) discard;
-      gl_FragColor = col * u_opacity;
+      if (u_mode == 1) {
+        if (v_color.a <= 0.003) discard;
+        gl_FragColor = v_color * u_opacity;
+      } else {
+        vec4 col = texture2D(u_texture, v_texCoord);
+        if (col.a <= 0.003) discard;
+        vec4 tint = (v_color.a > 0.001 && (v_color.r > 0.001 || v_color.g > 0.001 || v_color.b > 0.001)) ? v_color : vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = col * tint * u_opacity;
+      }
     }
   `;
 
@@ -149,9 +171,11 @@
         this.locations = {
           position: gl.getAttribLocation(prog, 'a_position'),
           texCoord: gl.getAttribLocation(prog, 'a_texCoord'),
+          color: gl.getAttribLocation(prog, 'a_color'),
           matrix: gl.getUniformLocation(prog, 'u_matrix'),
           texture: gl.getUniformLocation(prog, 'u_texture'),
           opacity: gl.getUniformLocation(prog, 'u_opacity'),
+          mode: gl.getUniformLocation(prog, 'u_mode'),
           lensDistort: gl.getUniformLocation(prog, 'u_lensDistort')
         };
 
@@ -213,6 +237,19 @@
           texCoord: texBuffer,
           index: idxBuffer
         };
+
+        // Dedicated dynamic buffers for 3D volumetric meshes (Box, Extrude, Pyramid, Sphere)
+        this.meshBuffers = {
+          position: gl.createBuffer(),
+          texCoord: gl.createBuffer(),
+          color: gl.createBuffer(),
+          index: gl.createBuffer()
+        };
+
+        gl.useProgram(this.program);
+        gl.uniform1i(this.locations.mode, 0);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -315,7 +352,15 @@
       if (!Array.isArray(layer.effects) || layer.effects.length === 0) {
         return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
       }
-      const activeFx = layer.effects.filter(f => f && !f.disabled && f.type !== 'tile' && f.type !== 'rgb-split' && f.type !== 'drop-shadow');
+      const activeFx = layer.effects.filter(f => f && !f.disabled &&
+        f.type !== 'tile' &&
+        f.type !== 'rgb-split' &&
+        f.type !== 'drop-shadow' &&
+        f.type !== 'box_3d' &&
+        f.type !== 'extrude_3d' &&
+        f.type !== 'pyramid_3d' &&
+        f.type !== 'sphere_3d'
+      );
       if (activeFx.length === 0) {
         return { el, padX: 0, padY: 0, origW: bounds.w || 100, origH: bounds.h || 100 };
       }
@@ -712,9 +757,13 @@
       const anchorY = (layer.anchorY || 0) * bufferScale;
       const anchorZ = (layer.anchorZ || 0) * bufferScale;
 
-      const is3D = !!layer.is3D || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera' || (!!camera && layer.type !== 'audio');
-      const effectiveRotX = is3D ? rotX : 0;
-      const effectiveRotY = is3D ? rotY : 0;
+      const has3DFx = Array.isArray(layer.effects) && layer.effects.some(f => f && !f.disabled && (f.type === 'box_3d' || f.type === 'extrude_3d' || f.type === 'pyramid_3d' || f.type === 'sphere_3d'));
+      const is3D = !!layer.is3D || has3DFx || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera' || (!!camera && layer.type !== 'audio');
+      const boxFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'box_3d') : null;
+      const boxAngleX = (boxFx && boxFx.angleX !== undefined) ? Number(boxFx.angleX) : 0;
+      const boxAngleY = (boxFx && boxFx.angleY !== undefined) ? Number(boxFx.angleY) : 0;
+      const effectiveRotX = is3D ? (rotX + boxAngleX) : 0;
+      const effectiveRotY = is3D ? (rotY + boxAngleY) : 0;
       const effectivePosZ = is3D ? posZ : 0;
       const effectiveAnchorZ = is3D ? anchorZ : 0;
       const effectiveCamera = is3D ? camera : null;
@@ -773,9 +822,10 @@
       };
 
       let projectLocalPoint = null;
+      let projectQuad = null;
 
       if (mvp) {
-        const projectQuad = (u, v, zCoord = 0) => {
+        projectQuad = (u, v, zCoord = 0) => {
           const clipX = mvp[0] * u + mvp[4] * v + mvp[8] * zCoord + mvp[12];
           const clipY = mvp[1] * u + mvp[5] * v + mvp[9] * zCoord + mvp[13];
           const clipZ = mvp[2] * u + mvp[6] * v + mvp[10] * zCoord + mvp[14];
@@ -852,10 +902,50 @@
       }
 
       const corners = [pTL, pTR, pBR, pBL];
-      const minX = Math.min(pTL.x, pTR.x, pBR.x, pBL.x);
-      const maxX = Math.max(pTL.x, pTR.x, pBR.x, pBL.x);
-      const minY = Math.min(pTL.y, pTR.y, pBR.y, pBL.y);
-      const maxY = Math.max(pTL.y, pTR.y, pBR.y, pBL.y);
+      let backCorners = null;
+      let apexPoint = null;
+      const all3DCorners = [pTL, pTR, pBR, pBL];
+
+      if (mvp) {
+        const active3DFx = Array.isArray(layer.effects)
+          ? layer.effects.find(f => f && !f.disabled && (f.type === 'box_3d' || f.type === 'extrude_3d' || f.type === 'pyramid_3d'))
+          : null;
+        let meshD = 0;
+        if (active3DFx) {
+          const lDepth = (layer && layer.scaleZ !== undefined) ? layer.scaleZ : (layer && layer.depth !== undefined ? layer.depth : undefined);
+          if (active3DFx.type === 'box_3d') {
+            const defaultD = Math.round(Math.min(absW || 300, absH || 300));
+            meshD = Math.max(1, lDepth !== undefined ? lDepth : (active3DFx.depth !== undefined ? active3DFx.depth : defaultD));
+          } else if (active3DFx.type === 'extrude_3d') {
+            meshD = Math.max(1, lDepth !== undefined ? lDepth : (active3DFx.extrudeDepth !== undefined ? active3DFx.extrudeDepth : 35));
+          } else if (active3DFx.type === 'pyramid_3d') {
+            meshD = Math.max(1, lDepth !== undefined ? lDepth : (active3DFx.height !== undefined ? active3DFx.height : 80));
+          }
+        }
+        if (meshD > 0 && typeof projectQuad === 'function') {
+          if (active3DFx && active3DFx.type === 'pyramid_3d') {
+            const apexX = ((active3DFx.apexX !== undefined ? active3DFx.apexX : 50) / 100 - 0.5);
+            const apexY = ((active3DFx.apexY !== undefined ? active3DFx.apexY : 0) / 100 - 0.5);
+            apexPoint = projectQuad(apexX, apexY, meshD);
+            if (apexPoint && !apexPoint.isBehind) all3DCorners.push(apexPoint);
+          } else {
+            const pTL_b = projectQuad(-0.5, -0.5, -meshD);
+            const pTR_b = projectQuad( 0.5, -0.5, -meshD);
+            const pBR_b = projectQuad( 0.5,  0.5, -meshD);
+            const pBL_b = projectQuad(-0.5,  0.5, -meshD);
+            backCorners = [pTL_b, pTR_b, pBR_b, pBL_b];
+            [pTL_b, pTR_b, pBR_b, pBL_b].forEach(p => {
+              if (p && !p.isBehind) all3DCorners.push(p);
+            });
+          }
+        }
+      }
+
+      const validCorners = all3DCorners.filter(p => p && !p.isBehind);
+      const minX = validCorners.length > 0 ? Math.min(...validCorners.map(p => p.x)) : pTL.x;
+      const maxX = validCorners.length > 0 ? Math.max(...validCorners.map(p => p.x)) : pBR.x;
+      const minY = validCorners.length > 0 ? Math.min(...validCorners.map(p => p.y)) : pTL.y;
+      const maxY = validCorners.length > 0 ? Math.max(...validCorners.map(p => p.y)) : pBR.y;
 
       const screenCenterX = (pTL.x + pBR.x) / 2;
       const screenCenterY = (pTL.y + pBR.y) / 2;
@@ -889,6 +979,9 @@
         aabbW: maxX - minX,
         aabbH: maxY - minY,
         corners,
+        backCorners,
+        apexPoint,
+        is3DBox: !!backCorners,
         shapeContour,
         shapeContourLocal,
         shapeType: layer.shapeType || null,
@@ -982,6 +1075,11 @@
           if (finalScale !== 1) {
             ctx.scale(finalScale, finalScale);
           }
+          if (bounds.rotX || bounds.rotY) {
+            const cosX = Math.cos(((bounds.rotX || 0) * Math.PI) / 180);
+            const cosY = Math.cos(((bounds.rotY || 0) * Math.PI) / 180);
+            ctx.scale(cosY, cosX);
+          }
         }
 
         if (bounds.rotation) {
@@ -1072,6 +1170,9 @@
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       gl.useProgram(this.program);
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
 
       // Bind quad buffers
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
@@ -1095,14 +1196,37 @@
       gl.uniform1f(this.locations.opacity, normLayerOp);
       if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(camera));
 
-      gl.disable(gl.DEPTH_TEST);
-      gl.disable(gl.CULL_FACE);
-
       const tileFx = Array.isArray(layer.effects)
         ? layer.effects.find(f => f.type === 'tile' && !f.disabled)
         : null;
 
-      this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, bounds);
+      const boxFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'box_3d')
+        : null;
+      const extrudeFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'extrude_3d')
+        : null;
+      const pyramidFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'pyramid_3d')
+        : null;
+      const sphereFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'sphere_3d')
+        : null;
+
+      if (boxFx || extrudeFx || pyramidFx || sphereFx) {
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        gl.depthMask(true);
+        if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, bounds, normLayerOp, layer);
+        else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, bounds, normLayerOp, layer);
+        else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, bounds, normLayerOp, layer);
+        else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, bounds, normLayerOp, layer);
+        gl.disable(gl.DEPTH_TEST);
+      } else {
+        gl.disable(gl.DEPTH_TEST);
+        gl.disable(gl.CULL_FACE);
+        this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, bounds);
+      }
 
       // Blit GL framebuffer onto target 2D canvas context
       this._blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale);
@@ -1172,9 +1296,710 @@
           }
         }
       } else {
+        gl.uniform1i(this.locations.mode, 0);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
         gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
       }
+    }
+
+    _draw3DBoxMesh(gl, mvp, boxFx, bounds, layerOpacity, layer = null) {
+      const defaultDepth = bounds && (bounds.w || bounds.h)
+        ? Math.round(Math.min(bounds.w || 300, bounds.h || 300))
+        : 300;
+      const lDepth = (layer && layer.scaleZ !== undefined) ? layer.scaleZ : ((layer && layer.depth !== undefined) ? layer.depth : ((boxFx && boxFx.depth !== undefined) ? boxFx.depth : null));
+      const depth = Math.max(1, lDepth !== null ? lDepth : defaultDepth);
+      const isSolidMode = boxFx && boxFx.sideMode === 'solid color';
+      const defaultWhite = '#ffffff';
+      let faceColor = (boxFx && boxFx.faceColor) || defaultWhite;
+      if (isSolidMode && faceColor === defaultWhite && layer && (layer.fillColor || layer.color)) {
+        faceColor = layer.fillColor || layer.color;
+      }
+      const rawFaceOp = (boxFx && boxFx.faceOpacity !== undefined) ? boxFx.faceOpacity : 100;
+      const faceOpacity = Math.max(0, Math.min(1, rawFaceOp / 100)) * (layerOpacity !== undefined ? layerOpacity : 1.0);
+      const edgeColor = (boxFx && boxFx.edgeColor) || '#ffffff';
+      const edgeOpacity = Math.max(0, Math.min(1, (boxFx && boxFx.edgeOpacity !== undefined ? boxFx.edgeOpacity : 0) / 100));
+      const shading = Math.max(0, Math.min(1, (boxFx && boxFx.shading !== undefined ? boxFx.shading : 0) / 100));
+
+      gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
+
+      // --- Pass 1: Front Face (Textured, at z = 0) ---
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+      if (depth < 0.5) return;
+
+      // --- Pass 2: 5 Shaded Faces (Back, Top, Bottom, Left, Right) ---
+      const cBase = hexToRgb(faceColor);
+      const mulTop = 1.0 + shading * 0.4;
+      const mulRight = Math.max(0.15, 1.0 - shading * 0.25);
+      const mulLeft = Math.max(0.15, 1.0 - shading * 0.35);
+      const mulBot = Math.max(0.1, 1.0 - shading * 0.55);
+      const mulBack = Math.max(0.1, 1.0 - shading * 0.45);
+
+      const tintR = isSolidMode ? (cBase.r / 255) : 1.0;
+      const tintG = isSolidMode ? (cBase.g / 255) : 1.0;
+      const tintB = isSolidMode ? (cBase.b / 255) : 1.0;
+
+      const makeCol = (m) => [
+        Math.min(1.0, tintR * m),
+        Math.min(1.0, tintG * m),
+        Math.min(1.0, tintB * m),
+        faceOpacity
+      ];
+
+      const cTop = makeCol(mulTop);
+      const cRight = makeCol(mulRight);
+      const cLeft = makeCol(mulLeft);
+      const cBot = makeCol(mulBot);
+      const cBack = makeCol(mulBack);
+
+      const solidPositions = new Float32Array([
+        // Back Face (z = -depth)
+        -0.5, -0.5, -depth,
+         0.5, -0.5, -depth,
+         0.5,  0.5, -depth,
+        -0.5,  0.5, -depth,
+
+        // Top Face (y = -0.5)
+        -0.5, -0.5,      0,
+         0.5, -0.5,      0,
+         0.5, -0.5, -depth,
+        -0.5, -0.5, -depth,
+
+        // Bottom Face (y = 0.5)
+        -0.5,  0.5,      0,
+         0.5,  0.5,      0,
+         0.5,  0.5, -depth,
+        -0.5,  0.5, -depth,
+
+        // Left Face (x = -0.5)
+        -0.5, -0.5,      0,
+        -0.5,  0.5,      0,
+        -0.5,  0.5, -depth,
+        -0.5, -0.5, -depth,
+
+        // Right Face (x = 0.5)
+         0.5, -0.5,      0,
+         0.5,  0.5,      0,
+         0.5,  0.5, -depth,
+         0.5, -0.5, -depth
+      ]);
+
+      const solidColors = new Float32Array([
+        ...cBack, ...cBack, ...cBack, ...cBack,
+        ...cTop, ...cTop, ...cTop, ...cTop,
+        ...cBot, ...cBot, ...cBot, ...cBot,
+        ...cLeft, ...cLeft, ...cLeft, ...cLeft,
+        ...cRight, ...cRight, ...cRight, ...cRight
+      ]);
+
+      const solidTexCoords = new Float32Array([
+        // Back Face (mirrored texture)
+        1.0, 0.0,
+        0.0, 0.0,
+        0.0, 1.0,
+        1.0, 1.0,
+
+        // Top Face (maps texture across top surface)
+        0.0, 0.0,
+        1.0, 0.0,
+        1.0, 1.0,
+        0.0, 1.0,
+
+        // Bottom Face (maps texture across bottom surface)
+        0.0, 1.0,
+        1.0, 1.0,
+        1.0, 0.0,
+        0.0, 0.0,
+
+        // Left Face (maps texture across left surface)
+        0.0, 0.0,
+        0.0, 1.0,
+        1.0, 1.0,
+        1.0, 0.0,
+
+        // Right Face (maps texture across right surface)
+        1.0, 0.0,
+        1.0, 1.0,
+        0.0, 1.0,
+        0.0, 0.0
+      ]);
+
+      const solidIndices = new Uint16Array([
+        0, 1, 2,  0, 2, 3,
+        4, 5, 6,  4, 6, 7,
+        8, 9, 10,  8, 10, 11,
+        12, 13, 14,  12, 14, 15,
+        16, 17, 18,  16, 18, 19
+      ]);
+
+      gl.uniform1i(this.locations.mode, isSolidMode ? 1 : 0);
+
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+      gl.bufferData(gl.ARRAY_BUFFER, solidPositions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.texCoord);
+      gl.bufferData(gl.ARRAY_BUFFER, solidTexCoords, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.color);
+      gl.bufferData(gl.ARRAY_BUFFER, solidColors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.color, 4, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.meshBuffers.index);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, solidIndices, gl.DYNAMIC_DRAW);
+      gl.drawElements(gl.TRIANGLES, 30, gl.UNSIGNED_SHORT, 0);
+
+      // --- Pass 3: 12 Wireframe Edge Lines ---
+      if (edgeOpacity > 0) {
+        const edgePositions = new Float32Array([
+          // Front 4 edges (z = 0)
+          -0.5, -0.5, 0,    0.5, -0.5, 0,
+           0.5, -0.5, 0,    0.5,  0.5, 0,
+           0.5,  0.5, 0,   -0.5,  0.5, 0,
+          -0.5,  0.5, 0,   -0.5, -0.5, 0,
+
+          // Back 4 edges (z = -depth)
+          -0.5, -0.5, -depth,    0.5, -0.5, -depth,
+           0.5, -0.5, -depth,    0.5,  0.5, -depth,
+           0.5,  0.5, -depth,   -0.5,  0.5, -depth,
+          -0.5,  0.5, -depth,   -0.5, -0.5, -depth,
+
+          // 4 Connecting side edges
+          -0.5, -0.5, 0,   -0.5, -0.5, -depth,
+           0.5, -0.5, 0,    0.5, -0.5, -depth,
+           0.5,  0.5, 0,    0.5,  0.5, -depth,
+          -0.5,  0.5, 0,   -0.5,  0.5, -depth
+        ]);
+
+        const cEdge = hexToRgb(edgeColor);
+        gl.uniform1i(this.locations.mode, 1);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.disableVertexAttribArray(this.locations.texCoord);
+        gl.vertexAttrib4f(this.locations.color, cEdge.r / 255, cEdge.g / 255, cEdge.b / 255, edgeOpacity);
+        gl.vertexAttrib2f(this.locations.texCoord, 0.0, 0.0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+        gl.bufferData(gl.ARRAY_BUFFER, edgePositions, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.LINES, 0, 24);
+      }
+
+      // Restore standard 2D quad state for subsequent renders
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+    }
+
+    _draw3DExtrudeMesh(gl, mvp, extrudeFx, bounds, layerOpacity, layer = null) {
+      const defaultDepth = bounds && (bounds.w || bounds.h)
+        ? Math.round(Math.min(bounds.w || 300, bounds.h || 300))
+        : 300;
+      const lDepth = (layer && layer.scaleZ !== undefined) ? layer.scaleZ : ((layer && layer.depth !== undefined) ? layer.depth : ((extrudeFx && extrudeFx.extrudeDepth !== undefined) ? extrudeFx.extrudeDepth : null));
+      const depth = Math.max(1, lDepth !== null ? lDepth : defaultDepth);
+      const isSolidMode = extrudeFx && extrudeFx.sideMode === 'solid color';
+      const defaultWhite = '#ffffff';
+      let faceColor = (extrudeFx && (extrudeFx.faceColor || extrudeFx.shadeColor)) || defaultWhite;
+      if (isSolidMode && faceColor === defaultWhite && layer && (layer.fillColor || layer.color)) {
+        faceColor = layer.fillColor || layer.color;
+      }
+      const rawFaceOp = (extrudeFx && (extrudeFx.faceOpacity !== undefined ? extrudeFx.faceOpacity : extrudeFx.shadeOpacity)) !== undefined ? (extrudeFx.faceOpacity !== undefined ? extrudeFx.faceOpacity : extrudeFx.shadeOpacity) : 100;
+      const faceOpacity = Math.max(0, Math.min(1, rawFaceOp / 100)) * (layerOpacity !== undefined ? layerOpacity : 1.0);
+      const edgeColor = (extrudeFx && extrudeFx.edgeColor) || '#ffffff';
+      const edgeOpacity = Math.max(0, Math.min(1, (extrudeFx && extrudeFx.edgeOpacity !== undefined ? extrudeFx.edgeOpacity : 0) / 100));
+      const shading = Math.max(0, Math.min(1, (extrudeFx && extrudeFx.shading !== undefined ? extrudeFx.shading : 0) / 100));
+
+      gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
+
+      // Front Face (Textured, at z = 0)
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+      if (depth < 0.5) return;
+
+      // 4 Extrusion Side Walls + Back Face
+      const cBase = hexToRgb(faceColor);
+      const mulTop = 1.0 + shading * 0.4;
+      const mulRight = Math.max(0.15, 1.0 - shading * 0.25);
+      const mulLeft = Math.max(0.15, 1.0 - shading * 0.35);
+      const mulBot = Math.max(0.1, 1.0 - shading * 0.55);
+      const mulBack = Math.max(0.1, 1.0 - shading * 0.45);
+
+      const tintR = isSolidMode ? (cBase.r / 255) : 1.0;
+      const tintG = isSolidMode ? (cBase.g / 255) : 1.0;
+      const tintB = isSolidMode ? (cBase.b / 255) : 1.0;
+
+      const makeCol = (m) => [
+        Math.min(1.0, tintR * m),
+        Math.min(1.0, tintG * m),
+        Math.min(1.0, tintB * m),
+        faceOpacity
+      ];
+
+      const cTop = makeCol(mulTop);
+      const cRight = makeCol(mulRight);
+      const cLeft = makeCol(mulLeft);
+      const cBot = makeCol(mulBot);
+      const cBack = makeCol(mulBack);
+
+      const solidPositions = new Float32Array([
+        // Back Face (z = -depth)
+        -0.5, -0.5, -depth,
+         0.5, -0.5, -depth,
+         0.5,  0.5, -depth,
+        -0.5,  0.5, -depth,
+
+        // Top Face (y = -0.5)
+        -0.5, -0.5,      0,
+         0.5, -0.5,      0,
+         0.5, -0.5, -depth,
+        -0.5, -0.5, -depth,
+
+        // Bottom Face (y = 0.5)
+        -0.5,  0.5,      0,
+         0.5,  0.5,      0,
+         0.5,  0.5, -depth,
+        -0.5,  0.5, -depth,
+
+        // Left Face (x = -0.5)
+        -0.5, -0.5,      0,
+        -0.5,  0.5,      0,
+        -0.5,  0.5, -depth,
+        -0.5, -0.5, -depth,
+
+        // Right Face (x = 0.5)
+         0.5, -0.5,      0,
+         0.5,  0.5,      0,
+         0.5,  0.5, -depth,
+         0.5, -0.5, -depth
+      ]);
+
+      const solidColors = new Float32Array([
+        ...cBack, ...cBack, ...cBack, ...cBack,
+        ...cTop, ...cTop, ...cTop, ...cTop,
+        ...cBot, ...cBot, ...cBot, ...cBot,
+        ...cLeft, ...cLeft, ...cLeft, ...cLeft,
+        ...cRight, ...cRight, ...cRight, ...cRight
+      ]);
+
+      const solidTexCoords = new Float32Array([
+        // Back Face
+        1.0, 0.0,  0.0, 0.0,  0.0, 1.0,  1.0, 1.0,
+        // Top Face
+        0.0, 0.0,  1.0, 0.0,  1.0, 1.0,  0.0, 1.0,
+        // Bottom Face
+        0.0, 1.0,  1.0, 1.0,  1.0, 0.0,  0.0, 0.0,
+        // Left Face
+        0.0, 0.0,  0.0, 1.0,  1.0, 1.0,  1.0, 0.0,
+        // Right Face
+        1.0, 0.0,  1.0, 1.0,  0.0, 1.0,  0.0, 0.0
+      ]);
+
+      const solidIndices = new Uint16Array([
+        0, 1, 2,  0, 2, 3,
+        4, 5, 6,  4, 6, 7,
+        8, 9, 10,  8, 10, 11,
+        12, 13, 14,  12, 14, 15,
+        16, 17, 18,  16, 18, 19
+      ]);
+
+      gl.uniform1i(this.locations.mode, isSolidMode ? 1 : 0);
+
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+      gl.bufferData(gl.ARRAY_BUFFER, solidPositions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.texCoord);
+      gl.bufferData(gl.ARRAY_BUFFER, solidTexCoords, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.color);
+      gl.bufferData(gl.ARRAY_BUFFER, solidColors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.color, 4, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.meshBuffers.index);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, solidIndices, gl.DYNAMIC_DRAW);
+      gl.drawElements(gl.TRIANGLES, 30, gl.UNSIGNED_SHORT, 0);
+
+      if (edgeOpacity > 0) {
+        const edgePositions = new Float32Array([
+          -0.5, -0.5, 0,    0.5, -0.5, 0,
+           0.5, -0.5, 0,    0.5,  0.5, 0,
+           0.5,  0.5, 0,   -0.5,  0.5, 0,
+          -0.5,  0.5, 0,   -0.5, -0.5, 0,
+          -0.5, -0.5, -depth,    0.5, -0.5, -depth,
+           0.5, -0.5, -depth,    0.5,  0.5, -depth,
+           0.5,  0.5, -depth,   -0.5,  0.5, -depth,
+          -0.5,  0.5, -depth,   -0.5, -0.5, -depth,
+          -0.5, -0.5, 0,   -0.5, -0.5, -depth,
+           0.5, -0.5, 0,    0.5, -0.5, -depth,
+           0.5,  0.5, 0,    0.5,  0.5, -depth,
+          -0.5,  0.5, 0,   -0.5,  0.5, -depth
+        ]);
+
+        const cEdge = hexToRgb(edgeColor);
+        gl.uniform1i(this.locations.mode, 1);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.disableVertexAttribArray(this.locations.texCoord);
+        gl.vertexAttrib4f(this.locations.color, cEdge.r / 255, cEdge.g / 255, cEdge.b / 255, edgeOpacity);
+        gl.vertexAttrib2f(this.locations.texCoord, 0.0, 0.0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+        gl.bufferData(gl.ARRAY_BUFFER, edgePositions, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.LINES, 0, 24);
+      }
+
+      // Restore standard 2D quad state for subsequent renders
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+    }
+
+    _draw3DPyramidMesh(gl, mvp, pyramidFx, bounds, layerOpacity, layer = null) {
+      const defaultDepth = bounds && (bounds.w || bounds.h)
+        ? Math.round(Math.min(bounds.w || 300, bounds.h || 300))
+        : 300;
+      const lDepth = (layer && layer.scaleZ !== undefined) ? layer.scaleZ : ((layer && layer.depth !== undefined) ? layer.depth : ((pyramidFx && pyramidFx.height !== undefined) ? pyramidFx.height : null));
+      const height = Math.max(0, lDepth !== null ? lDepth : defaultDepth);
+      const apexX = ((pyramidFx && pyramidFx.apexX !== undefined ? pyramidFx.apexX : 50) / 100 - 0.5);
+      const apexY = ((pyramidFx && pyramidFx.apexY !== undefined ? pyramidFx.apexY : 25) / 100 - 0.5);
+
+      const isSolidMode = pyramidFx && pyramidFx.sideMode === 'solid color';
+      const defaultWhite = '#ffffff';
+      let faceColor = (pyramidFx && pyramidFx.faceColor) || defaultWhite;
+      if (isSolidMode && faceColor === defaultWhite && layer && (layer.fillColor || layer.color)) {
+        faceColor = layer.fillColor || layer.color;
+      }
+      const rawFaceOp = (pyramidFx && pyramidFx.faceOpacity !== undefined) ? pyramidFx.faceOpacity : 100;
+      const faceOpacity = Math.max(0, Math.min(1, rawFaceOp / 100)) * (layerOpacity !== undefined ? layerOpacity : 1.0);
+      const edgeColor = (pyramidFx && pyramidFx.edgeColor) || '#ffffff';
+      const edgeOpacity = Math.max(0, Math.min(1, (pyramidFx && pyramidFx.edgeOpacity !== undefined ? pyramidFx.edgeOpacity : (pyramidFx && pyramidFx.edgeWidth && pyramidFx.edgeWidth > 0 ? 70 : 0)) / 100));
+      const shading = Math.max(0, Math.min(1, (pyramidFx && pyramidFx.shading !== undefined ? pyramidFx.shading : 0) / 100));
+
+      gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
+
+      // Base at z = 0, Apex at z = height
+      const positions = new Float32Array([
+        // Face 1 (Front/Bottom): BL -> BR -> Apex
+        -0.5, 0.5, 0,    0.5, 0.5, 0,    apexX, apexY, height,
+        // Face 2 (Right): BR -> TR -> Apex
+         0.5, 0.5, 0,    0.5, -0.5, 0,   apexX, apexY, height,
+        // Face 3 (Back/Top): TR -> TL -> Apex
+         0.5, -0.5, 0,  -0.5, -0.5, 0,   apexX, apexY, height,
+        // Face 4 (Left): TL -> BL -> Apex
+        -0.5, -0.5, 0,  -0.5, 0.5, 0,    apexX, apexY, height,
+        // Base Face: TL -> TR -> BR -> BL
+        -0.5, -0.5, 0,   0.5, -0.5, 0,   0.5, 0.5, 0,   -0.5, 0.5, 0
+      ]);
+
+      const texCoords = new Float32Array([
+        // Face 1: BL -> BR -> Apex
+        0.0, 1.0,   1.0, 1.0,   0.5, 0.5,
+        // Face 2: BR -> TR -> Apex
+        1.0, 1.0,   1.0, 0.0,   0.5, 0.5,
+        // Face 3: TR -> TL -> Apex
+        1.0, 0.0,   0.0, 0.0,   0.5, 0.5,
+        // Face 4: TL -> BL -> Apex
+        0.0, 0.0,   0.0, 1.0,   0.5, 0.5,
+        // Base Face: TL -> TR -> BR -> BL
+        0.0, 0.0,   1.0, 0.0,   1.0, 1.0,   0.0, 1.0
+      ]);
+
+      const cBase = hexToRgb(faceColor);
+      const tintR = isSolidMode ? (cBase.r / 255) : 1.0;
+      const tintG = isSolidMode ? (cBase.g / 255) : 1.0;
+      const tintB = isSolidMode ? (cBase.b / 255) : 1.0;
+
+      const makeCol = (m) => [
+        Math.min(1.0, tintR * m),
+        Math.min(1.0, tintG * m),
+        Math.min(1.0, tintB * m),
+        faceOpacity
+      ];
+
+      const mulFront = 1.0 + shading * 0.2;
+      const mulRight = Math.max(0.15, 1.0 - shading * 0.25);
+      const mulBack  = Math.max(0.1, 1.0 - shading * 0.45);
+      const mulLeft  = Math.max(0.15, 1.0 - shading * 0.35);
+      const mulBase  = Math.max(0.1, 1.0 - shading * 0.5);
+
+      const col1 = makeCol(mulFront);
+      const col2 = makeCol(mulRight);
+      const col3 = makeCol(mulBack);
+      const col4 = makeCol(mulLeft);
+      const colBase = makeCol(mulBase);
+
+      const colors = new Float32Array([
+        ...col1, ...col1, ...col1,
+        ...col2, ...col2, ...col2,
+        ...col3, ...col3, ...col3,
+        ...col4, ...col4, ...col4,
+        ...colBase, ...colBase, ...colBase, ...colBase
+      ]);
+
+      const indices = new Uint16Array([
+        0, 1, 2,
+        3, 4, 5,
+        6, 7, 8,
+        9, 10, 11,
+        12, 13, 14,  12, 14, 15
+      ]);
+
+      gl.uniform1i(this.locations.mode, isSolidMode ? 1 : 0);
+
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.texCoord);
+      gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.color);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.color, 4, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.meshBuffers.index);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.DYNAMIC_DRAW);
+      gl.drawElements(gl.TRIANGLES, 18, gl.UNSIGNED_SHORT, 0);
+
+      if (edgeOpacity > 0.01) {
+        const edgePositions = new Float32Array([
+          // Base 4 edges
+          -0.5, -0.5, 0,   0.5, -0.5, 0,
+           0.5, -0.5, 0,   0.5,  0.5, 0,
+           0.5,  0.5, 0,  -0.5,  0.5, 0,
+          -0.5,  0.5, 0,  -0.5, -0.5, 0,
+          // 4 Ridge edges to apex
+          -0.5, -0.5, 0,   apexX, apexY, height,
+           0.5, -0.5, 0,   apexX, apexY, height,
+           0.5,  0.5, 0,   apexX, apexY, height,
+          -0.5,  0.5, 0,   apexX, apexY, height
+        ]);
+
+        const cEdge = hexToRgb(edgeColor);
+        gl.uniform1i(this.locations.mode, 1);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.disableVertexAttribArray(this.locations.texCoord);
+        gl.vertexAttrib4f(this.locations.color, cEdge.r / 255, cEdge.g / 255, cEdge.b / 255, edgeOpacity);
+        gl.vertexAttrib2f(this.locations.texCoord, 0.0, 0.0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+        gl.bufferData(gl.ARRAY_BUFFER, edgePositions, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.LINES, 0, 16);
+      }
+
+      // Restore standard 2D quad state for subsequent renders
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+    }
+
+    _draw3DSphereMesh(gl, mvp, sphereFx, bounds, layerOpacity, layer = null) {
+      const defaultDepth = bounds && (bounds.w || bounds.h)
+        ? Math.round(Math.min(bounds.w || 300, bounds.h || 300)) * 0.5
+        : 150;
+      const lDepth = (layer && layer.scaleZ !== undefined) ? layer.scaleZ : ((layer && layer.depth !== undefined) ? layer.depth : null);
+      const depthZ = Math.max(0.1, lDepth !== null ? lDepth : defaultDepth);
+
+      const isSolidMode = sphereFx && (sphereFx.sideMode === 'solid color' || sphereFx.fillMode === 'solid color');
+      const defaultWhite = '#ffffff';
+      let faceColor = (sphereFx && (sphereFx.faceColor || sphereFx.color)) || defaultWhite;
+      if (isSolidMode && faceColor === defaultWhite && layer && (layer.fillColor || layer.color)) {
+        faceColor = layer.fillColor || layer.color;
+      }
+      const rawFaceOp = (sphereFx && sphereFx.faceOpacity !== undefined) ? sphereFx.faceOpacity : 100;
+      const faceOpacity = Math.max(0, Math.min(1, rawFaceOp / 100)) * (layerOpacity !== undefined ? layerOpacity : 1.0);
+      const shading = Math.max(0, Math.min(1, (sphereFx && sphereFx.shading !== undefined ? sphereFx.shading : (sphereFx && sphereFx.shadowOpacity !== undefined && sphereFx.shadowOpacity > 0 ? sphereFx.shadowOpacity : 0)) / 100));
+      const edgeColor = (sphereFx && sphereFx.edgeColor) || '#ffffff';
+      const edgeOpacity = Math.max(0, Math.min(1, (sphereFx && sphereFx.edgeOpacity !== undefined ? sphereFx.edgeOpacity : 0) / 100));
+
+      gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
+
+      if (!this._sphereMeshBase) {
+        const rings = 16;
+        const sectors = 24;
+        const basePos = [];
+        const texCoords = [];
+        const indices = [];
+
+        for (let r = 0; r <= rings; r++) {
+          const v = r / rings;
+          const phi = v * Math.PI;
+          for (let s = 0; s <= sectors; s++) {
+            const u = s / sectors;
+            const theta = u * Math.PI * 2;
+            const x = -0.5 * Math.sin(phi) * Math.cos(theta);
+            const y = -0.5 * Math.cos(phi);
+            const zNorm = Math.sin(phi) * Math.sin(theta);
+            basePos.push(x, y, zNorm);
+            texCoords.push(u, v);
+          }
+        }
+
+        for (let r = 0; r < rings; r++) {
+          for (let s = 0; s < sectors; s++) {
+            const first = r * (sectors + 1) + s;
+            const second = first + sectors + 1;
+            indices.push(first, second, first + 1);
+            indices.push(second, second + 1, first + 1);
+          }
+        }
+
+        this._sphereMeshBase = {
+          basePos: new Float32Array(basePos),
+          texCoords: new Float32Array(texCoords),
+          indices: new Uint16Array(indices),
+          count: indices.length,
+          vertexCount: (rings + 1) * (sectors + 1)
+        };
+      }
+
+      const base = this._sphereMeshBase;
+      const vCount = base.vertexCount;
+      const positions = new Float32Array(base.basePos.length);
+      for (let i = 0; i < vCount; i++) {
+        const idx = i * 3;
+        positions[idx] = base.basePos[idx];
+        positions[idx + 1] = base.basePos[idx + 1];
+        positions[idx + 2] = base.basePos[idx + 2] * depthZ;
+      }
+
+      const cBase = hexToRgb(faceColor);
+      const tintR = isSolidMode ? (cBase.r / 255) : 1.0;
+      const tintG = isSolidMode ? (cBase.g / 255) : 1.0;
+      const tintB = isSolidMode ? (cBase.b / 255) : 1.0;
+
+      const colors = new Float32Array(vCount * 4);
+      for (let i = 0; i < vCount; i++) {
+        const cIdx = i * 4;
+        let shadeFactor = 1.0;
+        if (shading > 0.001) {
+          const nz = Math.max(0, base.basePos[i * 3 + 2]);
+          shadeFactor = Math.max(0.15, 1.0 - (1.0 - nz) * shading * 0.7);
+        }
+        colors[cIdx] = Math.min(1.0, tintR * shadeFactor);
+        colors[cIdx + 1] = Math.min(1.0, tintG * shadeFactor);
+        colors[cIdx + 2] = Math.min(1.0, tintB * shadeFactor);
+        colors[cIdx + 3] = faceOpacity;
+      }
+
+      gl.uniform1i(this.locations.mode, isSolidMode ? 1 : 0);
+
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.texCoord);
+      gl.bufferData(gl.ARRAY_BUFFER, base.texCoords, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+
+      gl.enableVertexAttribArray(this.locations.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.color);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.color, 4, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.meshBuffers.index);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, base.indices, gl.DYNAMIC_DRAW);
+      gl.drawElements(gl.TRIANGLES, base.count, gl.UNSIGNED_SHORT, 0);
+
+      if (edgeOpacity > 0.01) {
+        const cEdge = hexToRgb(edgeColor);
+        gl.uniform1i(this.locations.mode, 1);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.disableVertexAttribArray(this.locations.texCoord);
+        gl.vertexAttrib4f(this.locations.color, cEdge.r / 255, cEdge.g / 255, cEdge.b / 255, edgeOpacity);
+        gl.vertexAttrib2f(this.locations.texCoord, 0.0, 0.0);
+
+        const edgePositions = [];
+        const ringSegments = 32;
+        for (let i = 0; i < ringSegments; i++) {
+          const a1 = (i / ringSegments) * Math.PI * 2;
+          const a2 = ((i + 1) / ringSegments) * Math.PI * 2;
+          edgePositions.push(0.5 * Math.cos(a1), 0.5 * Math.sin(a1), 0);
+          edgePositions.push(0.5 * Math.cos(a2), 0.5 * Math.sin(a2), 0);
+          edgePositions.push(0.5 * Math.cos(a1), 0, depthZ * Math.sin(a1));
+          edgePositions.push(0.5 * Math.cos(a2), 0, depthZ * Math.sin(a2));
+        }
+
+        const edgePosArr = new Float32Array(edgePositions);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+        gl.bufferData(gl.ARRAY_BUFFER, edgePosArr, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.LINES, 0, edgePositions.length / 3);
+      }
+
+      // Restore standard 2D quad state for subsequent renders
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
     }
 
     _blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale) {
@@ -1299,6 +2124,9 @@
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       gl.useProgram(this.program);
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
 
       // Bind quad buffers
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
@@ -1326,6 +2154,19 @@
 
       const tileFx = Array.isArray(layer.effects)
         ? layer.effects.find(f => f.type === 'tile' && !f.disabled)
+        : null;
+
+      const boxFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'box_3d')
+        : null;
+      const extrudeFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'extrude_3d')
+        : null;
+      const pyramidFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'pyramid_3d')
+        : null;
+      const sphereFx = Array.isArray(layer.effects)
+        ? layer.effects.find(f => f && !f.disabled && f.type === 'sphere_3d')
         : null;
 
       const pStart = (typeof window.getLayerEffectivePropsAtTime === 'function')
@@ -1390,7 +2231,14 @@
         const sampleOp = normOp * weight;
         gl.uniform1f(this.locations.opacity, sampleOp);
 
-        this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, subBounds);
+        if (boxFx || extrudeFx || pyramidFx || sphereFx) {
+          if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, subBounds, sampleOp, layer);
+          else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, subBounds, sampleOp, layer);
+          else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, subBounds, sampleOp, layer);
+          else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, subBounds, sampleOp, layer);
+        } else {
+          this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, subBounds);
+        }
       }
 
       // Blit accumulated result to 2D canvas context ONCE with shadow / RGB split
@@ -1481,6 +2329,9 @@
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       gl.useProgram(this.program);
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
 
       // Bind quad buffers once
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
@@ -1519,7 +2370,28 @@
         if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(camera));
         gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
 
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        const bFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'box_3d') : null;
+        const eFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'extrude_3d') : null;
+        const pFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'pyramid_3d') : null;
+        const sFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'sphere_3d') : null;
+
+        if (bFx) this._draw3DBoxMesh(gl, mvp, bFx, bounds, layerOpacity, layer);
+        else if (eFx) this._draw3DExtrudeMesh(gl, mvp, eFx, bounds, layerOpacity, layer);
+        else if (pFx) this._draw3DPyramidMesh(gl, mvp, pFx, bounds, layerOpacity, layer);
+        else if (sFx) this._draw3DSphereMesh(gl, mvp, sFx, bounds, layerOpacity, layer);
+        else {
+          gl.uniform1i(this.locations.mode, 0);
+          gl.disableVertexAttribArray(this.locations.color);
+          gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+          gl.enableVertexAttribArray(this.locations.position);
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+          gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+          gl.enableVertexAttribArray(this.locations.texCoord);
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+          gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+          gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        }
       });
       gl.depthMask(true);
 

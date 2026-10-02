@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="css/color-picker.css">
   <link rel="stylesheet" href="css/template-editor.css">
   <link rel="stylesheet" href="css/safari.css">
-  <link rel="stylesheet" href="css/desktop.css?v=0.5.100">
+  <link rel="stylesheet" href="css/desktop.css?v=0.5.105">
   <script src="js/sync-height.js"></script>
   <script>
     window.DEBUG = true;
@@ -800,7 +800,7 @@
                         <header class="transform-values-header">
                           <div class="transform-val-card">
                             <span class="transform-val-num" id="val-scale-w">1080.0</span>
-                            <span class="transform-val-label">Width</span>
+                            <span class="transform-val-label" id="lbl-scale-w">Width</span>
                           </div>
                           <button type="button" class="transform-link-btn" id="btn-scale-link" title="Toggle Aspect Ratio Link" aria-label="Link Aspect Ratio">
                             <svg viewBox="0 0 24 24" class="svg-link-on" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -815,7 +815,11 @@
                           </button>
                           <div class="transform-val-card">
                             <span class="transform-val-num" id="val-scale-h">1920.0</span>
-                            <span class="transform-val-label">Height</span>
+                            <span class="transform-val-label" id="lbl-scale-h">Height</span>
+                          </div>
+                          <div class="transform-val-card" id="card-scale-z" style="display: none;">
+                            <span class="transform-val-num is-neutral" id="val-scale-z">300.0</span>
+                            <span class="transform-val-label" id="lbl-scale-z">Depth</span>
                           </div>
                         </header>
                         <!-- Linked Mode: Single Jog Wheel -->
@@ -823,13 +827,17 @@
                           <div class="jog-wheel-ticks"></div>
                           <div class="jog-wheel-needle"></div>
                         </div>
-                        <!-- Unlinked Mode: Dual Jog Wheels (Width & Height) -->
+                        <!-- Unlinked Mode: Dual Jog Wheels (Width & Height) & 3D Depth -->
                         <div class="transform-dual-rulers" id="jog-scale-unlinked" style="display: none;">
                           <div class="jog-wheel-container" id="jog-scale-w">
                             <div class="jog-wheel-ticks"></div>
                             <div class="jog-wheel-needle"></div>
                           </div>
                           <div class="jog-wheel-container" id="jog-scale-h">
+                            <div class="jog-wheel-ticks"></div>
+                            <div class="jog-wheel-needle is-white"></div>
+                          </div>
+                          <div class="jog-wheel-container" id="jog-scale-z" style="display: none;" title="Slide to adjust Depth (Z Scale)" aria-label="Z Depth Scale Ruler">
                             <div class="jog-wheel-ticks"></div>
                             <div class="jog-wheel-needle is-white"></div>
                           </div>
@@ -3918,7 +3926,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.100</span>
+          <span class="welcome-badge">v0.5.105</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3954,11 +3962,47 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.105 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.105</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 2, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Volumetric 3D Effects Suite (`effects/box_3d.js`, `effects/extrude_3d.js`, `effects/pyramid_3d.js`, `effects/sphere_3d.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Invisible 3D Layer Rendering Without Effects (`js/fishtool-engine.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Duplicate 3D Cube Gallery Item (`effects/box_3d.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Transform Scale Z Auto-Reveal (`js/editor.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.100 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.100</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 2, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -5978,10 +6022,10 @@
   <script src="vendor/lamejs/lame.min.js"></script>
   <script src="js/db.js"></script>
   <script src="js/modal.js"></script>
-  <script src="js/popover.js?v=3"></script>
+  <script src="js/popover.js?v=4"></script>
   <script src="js/drawer.js"></script>
   <script src="js/switch.js"></script>
-  <script src="js/wireframe.js?v=3"></script>
+  <script src="js/wireframe.js?v=4"></script>
   <script src="js/canvas-overlay.js"></script>
   <script src="js/shapes.js"></script>
   <script src="shapes/rectangle.js"></script>
@@ -5991,10 +6035,11 @@
   <script src="shapes/polygon.js"></script>
   <script src="shapes/capsule.js"></script>
   <script src="shapes/heart.js"></script>
-  <script src="js/effects.js?v=0.5.100"></script>
+  <script src="js/effects.js?v=0.5.105"></script>
   <script src="effects/anamorphic_flare.js"></script>
   <script src="effects/angle_control.js"></script>
   <script src="effects/bevel.js"></script>
+  <script src="effects/box_3d.js"></script>
   <script src="effects/brightness_contrast.js"></script>
   <script src="effects/camera_lens_blur.js"></script>
   <script src="effects/checkbox_control.js"></script>
@@ -6009,6 +6054,7 @@
   <script src="effects/drop_shadow.js"></script>
   <script src="effects/exposure_gamma.js"></script>
   <script src="effects/expression_controls.js"></script>
+  <script src="effects/extrude_3d.js"></script>
   <script src="effects/fast_box_blur.js"></script>
   <script src="effects/fill.js"></script>
   <script src="effects/flicker.js"></script>
@@ -6027,6 +6073,7 @@
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/oscillate.js"></script>
   <script src="effects/point_control.js"></script>
+  <script src="effects/pyramid_3d.js"></script>
   <script src="effects/radio_waves.js"></script>
   <script src="effects/rays.js"></script>
   <script src="effects/remove_bg.js"></script>
@@ -6038,6 +6085,7 @@
   <script src="effects/shatter.js"></script>
   <script src="effects/slider_control.js"></script>
   <script src="effects/solid_aura.js"></script>
+  <script src="effects/sphere_3d.js"></script>
   <script src="effects/star_burst.js"></script>
   <script src="effects/swing.js"></script>
   <script src="effects/tile.js"></script>
@@ -6049,22 +6097,22 @@
   <script src="effects/warp.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="js/color-picker.js"></script>
-  <script src="js/fishtool-engine.js?v=6"></script>
+  <script src="js/fishtool-engine.js?v=8"></script>
   <script src="js/fishtools-adapter.js?v=4"></script>
   <script src="js/fish-audio-engine.js"></script>
   <script src="js/frame-extractor.js"></script>
   <script src="js/preview-cache.js"></script>
-  <script src="js/bg-removal-engine.js?v=0.5.100"></script>
+  <script src="js/bg-removal-engine.js?v=0.5.105"></script>
   <script src="js/template-editor.js"></script>
   <script src="js/text-engine.js"></script>
   <script src="text/default.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.100"></script>
-  <script src="js/editor.js?v=0.5.100"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.105"></script>
+  <script src="js/editor.js?v=0.5.105"></script>
   <script src="js/attributes-clipboard.js"></script>
-  <script src="js/openfishtools-generators3d.js?v=0.5.100"></script>
-  <script src="js/openfishtools-controller.js?v=0.5.100"></script>
-  <script src="js/desktop.js?v=0.5.100"></script>
+  <script src="js/openfishtools-generators3d.js?v=0.5.105"></script>
+  <script src="js/openfishtools-controller.js?v=0.5.105"></script>
+  <script src="js/desktop.js?v=0.5.105"></script>
 </body>
 </html>

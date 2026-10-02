@@ -21,6 +21,13 @@
     "icon": "assets/FXPH.svg"
   },
   {
+    "file": "box_3d.js",
+    "id": "box_3d",
+    "name": "3D Box / Cube",
+    "category": "3d",
+    "icon": "assets/FXPH.svg"
+  },
+  {
     "file": "brightness_contrast.js",
     "id": "brightness-contrast",
     "name": "Brightness / Contrast",
@@ -116,6 +123,13 @@
     "id": "expression-controls",
     "name": "Expression Controls",
     "category": "expression",
+    "icon": "assets/FXPH.svg"
+  },
+  {
+    "file": "extrude_3d.js",
+    "id": "extrude_3d",
+    "name": "3D Extrude",
+    "category": "3d",
     "icon": "assets/FXPH.svg"
   },
   {
@@ -245,6 +259,13 @@
     "icon": "assets/FXPH.svg"
   },
   {
+    "file": "pyramid_3d.js",
+    "id": "pyramid_3d",
+    "name": "3D Pyramid",
+    "category": "3d",
+    "icon": "assets/FXPH.svg"
+  },
+  {
     "file": "radio_waves.js",
     "id": "radio-waves",
     "name": "Radio Waves",
@@ -319,6 +340,13 @@
     "id": "solid-aura",
     "name": "Solid Aura (Flux)",
     "category": "layer",
+    "icon": "assets/FXPH.svg"
+  },
+  {
+    "file": "sphere_3d.js",
+    "id": "sphere_3d",
+    "name": "3D Sphere",
+    "category": "3d",
     "icon": "assets/FXPH.svg"
   },
   {

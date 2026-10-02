@@ -551,6 +551,9 @@
           }
         }
       }
+      if (typeof invalidateEffectivePropsCache === 'function') {
+        invalidateEffectivePropsCache();
+      }
     }
     window.invalidatePreviewCacheForLayer = invalidatePreviewCacheForLayer;
 
@@ -577,6 +580,7 @@
       if (eff.rotY !== undefined) layer.rotY = eff.rotY;
       if (eff.scaleW !== undefined) layer.scaleW = eff.scaleW;
       if (eff.scaleH !== undefined) layer.scaleH = eff.scaleH;
+      if (eff.scaleZ !== undefined) layer.scaleZ = eff.scaleZ;
       if (eff.skewX !== undefined) layer.skewX = eff.skewX;
       if (eff.skewY !== undefined) layer.skewY = eff.skewY;
       if (eff.opacity !== undefined) layer.opacity = eff.opacity;
@@ -722,6 +726,8 @@
                 anchorZ: l.anchorZ || 0,
                 scaleW: l.scaleW,
                 scaleH: l.scaleH,
+                scaleZ: l.scaleZ !== undefined ? l.scaleZ : undefined,
+                depth: l.depth !== undefined ? l.depth : undefined,
                 rotation: l.rotation,
                 rotX: l.rotX || 0,
                 rotY: l.rotY || 0,
@@ -5076,9 +5082,11 @@
         };
       }
       if (prop === 'scale') {
+        const defaultZ = Math.round(Math.min(Math.abs(layer.scaleW || 300), Math.abs(layer.scaleH || 300)));
         return {
           scaleW: layer.scaleW !== undefined ? layer.scaleW : (eff.scaleW !== undefined ? eff.scaleW : (layer.mediaWidth || 500)),
-          scaleH: layer.scaleH !== undefined ? layer.scaleH : (eff.scaleH !== undefined ? eff.scaleH : (layer.mediaHeight || 500))
+          scaleH: layer.scaleH !== undefined ? layer.scaleH : (eff.scaleH !== undefined ? eff.scaleH : (layer.mediaHeight || 500)),
+          scaleZ: layer.scaleZ !== undefined ? layer.scaleZ : (eff.scaleZ !== undefined ? eff.scaleZ : defaultZ)
         };
       }
       if (prop === 'skew') {
@@ -5120,8 +5128,20 @@
           const effFx = eff.effects.find(f => f.id === fxId);
           if (effFx && effFx[pName] !== undefined) effVal = effFx[pName];
         }
+        if (effVal !== undefined) {
+          return { [pName]: effVal };
+        }
+        if (fx && window.FishEffectsRegistry) {
+          const def = window.FishEffectsRegistry.get(fx.type);
+          if (def && Array.isArray(def.params)) {
+            const pDef = def.params.find(p => p.id === pName);
+            if (pDef && pDef.default !== undefined) {
+              return { [pName]: pDef.default };
+            }
+          }
+        }
         return {
-          [pName]: effVal !== undefined ? effVal : 0
+          [pName]: 0
         };
       }
       if (prop === 'brightness') {
@@ -5605,6 +5625,7 @@
       const baseProps = {
         _currentSec: currentSec,
         _timeInClip: Math.max(0, currentSec - (layer.startSec !== undefined ? layer.startSec : 0)),
+        is3D: !!layer.is3D,
         posX: layer.posX !== undefined ? layer.posX : 540,
         posY: layer.posY !== undefined ? layer.posY : 960,
         posZ: layer.posZ !== undefined ? layer.posZ : 0,
@@ -5617,6 +5638,7 @@
         rotation: layer.rotZ !== undefined ? layer.rotZ : (layer.rotation || 0),
         scaleW: layer.scaleW !== undefined ? layer.scaleW : 500,
         scaleH: layer.scaleH !== undefined ? layer.scaleH : 500,
+        scaleZ: layer.scaleZ !== undefined ? layer.scaleZ : Math.round(Math.min(Math.abs(layer.scaleW || 300), Math.abs(layer.scaleH || 300))),
         skewX: layer.skewX || 0,
         skewY: layer.skewY || 0,
         opacity: (layer.opacity !== undefined && layer.opacity !== null) ? (Number(layer.opacity) > 1.0 ? Math.max(0, Math.min(1, Number(layer.opacity) / 100)) : Math.max(0, Math.min(1, Number(layer.opacity)))) : 1.0,
@@ -6850,6 +6872,50 @@
       const valScaleH = document.getElementById('val-scale-h');
       if (valScaleW) valScaleW.textContent = formatTransformNumber(curScaleW);
       if (valScaleH) valScaleH.textContent = formatTransformNumber(curScaleH);
+
+      const has3DFx = Array.isArray(layer.effects) && layer.effects.some(f => {
+        if (!f || f.disabled) return false;
+        const t = (f.type || f.id || '').toLowerCase();
+        if (t === 'box_3d' || t === 'box-3d' || t === 'cube_3d' || t === 'cube-3d' || t === 'extrude_3d' || t === 'extrude-3d' || t === 'pyramid_3d' || t === 'pyramid-3d' || t === 'sphere_3d' || t === 'sphere-3d' || t.includes('3d') || t.includes('cube') || t.includes('box')) return true;
+        const name = (f.name || '').toLowerCase();
+        if (name.includes('3d') || name.includes('cube') || name.includes('box')) return true;
+        if (window.FishEffects && window.FishEffects.registry) {
+          const def = window.FishEffects.registry.get(f.type || f.id);
+          if (def && (def.category === '3d' || def.isExclusive3D)) return true;
+        }
+        return false;
+      });
+      const is3DScale = is3D || has3DFx;
+      const defaultZ = Math.round(Math.min(Math.abs(curScaleW), Math.abs(curScaleH)));
+      if (is3DScale && layer.scaleZ === undefined) {
+        layer.scaleZ = defaultZ;
+      }
+      const curScaleZ = eff.scaleZ !== undefined ? eff.scaleZ : (layer.scaleZ !== undefined ? layer.scaleZ : defaultZ);
+
+      const valScaleZ = document.getElementById('val-scale-z');
+      const cardScaleZ = document.getElementById('card-scale-z');
+      const jogScaleZ = document.getElementById('jog-scale-z');
+      const dualJog = document.getElementById('jog-scale-unlinked');
+
+      if (cardScaleZ) {
+        cardScaleZ.style.display = is3DScale ? 'flex' : 'none';
+        cardScaleZ.classList.toggle('is-3d-hidden', !is3DScale);
+      }
+      if (jogScaleZ) {
+        jogScaleZ.style.display = is3DScale ? 'block' : 'none';
+        jogScaleZ.classList.toggle('is-3d-hidden', !is3DScale);
+      }
+      if (dualJog) {
+        dualJog.classList.toggle('has-3d', is3DScale);
+      }
+      if (valScaleZ) valScaleZ.textContent = formatTransformNumber(curScaleZ);
+
+      const lblScaleW = document.getElementById('lbl-scale-w');
+      const lblScaleH = document.getElementById('lbl-scale-h');
+      const lblScaleZ = document.getElementById('lbl-scale-z');
+      if (lblScaleW) lblScaleW.textContent = is3DScale ? 'X' : 'Width';
+      if (lblScaleH) lblScaleH.textContent = is3DScale ? 'Y' : 'Height';
+      if (lblScaleZ) lblScaleZ.textContent = 'Z';
 
       // 4. Rotation value for active axis (X, Y, Z)
       if (!is3D && currentRotateAxis !== 'z') {
@@ -8424,6 +8490,7 @@
           if (linkOffSvg) linkOffSvg.style.display = isScaleLinked ? 'none' : '';
           if (singleJog) singleJog.style.display = isScaleLinked ? '' : 'none';
           if (dualJog) dualJog.style.display = isScaleLinked ? 'none' : 'flex';
+          syncTransformControllerValues();
         });
       }
 
@@ -8787,6 +8854,10 @@
             targetL.rotation = val;
           }
 
+          if (typeof invalidateEffectivePropsCache === 'function') {
+            invalidateEffectivePropsCache();
+          }
+
           recordLayerPropertyChange(targetL, 'rotate');
 
           updateRotateKnob(val);
@@ -8869,7 +8940,7 @@
       }, true);
 
       // 1. Scale Linked Jog Wheel (#jog-scale-linked)
-      let scaleLinkedInit = { w: 1080, h: 1920, ratio: 1, targetL: null, baseW: 1920, baseH: 1080 };
+      let scaleLinkedInit = { w: 1080, h: 1920, z: 300, ratio: 1, targetL: null, baseW: 1920, baseH: 1080 };
       bindJogWheel(document.getElementById('jog-scale-linked'), {
         onStart: () => {
           const info = getSelectedLayerAndBaseDims();
@@ -8880,11 +8951,13 @@
           invalidatePreviewCacheForLayer(l);
           const initW = l.scaleW !== undefined ? l.scaleW : (l.normW !== undefined ? l.normW * info.baseW : info.baseW);
           const initH = l.scaleH !== undefined ? l.scaleH : (l.normH !== undefined ? l.normH * info.baseH : info.baseH);
+          const defaultZ = Math.round(Math.min(Math.abs(initW), Math.abs(initH)));
+          const initZ = l.scaleZ !== undefined ? l.scaleZ : defaultZ;
           const ratio = (initH !== 0 && !isNaN(initH)) ? (initW / initH) : 1;
-          scaleLinkedInit = { w: initW, h: initH, ratio: ratio, targetL: l, baseW: info.baseW, baseH: info.baseH };
+          scaleLinkedInit = { w: initW, h: initH, z: initZ, ratio: ratio, targetL: l, baseW: info.baseW, baseH: info.baseH };
         },
         onMove: (deltaX) => {
-          const { targetL, w, h, ratio, baseW, baseH } = scaleLinkedInit;
+          const { targetL, w, h, z, ratio, baseW, baseH } = scaleLinkedInit;
           if (!targetL) return;
           let newW = w + deltaX * 2;
           let newH = ratio !== 0 ? newW / ratio : newW;
@@ -8933,6 +9006,12 @@
 
           targetL.scaleW = Number(newW.toFixed(1));
           targetL.scaleH = Number(newH.toFixed(1));
+          if (targetL.scaleZ !== undefined && w !== 0) {
+            const factor = Math.abs(newW) / Math.abs(w);
+            targetL.scaleZ = Math.max(1, Math.round(z * factor));
+            const valZ = document.getElementById('val-scale-z');
+            if (valZ) valZ.textContent = targetL.scaleZ.toFixed(1);
+          }
           targetL._userResized = true;
           targetL._userResizedManual = true;
           targetL.normW = Math.abs(targetL.scaleW) / baseW;
@@ -9120,9 +9199,74 @@
           }
           redrawComposition();
           renderTimelineLayers();
+        }
+      });
+
+      // 3b. Scale Z (Depth) Unlinked Jog Wheel (#jog-scale-z)
+      let scaleZInit = { z: 300, targetL: null };
+      bindJogWheel(document.getElementById('jog-scale-z'), {
+        onStart: () => {
+          const info = getSelectedLayerAndBaseDims();
+          if (!info) return;
+          const l = info.layer;
+          if (l && l.expressions && l.expressions.scale) return;
+          syncLayerWithEffectiveProps(l);
+          invalidatePreviewCacheForLayer(l);
+          const defaultZ = Math.round(Math.min(Math.abs(l.scaleW || l.w || 300), Math.abs(l.scaleH || l.h || 300)));
+          const initZ = l.scaleZ !== undefined ? l.scaleZ : defaultZ;
+          scaleZInit = { z: initZ, targetL: l };
+        },
+        onMove: (deltaX) => {
+          const { targetL, z } = scaleZInit;
+          if (!targetL) return;
+          let newZ = Math.max(1, Math.round(z + deltaX * 2));
+          targetL.scaleZ = newZ;
+          recordLayerPropertyChange(targetL, 'scale');
+          const valZ = document.getElementById('val-scale-z');
+          if (valZ) valZ.textContent = targetL.scaleZ.toFixed(1);
+          redrawComposition();
+        },
+        onEnd: () => {
+          if (scaleZInit && scaleZInit.targetL) {
+            invalidatePreviewCacheForLayer(scaleZInit.targetL);
+          }
+          redrawComposition();
+          renderTimelineLayers();
           saveCurrentProjectLayers();
         }
       });
+
+      // Direct Value Input on Scale Z Card (#card-scale-z)
+      const cardScaleZEl = document.getElementById('card-scale-z');
+      if (cardScaleZEl) {
+        cardScaleZEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const info = getSelectedLayerAndBaseDims();
+          if (!info) return;
+          const l = info.layer;
+          const curVal = l.scaleZ !== undefined ? l.scaleZ : Math.round(Math.min(Math.abs(l.scaleW || 300), Math.abs(l.scaleH || 300)));
+          if (typeof window.openValueInputPopover === 'function') {
+            window.openValueInputPopover(cardScaleZEl, {
+              initialValue: curVal,
+              min: 1,
+              max: 2000,
+              unit: 'px',
+              label: 'Depth (Z Scale)',
+              onApply: (newVal) => {
+                syncLayerWithEffectiveProps(l);
+                l.scaleZ = Math.max(1, Math.round(newVal));
+                recordLayerPropertyChange(l, 'scale');
+                const valZ = document.getElementById('val-scale-z');
+                if (valZ) valZ.textContent = l.scaleZ.toFixed(1);
+                invalidatePreviewCacheForLayer(l);
+                redrawComposition();
+                renderTimelineLayers();
+                saveCurrentProjectLayers();
+              }
+            });
+          }
+        });
+      }
 
       // 4. Skew X Jog Wheel (#jog-skew-x)
       let skewXInit = { skewX: 0, targetL: null };
@@ -16174,6 +16318,38 @@
         });
       }
 
+      function sanitizeLayer3DEffects(layer) {
+        if (!layer || !Array.isArray(layer.effects)) return;
+        const is3DDef = (type) => {
+          const d = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(type) : null;
+          return !!(d && (d.isExclusive3D || (d.category && d.category.toLowerCase() === '3d')));
+        };
+
+        const has3DFx = layer.effects.some(fx => fx && is3DDef(fx.type));
+        if (has3DFx) {
+          layer.is3D = true;
+          const btn3D = document.getElementById('btn-layer-header-3d');
+          if (btn3D && window.selectedLayerId === layer.id) {
+            btn3D.classList.add('is-active');
+            btn3D.setAttribute('aria-pressed', 'true');
+          }
+          if (typeof syncTransform3DVisibility === 'function') syncTransform3DVisibility();
+
+          // Keep only the latest 3D effect if multiple exist
+          let last3DIdx = -1;
+          for (let i = layer.effects.length - 1; i >= 0; i--) {
+            if (layer.effects[i] && is3DDef(layer.effects[i].type)) {
+              if (last3DIdx === -1) {
+                last3DIdx = i;
+              } else {
+                layer.effects.splice(i, 1);
+                last3DIdx--;
+              }
+            }
+          }
+        }
+      }
+
       if (btnPasteAll) {
         btnPasteAll.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -16220,6 +16396,8 @@
               });
             }
           });
+
+          sanitizeLayer3DEffects(layer);
 
           layer.hasBrightnessContrast = true;
           if (layer.effects.length > 0) {
@@ -16287,7 +16465,7 @@
               catCard.setAttribute('role', 'button');
               catCard.setAttribute('tabindex', '0');
               catCard.dataset.category = catLower;
-              const displayName = def.category;
+              const displayName = (catLower === '3d') ? '3D' : def.category;
               catCard.title = displayName;
               catCard.innerHTML = `
                 <div class="effects-category-card-overlay"></div>
@@ -16407,6 +16585,43 @@
         const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
         if (!layer) return;
         ensureLayerEffects(layer);
+
+        // Guard: 3D effects are mutually exclusive — only one per layer.
+        // Stacking multiple 3D effects causes geometry conflicts and broken renders.
+        const incomingDef = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(effectTypeId) : null;
+        const incomingIs3D = !!(incomingDef && (incomingDef.isExclusive3D || (incomingDef.category && incomingDef.category.toLowerCase() === '3d')));
+        if (incomingIs3D) {
+          // Automatic 3D Layer conversion on 3D effect addition
+          layer.is3D = true;
+          const lW = Math.round(layer.scaleW || layer.w || 300);
+          const lH = Math.round(layer.scaleH || layer.h || 300);
+          if (layer.scaleZ === undefined) {
+            layer.scaleZ = Math.max(20, Math.round(Math.min(Math.abs(lW), Math.abs(lH))));
+          }
+          const btn3D = document.getElementById('btn-layer-header-3d');
+          if (btn3D && window.selectedLayerId === layer.id) {
+            btn3D.classList.add('is-active');
+            btn3D.setAttribute('aria-pressed', 'true');
+          }
+          if (typeof syncTransform3DVisibility === 'function') syncTransform3DVisibility();
+          if (typeof syncTransformControllerValues === 'function') syncTransformControllerValues();
+
+          if (Array.isArray(layer.effects)) {
+            const existing3DIdx = layer.effects.findIndex(fx => {
+              const d = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
+              return d && (d.isExclusive3D || (d.category && d.category.toLowerCase() === '3d'));
+            });
+            if (existing3DIdx !== -1) {
+              // Replace existing 3D effect instead of stacking to prevent conflict / bug
+              if (typeof showEffectsRackToast === 'function') {
+                showEffectsRackToast('Only one 3D effect allowed per layer. Replaced existing 3D effect.', 'warn');
+              }
+              // Remove old 3D effect and continue to insert new one
+              layer.effects.splice(existing3DIdx, 1);
+            }
+          }
+        }
+
         let newFx = null;
         if (window.FishEffects && window.FishEffects.registry && typeof window.FishEffects.registry.createInstance === 'function') {
           newFx = window.FishEffects.registry.createInstance(effectTypeId);
@@ -16420,7 +16635,21 @@
             disabled: false
           };
         }
+        if (incomingIs3D && newFx) {
+          const lW = Math.round(layer.scaleW || layer.w || 300);
+          const lH = Math.round(layer.scaleH || layer.h || 300);
+          const cubeDim = Math.max(20, Math.round(Math.min(Math.abs(lW), Math.abs(lH))));
+          if (layer.scaleZ === undefined) layer.scaleZ = cubeDim;
+        }
         layer.effects.push(newFx);
+
+        if (incomingIs3D) {
+          sanitizeLayer3DEffects(layer);
+          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+          if (typeof syncTransform3DVisibility === 'function') syncTransform3DVisibility();
+          if (typeof syncTransformControllerValues === 'function') syncTransformControllerValues();
+        }
+
         layer.hasBrightnessContrast = true;
         if (layer.effects[0]) {
           layer.brightness = layer.effects[0].brightness !== undefined ? layer.effects[0].brightness : 0;
@@ -16489,7 +16718,8 @@
             const name = (c.querySelector('.effects-gallery-item-name')?.textContent || c.dataset.effectId || '').toLowerCase();
             const cat = (c.dataset.category || '').toLowerCase();
             const isExtOrExpr = (cat === 'extension' || cat === 'expression') && ('extension'.includes(q) || 'expression'.includes(q));
-            const matches = name.includes(q) || cat.includes(q) || isExtOrExpr;
+            const isCubeMatch = (c.dataset.effectId === 'box_3d' || name.includes('box') || name.includes('cube')) && ('cube'.includes(q) || 'kubus'.includes(q));
+            const matches = name.includes(q) || cat.includes(q) || isExtOrExpr || isCubeMatch;
             c.style.display = matches ? '' : 'none';
             if (matches) matchedCount++;
           });
@@ -16735,6 +16965,8 @@
             });
           }
         });
+
+        sanitizeLayer3DEffects(layer);
 
         layer.hasBrightnessContrast = true;
         if (layer.effects.length > 0) {
@@ -17166,7 +17398,11 @@
         { id: 'point-control', name: 'Point Control', category: 'expression', icon: 'assets/FXPH.svg' },
         { id: 'angle-control', name: 'Angle Control', category: 'expression', icon: 'assets/FXPH.svg' },
         { id: 'checkbox-control', name: 'Checkbox Control', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'color-control', name: 'Color Control', category: 'expression', icon: 'assets/FXPH.svg' }
+        { id: 'color-control', name: 'Color Control', category: 'expression', icon: 'assets/FXPH.svg' },
+        { id: 'box_3d', name: '3D Box / Cube', category: '3d', icon: 'assets/FXPH.svg' },
+        { id: 'extrude_3d', name: '3D Extrude', category: '3d', icon: 'assets/FXPH.svg' },
+        { id: 'pyramid_3d', name: '3D Pyramid', category: '3d', icon: 'assets/FXPH.svg' },
+        { id: 'sphere_3d', name: '3D Sphere', category: '3d', icon: 'assets/FXPH.svg' }
       ];
     }
     window.getAllAvailableEffects = getAllAvailableEffects;
@@ -17175,9 +17411,37 @@
       const targetLayers = getSelectedTimelineLayers();
       if (!targetLayers || targetLayers.length === 0) return;
 
+      const incomingDef = (window.FishEffects && window.FishEffects.registry) ? window.FishEffects.registry.get(effectTypeId) : null;
+      const incomingIs3D = !!(incomingDef && (incomingDef.isExclusive3D || (incomingDef.category && incomingDef.category.toLowerCase() === '3d'))) ||
+        effectTypeId === 'box_3d' || effectTypeId === 'cube_3d' || effectTypeId === 'extrude_3d' || effectTypeId === 'pyramid_3d' || effectTypeId === 'sphere_3d';
+
       let lastNewFx = null;
       targetLayers.forEach(layer => {
         ensureLayerEffects(layer);
+
+        if (incomingIs3D) {
+          layer.is3D = true;
+          const lW = Math.round(layer.scaleW || layer.w || 300);
+          const lH = Math.round(layer.scaleH || layer.h || 300);
+          if (layer.scaleZ === undefined) {
+            layer.scaleZ = Math.max(20, Math.round(Math.min(Math.abs(lW), Math.abs(lH))));
+          }
+          const btn3D = document.getElementById('btn-layer-header-3d');
+          if (btn3D && window.selectedLayerId === layer.id) {
+            btn3D.classList.add('is-active');
+            btn3D.setAttribute('aria-pressed', 'true');
+          }
+          if (Array.isArray(layer.effects)) {
+            const existing3DIdx = layer.effects.findIndex(fx => {
+              const d = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
+              return d && (d.isExclusive3D || (d.category && d.category.toLowerCase() === '3d'));
+            });
+            if (existing3DIdx !== -1) {
+              layer.effects.splice(existing3DIdx, 1);
+            }
+          }
+        }
+
         let newFx = null;
         if (window.FishEffects && window.FishEffects.registry && typeof window.FishEffects.registry.createInstance === 'function') {
           newFx = window.FishEffects.registry.createInstance(effectTypeId);
@@ -17191,7 +17455,18 @@
             disabled: false
           };
         }
+        if (incomingIs3D && newFx) {
+          const lW = Math.round(layer.scaleW || layer.w || 300);
+          const lH = Math.round(layer.scaleH || layer.h || 300);
+          const cubeDim = Math.max(20, Math.round(Math.min(Math.abs(lW), Math.abs(lH))));
+          if (layer.scaleZ === undefined) layer.scaleZ = cubeDim;
+        }
         layer.effects.push(newFx);
+
+        if (incomingIs3D && typeof sanitizeLayer3DEffects === 'function') {
+          sanitizeLayer3DEffects(layer);
+        }
+
         layer.hasBrightnessContrast = true;
         if (layer.effects[0]) {
           layer.brightness = layer.effects[0].brightness !== undefined ? layer.effects[0].brightness : 0;
@@ -17214,6 +17489,11 @@
 
       if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
       if (typeof redrawComposition === 'function') redrawComposition('add-effect');
+      if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+      if (incomingIs3D) {
+        if (typeof syncTransform3DVisibility === 'function') syncTransform3DVisibility();
+        if (typeof syncTransformControllerValues === 'function') syncTransformControllerValues();
+      }
 
       if (lastNewFx) {
         const params = (typeof getEffectParamIds === 'function') ? getEffectParamIds(lastNewFx) : ['param'];
@@ -17287,7 +17567,9 @@
         if (!q) return true;
         const name = (fx.name || fx.id || '').toLowerCase();
         const cat = (fx.category || '').toLowerCase();
-        return name.includes(q) || cat.includes(q);
+        const id = (fx.id || '').toLowerCase();
+        const isCubeMatch = (id.includes('box') || id.includes('cube') || name.includes('box') || name.includes('cube')) && ('cube'.includes(q) || 'kubus'.includes(q));
+        return name.includes(q) || cat.includes(q) || id.includes(q) || isCubeMatch;
       });
 
       if (quickEffectsFilteredList.length === 0) {
@@ -18449,10 +18731,13 @@
         window.updateTimelinePosition(window.timelinePanX || 0, true);
       }
 
-      // Automatically start background frame extraction for existing project video layers
-      if (window.VideoFrameExtractor && Array.isArray(currentProjectState.layers)) {
+      // Automatically sanitize 3D effects & start background frame extraction for existing project video layers
+      if (Array.isArray(currentProjectState.layers)) {
         currentProjectState.layers.forEach(l => {
-          if (l.type === 'video') {
+          if (typeof sanitizeLayer3DEffects === 'function') {
+            sanitizeLayer3DEffects(l);
+          }
+          if (l.type === 'video' && window.VideoFrameExtractor) {
             window.VideoFrameExtractor.extractLayerRange(l);
           }
         });
@@ -22773,6 +23058,9 @@
 
         const layer = (currentProjectState.layers || []).find(l => l.id === layerId);
         if (layer) {
+          if (typeof sanitizeLayer3DEffects === 'function') {
+            sanitizeLayer3DEffects(layer);
+          }
           window.selectedMediaId = layer.mediaId;
           const currentSec = Math.max(0, -(panX || 0) / pixelsPerSecond);
           const start = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);

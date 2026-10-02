@@ -3675,6 +3675,11 @@
   width: 100% !important;
 }
 
+.desktop-panel-right .transform-dual-rulers.has-3d:not([style*="display: none"]),
+.desktop-panel-right #jog-scale-unlinked.has-3d:not([style*="display: none"]) {
+  grid-template-columns: 1fr 1fr 1fr !important;
+}
+
 /* 5. Desktop Inspector Subviews Consistency (Text, Camera, Beatmark, Audio, Speed) */
 /* Text Subview */
 .desktop-panel-right #layer-drawer-text-view .shape-work-area {

@@ -30,7 +30,8 @@
         render: typeof def.render === 'function' ? def.render : null,
         renderPost: typeof def.renderPost === 'function' ? def.renderPost : null,
         onButtonClick: typeof def.onButtonClick === 'function' ? def.onButtonClick : null,
-        isExpanding: !!def.isExpanding
+        isExpanding: !!def.isExpanding,
+        isExclusive3D: !!def.isExclusive3D
       };
       registry.set(def.id, registeredDef);
 
@@ -64,7 +65,9 @@
         disabled: false
       };
       def.params.forEach(p => {
-        if (p.type === 'switch' || p.type === 'boolean') {
+        if (p.type === 'button' || p.type === 'action') {
+          return;
+        } else if (p.type === 'switch' || p.type === 'boolean') {
           instance[p.id] = (p.default !== undefined) ? p.default : 1;
         } else if (p.type === 'color') {
           instance[p.id] = p.default || '#ffffff';
@@ -224,7 +227,7 @@
       if (!fx) return [];
       const def = FishEffectsRegistry.get(fx.type);
       if (def && Array.isArray(def.params)) {
-        return def.params.map(p => p.id);
+        return def.params.filter(p => p.type !== 'button' && p.type !== 'action').map(p => p.id);
       }
       return Object.keys(fx).filter(k => !['id', 'type', 'name', 'isExpanded', 'disabled'].includes(k));
     },

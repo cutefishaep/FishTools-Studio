@@ -421,6 +421,42 @@
             <div class="timeline-lane-reorder-overlay" id="timeline-lane-reorder-overlay"></div>
           </div>
 
+          <!-- 3. Floating Multi-Select Batch Actions Pill (Icon-Only, Bottom-Left of Timeline) -->
+          <div class="timeline-batch-floating-bar" id="timeline-batch-floating-bar" style="display: none;" role="toolbar" aria-label="Batch Layer Actions">
+            <!-- Group / Precompose Button -->
+            <button type="button" class="batch-floating-btn" id="btn-batch-float-group" title="Group Layer(s)" aria-label="Group Layer(s)">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <!-- Mask Group Button -->
+            <button type="button" class="batch-floating-btn" id="btn-batch-float-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <defs>
+                  <clipPath id="float-mask-group-clip">
+                    <polygon points="10,7.5 5.5,16.5 14.5,16.5"/>
+                  </clipPath>
+                </defs>
+                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" opacity="0.45"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor" clip-path="url(#float-mask-group-clip)"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </button>
+
+            <!-- Exclude Group Button -->
+            <button type="button" class="batch-floating-btn" id="btn-batch-float-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
+                <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </button>
+          </div>
+
           <!-- 4. Floating Round Action Button (Add Track / Layer) -->
           <button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Add Track / Layer" aria-label="Add Track or Layer">
             <span class="svg-icon svg-icon-plus" aria-hidden="true"></span>
@@ -522,7 +558,7 @@
                     </div>
                   </div>
 
-                  <!-- 3. Category Panel: Control Camera Layer (Flexible Grid: Camera, Null, Adjustment) -->
+                  <!-- 3. Category Panel: Control Camera Layer (Symmetrical 3x2 Grid: Row 1 Base Layers, Row 2 Overlap & Solid Layers) -->
                   <div class="add-layer-control-panel" id="add-layer-control-panel" style="display: none; width: 100%; padding: 4px 0;">
                     <div class="layer-action-btn-grid" id="add-layer-control-grid">
                       <!-- 1. Camera Layer Button -->
@@ -554,7 +590,38 @@
                         <span class="layer-action-label">Adjustment</span>
                       </button>
 
-                      <!-- 4. Solid Layer Button -->
+                      <!-- 4. Overlap Camera Layer Button -->
+                      <button type="button" class="layer-action-btn" id="btn-add-overlap-camera" title="Overlap Camera Layer" aria-label="Overlap Camera">
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
+                          <path d="M7 4.5l1.3-1.5h4.4l1.3 1.5H17c.83 0 1.5.67 1.5 1.5v1.2c-.46-.13-.94-.2-1.44-.2H5.6c-.66 0-1.2.54-1.2 1.2V15c0 .35.08.68.21.98A1.49 1.49 0 0 1 4 14.5V6c0-.83.67-1.5 1.5-1.5H7z" opacity="0.45"/>
+                          <path d="M10 8l-1.5 2H6c-.83 0-1.5.67-1.5 1.5v8c0 .83.67 1.5 1.5 1.5h13c.83 0 1.5-.67 1.5-1.5v-8c0-.83-.67-1.5-1.5-1.5h-2.5L15 8h-5zm3 10.2c-2.32 0-4.2-1.88-4.2-4.2s1.88-4.2 4.2-4.2 4.2 1.88 4.2 4.2-1.88 4.2-4.2 4.2zm0-1.8c1.33 0 2.4-1.07 2.4-2.4s-1.07-2.4-2.4-2.4-2.4 1.07-2.4 2.4 1.07 2.4 2.4 2.4z"/>
+                        </svg>
+                        <span class="layer-action-label">Overlap Camera</span>
+                      </button>
+
+                      <!-- 5. Overlap Null Layer Button -->
+                      <button type="button" class="layer-action-btn" id="btn-add-overlap-null" title="Overlap Null Layer" aria-label="Overlap Null">
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
+                          <g opacity="0.45">
+                            <rect x="2" y="2" width="2.5" height="2.5" rx="0.5"/>
+                            <rect x="14.5" y="2" width="2.5" height="2.5" rx="0.5"/>
+                            <rect x="2" y="14.5" width="2.5" height="2.5" rx="0.5"/>
+                            <path d="M4.5 2.8h10v1h-10zm0 12.4h10v1h-10zM2.8 4.5h1v10h-1zm12.4 0h1v10h-1z"/>
+                            <path d="M8.8 6h1.2v2h2v1.2h-2v2H8.8v-2h-2V8h2z"/>
+                          </g>
+                          <g>
+                            <rect x="7" y="7" width="3" height="3" rx="0.5"/>
+                            <rect x="18" y="7" width="3" height="3" rx="0.5"/>
+                            <rect x="7" y="18" width="3" height="3" rx="0.5"/>
+                            <rect x="18" y="18" width="3" height="3" rx="0.5"/>
+                            <path d="M10 8h8v1.5h-8zm0 10.5h8v1.5h-8zM8 10h1.5v8H8zm10.5 0h1.5v8h-1.5z"/>
+                            <path d="M13.25 11h1.5v2.25H17v1.5h-2.25V17h-1.5v-2.25H11v-1.5h2.25z"/>
+                          </g>
+                        </svg>
+                        <span class="layer-action-label">Overlap Null</span>
+                      </button>
+
+                      <!-- 6. Solid Layer Button -->
                       <button type="button" class="layer-action-btn" id="btn-add-solid" title="Solid Layer" aria-label="Solid">
                         <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                           <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
@@ -1088,6 +1155,19 @@
                           <line class="preset-thumb-tangent" x1="32" y1="4" x2="20" y2="4"/>
                           <circle class="preset-thumb-handle" cx="20" cy="4" r="2"/>
                           <path class="preset-thumb-curve" d="M 4 32 C 16 32, 20 4, 32 4"/>
+                          <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
+                          <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
+                        </svg>
+                      </button>
+                      <!-- Preset 5: Z-Graph (Overlap Punch) -->
+                      <button type="button" class="graph-preset-btn" id="btn-graph-preset-z-graph" data-preset="z-graph" title="Z-Graph Easing (Overlap Punch)" aria-label="Z-Graph Easing">
+                        <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
+                          <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28"/>
+                          <line class="preset-thumb-tangent" x1="4" y1="32" x2="28" y2="32"/>
+                          <circle class="preset-thumb-handle" cx="28" cy="32" r="2"/>
+                          <line class="preset-thumb-tangent" x1="32" y1="4" x2="8" y2="4"/>
+                          <circle class="preset-thumb-handle" cx="8" cy="4" r="2"/>
+                          <path class="preset-thumb-curve" d="M 4 32 C 28 32, 8 4, 32 4"/>
                           <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
                           <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
                         </svg>
@@ -2562,10 +2642,11 @@
                             <div class="custom-dropdown-item" role="option" data-val="bounce_2">Bounce Pop (Scale)</div>
                             <div class="custom-dropdown-item" role="option" data-val="bounce_3">Wave Drop (Y Position)</div>
                             <div class="custom-dropdown-item" role="option" data-val="bounce_4">Wave Pop (Scale)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="slide_out">Slide Out</div>
                             <div class="custom-dropdown-item" role="option" data-val="wave">Kinetic Wave</div>
-                            <div class="custom-dropdown-item" role="option" data-val="typewriter">Typewriter</div>
                             <div class="custom-dropdown-item" role="option" data-val="fade_up">Fade Down</div>
                             <div class="custom-dropdown-item" role="option" data-val="glitch">Digital Glitch</div>
+                            <div class="custom-dropdown-item" role="option" data-val="typewriter">Typewriter</div>
                           </div>
                         </div>
                       </div>
@@ -2649,6 +2730,7 @@
     </div>
 
   </div>
+
 
 
   <!-- ==========================================================================
@@ -3811,7 +3893,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.98</span>
+          <span class="welcome-badge">v0.5.99</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -3847,11 +3929,47 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.99 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.99</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 2, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Camera &amp; Overlap Null — Authentic Leapfrog Math (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Rewrote leapfrog accumulation in `getLayerEffectivePropsAtTime` to correctly mirror the `_OVERLAP` null-rig architecture from `host/modules/misc.jsx`. Each transition `i` now contributes a **relative delta** `(K_{i+1} − K_i) × progress_i` additively on top of `K_0` baseline (`finalValue = K0 + Σ (K_{i+1} - K_i) × progress_i`), exactly matching the physical null-rig behavior in `applyKeyframeOverlap`. Previously, the label `accumulated` implied absolute interpolation but the math was computing sequential delta sums that double-counted intermediate keyframe values in 4+ keyframe scenarios.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Last-Keyframe Overshoot (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Final transition span extends to `t_M + (t_M − t_{M-1})`, so the animation continues past the last keyframe by one interval duration before clamping. Keyframe `K_M` value is now reached at `tEndFinal`, not at `t_M`, giving the last segment the same leapfrog momentum feel as intermediate transitions.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">CONTROL Grid Layout — Mobile Drawer &amp; Desktop Panel (`css/drawer.css`, `css/desktop.css`)</span>
+                  <span class="changelog-item-desc">Fixed asymmetric control grid. Mobile drawer `#add-layer-control-grid` now uses `repeat(3, 1fr)` (was misaligned with hanging empty slot). Desktop panel control grid uses `repeat(3, minmax(0, 1fr))` matching Shape grid symmetry. Button order reorganized into logical paired rows: Row 1 — Camera / Null / Adjustment; Row 2 — Overlap Camera / Overlap Null / Solid.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Camera &amp; Overlap Null Default Easing</span>
+                  <span class="changelog-item-desc">Default leapfrog Bezier curve uses dynamically computed `influenceOut`/`influenceIn` based on the interval span ratio (0.85 base influence, clamped 0.33–1.0), providing smooth organic overlap momentum. User-set graph easing is respected and propagated across all keyframes simultaneously via `setActiveEasing`.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.87 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.87</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 30, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -5704,21 +5822,95 @@
   <script src="effects/wave_warp.js"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
-  <script src="js/fishtools-adapter.js?v=0.5.98"></script>
+  <script src="js/fishtools-adapter.js?v=0.5.99"></script>
   <script src="js/fish-audio-engine.js"></script>
   <script src="js/frame-extractor.js"></script>
   <script src="js/preview-cache.js"></script>
-  <script src="js/bg-removal-engine.js?v=0.5.98"></script>
+  <script src="js/bg-removal-engine.js?v=0.5.99"></script>
   <script src="js/template-editor.js"></script>
   <script src="js/text-engine.js"></script>
   <script src="text/default.js"></script>
-  <script src="text/ae-presets.js"></script>
   <script src="js/motion-blur-engine.js"></script>
 
-  <script src="js/FishExport-Enggine.js?v=0.5.98"></script>
-  <script src="js/editor.js?v=0.5.98"></script>
+  <script src="js/FishExport-Enggine.js?v=0.5.99"></script>
+  <script src="js/editor.js?v=0.5.99"></script>
   <script src="js/attributes-clipboard.js"></script>
-  <script src="js/openfishtools-generators3d.js?v=0.5.98"></script>
-  <script src="js/openfishtools-controller.js?v=0.5.98"></script>
+  <script src="js/openfishtools-generators3d.js?v=0.5.99"></script>
+  <script src="js/openfishtools-controller.js?v=0.5.99"></script>
+</body>
+</html>
+re.js"></script>
+  <script src="effects/angle_control.js"></script>
+  <script src="effects/bevel.js"></script>
+  <script src="effects/brightness_contrast.js"></script>
+  <script src="effects/camera_lens_blur.js"></script>
+  <script src="effects/checkbox_control.js"></script>
+  <script src="effects/chromatic_aberration.js"></script>
+  <script src="effects/color_balance.js"></script>
+  <script src="effects/color_control.js"></script>
+  <script src="effects/color_temperature.js"></script>
+  <script src="effects/colorize.js"></script>
+  <script src="effects/curve.js"></script>
+  <script src="effects/deep_glow.js"></script>
+  <script src="effects/diffusion.js"></script>
+  <script src="effects/drop_shadow.js"></script>
+  <script src="effects/exposure_gamma.js"></script>
+  <script src="effects/expression_controls.js"></script>
+  <script src="effects/fast_box_blur.js"></script>
+  <script src="effects/fill.js"></script>
+  <script src="effects/flicker.js"></script>
+  <script src="effects/fsmb.js"></script>
+  <script src="effects/glow_aura.js"></script>
+  <script src="effects/grad_exposure.js"></script>
+  <script src="effects/gradient_overlay.js"></script>
+  <script src="effects/grid.js"></script>
+  <script src="effects/haze_flare.js"></script>
+  <script src="effects/highlight_shadow.js"></script>
+  <script src="effects/hue_shift.js"></script>
+  <script src="effects/invert.js"></script>
+  <script src="effects/linear_wipe.js"></script>
+  <script src="effects/lumia.js"></script>
+  <script src="effects/mono.js"></script>
+  <script src="effects/optic_compensation.js"></script>
+  <script src="effects/oscillate.js"></script>
+  <script src="effects/point_control.js"></script>
+  <script src="effects/radio_waves.js"></script>
+  <script src="effects/rays.js"></script>
+  <script src="effects/remove_bg.js"></script>
+  <script src="effects/rgb_split.js"></script>
+  <script src="effects/saturation_vibrant.js"></script>
+  <script src="effects/scanline.js"></script>
+  <script src="effects/shake.js"></script>
+  <script src="effects/sharpen.js"></script>
+  <script src="effects/shatter.js"></script>
+  <script src="effects/slider_control.js"></script>
+  <script src="effects/solid_aura.js"></script>
+  <script src="effects/star_burst.js"></script>
+  <script src="effects/swing.js"></script>
+  <script src="effects/tile.js"></script>
+  <script src="effects/tint.js"></script>
+  <script src="effects/transform.js"></script>
+  <script src="effects/turbulent_displace.js"></script>
+  <script src="effects/unsharp_mask.js"></script>
+  <script src="effects/vignette.js"></script>
+  <script src="effects/warp.js"></script>
+  <script src="effects/wave_warp.js"></script>
+  <script src="js/color-picker.js"></script>
+  <script src="js/fishtool-engine.js?v=6"></script>
+  <script src="js/fishtools-adapter.js?v=0.5.99"></script>
+  <script src="js/fish-audio-engine.js"></script>
+  <script src="js/frame-extractor.js"></script>
+  <script src="js/preview-cache.js"></script>
+  <script src="js/bg-removal-engine.js?v=0.5.99"></script>
+  <script src="js/template-editor.js"></script>
+  <script src="js/text-engine.js"></script>
+  <script src="text/default.js"></script>
+  <script src="js/motion-blur-engine.js"></script>
+
+  <script src="js/FishExport-Enggine.js?v=0.5.99"></script>
+  <script src="js/editor.js?v=0.5.99"></script>
+  <script src="js/attributes-clipboard.js"></script>
+  <script src="js/openfishtools-generators3d.js?v=0.5.99"></script>
+  <script src="js/openfishtools-controller.js?v=0.5.99"></script>
 </body>
 </html>

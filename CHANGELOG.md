@@ -5,7 +5,18 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.99] - 2026-10-02
+
+### Fixed
+- **Overlap Camera & Overlap Null — Authentic Leapfrog Math (`js/editor.js`)**: Rewrote leapfrog accumulation in `getLayerEffectivePropsAtTime` to correctly mirror the `_OVERLAP` null-rig architecture from `host/modules/misc.jsx`. Each transition `i` now contributes a **relative delta** `(K_{i+1} − K_i) × progress_i` additively on top of `K_0` baseline (`finalValue = K0 + Σ (K_{i+1} - K_i) × progress_i`), exactly matching the physical null-rig behavior in `applyKeyframeOverlap`. Previously, the label `accumulated` implied absolute interpolation but the math was computing sequential delta sums that double-counted intermediate keyframe values in 4+ keyframe scenarios.
+- **Overlap Last-Keyframe Overshoot (`js/editor.js`)**: Final transition span extends to `t_M + (t_M − t_{M-1})`, so the animation continues past the last keyframe by one interval duration before clamping. Keyframe `K_M` value is now reached at `tEndFinal`, not at `t_M`, giving the last segment the same leapfrog momentum feel as intermediate transitions.
+- **CONTROL Grid Layout — Mobile Drawer & Desktop Panel (`css/drawer.css`, `css/desktop.css`)**: Fixed asymmetric control grid. Mobile drawer `#add-layer-control-grid` now uses `repeat(3, 1fr)` (was misaligned with hanging empty slot). Desktop panel control grid uses `repeat(3, minmax(0, 1fr))` matching Shape grid symmetry. Button order reorganized into logical paired rows: Row 1 — Camera / Null / Adjustment; Row 2 — Overlap Camera / Overlap Null / Solid.
+
+### Changed
+- **Overlap Camera & Overlap Null Default Easing**: Default leapfrog Bezier curve uses dynamically computed `influenceOut`/`influenceIn` based on the interval span ratio (0.85 base influence, clamped 0.33–1.0), providing smooth organic overlap momentum. User-set graph easing is respected and propagated across all keyframes simultaneously via `setActiveEasing`.
+
 ## [0.5.87] - 2026-10-01
+
 
 ### Added
 - **Linear Wipe Effect (`effects/linear_wipe.js`)**: Added smooth angle-guided directional wipe transition with completion scrubber, rotation angle, and edge feathering.

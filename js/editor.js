@@ -2585,6 +2585,9 @@
       const camEff = activeCamera
         ? ((typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(activeCamera, currentSec) : activeCamera)
         : null;
+      if (camEff && activeCamera) {
+        camEff._rawCamera = activeCamera;
+      }
 
       let selectedWireframeBounds = null;
       let cachedBitmap = null;
@@ -2701,7 +2704,7 @@
 
             layersToRender.forEach(item => {
               const rawLayer = item.layer;
-              const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || []);
+              const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
               if (isMbActive) {
                 flushStaticBatch();
                 const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
@@ -2717,6 +2720,9 @@
                     camEff,
                     currentSec,
                     (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                      const subCamera = (activeCamera && typeof getLayerEffectivePropsAtTime === 'function')
+                        ? getLayerEffectivePropsAtTime(activeCamera, subSec)
+                        : (subCam || camEff);
                       // For collapsed precomp children: re-evaluate world transform at subSec
                       if (subLayer._isCollapsedPrecompChild && subLayer._precompParentLayer && subLayer._childOrigLayer && window.FishMotionBlurEngine) {
                         const worldAtSub = window.FishMotionBlurEngine._computeCollapsedChildWorldPos(
@@ -2736,7 +2742,7 @@
                             _currentSec: subSec
                           });
                           if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                          engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
+                          engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
                           return;
                         }
                       }
@@ -2745,7 +2751,7 @@
                       subAnimLayer._currentSec = subSec;
                       if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
                       else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
+                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
                     },
                     compState
                   );
@@ -2953,6 +2959,15 @@
             : { width: 320, height: 100 };
           const pw = Math.max(1, Math.round(nat.width));
           const ph = Math.max(1, Math.round(nat.height));
+
+          // Calculate high-DPI supersampling scale so text is rendered razor-sharp without pixelation when scaled up
+          const curScaleW = Math.abs(layer.scaleW || pw);
+          const curScaleH = Math.abs(layer.scaleH || ph);
+          const scaleMultX = curScaleW / Math.max(1, pw);
+          const scaleMultY = curScaleH / Math.max(1, ph);
+          const resScale = Math.min(4.0, Math.max(1.0, Math.max(scaleMultX, scaleMultY) * (bufferScale || 1.0)));
+          layer._textResScale = resScale;
+
           const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pixelsPerSecond);
           const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pixelsPerSecond);
           const localSec = Math.max(0, currentSec - clipStart);
@@ -3426,11 +3441,19 @@
             const defBoxH = nat.height;
             if (layer.transformScaleX === undefined) layer.transformScaleX = 1.0;
             if (layer.transformScaleY === undefined) layer.transformScaleY = 1.0;
-            if (layer.scaleW === undefined || !layer._userResizedManual) {
+            if (layer.scaleW === undefined) {
               layer.scaleW = defBoxW * layer.transformScaleX;
+            } else if (!layer._userResizedManual) {
+              layer.scaleW = defBoxW * layer.transformScaleX;
+            } else if (defBoxW > 0) {
+              layer.transformScaleX = Math.abs(layer.scaleW) / defBoxW;
             }
-            if (layer.scaleH === undefined || !layer._userResizedManual) {
+            if (layer.scaleH === undefined) {
               layer.scaleH = defBoxH * layer.transformScaleY;
+            } else if (!layer._userResizedManual) {
+              layer.scaleH = defBoxH * layer.transformScaleY;
+            } else if (defBoxH > 0) {
+              layer.transformScaleY = Math.abs(layer.scaleH) / defBoxH;
             }
             if (layer.normW === undefined) layer.normW = Math.abs(layer.scaleW) / baseW;
             if (layer.normH === undefined) layer.normH = Math.abs(layer.scaleH) / baseH;
@@ -3741,7 +3764,7 @@
 
           layersToRender.forEach(item => {
             const rawLayer = item.layer;
-            const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || []);
+            const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
             if (isMbActive) {
               flushStaticBatch();
               const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
@@ -3757,6 +3780,9 @@
                   camEff,
                   currentSec,
                   (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                    const subCamera = (activeCamera && typeof getLayerEffectivePropsAtTime === 'function')
+                      ? getLayerEffectivePropsAtTime(activeCamera, subSec)
+                      : (subCam || camEff);
                     // For collapsed precomp children: re-evaluate world transform at subSec
                     // so motion blur samples real parent+child animation, not baked static position
                     if (subLayer._isCollapsedPrecompChild && subLayer._precompParentLayer && subLayer._childOrigLayer && window.FishMotionBlurEngine) {
@@ -3777,7 +3803,7 @@
                           _currentSec: subSec
                         });
                         if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                        engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
+                        engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
                         return;
                       }
                     }
@@ -3786,7 +3812,7 @@
                     subAnimLayer._currentSec = subSec;
                     if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
                     else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCam, subSec);
+                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
                   },
                   compState
                 );
@@ -4916,6 +4942,12 @@
             if (typeof syncShapeControllerUI === 'function') {
               syncShapeControllerUI();
             }
+          } else if (targetLayer.type === 'text') {
+            const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+              ? window.FishTextEngine.getNaturalSize(targetLayer)
+              : { width: 320, height: 100 };
+            targetLayer.transformScaleX = Math.abs(targetLayer.scaleW) / Math.max(1, nat.width);
+            targetLayer.transformScaleY = Math.abs(targetLayer.scaleH) / Math.max(1, nat.height);
           }
 
           if (typeof recordLayerPropertyChange === 'function') {
@@ -5615,6 +5647,116 @@
           // Sort ascending by time
           list.sort((a, b) => a.time - b.time);
 
+          // Overlap Camera & Overlap Null: Additive blended motion intervals with Bezier curves from Graph Panel
+          if ((layer.isOverlapCamera || layer.isOverlapNull) && list.length >= 2) {
+            const M = list.length - 1;
+            const t0 = list[0].time;
+            const tM = list[M].time;
+
+            if (currentSec <= t0) {
+              Object.assign(baseProps, list[0].value);
+              if (prop === 'rotate') {
+                if (list[0].value.rotZ !== undefined) {
+                  baseProps.rotZ = list[0].value.rotZ;
+                  baseProps.rotation = list[0].value.rotZ;
+                } else if (list[0].value.rotation !== undefined) {
+                  baseProps.rotZ = list[0].value.rotation;
+                  baseProps.rotation = list[0].value.rotation;
+                }
+              }
+              continue;
+            }
+
+            // OpenFishTools Lite Authentic Leapfrog Overlap:
+            // Each transition i (Ki -> Ki+1) spans from list[i].time all the way to list[i+2].time
+            // (or Ki+1 + duration for the final transition), allowing keyframes to leapfrog and overlap concurrently!
+            const lastIntervalDur = Math.max(0.001, list[M].time - list[M - 1].time);
+            const tEndFinal = list[M].time + lastIntervalDur;
+
+            if (currentSec >= tEndFinal) {
+              Object.assign(baseProps, list[M].value);
+              if (prop === 'rotate') {
+                if (list[M].value.rotZ !== undefined) {
+                  baseProps.rotZ = list[M].value.rotZ;
+                  baseProps.rotation = list[M].value.rotZ;
+                } else if (list[M].value.rotation !== undefined) {
+                  baseProps.rotZ = list[M].value.rotation;
+                  baseProps.rotation = list[M].value.rotation;
+                }
+              }
+              continue;
+            }
+
+            // Leapfrog Overlap: Start from K0, each transition i contributes RELATIVE delta
+            // finalValue = K0 + Σ (K_{i+1} - K_i) * progress_i
+            // This mirrors the null-rig architecture in applyKeyframeOverlap (_OVERLAP from JSX).
+            // Each transition owns its own delta (relative motion), summed additively on top of K0.
+            const initialVal = list[0].value || {};
+            const accumulated = Object.assign({}, initialVal);
+
+            for (let i = 0; i < M; i++) {
+              const kStart = list[i];
+              const kEnd = list[i + 1];
+
+              const tStart = kStart.time;
+              const tEnd = (i + 2 < list.length)
+                ? list[i + 2].time
+                : kEnd.time + (kEnd.time - kStart.time);
+
+              const transitionDuration = Math.max(0.001, tEnd - tStart);
+              const ratio = (transitionDuration > 0) ? (kEnd.time - tStart) / transitionDuration : 0.5;
+              const baseInfluence = 0.85;
+              const influenceOut = Math.max(0.33, Math.min(1.0, ratio * 2 * baseInfluence));
+              const influenceIn = Math.max(0.33, Math.min(1.0, (1 - ratio) * 2 * baseInfluence));
+              const defaultLeapfrogEasing = [
+                Number(influenceOut.toFixed(3)),
+                0.0,
+                Number((1.0 - influenceIn).toFixed(3)),
+                1.0
+              ];
+
+              const easing = (kStart && Array.isArray(kStart.easing) && kStart.easing.length === 4)
+                ? kStart.easing
+                : (layer._defaultEasing && layer._defaultEasing[prop] ? layer._defaultEasing[prop] : defaultLeapfrogEasing);
+
+              let u = 0;
+              if (currentSec <= tStart) u = 0;
+              else if (currentSec >= tEnd) u = 1;
+              else u = (currentSec - tStart) / transitionDuration;
+
+              if (u <= 0) continue;
+              const progress = (u >= 1) ? 1.0 : evaluateCubicBezier(easing[0], easing[1], easing[2], easing[3], u);
+
+              // Relative delta: only the CHANGE from Ki to Ki+1, applied additively
+              const v0 = kStart.value || {};
+              const v1 = kEnd.value || {};
+              const allKeys = new Set([...Object.keys(v0), ...Object.keys(v1)]);
+              for (const k of allKeys) {
+                const n0 = (typeof v0[k] === 'number') ? v0[k] : ((typeof v1[k] === 'number') ? v1[k] : 0);
+                const n1 = (typeof v1[k] === 'number') ? v1[k] : n0;
+                if (typeof n0 === 'number' && typeof n1 === 'number') {
+                  // Relative delta = (K_{i+1} - K_i) * progress — add to accumulated (starts at K0)
+                  const relativeDelta = (n1 - n0) * progress;
+                  accumulated[k] = (typeof accumulated[k] === 'number' ? accumulated[k] : n0) + relativeDelta;
+                } else if (progress >= 0.5 && v1[k] !== undefined) {
+                  accumulated[k] = v1[k];
+                }
+              }
+            }
+
+            Object.assign(baseProps, accumulated);
+            if (prop === 'rotate') {
+              if (accumulated.rotZ !== undefined) {
+                baseProps.rotZ = accumulated.rotZ;
+                baseProps.rotation = accumulated.rotZ;
+              } else if (accumulated.rotation !== undefined) {
+                baseProps.rotZ = accumulated.rotation;
+                baseProps.rotation = accumulated.rotation;
+              }
+            }
+            continue;
+          }
+
           if (currentSec <= list[0].time) {
             Object.assign(baseProps, list[0].value);
             if (prop === 'rotate' && list[0].value.rotZ !== undefined) {
@@ -6053,7 +6195,9 @@
       } else {
         // Add keyframe with current effective values
         const currentVal = getLayerPropertyValue(layer, prop);
-        const defaultEasing = (layer._defaultEasing && layer._defaultEasing[prop]) ? layer._defaultEasing[prop] : [0.0, 0.0, 1.0, 1.0];
+        const defaultEasing = (layer._defaultEasing && layer._defaultEasing[prop])
+          ? layer._defaultEasing[prop]
+          : ((layer.isOverlapCamera || layer.isOverlapNull) ? [0.85, 0.0, 0.15, 1.0] : [0.0, 0.0, 1.0, 1.0]);
         layer.keyframes[prop].push({
           time: currentSec,
           value: currentVal,
@@ -6116,7 +6260,9 @@
         kf.value = currentVal;
       } else if (!isAnyPlaybackActive()) {
         // Stepped away from existing keyframe and changed value: auto-create new keyframe (only when stopped/paused)!
-        const defaultEasing = (layer._defaultEasing && layer._defaultEasing[targetPropKey]) ? layer._defaultEasing[targetPropKey] : [0.0, 0.0, 1.0, 1.0];
+        const defaultEasing = (layer._defaultEasing && layer._defaultEasing[targetPropKey])
+          ? layer._defaultEasing[targetPropKey]
+          : ((layer.isOverlapCamera || layer.isOverlapNull) ? [0.85, 0.0, 0.15, 1.0] : [0.0, 0.0, 1.0, 1.0]);
         kfList.push({
           time: currentSec,
           value: currentVal,
@@ -6887,14 +7033,16 @@
         'linear': document.getElementById('btn-graph-preset-linear'),
         'ease-in': document.getElementById('btn-graph-preset-ease-in'),
         'ease-out': document.getElementById('btn-graph-preset-ease-out'),
-        'ease-in-out': document.getElementById('btn-graph-preset-ease-in-out')
+        'ease-in-out': document.getElementById('btn-graph-preset-ease-in-out'),
+        'z-graph': document.getElementById('btn-graph-preset-z-graph')
       };
 
       const PRESETS = [
         { id: 'linear', name: 'LINEAR', easing: [0.0, 0.0, 1.0, 1.0] },
         { id: 'ease-in', name: 'EASE IN', easing: [0.42, 0.0, 1.0, 1.0] },
         { id: 'ease-out', name: 'EASE OUT', easing: [0.0, 0.0, 0.58, 1.0] },
-        { id: 'ease-in-out', name: 'EASE IN OUT', easing: [0.42, 0.0, 0.58, 1.0] }
+        { id: 'ease-in-out', name: 'EASE IN OUT', easing: [0.42, 0.0, 0.58, 1.0] },
+        { id: 'z-graph', name: 'Z-GRAPH', easing: [0.85, 0.0, 0.15, 1.0] }
       ];
 
       const BASE_SVG_H = 170;
@@ -6998,7 +7146,7 @@
           if (!prevKf.easing || !Array.isArray(prevKf.easing) || prevKf.easing.length !== 4) {
             const defEas = (layer && (layer.defaultEasing || layer._defaultEasing) && (layer.defaultEasing || layer._defaultEasing)[prop])
               ? (layer.defaultEasing || layer._defaultEasing)[prop]
-              : [0.42, 0.0, 0.58, 1.0];
+              : (layer && (layer.isOverlapCamera || layer.isOverlapNull) ? [0.85, 0.0, 0.15, 1.0] : [0.42, 0.0, 0.58, 1.0]);
             prevKf.easing = [...defEas];
           }
           return prevKf.easing;
@@ -7006,7 +7154,7 @@
         if (layer && (layer.defaultEasing || layer._defaultEasing) && (layer.defaultEasing || layer._defaultEasing)[prop]) {
           return (layer.defaultEasing || layer._defaultEasing)[prop];
         }
-        return [0.42, 0.0, 0.58, 1.0];
+        return (layer && (layer.isOverlapCamera || layer.isOverlapNull)) ? [0.85, 0.0, 0.15, 1.0] : [0.42, 0.0, 0.58, 1.0];
       }
       window.getActiveEasing = getActiveEasing;
 
@@ -7023,6 +7171,25 @@
           Number(newEasing[2].toFixed(3)),
           Number(newEasing[3].toFixed(3))
         ];
+
+        // Overlap Camera & Overlap Null: Synchronize easing across all keyframes and default layer easing so cascading momentum stays unified
+        if (layer.isOverlapCamera || layer.isOverlapNull) {
+          if (!layer.defaultEasing) layer.defaultEasing = {};
+          layer.defaultEasing[prop] = [...rounded];
+          layer._defaultEasing = layer.defaultEasing;
+
+          if (layer.keyframes && Array.isArray(layer.keyframes[prop])) {
+            layer.keyframes[prop].forEach(kf => {
+              kf.easing = [...rounded];
+            });
+          }
+          if (typeof invalidatePreviewCacheForLayer === 'function') {
+            invalidatePreviewCacheForLayer(layer);
+          }
+          saveCurrentProjectLayers();
+          if (typeof redrawComposition === 'function') redrawComposition('setActiveEasing:overlap');
+          return;
+        }
 
         // 1. If keyframe(s) for the active property are selected in timeline at current playhead, update those selected keyframes
         const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
@@ -8763,6 +8930,7 @@
           targetL.scaleW = Number(newW.toFixed(1));
           targetL.scaleH = Number(newH.toFixed(1));
           targetL._userResized = true;
+          targetL._userResizedManual = true;
           targetL.normW = Math.abs(targetL.scaleW) / baseW;
           targetL.normH = Math.abs(targetL.scaleH) / baseH;
           if (targetL.type === 'shape' && targetL.shapeProps) {
@@ -8770,6 +8938,12 @@
             const sy = Number(targetL.shapeProps.sizeY) || 300;
             targetL.transformScaleX = targetL.scaleW / sx;
             targetL.transformScaleY = targetL.scaleH / sy;
+          } else if (targetL.type === 'text') {
+            const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+              ? window.FishTextEngine.getNaturalSize(targetL)
+              : { width: 320, height: 100 };
+            targetL.transformScaleX = targetL.scaleW / Math.max(1, nat.width);
+            targetL.transformScaleY = targetL.scaleH / Math.max(1, nat.height);
           }
           const curPosX = targetL.posX !== undefined ? targetL.posX : baseW / 2;
           const curPosY = targetL.posY !== undefined ? targetL.posY : baseH / 2;
@@ -8839,10 +9013,16 @@
 
           targetL.scaleW = Number(newW.toFixed(1));
           targetL._userResized = true;
+          targetL._userResizedManual = true;
           targetL.normW = Math.abs(targetL.scaleW) / baseW;
           if (targetL.type === 'shape' && targetL.shapeProps) {
             const sx = Number(targetL.shapeProps.sizeX) || 300;
             targetL.transformScaleX = targetL.scaleW / sx;
+          } else if (targetL.type === 'text') {
+            const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+              ? window.FishTextEngine.getNaturalSize(targetL)
+              : { width: 320, height: 100 };
+            targetL.transformScaleX = targetL.scaleW / Math.max(1, nat.width);
           }
           const curPosX = targetL.posX !== undefined ? targetL.posX : baseW / 2;
           targetL.normX = (curPosX - targetL.normW * baseW / 2) / baseW;
@@ -8908,10 +9088,16 @@
 
           targetL.scaleH = Number(newH.toFixed(1));
           targetL._userResized = true;
+          targetL._userResizedManual = true;
           targetL.normH = Math.abs(targetL.scaleH) / baseH;
           if (targetL.type === 'shape' && targetL.shapeProps) {
             const sy = Number(targetL.shapeProps.sizeY) || 300;
             targetL.transformScaleY = targetL.scaleH / sy;
+          } else if (targetL.type === 'text') {
+            const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+              ? window.FishTextEngine.getNaturalSize(targetL)
+              : { width: 320, height: 100 };
+            targetL.transformScaleY = targetL.scaleH / Math.max(1, nat.height);
           }
           const curPosY = targetL.posY !== undefined ? targetL.posY : baseH / 2;
           targetL.normY = (curPosY - targetL.normH * baseH / 2) / baseH;
@@ -10600,6 +10786,67 @@
     }
     window.addCameraLayer = addCameraLayer;
 
+    function addOverlapCameraLayer(customDur = null, customStart = null) {
+      currentProjectState.layers = currentProjectState.layers || [];
+      const pps = window.currentPixelsPerSecond || 80;
+      const currentSec = (customStart !== null && typeof customStart === 'number') ? customStart : (Math.abs(window.timelinePanX || 0) / pps);
+      const defaultDur = (customDur !== null && typeof customDur === 'number') ? customDur : (currentProjectState.defaultDuration || 5);
+      const widthPx = Math.max(80, Math.round(defaultDur * pps));
+      const startPx = Math.round(currentSec * pps);
+
+      const aspect = currentProjectState.aspectRatio || '16:9';
+      const res = currentProjectState.resolution || '1080p';
+      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseW = baseDims[0];
+      const baseH = baseDims[1];
+
+      const overlapCamCount = currentProjectState.layers.filter(l => l.isOverlapCamera || (l.name && l.name.startsWith('Overlap Camera'))).length + 1;
+      const newLayer = {
+        id: 'layer_overlap_cam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        name: 'Overlap Camera ' + overlapCamCount,
+        type: 'camera',
+        isOverlapCamera: true,
+        startPx: startPx,
+        startSec: currentSec,
+        durationSec: defaultDur,
+        widthPx: widthPx,
+        posX: 0,
+        posY: 0,
+        posZ: 0,
+        scaleW: baseW,
+        scaleH: baseH,
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+        rotation: 0,
+        cameraLens: 50,
+        cameraZoom: 100,
+        cameraBlurEnabled: false,
+        cameraFocusMode: 'manual',
+        cameraFocusTargetLayerId: null,
+        cameraFocusDistance: 0,
+        cameraBlurNearFar: 600,
+        cameraBlurAmount: 20,
+        cameraBlurBalance: 0,
+        cameraLensPreset: 'standard',
+        overlapChannels: []
+      };
+
+      currentProjectState.layers.unshift(newLayer);
+      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(newLayer);
+      saveCurrentProjectLayers();
+      renderTimelineLayers();
+      redrawComposition();
+
+      if (window.Drawer && window.Drawer.isOpen('timeline-add-drawer')) {
+        window.Drawer.close(false);
+      }
+
+      selectTimelineLayer(newLayer.id, false);
+      return newLayer;
+    }
+    window.addOverlapCameraLayer = addOverlapCameraLayer;
+
     // ======================================================================
     // NULL OBJECT LAYER & HIERARCHICAL PARENTING CONTROLLER
     // ======================================================================
@@ -10671,6 +10918,79 @@
       return newLayer;
     }
     window.addNullLayer = addNullLayer;
+
+    // ======================================================================
+    // OVERLAP NULL OBJECT LAYER CONTROLLER
+    // ======================================================================
+    function addOverlapNullLayer(autoLink = false, options = {}) {
+      currentProjectState.layers = currentProjectState.layers || [];
+      const pps = window.currentPixelsPerSecond || 80;
+      const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
+      const currentSec = isTargetSec ? Math.max(0, options.targetSec) : (Math.abs(window.timelinePanX || 0) / pps);
+      const defaultDur = currentProjectState.defaultDuration || 5;
+      const widthPx = Math.max(80, Math.round(defaultDur * pps));
+      const startPx = Math.round(currentSec * pps);
+
+      const aspect = currentProjectState.aspectRatio || '16:9';
+      const res = currentProjectState.resolution || '1080p';
+      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseW = baseDims[0];
+      const baseH = baseDims[1];
+
+      const overlapNullCount = currentProjectState.layers.filter(l => l.isOverlapNull || (l.name && l.name.startsWith('Overlap Null'))).length + 1;
+      const newLayer = {
+        id: 'layer_overlap_null_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        name: 'Overlap Null ' + overlapNullCount,
+        type: 'null',
+        isOverlapNull: true,
+        startPx: startPx,
+        startSec: currentSec,
+        durationSec: defaultDur,
+        widthPx: widthPx,
+        posX: Math.round(baseW / 2),
+        posY: Math.round(baseH / 2),
+        posZ: 0,
+        scaleW: 240,
+        scaleH: 240,
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+        rotation: 0,
+        opacity: 1.0
+      };
+
+      currentProjectState.layers.unshift(newLayer);
+
+      if (autoLink && (window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0))) {
+        const idSet = new Set();
+        if (window.selectedLayerIds && window.selectedLayerIds.size > 0) {
+          window.selectedLayerIds.forEach(id => idSet.add(id));
+        }
+        if (window.selectedLayerId) idSet.add(window.selectedLayerId);
+        idSet.delete(newLayer.id);
+        const selLayers = (currentProjectState.layers || []).filter(l => idSet.has(l.id));
+        selLayers.forEach(l => {
+          if (typeof window.linkLayer === 'function') {
+            window.linkLayer(l, newLayer);
+          } else {
+            l.parentId = newLayer.id;
+          }
+        });
+      }
+
+      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(newLayer);
+      saveCurrentProjectLayers();
+      renderTimelineLayers();
+      redrawComposition();
+
+      if (window.Drawer && window.Drawer.isOpen('timeline-add-drawer')) {
+        window.Drawer.close(false);
+      }
+
+      selectTimelineLayer(newLayer.id, false);
+      return newLayer;
+    }
+    window.addOverlapNullLayer = addOverlapNullLayer;
 
     // ======================================================================
     // ADJUSTMENT LAYER CONTROLLER
@@ -11084,10 +11404,12 @@
               layer.textProps.presetId = pid;
               layer.fillColor = layer.textProps.fillColor || '#ffffff';
               layer._textBufferCanvas = null;
-              if (window.FishTextEngine && !layer._userResizedManual) {
+              if (window.FishTextEngine) {
                 const nat = window.FishTextEngine.getNaturalSize(layer);
                 layer.scaleW = nat.width * (layer.transformScaleX || 1);
                 layer.scaleH = nat.height * (layer.transformScaleY || 1);
+                layer.mediaWidth = nat.width;
+                layer.mediaHeight = nat.height;
               }
               if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
               syncTextControllerUI();
@@ -11110,10 +11432,12 @@
           if (!layer.textProps) layer.textProps = {};
           layer.textProps.text = inputContent.value;
           layer._textBufferCanvas = null;
-          if (window.FishTextEngine && !layer._userResizedManual) {
+          if (window.FishTextEngine) {
             const nat = window.FishTextEngine.getNaturalSize(layer);
             layer.scaleW = nat.width * (layer.transformScaleX || 1);
             layer.scaleH = nat.height * (layer.transformScaleY || 1);
+            layer.mediaWidth = nat.width;
+            layer.mediaHeight = nat.height;
           }
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
           redrawComposition();
@@ -11136,10 +11460,12 @@
           const newSize = Math.max(12, Math.min(240, Math.round(initFontSize + delta)));
           layer.textProps.fontSize = newSize;
           layer._textBufferCanvas = null;
-          if (window.FishTextEngine && !layer._userResizedManual) {
+          if (window.FishTextEngine) {
             const nat = window.FishTextEngine.getNaturalSize(layer);
             layer.scaleW = nat.width * (layer.transformScaleX || 1);
             layer.scaleH = nat.height * (layer.transformScaleY || 1);
+            layer.mediaWidth = nat.width;
+            layer.mediaHeight = nat.height;
           }
           const valFontSize = document.getElementById('val-text-font-size');
           if (valFontSize) valFontSize.textContent = `${newSize}px`;
@@ -12491,7 +12817,11 @@
         btnCameraGraph.addEventListener('click', (e) => {
           e.stopPropagation();
           window.previousDrawerSubview = 'camera';
-          if (!window.activeKeyframeProperty || !window.activeKeyframeProperty.startsWith('camera')) {
+          const targetId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0 ? [...window.selectedLayerIds][0] : null);
+          const layer = (currentProjectState.layers || []).find(l => l.id === targetId);
+          if (layer && layer.isOverlapCamera && (!layer.keyframes || !layer.keyframes['cameraLens'] || layer.keyframes['cameraLens'].length === 0)) {
+            window.activeKeyframeProperty = 'move';
+          } else if (!window.activeKeyframeProperty || !window.activeKeyframeProperty.startsWith('camera')) {
             window.activeKeyframeProperty = 'cameraLens';
           }
           switchLayerDrawerSubview('graph');
@@ -12536,6 +12866,17 @@
         });
       }
 
+      // 5-alt. Add Overlap Camera Layer Button in Add Layer Drawer
+      const btnAddOverlapCamera = document.getElementById('btn-add-overlap-camera');
+      if (btnAddOverlapCamera) {
+        makeDraggableAsset(btnAddOverlapCamera, { type: 'control', controlType: 'overlap-camera', name: 'Overlap Camera' });
+        btnAddOverlapCamera.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          addOverlapCameraLayer();
+        });
+      }
+
       // 5b. Add Null Layer Button in Add Layer Drawer
       const btnAddNull = document.getElementById('btn-add-null');
       if (btnAddNull) {
@@ -12544,6 +12885,17 @@
           e.preventDefault();
           e.stopPropagation();
           addNullLayer();
+        });
+      }
+
+      // 5b-alt. Add Overlap Null Layer Button in Add Layer Drawer
+      const btnAddOverlapNull = document.getElementById('btn-add-overlap-null');
+      if (btnAddOverlapNull) {
+        makeDraggableAsset(btnAddOverlapNull, { type: 'control', controlType: 'overlap-null', name: 'Overlap Null' });
+        btnAddOverlapNull.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          addOverlapNullLayer();
         });
       }
 
@@ -19795,9 +20147,17 @@
               if (typeof addCameraLayer === 'function') {
                 addCameraLayer(null, opts.targetSec !== undefined ? opts.targetSec : null);
               }
+            } else if (asset.controlType === 'overlap-camera') {
+              if (typeof addOverlapCameraLayer === 'function') {
+                addOverlapCameraLayer(null, opts.targetSec !== undefined ? opts.targetSec : null);
+              }
             } else if (asset.controlType === 'null') {
               if (typeof addNullLayer === 'function') {
                 addNullLayer(false, opts);
+              }
+            } else if (asset.controlType === 'overlap-null') {
+              if (typeof addOverlapNullLayer === 'function') {
+                addOverlapNullLayer(false, opts);
               }
             } else if (asset.controlType === 'adjustment') {
               if (typeof addAdjustmentLayer === 'function') {
@@ -22758,20 +23118,32 @@
           projectNav.style.display = 'none';
           layerNav.style.display = 'flex';
 
+          const batchFloatingBar = document.getElementById('timeline-batch-floating-bar');
+
           if (isSelectorMode || count > 1) {
-            // Batch select: show "(count) Selected" and Group buttons
+            // Batch select: show "(count) Selected" in header & show floating bottom bar
             if (layerNameInput) layerNameInput.style.display = 'none';
-            if (btnLink) btnLink.style.display = 'none';
-            if (batchActions) batchActions.style.display = 'inline-flex';
-            if (btnPrecomp) btnPrecomp.style.display = 'inline-flex';
-            if (btnGroupMask) btnGroupMask.style.display = 'inline-flex';
-            if (btnGroupExclude) btnGroupExclude.style.display = 'inline-flex';
+            // Show link button so users can batch-link multiple selected layers
+            if (btnLink) {
+              btnLink.style.display = 'inline-flex';
+              btnLink.classList.remove('is-linked');
+              btnLink.title = 'Link / Parent Selected Layers (Hold to Drag-to-Link)';
+            }
+            // Keep header clean: hide header batch actions to prevent icon collisions
+            if (batchActions) batchActions.style.display = 'none';
+            if (btnPrecomp) btnPrecomp.style.display = 'none';
+            if (btnGroupMask) btnGroupMask.style.display = 'none';
+            if (btnGroupExclude) btnGroupExclude.style.display = 'none';
             if (batchTitle) {
               batchTitle.textContent = `${count} Selected`;
               batchTitle.style.display = 'block';
             }
+            if (batchFloatingBar) {
+              batchFloatingBar.style.display = 'inline-flex';
+            }
           } else if (count === 1) {
-            // Single select: show layer rename input & link button, hide group buttons
+            // Single select: show layer rename input & link button, hide group buttons & floating bar
+            if (batchFloatingBar) batchFloatingBar.style.display = 'none';
             if (batchActions) batchActions.style.display = 'none';
             if (btnPrecomp) btnPrecomp.style.display = 'none';
             if (btnGroupMask) btnGroupMask.style.display = 'none';
@@ -22786,10 +23158,10 @@
               btnLink.style.display = 'inline-flex';
               if (layer && layer.parentId) {
                 btnLink.classList.add('is-linked');
-                btnLink.title = 'Linked to parent (Click to view/unlink)';
+                btnLink.title = 'Linked to parent (Click to view/unlink, Hold to Drag-to-Link)';
               } else {
                 btnLink.classList.remove('is-linked');
-                btnLink.title = 'Link / Parent Layer';
+                btnLink.title = 'Link / Parent Layer (Hold to Drag-to-Link)';
               }
             }
             if (batchTitle) batchTitle.style.display = 'none';
@@ -22832,6 +23204,8 @@
           if (nextBtn) nextBtn.setAttribute('title', 'Next Beatmark / Frame');
           layerNav.style.display = 'none';
           projectNav.style.display = 'flex';
+          const batchFloatingBar = document.getElementById('timeline-batch-floating-bar');
+          if (batchFloatingBar) batchFloatingBar.style.display = 'none';
           if (btnLink) btnLink.style.display = 'none';
           if (btnPrecomp) btnPrecomp.style.display = 'none';
           if (btnGroupMask) btnGroupMask.style.display = 'none';
@@ -22937,6 +23311,54 @@
             e.stopPropagation();
             if (typeof precomposeSelectedLayers === 'function') {
               precomposeSelectedLayers(false, 'exclude');
+            }
+          });
+        }
+
+        // 1e. Modular Floating Multi-Select Bottom Bar Actions
+        const btnBatchFloatGroup = document.getElementById('btn-batch-float-group');
+        if (btnBatchFloatGroup) {
+          btnBatchFloatGroup.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'normal');
+            }
+          });
+          btnBatchFloatGroup.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(true, 'normal');
+            }
+          });
+        }
+
+        const btnBatchFloatMask = document.getElementById('btn-batch-float-mask');
+        if (btnBatchFloatMask) {
+          btnBatchFloatMask.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'mask');
+            }
+          });
+        }
+
+        const btnBatchFloatExclude = document.getElementById('btn-batch-float-exclude');
+        if (btnBatchFloatExclude) {
+          btnBatchFloatExclude.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof precomposeSelectedLayers === 'function') {
+              precomposeSelectedLayers(false, 'exclude');
+            }
+          });
+        }
+
+        const btnBatchFloatClose = document.getElementById('btn-batch-float-close');
+        if (btnBatchFloatClose) {
+          btnBatchFloatClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof deselectTimelineLayer === 'function') {
+              deselectTimelineLayer();
             }
           });
         }
@@ -23048,6 +23470,15 @@
               }
             });
 
+            if (nextState) {
+              currentProjectState.motionBlur = currentProjectState.motionBlur || { shutterAngle: 180, shutterPhase: 0, samples: 16 };
+              currentProjectState.motionBlur.enabled = true;
+              try { localStorage.setItem('oft_global_motion_blur', 'true'); } catch (_) {}
+              const globalMbIcon = document.getElementById('editor-icon-motion-blur');
+              if (globalMbIcon) globalMbIcon.classList.add('is-active');
+            }
+            if (window.PreviewCacheManager) window.PreviewCacheManager.clearAll();
+
             btnLayerMotionBlur.classList.toggle('is-active', nextState);
 
             targetIds.forEach(id => {
@@ -23158,12 +23589,128 @@
           });
         }
 
-        // 3b. Link / Parent Layer Button
+        // 3b. Link / Parent Layer Button (Press to open link list; drag/scrub across layer items; release to link)
         const btnLayerLink = document.getElementById('btn-layer-header-link');
         if (btnLayerLink) {
+          btnLayerLink.addEventListener('pointerdown', (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const popoverEl = document.getElementById('popover-layer-link');
+            const wasAlreadyOpen = popoverEl && popoverEl.classList.contains('is-open') && window.Popover && window.Popover.isOpen && window.Popover.isOpen();
+
+            let isLinkScrubbing = false;
+            let currentDragItem = null;
+
+            // Open popover immediately on press so layer items are built and rendered
+            if (typeof openLayerLinkPopover === 'function') {
+              openLayerLinkPopover(btnLayerLink);
+              if (popoverEl) {
+                popoverEl.classList.add('is-open');
+                popoverEl.setAttribute('aria-hidden', 'false');
+              }
+            }
+
+            try {
+              btnLayerLink.setPointerCapture(e.pointerId);
+            } catch (_) {}
+
+            function cleanupHover() {
+              if (popoverEl) {
+                popoverEl.querySelectorAll('.layer-link-item.is-drag-hover').forEach(el => el.classList.remove('is-drag-hover'));
+              }
+              currentDragItem = null;
+            }
+
+            function onGlobalLinkMove(moveEv) {
+              const dist = Math.hypot(moveEv.clientX - startX, moveEv.clientY - startY);
+              if (dist > 6) {
+                isLinkScrubbing = true;
+              }
+
+              if (!isLinkScrubbing) return;
+              moveEv.preventDefault();
+
+              // Hit test for layer link item
+              const hitEl = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
+              const itemBtn = hitEl ? hitEl.closest('.layer-link-item') : null;
+
+              if (itemBtn && !itemBtn.disabled && !itemBtn.classList.contains('is-disabled')) {
+                if (itemBtn !== currentDragItem) {
+                  cleanupHover();
+                  itemBtn.classList.add('is-drag-hover');
+                  currentDragItem = itemBtn;
+                  if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {}
+                }
+              } else {
+                cleanupHover();
+              }
+
+              // Auto-scroll list if finger is near top or bottom edge of list container
+              const listContainer = document.getElementById('layer-link-popover-list');
+              if (listContainer && listContainer.scrollHeight > listContainer.clientHeight) {
+                const rect = listContainer.getBoundingClientRect();
+                if (moveEv.clientX >= rect.left - 24 && moveEv.clientX <= rect.right + 24) {
+                  if (moveEv.clientY > rect.bottom - 32 && moveEv.clientY <= rect.bottom + 40) {
+                    listContainer.scrollTop += 6;
+                  } else if (moveEv.clientY < rect.top + 32 && moveEv.clientY >= rect.top - 40) {
+                    listContainer.scrollTop -= 6;
+                  }
+                }
+              }
+            }
+
+            function onGlobalLinkUp(upEv) {
+              window.removeEventListener('pointermove', onGlobalLinkMove);
+              window.removeEventListener('pointerup', onGlobalLinkUp);
+              window.removeEventListener('pointercancel', onGlobalLinkUp);
+              try {
+                btnLayerLink.releasePointerCapture(e.pointerId);
+              } catch (_) {}
+
+              const finalItem = currentDragItem;
+              cleanupHover();
+
+              if (isLinkScrubbing) {
+                if (finalItem) {
+                  // Released on a specific layer item -> execute link/unlink!
+                  finalItem.click();
+                  if (navigator.vibrate) try { navigator.vibrate([15, 35]); } catch (_) {}
+                  if (window.Popover) window.Popover.close();
+                } else {
+                  // Dragged but released outside any valid item -> check if released outside popover card
+                  const cardRect = popoverEl ? popoverEl.getBoundingClientRect() : null;
+                  const isOutside = !cardRect || upEv.clientX < cardRect.left || upEv.clientX > cardRect.right || upEv.clientY < cardRect.top || upEv.clientY > cardRect.bottom;
+                  if (isOutside && window.Popover) {
+                    window.Popover.close();
+                  }
+                }
+                btnLayerLink._suppressNextClick = true;
+                setTimeout(() => { btnLayerLink._suppressNextClick = false; }, 250);
+              } else {
+                // Not scrubbing (was quick tap / release without drag)
+                if (wasAlreadyOpen) {
+                  // Tapped while already open -> toggle close
+                  if (window.Popover) window.Popover.close();
+                  btnLayerLink._suppressNextClick = true;
+                  setTimeout(() => { btnLayerLink._suppressNextClick = false; }, 250);
+                }
+              }
+            }
+
+            window.addEventListener('pointermove', onGlobalLinkMove, { passive: false });
+            window.addEventListener('pointerup', onGlobalLinkUp);
+            window.addEventListener('pointercancel', onGlobalLinkUp);
+          });
+
           btnLayerLink.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
+            if (btnLayerLink._suppressNextClick) {
+              btnLayerLink._suppressNextClick = false;
+              return;
+            }
             if (typeof openLayerLinkPopover === 'function') {
               openLayerLinkPopover(btnLayerLink);
             }
@@ -25703,7 +26250,7 @@
 
         layers.forEach(layer => {
           const clipType = layer.type === 'shape' ? 'shape' : (layer.type === 'text' ? 'text' : (layer.type === 'video' ? 'video' : (layer.type === 'audio' ? 'audio' : (layer.type === 'adjustment' ? 'adjustment' : (layer.type === 'camera' ? 'camera' : (layer.type === 'null' ? 'null' : (layer.type === 'precomp' ? 'precomp' : (layer.type === 'color' ? 'color' : 'image'))))))));
-          const typeTag = layer.type === 'shape' ? 'SHP' : (layer.type === 'text' ? 'TXT' : (layer.type === 'video' ? 'VID' : (layer.type === 'audio' ? 'AUD' : (layer.type === 'adjustment' ? 'ADJ' : (layer.type === 'camera' ? 'CAM' : (layer.type === 'null' ? 'NULL' : (layer.type === 'precomp' ? (layer.groupType === 'mask' ? 'MASK' : (layer.groupType === 'exclude' ? 'EXCL' : 'COMP')) : (layer.type === 'color' ? 'CLR' : 'IMG'))))))));
+          const typeTag = layer.type === 'shape' ? 'SHP' : (layer.type === 'text' ? 'TXT' : (layer.type === 'video' ? 'VID' : (layer.type === 'audio' ? 'AUD' : (layer.type === 'adjustment' ? 'ADJ' : (layer.type === 'camera' ? (layer.isOverlapCamera ? 'O-CAM' : 'CAM') : (layer.type === 'null' ? (layer.isOverlapNull ? 'O-NULL' : 'NULL') : (layer.type === 'precomp' ? (layer.groupType === 'mask' ? 'MASK' : (layer.groupType === 'exclude' ? 'EXCL' : 'COMP')) : (layer.type === 'color' ? 'CLR' : 'IMG'))))))));
           const isSelected = selectedLayerIds.has(layer.id) || layer.id === selectedLayerId;
           const isHidden = !!layer.hidden;
 
@@ -25898,7 +26445,7 @@
                   pillEl.setPointerCapture(pointerId);
                 } catch (_) {}
 
-                // Long-press hold timer (200ms) to trigger selector mode
+                // Long-press hold timer (550ms) to trigger selector mode
                 const holdTimer = setTimeout(() => {
                   hasHoldFired = true;
                   isSelectorMode = true;
@@ -25910,15 +26457,15 @@
                   syncSelectionClassesInPlace();
                   updateEditorHeaderMode();
                   if (navigator.vibrate) navigator.vibrate(25);
-                }, 200);
+                }, 550);
 
                 function onPillPointerMove(moveEvent) {
                   const distX = Math.abs(moveEvent.clientX - startX);
                   const distY = Math.abs(moveEvent.clientY - startY);
                   const dist = Math.hypot(distX, distY);
 
-                  // If pointer moved > 4px, trigger drag selection!
-                  if (!isDragMode && (dist > 4 || (isSelectorMode && dist > 2))) {
+                  // If pointer moved vertically across pills (> 8px), trigger drag selection!
+                  if (!isDragMode && (distY > 8 || (isSelectorMode && dist > 4))) {
                     isDragMode = true;
                     clearTimeout(holdTimer);
 
@@ -26584,113 +27131,6 @@
               isPanPassthrough = false;
 
               const isSelectedLayer = (layer.id === window.selectedLayerId);
-              let isMarqueeActive = false;
-              let marqueeStartX = 0;
-              let marqueeStartY = 0;
-              let marqueeEl = null;
-              let autoScrollRaf = null;
-              let autoScrollSpeed = 0;
-              let autoScrollDirection = 0;
-              let lastClientX = startPointerX;
-              let lastClientY = startPointerY;
-
-              function updateMarqueeBox(clientX, clientY) {
-                if (!clipEl || !marqueeEl) return;
-                const clipRect = clipEl.getBoundingClientRect();
-
-                // Confine strictly inside clipEl boundaries (never escape layer strip)
-                const currX = Math.max(0, Math.min(clipRect.width, clientX - clipRect.left));
-
-                const x1 = Math.min(marqueeStartX, currX);
-                const x2 = Math.max(marqueeStartX, currX);
-
-                marqueeEl.style.left = `${x1}px`;
-                marqueeEl.style.top = '0px';
-                marqueeEl.style.width = `${Math.max(2, x2 - x1)}px`;
-                marqueeEl.style.height = '100%';
-
-                const isPropActiveNow = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
-                if (!isPropActiveNow || !window.activeKeyframeProperty) {
-                  window.selectedKeyframes = [];
-                  return;
-                }
-
-                const activeProp = window.activeKeyframeProperty;
-                const markers = clipEl.querySelectorAll('.timeline-keyframe-marker');
-                const selected = [];
-
-                markers.forEach(marker => {
-                  const prop = marker.dataset.prop;
-                  // Filter: strictly select only keyframes matching the currently active property
-                  if (prop !== activeProp) {
-                    marker.classList.remove('is-selected-kf');
-                    return;
-                  }
-
-                  const mr = marker.getBoundingClientRect();
-                  const mx = (mr.left + mr.width / 2) - clipRect.left;
-
-                  const inX = (mx >= x1 - 8 && mx <= x2 + 8);
-
-                  if (inX) {
-                    marker.classList.add('is-selected-kf');
-                    const time = parseFloat(marker.dataset.time);
-                    const kf = marker._kf || (layer.keyframes && layer.keyframes[prop] && layer.keyframes[prop].find(k => Math.abs(k.time - time) < 0.001));
-                    selected.push({ layerId: layer.id, layer, prop, time, kf, marker });
-                  } else {
-                    marker.classList.remove('is-selected-kf');
-                  }
-                });
-
-                window.selectedKeyframes = selected;
-              }
-
-              function checkAutoScroll(clientX, clientY) {
-                const vp = document.getElementById('timeline-layers-viewport');
-                if (!vp) return;
-                const vpRect = vp.getBoundingClientRect();
-                const EDGE_ZONE = 75;
-
-                if (clientX > vpRect.right - EDGE_ZONE) {
-                  autoScrollDirection = 1;
-                  const factor = Math.min(1, Math.max(0.1, (clientX - (vpRect.right - EDGE_ZONE)) / EDGE_ZONE));
-                  autoScrollSpeed = 6 + factor * 26;
-                } else if (clientX < vpRect.left + EDGE_ZONE) {
-                  autoScrollDirection = -1;
-                  const factor = Math.min(1, Math.max(0.1, ((vpRect.left + EDGE_ZONE) - clientX) / EDGE_ZONE));
-                  autoScrollSpeed = 6 + factor * 26;
-                } else {
-                  autoScrollDirection = 0;
-                  autoScrollSpeed = 0;
-                }
-
-                if (autoScrollDirection !== 0 && !autoScrollRaf) {
-                  runAutoScroll();
-                }
-              }
-
-              function runAutoScroll() {
-                if (!isMarqueeActive || autoScrollDirection === 0) {
-                  autoScrollRaf = null;
-                  return;
-                }
-
-                const currentPan = window.timelinePanX !== undefined ? window.timelinePanX : 0;
-                let newPan = currentPan;
-                if (autoScrollDirection === 1) {
-                  newPan = currentPan - autoScrollSpeed;
-                } else if (autoScrollDirection === -1) {
-                  newPan = Math.min(0, currentPan + autoScrollSpeed);
-                }
-
-                if (typeof window.updateTimelinePosition === 'function') {
-                  window.updateTimelinePosition(newPan, true);
-                }
-
-                updateMarqueeBox(lastClientX, lastClientY);
-
-                autoScrollRaf = requestAnimationFrame(runAutoScroll);
-              }
 
               // Multi-layer drag support: when multiple layers are selected or in selector mode, dragging one shifts all together
               const isLayerCurrentlySelected = isLayerSelected(layer.id);
@@ -26717,9 +27157,9 @@
                 });
               }
 
-              // Hold timer (360ms): triggers hold state without opening popover yet
+              // Hold timer (360ms): triggers hold state without opening popover
               lpHoldTimer = setTimeout(() => {
-                if (hasSlid || isMarqueeActive || isPanPassthrough) return;
+                if (hasSlid || isPanPassthrough) return;
                 isHoldActive = true;
                 if (navigator.vibrate) try { navigator.vibrate(25); } catch (_) {}
                 clipEl.classList.add('is-held');
@@ -26730,45 +27170,6 @@
 
               function onClipPointerMove(moveEvent) {
                 const dist = Math.hypot(moveEvent.clientX - startPointerX, moveEvent.clientY - startPointerY);
-
-                // If layer is selected AND a property editor is actively open, drag initiates Marquee Keyframe Selection strictly inside this layer
-                const isPropActiveNow = (typeof window.isPropertyEditorActive === 'function') ? window.isPropertyEditorActive() : false;
-                if (isSelectedLayer && isPropActiveNow && window.activeKeyframeProperty) {
-                  if (dist > 4) {
-                    if (lpHoldTimer) {
-                      clearTimeout(lpHoldTimer);
-                      lpHoldTimer = null;
-                    }
-                    if (!isMarqueeActive) {
-                      isMarqueeActive = true;
-                      window.isTransformInteracting = true;
-                      marqueeEl = clipEl.querySelector('.timeline-keyframe-marquee');
-                      if (!marqueeEl) {
-                        marqueeEl = document.createElement('div');
-                        marqueeEl.className = 'timeline-keyframe-marquee';
-                        clipEl.appendChild(marqueeEl);
-                      }
-                      const clipRect = clipEl.getBoundingClientRect();
-                      marqueeStartX = Math.max(0, Math.min(clipRect.width, startPointerX - clipRect.left));
-                      marqueeEl.style.display = 'block';
-                      marqueeEl.style.left = `${marqueeStartX}px`;
-                      marqueeEl.style.top = '0px';
-                      marqueeEl.style.width = '0px';
-                      marqueeEl.style.height = '100%';
-                      try { clipEl.setPointerCapture(e.pointerId); } catch (_) {}
-                    }
-
-                    if (isMarqueeActive) {
-                      moveEvent.preventDefault();
-                      lastClientX = moveEvent.clientX;
-                      lastClientY = moveEvent.clientY;
-                      updateMarqueeBox(lastClientX, lastClientY);
-                      checkAutoScroll(lastClientX, lastClientY);
-                      return;
-                    }
-                  }
-                  return;
-                }
 
                 if (hasMenuOpened) return;
 
@@ -27008,22 +27409,6 @@
                   return;
                 }
 
-                if (isMarqueeActive) {
-                  isMarqueeActive = false;
-                  window.isTransformInteracting = false;
-                  autoScrollDirection = 0;
-                  if (autoScrollRaf) {
-                    cancelAnimationFrame(autoScrollRaf);
-                    autoScrollRaf = null;
-                  }
-                  if (marqueeEl) {
-                    marqueeEl.style.display = 'none';
-                  }
-                  try { clipEl.releasePointerCapture(upEvent.pointerId); } catch (_) {}
-                  justFinishedSlide = true;
-                  setTimeout(() => { justFinishedSlide = false; }, 150);
-                  return;
-                }
 
                 if (hasMenuOpened) {
                   window.isTransformInteracting = false;
@@ -27080,20 +27465,24 @@
                   return;
                 }
 
-                // Case 2: Held and released WITHOUT dragging -> Open context menu popover! ("kalau hold dan lepas doang itu muncul pop over nya")
+                // Case 2: Held and released WITHOUT dragging -> Cleanly clear hold state without opening popover
                 if (isHoldActive && !hasSlid) {
                   isHoldActive = false;
-                  hasMenuOpened = true;
                   window.isTransformInteracting = false;
                   if (isMultiDragging && multiDragLayers.length > 0) {
-                    multiDragLayers.forEach(m => { if (m.clipEl) m.clipEl.classList.remove('is-sliding'); });
+                    multiDragLayers.forEach(m => {
+                      if (m.clipEl) {
+                        m.clipEl.classList.remove('is-held');
+                        m.clipEl.classList.remove('is-sliding');
+                      }
+                    });
                   } else {
+                    clipEl.classList.remove('is-held');
                     clipEl.classList.remove('is-sliding');
                   }
                   try {
                     clipEl.releasePointerCapture(upEvent.pointerId);
                   } catch (_) {}
-                  triggerClipContextMenu(layer, upEvent.clientX, upEvent.clientY);
                   return;
                 }
 

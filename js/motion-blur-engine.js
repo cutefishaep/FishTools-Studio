@@ -72,24 +72,31 @@
      *      only applies when compState is a precomp layer with motionBlur as a boolean,
      *      NOT when compState is a composition/project settings object).
      */
-    isLayerActive(layer, compState = null) {
+    isLayerActive(layer, compState = null, activeCamera = null) {
       if (!layer) return false;
-      const config = this.getConfig(compState);
-      if (!config.enabled) return false;
 
-      // Per-layer switch: layer.motionBlur must be on
+      // Per-layer switch: layer.motionBlur is on
       const layerMbOn = !!layer.motionBlur;
 
-      // ForCompLayer: only propagate when compState is a precomp *layer* object
-      // whose .motionBlur is a boolean true — NOT when it's the composition
-      // settings object (which has motionBlur as an object {enabled, shutterAngle, ...}).
-      // Without this guard, the project-level motionBlur object was always truthy,
-      // bypassing the per-layer toggle entirely.
+      // Camera-level switch: if active camera has motion blur on, all visual content recorded by camera receives motion blur!
+      const pool = (compState && Array.isArray(compState.layers) && compState.layers) || ((typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) ? window.currentProjectState.layers : null);
+      const cam = activeCamera || (pool ? pool.find(l => l && l.type === 'camera' && !l.hidden) : null);
+      const cameraMbOn = !!(cam && cam.motionBlur && layer.type !== 'audio');
+
+      // ForCompLayer: propagate when compState is a precomp layer with motionBlur boolean
       const compMbOn = !!(compState &&
                           typeof compState.motionBlur === 'boolean' &&
                           compState.motionBlur);
 
-      return layerMbOn || compMbOn;
+      const anyExplicitOn = layerMbOn || cameraMbOn || compMbOn;
+      if (!anyExplicitOn) return false;
+
+      const config = this.getConfig(compState);
+      // If project has explicit motionBlur object with enabled: false AND user didn't explicitly toggle this layer/camera, block.
+      // But if layer or camera explicitly has motionBlur: true, respect the user's explicit action!
+      if (config.enabled === false && !anyExplicitOn) return false;
+
+      return true;
     }
 
     /**
@@ -129,7 +136,7 @@
      * If static, multi-sampling is completely bypassed with zero performance overhead.
      * For collapsed precomp children (_precompParentLayer), also checks parent motion.
      */
-    hasMotion(layer, currentSec, config = null, fps = 60, layerList = null) {
+    hasMotion(layer, currentSec, config = null, fps = 60, layerList = null, cameraLayer = null) {
       if (!layer) return false;
       const cfg = config || this.getConfig();
 
@@ -153,6 +160,32 @@
       }
 
       if (typeof window.getLayerEffectivePropsAtTime !== 'function') return false;
+
+      const pool = layerList || (typeof window !== 'undefined' && window.currentProjectState && window.currentProjectState.layers) || null;
+      const cam = cameraLayer || (pool && pool.find(l => l && l.type === 'camera' && !l.hidden)) || null;
+      const isAffectedByCamera = !layer.hidden && layer.type !== 'audio' && (!!cam || layer.is3D || layer.type === 'camera' || (layer.type === 'precomp' && !!layer.collapseTransformations));
+
+      if (isAffectedByCamera && cam) {
+        const cHasKeyframes = (cam.keyframes && Object.keys(cam.keyframes).length > 0) || !!(cam.parentId);
+        const cHasMovement = this.hasMovementEffect(cam);
+        if (cHasKeyframes || cHasMovement) {
+          const c0 = window.getLayerEffectivePropsAtTime(cam, tStart, null, pool);
+          const c1 = window.getLayerEffectivePropsAtTime(cam, tEnd, null, pool);
+          if (c0 && c1) {
+            const cdx = Math.abs((c0.posX || 0) - (c1.posX || 0));
+            const cdy = Math.abs((c0.posY || 0) - (c1.posY || 0));
+            const cdz = Math.abs((c0.posZ || 0) - (c1.posZ || 0));
+            const cdrX = Math.abs((c0.rotX || 0) - (c1.rotX || 0));
+            const cdrY = Math.abs((c0.rotY || 0) - (c1.rotY || 0));
+            const cdrZ = Math.abs((c0.rotZ !== undefined ? c0.rotZ : (c0.rotation || 0)) - (c1.rotZ !== undefined ? c1.rotZ : (c1.rotation || 0)));
+            const cdLens = Math.abs((c0.cameraLens || 50) - (c1.cameraLens || 50));
+            const cdZoom = Math.abs((c0.cameraZoom || 100) - (c1.cameraZoom || 100));
+            if (cdx > 0.4 || cdy > 0.4 || cdz > 0.4 || cdrX > 0.2 || cdrY > 0.2 || cdrZ > 0.2 || cdLens > 0.5 || cdZoom > 0.5) {
+              return true; // Camera motion directly induces motion blur on 3D layer!
+            }
+          }
+        }
+      }
 
       const hasKeyframes = checkLayer.keyframes && Object.keys(checkLayer.keyframes).length > 0;
       const parentHasKeyframes = parentLayer && parentLayer.keyframes && Object.keys(parentLayer.keyframes).length > 0;
@@ -185,7 +218,6 @@
         );
       }
 
-      const pool = layerList || (typeof window !== 'undefined' && window.currentProjectState && window.currentProjectState.layers) || null;
       const p0 = window.getLayerEffectivePropsAtTime(checkLayer, tStart, null, pool);
       const p1 = window.getLayerEffectivePropsAtTime(checkLayer, tEnd, null, pool);
       if (!p0 || !p1) return false;
@@ -382,13 +414,21 @@
       // AE-Accurate Motion Blur Accumulation — Premultiplied Additive:
       actx.globalCompositeOperation = 'lighter';
 
+      const camLayer = (camera && camera.type === 'camera')
+        ? camera
+        : (camera && camera._rawCamera ? camera._rawCamera : null);
+
       for (let i = 0; i < samples; i++) {
         const u = (samples === 3) ? previewOffsets[i] : ((i + 0.5) / samples);
         const weight = (samples === 3) ? previewWeights[i] : (1 / samples);
         const subSec = tStart + u * exposureTime;
 
+        const subCamera = (camLayer && typeof window.getLayerEffectivePropsAtTime === 'function')
+          ? window.getLayerEffectivePropsAtTime(camLayer, subSec)
+          : camera;
+
         sctx.clearRect(0, 0, targetW, targetH);
-        renderSinglePassFn(sctx, el, layer, bufferScale, camera, subSec);
+        renderSinglePassFn(sctx, el, layer, bufferScale, subCamera, subSec);
 
         actx.globalAlpha = weight;
         actx.drawImage(this._sampleCanvas, 0, 0);

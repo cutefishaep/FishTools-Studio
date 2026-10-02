@@ -712,7 +712,7 @@
       const anchorY = (layer.anchorY || 0) * bufferScale;
       const anchorZ = (layer.anchorZ || 0) * bufferScale;
 
-      const is3D = !!layer.is3D || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera';
+      const is3D = !!layer.is3D || (layer.type === 'precomp' && !!layer.collapseTransformations) || layer.type === 'camera' || (!!camera && layer.type !== 'audio');
       const effectiveRotX = is3D ? rotX : 0;
       const effectiveRotY = is3D ? rotY : 0;
       const effectivePosZ = is3D ? posZ : 0;
@@ -1335,30 +1335,46 @@
         ? window.getLayerEffectivePropsAtTime(layer, tStart + exposureTime)
         : layer;
 
+      const camLayer = (camera && camera._rawCamera)
+        || (camera && camera.type === 'camera' ? camera : null)
+        || (compState && Array.isArray(compState.layers) && compState.layers.find(l => l && l.type === 'camera' && !l.hidden))
+        || (typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers) && window.currentProjectState.layers.find(l => l && l.type === 'camera' && !l.hidden))
+        || null;
+
       // Multi-sample accumulation loop with sub-frame shutter interpolation
       for (let s = 0; s < samples; s++) {
         const u = (samples === 3) ? previewOffsets[s] : ((s + 0.5) / samples);
         const weight = (samples === 3) ? previewWeights[s] : (1 / samples);
-        const subEff = {
-          posX: pStart.posX + ((pEnd.posX !== undefined ? pEnd.posX : pStart.posX) - pStart.posX) * u,
-          posY: pStart.posY + ((pEnd.posY !== undefined ? pEnd.posY : pStart.posY) - pStart.posY) * u,
-          posZ: (pStart.posZ || 0) + ((pEnd.posZ || 0) - (pStart.posZ || 0)) * u,
-          rotX: (pStart.rotX || 0) + ((pEnd.rotX || 0) - (pStart.rotX || 0)) * u,
-          rotY: (pStart.rotY || 0) + ((pEnd.rotY || 0) - (pStart.rotY || 0)) * u,
-          rotZ: (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)) + (((pEnd.rotZ !== undefined ? pEnd.rotZ : (pEnd.rotation || 0)) - (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)))) * u,
-          scaleW: (pStart.scaleW !== undefined ? pStart.scaleW : 1) + (((pEnd.scaleW !== undefined ? pEnd.scaleW : 1) - (pStart.scaleW !== undefined ? pStart.scaleW : 1))) * u,
-          scaleH: (pStart.scaleH !== undefined ? pStart.scaleH : 1) + (((pEnd.scaleH !== undefined ? pEnd.scaleH : 1) - (pStart.scaleH !== undefined ? pStart.scaleH : 1))) * u,
-          opacity: (pStart.opacity !== undefined ? pStart.opacity : 1) + (((pEnd.opacity !== undefined ? pEnd.opacity : 1) - (pStart.opacity !== undefined ? pStart.opacity : 1))) * u,
-          anchorX: pStart.anchorX,
-          anchorY: pStart.anchorY,
-          anchorZ: pStart.anchorZ
-        };
+        const subSec = tStart + u * exposureTime;
+
+        const subCamera = (camLayer && typeof window.getLayerEffectivePropsAtTime === 'function')
+          ? window.getLayerEffectivePropsAtTime(camLayer, subSec)
+          : camera;
+
+        const subEff = (typeof window.getLayerEffectivePropsAtTime === 'function')
+          ? window.getLayerEffectivePropsAtTime(layer, subSec)
+          : {
+              posX: pStart.posX + ((pEnd.posX !== undefined ? pEnd.posX : pStart.posX) - pStart.posX) * u,
+              posY: pStart.posY + ((pEnd.posY !== undefined ? pEnd.posY : pStart.posY) - pStart.posY) * u,
+              posZ: (pStart.posZ || 0) + ((pEnd.posZ || 0) - (pStart.posZ || 0)) * u,
+              rotX: (pStart.rotX || 0) + ((pEnd.rotX || 0) - (pStart.rotX || 0)) * u,
+              rotY: (pStart.rotY || 0) + ((pEnd.rotY || 0) - (pStart.rotY || 0)) * u,
+              rotZ: (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)) + (((pEnd.rotZ !== undefined ? pEnd.rotZ : (pEnd.rotation || 0)) - (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)))) * u,
+              scaleW: (pStart.scaleW !== undefined ? pStart.scaleW : 1) + (((pEnd.scaleW !== undefined ? pEnd.scaleW : 1) - (pStart.scaleW !== undefined ? pStart.scaleW : 1))) * u,
+              scaleH: (pStart.scaleH !== undefined ? pStart.scaleH : 1) + (((pEnd.scaleH !== undefined ? pEnd.scaleH : 1) - (pStart.scaleH !== undefined ? pStart.scaleH : 1))) * u,
+              opacity: (pStart.opacity !== undefined ? pStart.opacity : 1) + (((pEnd.opacity !== undefined ? pEnd.opacity : 1) - (pStart.opacity !== undefined ? pStart.opacity : 1))) * u,
+              anchorX: pStart.anchorX,
+              anchorY: pStart.anchorY,
+              anchorZ: pStart.anchorZ
+            };
         const subAnimLayer = Object.assign({}, layer, subEff);
-        const subBounds = this.getBounds(subAnimLayer, bufferScale, camera);
+        const subBounds = this.getBounds(subAnimLayer, bufferScale, subCamera);
         if (subBounds.isBehindCamera) continue;
 
-        let mvp = this._computeMVP(subBounds, vw, vh, 0, camera);
+        let mvp = this._computeMVP(subBounds, vw, vh, 0, subCamera);
         if (!mvp) continue;
+
+        if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(subCamera));
 
         if (processed.padX > 0 || processed.padY > 0) {
           const sX = (processed.origW + processed.padX * 2) / processed.origW;
@@ -1391,12 +1407,12 @@
     renderScene(ctx, renderList, bufferScale = 1, camera = null, currentSec = null) {
       if (!ctx || !renderList || renderList.length === 0) return;
 
-      const has3D = renderList.some(item => {
+      const has3D = !!camera || renderList.some(item => {
         const b = this.getBounds(item.animLayer || item.layer, bufferScale, camera);
         return b.is3D;
       });
 
-      // Pure 2D fast path: If no 3D layers exist, render directly with native 2D canvas drawImage
+      // Pure 2D fast path: If no 3D layers exist and no camera exists, render directly with native 2D canvas drawImage
       if (!has3D || !this.isReady) {
         renderList.forEach(item => {
           const lSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((item.animLayer && item.animLayer._currentSec) || (item.layer && item.layer._currentSec));
@@ -1420,7 +1436,7 @@
       renderList.forEach((item, idx) => {
         const layer = item.animLayer || item.layer;
         const b = this.getBounds(layer, bufferScale, camera);
-        const isLayer3D = !!b.is3D;
+        const isLayer3D = !!b.is3D || !!camera;
         const hasCustomBlend = layer.blendMode && layer.blendMode !== 'normal';
         const hasEffects = (Array.isArray(layer.effects) && layer.effects.some(f => !f.disabled)) ||
           (window.FishEffects && typeof window.FishEffects.buildFilter === 'function' && window.FishEffects.buildFilter(layer) !== '');

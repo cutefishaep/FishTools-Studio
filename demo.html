@@ -556,7 +556,7 @@
           <div class="brand-title">FishTool</div>
           <div class="brand-subtitle-row">
             <span class="brand-subtitle">Studio</span>
-            <span class="badge-pre-alpha" id="studio-version-badge">0.5.98</span>
+            <span class="badge-pre-alpha" id="studio-version-badge">0.5.99</span>
           </div>
           <h2 class="projects-title" style="margin-top: 10px;">Your Project</h2>
         </div>
@@ -564,7 +564,7 @@
         <div class="component-box">
           <span class="component-box-title">Badges & Metadata</span>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <span class="badge-pre-alpha">0.5.98</span>
+            <span class="badge-pre-alpha">0.5.99</span>
             <span class="project-count-badge">5</span>
             <span class="project-count-badge">12</span>
             <span class="project-count-badge">99+</span>
@@ -1957,9 +1957,9 @@
                         </div>
                       </div>
 
-                      <!-- 3. Category Panel: Control Camera Layer (Flexible 3-item Grid) -->
+                      <!-- 3. Category Panel: Control Camera Layer (Symmetrical 3x2 Grid: Row 1 Base Layers, Row 2 Overlap & Solid Layers) -->
                       <div class="add-layer-control-panel" id="demo-add-layer-control-panel" style="display: none; width: 100%; padding: 4px 0;">
-                        <div class="layer-action-btn-grid">
+                        <div class="layer-action-btn-grid" id="demo-add-layer-control-grid">
                           <button type="button" class="layer-action-btn" title="Camera Layer">
                             <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
                               <path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-2c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/>
@@ -1982,6 +1982,40 @@
                               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8v16z"/>
                             </svg>
                             <span class="layer-action-label">Adjustment</span>
+                          </button>
+                          <button type="button" class="layer-action-btn" title="Overlap Camera Layer">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
+                              <path d="M7 4.5l1.3-1.5h4.4l1.3 1.5H17c.83 0 1.5.67 1.5 1.5v1.2c-.46-.13-.94-.2-1.44-.2H5.6c-.66 0-1.2.54-1.2 1.2V15c0 .35.08.68.21.98A1.49 1.49 0 0 1 4 14.5V6c0-.83.67-1.5 1.5-1.5H7z" opacity="0.45"/>
+                              <path d="M10 8l-1.5 2H6c-.83 0-1.5.67-1.5 1.5v8c0 .83.67 1.5 1.5 1.5h13c.83 0 1.5-.67 1.5-1.5v-8c0-.83-.67-1.5-1.5-1.5h-2.5L15 8h-5zm3 10.2c-2.32 0-4.2-1.88-4.2-4.2s1.88-4.2 4.2-4.2 4.2 1.88 4.2 4.2-1.88 4.2-4.2 4.2zm0-1.8c1.33 0 2.4-1.07 2.4-2.4s-1.07-2.4-2.4-2.4-2.4 1.07-2.4 2.4 1.07 2.4 2.4 2.4z"/>
+                            </svg>
+                            <span class="layer-action-label">Overlap Camera</span>
+                          </button>
+                          <button type="button" class="layer-action-btn" title="Overlap Null Layer">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
+                              <g opacity="0.45">
+                                <rect x="2" y="2" width="2.5" height="2.5" rx="0.5"/>
+                                <rect x="14.5" y="2" width="2.5" height="2.5" rx="0.5"/>
+                                <rect x="2" y="14.5" width="2.5" height="2.5" rx="0.5"/>
+                                <path d="M4.5 2.8h10v1h-10zm0 12.4h10v1h-10zM2.8 4.5h1v10h-1zm12.4 0h1v10h-1z"/>
+                                <path d="M8.8 6h1.2v2h2v1.2h-2v2H8.8v-2h-2V8h2z"/>
+                              </g>
+                              <g>
+                                <rect x="7" y="7" width="3" height="3" rx="0.5"/>
+                                <rect x="18" y="7" width="3" height="3" rx="0.5"/>
+                                <rect x="7" y="18" width="3" height="3" rx="0.5"/>
+                                <rect x="18" y="18" width="3" height="3" rx="0.5"/>
+                                <path d="M10 8h8v1.5h-8zm0 10.5h8v1.5h-8zM8 10h1.5v8H8zm10.5 0h1.5v8h-1.5z"/>
+                                <path d="M13.25 11h1.5v2.25H17v1.5h-2.25V17h-1.5v-2.25H11v-1.5h2.25z"/>
+                              </g>
+                            </svg>
+                            <span class="layer-action-label">Overlap Null</span>
+                          </button>
+                          <button type="button" class="layer-action-btn" title="Solid Layer">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
+                              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+                              <rect x="6.5" y="6.5" width="11" height="11" rx="1"/>
+                            </svg>
+                            <span class="layer-action-label">Solid</span>
                           </button>
                         </div>
                       </div>
@@ -5053,6 +5087,90 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       </div>
     </section>
 
+    <!-- 29. Modular Floating Multi-Select Timeline Batch Bar Showcase -->
+    <section class="demo-section">
+      <h2 class="demo-section-title">29. Floating Multi-Select Timeline Batch Bar &amp; Pickwhip Link Indicator</h2>
+      <div class="demo-grid-2">
+        <article class="demo-card">
+          <div class="demo-card-header">
+            <h3 class="demo-card-title">Timeline Batch Floating Bar</h3>
+            <span class="demo-badge">Modular</span>
+          </div>
+          <p class="demo-card-desc">Compact icon-only floating toolbar in timeline bottom-left: Group, Mask, and Exclude.</p>
+          <div class="demo-preview-box" style="padding: 24px; display: flex; justify-content: flex-start; align-items: center; min-height: 80px;">
+            <div class="timeline-batch-floating-bar" style="position: static; transform: none; display: inline-flex;">
+              <button type="button" class="batch-floating-btn" title="Group Layer(s)">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                  <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
+                  <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
+                </svg>
+              </button>
+              <button type="button" class="batch-floating-btn" title="Mask Group">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <defs>
+                    <clipPath id="demo-float-mask-group-clip">
+                      <polygon points="10,7.5 5.5,16.5 14.5,16.5"/>
+                    </clipPath>
+                  </defs>
+                  <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                  <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.45"/>
+                  <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor" clip-path="url(#demo-float-mask-group-clip)"/>
+                  <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+              <button type="button" class="batch-floating-btn" title="Exclude Group">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
+                  <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="demo-code-wrapper">
+            <pre class="demo-code"><code>&lt;!-- Timeline bottom-left icon-only batch bar --&gt;
+&lt;div class="timeline-batch-floating-bar" id="timeline-batch-floating-bar"&gt;
+  &lt;button class="batch-floating-btn" id="btn-batch-float-group" title="Group"&gt;&lt;svg...&gt;&lt;/button&gt;
+  &lt;button class="batch-floating-btn" id="btn-batch-float-mask" title="Mask"&gt;&lt;svg...&gt;&lt;/button&gt;
+  &lt;button class="batch-floating-btn" id="btn-batch-float-exclude" title="Exclude"&gt;&lt;svg...&gt;&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+          </div>
+        </article>
+
+        <article class="demo-card">
+          <div class="demo-card-header">
+            <h3 class="demo-card-title">Quick Press-and-Drag Layer Link Scrubber</h3>
+            <span class="demo-badge">Gesture</span>
+          </div>
+          <p class="demo-card-desc">Press link button to reveal layer list, drag across rows with tactile feedback, release to link instantly.</p>
+          <div class="demo-preview-box" style="padding: 20px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; justify-content: center; min-height: 100px; max-width: 280px; margin: 0 auto;">
+            <div class="layer-link-item">
+              <span class="layer-link-preview-box is-none"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
+              <span class="layer-link-item-name">None</span>
+            </div>
+            <div class="layer-link-item is-drag-hover">
+              <span class="layer-link-preview-box"><svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span>
+              <span class="layer-link-item-name">Background Video (Scrub Hover)</span>
+              <span class="layer-link-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>
+            </div>
+            <div class="layer-link-item is-selected">
+              <span class="layer-link-preview-box is-text"><svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg></span>
+              <span class="layer-link-item-name">Title Typography</span>
+              <span class="layer-link-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>
+            </div>
+          </div>
+          <div class="demo-code-wrapper">
+            <pre class="demo-code"><code>&lt;!-- Layer link item in popover with drag-hover state --&gt;
+&lt;button type="button" class="layer-link-item is-drag-hover"&gt;
+  &lt;span class="layer-link-preview-box"&gt;...&lt;/span&gt;
+  &lt;span class="layer-link-item-name"&gt;Target Layer&lt;/span&gt;
+&lt;/button&gt;</code></pre>
+          </div>
+        </article>
+      </div>
+    </section>
+
   </div>
 
   <!-- Modular Modal Component HTML -->
@@ -5549,7 +5667,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.98</span>
+          <span class="welcome-badge">v0.5.99</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -5585,11 +5703,47 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.99 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.99</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 2, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Camera &amp; Overlap Null — Authentic Leapfrog Math (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Rewrote leapfrog accumulation in `getLayerEffectivePropsAtTime` to correctly mirror the `_OVERLAP` null-rig architecture from `host/modules/misc.jsx`. Each transition `i` now contributes a **relative delta** `(K_{i+1} − K_i) × progress_i` additively on top of `K_0` baseline (`finalValue = K0 + Σ (K_{i+1} - K_i) × progress_i`), exactly matching the physical null-rig behavior in `applyKeyframeOverlap`. Previously, the label `accumulated` implied absolute interpolation but the math was computing sequential delta sums that double-counted intermediate keyframe values in 4+ keyframe scenarios.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Last-Keyframe Overshoot (`js/editor.js`)</span>
+                  <span class="changelog-item-desc">Final transition span extends to `t_M + (t_M − t_{M-1})`, so the animation continues past the last keyframe by one interval duration before clamping. Keyframe `K_M` value is now reached at `tEndFinal`, not at `t_M`, giving the last segment the same leapfrog momentum feel as intermediate transitions.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">CONTROL Grid Layout — Mobile Drawer &amp; Desktop Panel (`css/drawer.css`, `css/desktop.css`)</span>
+                  <span class="changelog-item-desc">Fixed asymmetric control grid. Mobile drawer `#add-layer-control-grid` now uses `repeat(3, 1fr)` (was misaligned with hanging empty slot). Desktop panel control grid uses `repeat(3, minmax(0, 1fr))` matching Shape grid symmetry. Button order reorganized into logical paired rows: Row 1 — Camera / Null / Adjustment; Row 2 — Overlap Camera / Overlap Null / Solid.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Overlap Camera &amp; Overlap Null Default Easing</span>
+                  <span class="changelog-item-desc">Default leapfrog Bezier curve uses dynamically computed `influenceOut`/`influenceIn` based on the interval span ratio (0.85 base influence, clamped 0.33–1.0), providing smooth organic overlap momentum. User-set graph easing is respected and propagated across all keyframes simultaneously via `setActiveEasing`.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.87 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.87</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Sep 30, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -7924,7 +8078,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="effects/tile.js"></script>
   <script src="effects/wave_warp.js"></script>
   <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.98"></script>
+  <script src="effects/turbulent_displace.js?v=0.5.99"></script>
   <script src="effects/optic_compensation.js"></script>
   <script src="effects/transform.js"></script>
   <script src="effects/oscillate.js"></script>

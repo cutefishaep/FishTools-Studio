@@ -612,6 +612,7 @@ body.is-exporting .template-scrubber-wrap {
 }
 
 .editor-layer-link-btn {
+  touch-action: none;
   background-color: transparent;
   color: var(--color-primary);
   border: none;
@@ -3364,3 +3365,105 @@ body.has-active-drawer .timeline-fab-add {
   border-radius: 2px;
   transition: width 0.15s ease;
 }
+
+/* ==========================================================================
+   Modular Component: Floating Multi-Select Timeline Batch Bar
+   - Pojok kiri bawah timeline
+   - Cukup icon saja (Group, Mask, Exclude)
+   - Strict UI Rules: Pure flat, NO box-shadow, NO blur, 100% theme tokens
+   ========================================================================== */
+.timeline-batch-floating-bar {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 95;
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-panel-inner);
+  border: 1px solid var(--border-panel);
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: batchFloatSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes batchFloatSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.batch-floating-btn {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: none;
+  outline: none !important;
+  border-radius: 9999px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.batch-floating-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.batch-floating-btn:hover {
+  background-color: var(--bg-panel-inner-hover);
+  color: var(--color-primary-hover);
+  transform: scale(1.06);
+}
+
+.batch-floating-btn:active {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
+  transform: scale(0.94);
+}
+
+/* Hide floating batch bar when ANY drawer is open */
+.editor-timeline.has-drawer-open .timeline-batch-floating-bar,
+.editor-timeline.has-layer-drawer-open .timeline-batch-floating-bar,
+body.has-active-drawer .timeline-batch-floating-bar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: scale(0.6) !important;
+}
+
+@media (max-width: 600px) {
+  .timeline-batch-floating-bar {
+    left: 16px;
+    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    padding: 3px;
+    gap: 3px;
+  }
+  .batch-floating-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .batch-floating-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+

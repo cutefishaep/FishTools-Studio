@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+  <!-- Back Overlapping Null Frame -->
+  <g opacity="0.45">
+    <rect x="2" y="2" width="2.5" height="2.5" rx="0.5"/>
+    <rect x="14.5" y="2" width="2.5" height="2.5" rx="0.5"/>
+    <rect x="2" y="14.5" width="2.5" height="2.5" rx="0.5"/>
+    <path d="M4.5 2.8h10v1h-10zm0 12.4h10v1h-10zM2.8 4.5h1v10h-1zm12.4 0h1v10h-1z"/>
+    <path d="M8.8 6h1.2v2h2v1.2h-2v2H8.8v-2h-2V8h2z"/>
+  </g>
+  <!-- Front Active Null Frame -->
+  <g>
+    <rect x="7" y="7" width="3" height="3" rx="0.5"/>
+    <rect x="18" y="7" width="3" height="3" rx="0.5"/>
+    <rect x="7" y="18" width="3" height="3" rx="0.5"/>
+    <rect x="18" y="18" width="3" height="3" rx="0.5"/>
+    <path d="M10 8h8v1.5h-8zm0 10.5h8v1.5h-8zM8 10h1.5v8H8zm10.5 0h1.5v8h-1.5z"/>
+    <path d="M13.25 11h1.5v2.25H17v1.5h-2.25V17h-1.5v-2.25H11v-1.5h2.25z"/>
+  </g>
+</svg>

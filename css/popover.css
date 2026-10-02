@@ -817,14 +817,21 @@
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.layer-link-item:hover:not(.is-disabled) {
-  background-color: var(--bg-panel-hover);
-  color: var(--color-primary);
+.layer-link-item:hover:not(.is-disabled),
+.layer-link-item.is-drag-hover:not(.is-disabled) {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
 }
 
 .layer-link-item.is-selected {
   background-color: var(--bg-dashboard);
   color: var(--color-primary);
+}
+
+.layer-link-item.is-selected:hover:not(.is-disabled),
+.layer-link-item.is-selected.is-drag-hover:not(.is-disabled) {
+  background-color: var(--color-primary);
+  color: var(--bg-canvas);
 }
 
 .layer-link-item.is-disabled {
@@ -849,10 +856,16 @@
   pointer-events: none;
 }
 
-.layer-link-item:hover .layer-link-preview-box,
 .layer-link-item.is-selected .layer-link-preview-box {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.layer-link-item:hover:not(.is-disabled) .layer-link-preview-box,
+.layer-link-item.is-drag-hover:not(.is-disabled) .layer-link-preview-box {
+  border-color: var(--bg-canvas);
+  color: var(--bg-canvas);
+  background-color: transparent;
 }
 
 .layer-link-preview-img {
@@ -903,6 +916,11 @@
   width: 16px;
   height: 16px;
   fill: currentColor;
+}
+
+.layer-link-item:hover:not(.is-disabled) .layer-link-check,
+.layer-link-item.is-drag-hover:not(.is-disabled) .layer-link-check {
+  color: var(--bg-canvas);
 }
 
 /* ==========================================================================

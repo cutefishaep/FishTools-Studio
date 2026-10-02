@@ -845,11 +845,32 @@
   grid-column: span 1 !important;
 }
 
-#add-layer-control-grid {
-  grid-template-columns: repeat(4, 1fr) !important;
+#add-layer-control-grid,
+.add-layer-control-panel .layer-action-btn-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px;
 }
-#add-layer-control-grid .layer-action-btn {
+#add-layer-control-grid .layer-action-btn,
+#add-layer-control-grid > *,
+.add-layer-control-panel .layer-action-btn-grid .layer-action-btn,
+.add-layer-control-panel .layer-action-btn-grid > * {
   grid-column: span 1 !important;
+}
+#add-layer-control-grid .layer-action-label,
+.add-layer-control-panel .layer-action-btn-grid .layer-action-label {
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+@media (max-width: 480px) {
+  #add-layer-control-grid,
+  .add-layer-control-panel .layer-action-btn-grid {
+    gap: 6px;
+  }
 }
 
 /* 4 buttons: 2x2 grid (50/50 each row) */

@@ -70,6 +70,20 @@
     return anim;
   }
 
+  function normalizeAnimOut(anim) {
+    if (!anim || anim === 'none') return 'none';
+    if (anim === 'bounce_1' || anim === 'bounce_drop' || anim === 'bounce_out') return 'bounce_out';
+    if (anim === 'bounce_2' || anim === 'bounce_pop' || anim === 'pop_out' || anim === 'shrink_drop') return 'shrink_drop';
+    if (anim === 'bounce_3' || anim === 'wave_drop') return 'bounce_out';
+    if (anim === 'bounce_4' || anim === 'wave_pop') return 'shrink_drop';
+    if (anim === 'fade_up' || anim === 'fade_down') return 'fade_down';
+    if (anim === 'slide_out') return 'slide_out';
+    if (anim === 'wave') return 'wave';
+    if (anim === 'glitch') return 'glitch';
+    if (anim === 'typewriter') return 'typewriter';
+    return anim;
+  }
+
   const ANIMATION_IN_TYPES = [
     { id: 'bounce_1', label: 'Bounce 1 (Stagger 20ms)', desc: 'AE Cosine Pop: delay 20ms, freq 3, decay 7, amp 50' },
     { id: 'bounce_2', label: 'Bounce 2 (Inertial 0.10s)', desc: 'AE Linear Spring: dur 0.10s, frame retard, freq 2, decay 9' },
@@ -83,11 +97,14 @@
   ];
 
   const ANIMATION_OUT_TYPES = [
-    { id: 'none',        label: 'None',        desc: 'Static until end of clip' },
-    { id: 'bounce_out',  label: 'Bounce Out',  desc: 'Windup anticipation & spring snap collapse' },
-    { id: 'slide_out',   label: 'Slide Out',   desc: 'Snappy inertia slide exit' },
-    { id: 'fade_down',   label: 'Fade Down',   desc: 'Gravity drop & fade away' },
-    { id: 'shrink_drop', label: 'Shrink Drop', desc: 'Scale-down fall through floor' }
+    { id: 'none',        label: 'None',                 desc: 'Static until end of clip' },
+    { id: 'bounce_out',  label: 'Bounce Drop (Outro)',  desc: 'Windup anticipation & spring drop' },
+    { id: 'shrink_drop', label: 'Bounce Pop (Scale)',   desc: 'Anticipation swell & scale snap' },
+    { id: 'slide_out',   label: 'Slide Out',            desc: 'Snappy inertia slide exit' },
+    { id: 'fade_down',   label: 'Fade Down',            desc: 'Smooth gravity drop & fade away' },
+    { id: 'wave',        label: 'Kinetic Wave Out',     desc: 'Fluid sinusoidal wave exit' },
+    { id: 'glitch',      label: 'Digital Glitch Out',   desc: 'High-energy digital displacement vanish' },
+    { id: 'typewriter',  label: 'Typewriter (Reverse)', desc: 'Sequential character vanish' }
   ];
 
   const ANIMATION_TYPES = ANIMATION_IN_TYPES;
@@ -212,26 +229,31 @@
 
       const p = Object.assign({}, DEFAULT_TEXT_PROPS, layer.textProps || {});
 
-      const font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + (p.fontSize || 64) + 'px ' + (p.fontFamily || 'Cal Sans');
-      const measure = this.measureText(ctx, p.text || 'Text', font, p.letterSpacing, p.lineHeight);
+      const baseFontSize = Number(p.fontSize) || 64;
+      const resScale = Math.min(4.0, Math.max(1.0, Number(layer && layer._textResScale) || 1.0));
+      const fontSize = baseFontSize * resScale;
+      const letterSpacing = (p.letterSpacing || 0) * resScale;
 
-      const padX = p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24;
-      const padY = p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16;
-      const shadowPad = p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0);
-      const fontSize = p.fontSize || 64;
+      const font = (p.fontStyle || 'normal') + ' ' + (p.fontWeight || 'bold') + ' ' + fontSize + 'px ' + (p.fontFamily || 'Cal Sans');
+      const measure = this.measureText(ctx, p.text || 'Text', font, letterSpacing, p.lineHeight);
 
-      const contentW = Math.max(Math.ceil(targetW || 0), Math.ceil(measure.width  + padX + shadowPad * 2));
-      const contentH = Math.max(Math.ceil(targetH || 0), Math.ceil(measure.height + padY + shadowPad * 2));
+      const padX = (p.badgeEnabled ? (p.badgePaddingX * 2 + 16) : 24) * resScale;
+      const padY = (p.badgeEnabled ? (p.badgePaddingY * 2 + 16) : 16) * resScale;
+      const shadowPad = (p.longShadow ? (p.longShadowLength + 10) : (p.shadowEnabled ? (p.shadowBlur + Math.abs(p.shadowOffsetX) + 6) : 0)) * resScale;
+
+      const contentW = Math.max(Math.ceil((targetW || 0) * resScale), Math.ceil(measure.width  + padX + shadowPad * 2));
+      const contentH = Math.max(Math.ceil((targetH || 0) * resScale), Math.ceil(measure.height + padY + shadowPad * 2));
 
       // Extra canvas padding so characters can animate/bounce freely outside the text box without clipping (AE style)
-      const animPadX = Math.ceil(Math.max(fontSize * 2, 80));
-      const animPadY = Math.ceil(Math.max(fontSize * 3, 140));
+      const animPadX = Math.ceil(Math.max(fontSize * 2, 80 * resScale));
+      const animPadY = Math.ceil(Math.max(fontSize * 3, 140 * resScale));
 
       if (layer) {
         layer._textPadX = animPadX;
         layer._textPadY = animPadY;
         layer._textNaturalW = contentW;
         layer._textNaturalH = contentH;
+        layer._textResScaleApplied = resScale;
       }
 
       const reqW = contentW + animPadX * 2;
@@ -248,19 +270,53 @@
       const cx = reqW / 2;
       const cy = reqH / 2;
 
+      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_1');
+      const normIn = normalizeAnimIn(effectiveAnimIn);
+      const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
+
+      const effectiveAnimOut = p.animOut || 'none';
+      const normOut = normalizeAnimOut(effectiveAnimOut);
+      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
+      const outStartSec = Math.max(inDur, clipDur - outDur);
+
+      const lines = measure.lines;
+      const lineH = measure.lineHeight;
+      const totalH = lines.length * lineH;
+      const startY = cy - (totalH / 2) + (lineH / 2);
+
+      let globalCharIndex = 0;
+      const fullText = lines.join('');
+      const totalChars = fullText.length || 1;
+
+      // Typewriter IN progress
+      let isTypewriter = (normIn === 'typewriter' || p.animation === 'typewriter');
+      let visibleChars = totalChars;
+      if (isTypewriter) {
+        const prog = Math.min(1.0, Math.max(0, localSec / inDur));
+        visibleChars = Math.floor(prog * totalChars);
+      }
+
+      // Typewriter OUT: chars vanish right-to-left using global progress (no per-char stagger)
+      let isTypewriterOut = (normOut === 'typewriter');
+      let visibleCharsOut = totalChars;
+      if (isTypewriterOut && localSec >= outStartSec) {
+        const outProg = Math.min(1.0, (localSec - outStartSec) / outDur);
+        visibleCharsOut = Math.floor((1 - outProg) * totalChars);
+      }
+
       // 1. Draw Badge Background Pill / Box if enabled
       if (p.badgeEnabled) {
         ctx.save();
-        const boxW = measure.width + p.badgePaddingX * 2;
-        const boxH = measure.height + p.badgePaddingY * 2;
+        const boxW = measure.width + p.badgePaddingX * 2 * resScale;
+        const boxH = measure.height + p.badgePaddingY * 2 * resScale;
         const bx = cx - boxW / 2;
         const by = cy - boxH / 2;
-        const rad = Math.min(p.badgeRadius, boxH / 2);
+        const rad = Math.min((p.badgeRadius !== undefined ? p.badgeRadius : 12) * resScale, boxH / 2);
 
         let badgeAlpha = 1.0;
-        if (effectiveAnimIn !== 'none' && localSec < inDur) {
+        if (normIn !== 'none' && localSec < inDur) {
           badgeAlpha = Math.min(1.0, Math.max(0, localSec / Math.max(0.05, inDur * 0.4)));
-        } else if (effectiveAnimOut !== 'none' && localSec >= outStartSec) {
+        } else if (normOut !== 'none' && localSec >= outStartSec) {
           const outProg = Math.min(1.0, Math.max(0, (localSec - outStartSec) / outDur));
           badgeAlpha = Math.max(0, 1.0 - Math.pow(outProg, 1.6));
         }
@@ -281,40 +337,6 @@
       ctx.font = font;
       ctx.textBaseline = 'middle';
       ctx.lineJoin = p.strokeJoin || 'round';
-
-      const lines = measure.lines;
-      const lineH = measure.lineHeight;
-      const totalH = lines.length * lineH;
-      const startY = cy - (totalH / 2) + (lineH / 2);
-
-      let globalCharIndex = 0;
-      const fullText = lines.join('');
-      const totalChars = fullText.length || 1;
-
-      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_pop');
-      const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
-
-      // Typewriter IN progress
-      let isTypewriter = (effectiveAnimIn === 'typewriter' || p.animation === 'typewriter');
-      let visibleChars = totalChars;
-      if (isTypewriter) {
-        const prog = Math.min(1.0, Math.max(0, localSec / inDur));
-        visibleChars = Math.floor(prog * totalChars);
-      }
-
-      // OUT setup (same keys as IN, normalised the same way)
-      const effectiveAnimOut = p.animOut || 'none';
-
-      const outDur = Math.max(0.1, Number(p.animOutDuration) || 0.6);
-      const outStartSec = Math.max(inDur, clipDur - outDur);
-
-      // Typewriter OUT: chars vanish right-to-left using global progress (no per-char stagger)
-      let isTypewriterOut = (effectiveAnimOut === 'typewriter');
-      let visibleCharsOut = totalChars;
-      if (isTypewriterOut && localSec >= outStartSec) {
-        const outProg = Math.min(1.0, (localSec - outStartSec) / outDur);
-        visibleCharsOut = Math.floor((1 - outProg) * totalChars);
-      }
 
       lines.forEach((line, lineIdx) => {
         const curY = startY + lineIdx * lineH;
@@ -431,12 +453,12 @@
 
           // ── OUT ANIMATION ──────────────────────────────────────────────────
           // AE-quality character exit transitions with damped spring anticipation
-          if (effectiveAnimOut !== 'none' && effectiveAnimOut !== 'typewriter' && localSec >= outStartSec) {
+          if (normOut !== 'none' && normOut !== 'typewriter' && localSec >= outStartSec) {
             const tOutGlobal = localSec - outStartSec;
             const actualTotalStagger = totalUnits > 1 ? outDur * Math.min(0.55, animStagger) : 0;
             const outStagger = totalUnits > 1 ? actualTotalStagger / (totalUnits - 1) : 0;
-            // Reverse stagger: last character exits first
-            const outMyDelay = (totalUnits - 1 - animIndex) * outStagger;
+            // Left-to-right stagger: first character exits first (matches IN direction)
+            const outMyDelay = animIndex * outStagger;
             const tOut       = tOutGlobal - outMyDelay;
             const charDur    = Math.max(0.24, outDur - actualTotalStagger);
 
@@ -445,7 +467,7 @@
             } else if (tOut > 0) {
               const prog = Math.min(1.0, tOut / charDur);
 
-              if (effectiveAnimOut === 'bounce_out') {
+              if (normOut === 'bounce_out') {
                 // Mirror of bounce_1 IN: damped cosine spring, reversed
                 // Phase 1 (0→30%): anticipation windup — slight bounce UP using spring
                 // Phase 2 (30→100%): accelerating gravity drop DOWN
@@ -469,7 +491,7 @@
                   charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(dropProg, 1.4)));
                 }
 
-              } else if (effectiveAnimOut === 'shrink_drop') {
+              } else if (normOut === 'shrink_drop') {
                 // Mirror of bounce_2/bounce_4 IN: scale collapse with spring anticipation
                 // Phase 1 (0→25%): anticipation swell — character briefly inflates
                 // Phase 2 (25→100%): spring-driven snap collapse to zero
@@ -492,14 +514,14 @@
                 offY = fontSize * 0.3 * Math.pow(snapProg, 2.0);
                 charAlpha = Math.min(charAlpha, Math.max(0, Math.min(1.0, sc * 1.5)));
 
-              } else if (effectiveAnimOut === 'fade_down') {
+              } else if (normOut === 'fade_down') {
                 // Smooth gravity-eased vertical drop with cosine fade
                 // Matches fade_up IN quality with proper easing curve
                 const easeProg = 1.0 - Math.cos(prog * Math.PI * 0.5); // cosine ease-in
                 offY = easeProg * fontSize * 0.6;
                 charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(prog, 1.5)));
 
-              } else if (effectiveAnimOut === 'slide_out') {
+              } else if (normOut === 'slide_out') {
                 // Snappy inertia horizontal slide exit with spring windup
                 // Phase 1 (0→20%): slight counter-slide (anticipation)
                 // Phase 2 (20→100%): accelerating slide out
@@ -511,6 +533,23 @@
 
                 offX = counterSlide + slideX;
                 charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(slideProg, 1.3)));
+
+              } else if (normOut === 'wave') {
+                const wfreq = 5.0 * (p.animSpeed || 1.0);
+                const phase = charIndex * 0.45;
+                offY = Math.sin(tOut * wfreq + phase) * (fontSize * 0.25) + Math.pow(prog, 2) * (fontSize * 0.8);
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(prog, 1.4)));
+
+              } else if (normOut === 'glitch') {
+                const quant = Math.floor(tOut * 20);
+                const hash = Math.sin(quant * 9999 + charIndex * 1337);
+                const hash2 = Math.cos(quant * 4321 + charIndex * 777);
+                if (Math.abs(hash) > 0.35) {
+                  offX = hash * fontSize * 0.2;
+                  offY = hash2 * fontSize * 0.12;
+                  scaleX = 1.0 + hash * 0.1;
+                }
+                charAlpha = Math.min(charAlpha, Math.max(0, 1.0 - Math.pow(prog, 1.3)));
               }
             }
           }
@@ -539,7 +578,7 @@
               if (normInMB === 'bounce_1' || normInMB === 'bounce_3') {
                 const freq2  = normInMB === 'bounce_3' ? Math.max(0.5, animFreq - 1) : animFreq;
                 const decay2 = normInMB === 'bounce_3' ? Math.max(0.5, animDecay - 2) : animDecay;
-                const amp2   = (p.fontSize || 64) * animAmplitude;
+                const amp2   = fontSize * animAmplitude;
                 mbOffY = amp2 * Math.cos(freq2 * tPrev * 2 * Math.PI) / Math.exp(decay2 * tPrev);
               } else if (normInMB === 'bounce_2' || normInMB === 'bounce_4') {
                 const freq2  = normInMB === 'bounce_4' ? Math.max(0.5, animFreq - 1) : animFreq;
@@ -550,7 +589,7 @@
               }
 
               // MB ghost OUT: matches OUT formulas
-              const animOutMB = p.animOut || 'none';
+              const animOutMB = normOut;
               if (animOutMB !== 'none' && animOutMB !== 'typewriter') {
                 const outDurMB     = Math.max(0.1, Number(p.animOutDuration) || 0.6);
                 const outStartMB   = Math.max(inDur, clipDur - outDurMB);
@@ -558,18 +597,18 @@
                   const tOutGlobMB = (localSec - dt * mbI) - outStartMB;
                   const actualTotalStaggerMB = totalUnits > 1 ? outDurMB * Math.min(0.55, animStagger) : 0;
                   const outStaggerMB = totalUnits > 1 ? actualTotalStaggerMB / (totalUnits - 1) : 0;
-                  const tOutMB     = tOutGlobMB - (totalUnits - 1 - animIndex) * outStaggerMB;
+                  const tOutMB     = tOutGlobMB - animIndex * outStaggerMB;
                   const charDurMB  = Math.max(0.24, outDurMB - actualTotalStaggerMB);
                   if (tOutMB > 0 && tOutMB < charDurMB) {
                     const pMB = Math.min(1.0, tOutMB / charDurMB);
                     if (animOutMB === 'bounce_out') {
-                      const amplitude = (p.fontSize || 64) * animAmplitude;
+                      const amplitude = fontSize * animAmplitude;
                       const antPhase = Math.min(1.0, pMB / 0.30);
                       const antT = antPhase * 0.5;
                       const springUp = amplitude * 0.35 * Math.cos(animFreq * antT * 2 * Math.PI) / Math.exp(animDecay * 0.6 * antT);
                       const antY = -Math.abs(springUp) * Math.pow(Math.sin(Math.PI * antPhase), 2);
                       const dropProg = Math.max(0, (pMB - 0.25) / 0.75);
-                      const dropY = (p.fontSize || 64) * 1.8 * Math.pow(dropProg, 2.2);
+                      const dropY = fontSize * 1.8 * Math.pow(dropProg, 2.2);
                       mbOffY += antY + dropY;
                     } else if (animOutMB === 'shrink_drop') {
                       const swellAmount = 0.18 * animAmplitude;
@@ -581,16 +620,20 @@
                       const collapse = 1.0 - Math.cos(Math.min(1.0, snapProg) * Math.PI * 0.5);
                       const sc2 = Math.max(0, (1.0 + swell) * (1.0 - collapse));
                       mbSX = sc2; mbSY = sc2;
-                      mbOffY += (p.fontSize || 64) * 0.3 * Math.pow(snapProg, 2.0);
+                      mbOffY += fontSize * 0.3 * Math.pow(snapProg, 2.0);
                     } else if (animOutMB === 'slide_out') {
                       const antPhase = Math.min(1.0, pMB / 0.20);
-                      const counterSlide = -(p.fontSize || 64) * 0.12 * Math.pow(Math.sin(Math.PI * antPhase), 2);
+                      const counterSlide = -fontSize * 0.12 * Math.pow(Math.sin(Math.PI * antPhase), 2);
                       const slideProg = Math.max(0, (pMB - 0.15) / 0.85);
-                      const slideX = (p.fontSize || 64) * 2.0 * Math.pow(slideProg, 2.0);
+                      const slideX = fontSize * 2.0 * Math.pow(slideProg, 2.0);
                       mbOffX += counterSlide + slideX;
                     } else if (animOutMB === 'fade_down') {
                       const easeProg = 1.0 - Math.cos(pMB * Math.PI * 0.5);
-                      mbOffY += easeProg * (p.fontSize || 64) * 0.6;
+                      mbOffY += easeProg * fontSize * 0.6;
+                    } else if (animOutMB === 'wave') {
+                      const wfreq = 5.0 * (p.animSpeed || 1.0);
+                      const phase = charIndex * 0.45;
+                      mbOffY += Math.sin((tOutMB) * wfreq + phase) * (fontSize * 0.25) + Math.pow(pMB, 2) * (fontSize * 0.8);
                     }
                   }
                 }
@@ -631,7 +674,7 @@
             const rad = ((p.longShadowAngle !== undefined ? p.longShadowAngle : 45) * Math.PI) / 180;
             const cosA = Math.cos(rad);
             const sinA = Math.sin(rad);
-            const steps = Math.min(60, Math.round(p.longShadowLength));
+            const steps = Math.min(80, Math.round(p.longShadowLength * resScale));
             for (let s = 1; s <= steps; s++) {
               const sx = s * cosA;
               const sy = s * sinA;
@@ -644,7 +687,7 @@
           if (p.neonGlow) {
             ctx.save();
             ctx.shadowColor = p.neonGlowColor || '#98ce7b';
-            ctx.shadowBlur = p.neonGlowBlur || 16;
+            ctx.shadowBlur = (p.neonGlowBlur || 16) * resScale;
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
             ctx.fillStyle = p.fillColor || '#ffffff';
@@ -654,9 +697,9 @@
           } else if (p.shadowEnabled) {
             ctx.save();
             ctx.shadowColor = p.shadowColor || 'rgba(0,0,0,0.6)';
-            ctx.shadowBlur = p.shadowBlur || 8;
-            ctx.shadowOffsetX = p.shadowOffsetX || 4;
-            ctx.shadowOffsetY = p.shadowOffsetY || 4;
+            ctx.shadowBlur = (p.shadowBlur || 8) * resScale;
+            ctx.shadowOffsetX = (p.shadowOffsetX || 4) * resScale;
+            ctx.shadowOffsetY = (p.shadowOffsetY || 4) * resScale;
             ctx.fillStyle = p.fillColor || '#ffffff';
             ctx.fillText(ch, -(chW / 2), 0);
             ctx.restore();
@@ -666,7 +709,7 @@
           if (p.strokeWidth > 0) {
             ctx.save();
             ctx.strokeStyle = p.strokeColor || '#000000';
-            ctx.lineWidth = p.strokeWidth;
+            ctx.lineWidth = p.strokeWidth * resScale;
             ctx.strokeText(ch, -(chW / 2), 0);
             ctx.restore();
           }
@@ -681,12 +724,12 @@
         }
 
         // Draw Typewriter cursor if still typing
-        if (p.animation === 'typewriter' && localSec < (p.animDuration || 2.5)) {
+        if ((normIn === 'typewriter' || p.animation === 'typewriter') && localSec < inDur) {
           const blink = Math.floor(localSec * 4) % 2 === 0;
           if (blink && lineIdx === lines.length - 1) {
             ctx.save();
             ctx.fillStyle = p.fillColor || '#98ce7b';
-            ctx.fillRect(curX + 4, curY - p.fontSize * 0.4, 4, p.fontSize * 0.8);
+            ctx.fillRect(curX + 4 * resScale, curY - fontSize * 0.4, 4 * resScale, fontSize * 0.8);
             ctx.restore();
           }
         }

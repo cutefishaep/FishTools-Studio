@@ -564,7 +564,7 @@
   fill: currentColor !important;
 }
 
-/* CONTROL PANEL: STRICT 4-COLUMN TILES (Equal Width Guaranteed) */
+/* CONTROL PANEL: STRICT 3-COLUMN TILES (Equal Width & Full Symmetry Guaranteed) */
 .desktop-panel-left .add-layer-control-panel {
   padding: 8px 10px !important;
   box-sizing: border-box !important;
@@ -572,7 +572,7 @@
 
 .desktop-panel-left #add-layer-control-grid {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 8px !important;
   width: 100% !important;
   box-sizing: border-box !important;
@@ -596,7 +596,7 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 4px !important;
-  padding: 4px 2px !important;
+  padding: 4px 4px !important;
   margin: 0 !important;
   cursor: pointer;
   box-sizing: border-box !important;
@@ -624,14 +624,17 @@
 }
 
 .desktop-panel-left #add-layer-control-grid .layer-action-label {
-  font-size: 10px !important;
+  font-size: 9.5px !important;
   font-weight: 600 !important;
   text-align: center !important;
   width: 100% !important;
   max-width: 100% !important;
+  line-height: 1.15 !important;
   overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  word-break: break-word !important;
   box-sizing: border-box !important;
   padding: 0 2px !important;
 }

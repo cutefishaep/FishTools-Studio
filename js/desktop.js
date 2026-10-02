@@ -1219,6 +1219,15 @@
             const topHeaderMb = document.getElementById('btn-layer-header-motion-blur');
             if (topHeaderMb) topHeaderMb.classList.toggle('is-active', nextState);
 
+            if (nextState && window.currentProjectState) {
+              window.currentProjectState.motionBlur = window.currentProjectState.motionBlur || { shutterAngle: 180, shutterPhase: 0, samples: 16 };
+              window.currentProjectState.motionBlur.enabled = true;
+              try { localStorage.setItem('oft_global_motion_blur', 'true'); } catch (_) {}
+              const globalMbIcon = document.getElementById('editor-icon-motion-blur');
+              if (globalMbIcon) globalMbIcon.classList.add('is-active');
+            }
+            if (window.PreviewCacheManager) window.PreviewCacheManager.clearAll();
+
             if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers(true);
             if (typeof window.redrawComposition === 'function') window.redrawComposition();
           });

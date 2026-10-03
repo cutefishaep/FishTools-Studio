@@ -5,6 +5,15 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.120] - 2026-10-03
+
+### Improved
+- **Deep Glow Radiant Bloom & True Optical Falloff Engine (`effects/deep_glow.js`)**:
+  - **HDR Exposure Accumulation**: Replaced single-clamp alpha limiter with progressive multi-pass accumulator, allowing `exposure` (up to 500%) to scale light exponentially without premature 1.0 clamping.
+  - **6-Octave Optical Bloom Pyramid**: Expanded from 5 to 6 progressive octaves (from 0.15x hot core to 6.8x atmospheric dispersion) with 500px boundary padding to eliminate border cutoff.
+  - **Universal Linear De-Gamma**: Applied `deGammaLut` (`pow(x, 1/2.2)`) and clean alpha unmulting across all blend modes, restoring luminous inverse-square glow in mid-tones and outer halos that were previously squashed dark.
+  - **Non-Destructive Composite**: Re-engineered `source-over`, `screen`, and `lighter` compositing so the glow layers additively over the source without muting or dimming the crisp white cores.
+
 ## [0.5.119] - 2026-10-03
 
 ### Added

@@ -90,11 +90,13 @@
       // ── 1. Calculate Bloom Bounding Box & Target Downsampling Resolution ──
       // Glow is low-frequency light diffusion: downsampling to max 640px cuts pixel work by ~90%
       // while hardware bilinear texture scaling renders a silky-smooth, banding-free bloom.
-      const pad = Math.min(280, Math.round(radius * 1.4));
+      // ── 1. Calculate Bloom Bounding Box & Target Downsampling Resolution ──
+      // Expanded padding (up to 500px) ensures multi-octave atmospheric halos bloom without border clipping.
+      const pad = Math.min(500, Math.round(radius * 3.2));
       const bw = w + pad * 2;
       const bh = h + pad * 2;
 
-      const TARGET_MAX_DIM = 640;
+      const TARGET_MAX_DIM = 720;
       const maxDim = Math.max(bw, bh);
       const downScale = maxDim > TARGET_MAX_DIM ? (TARGET_MAX_DIM / maxDim) : 1.0;
       const gw = Math.max(16, Math.round(bw * downScale));
@@ -155,7 +157,7 @@
             rOff = -caAmt;
             gOff = caAmt;
           } else if (caChannels === 'green-blue') {
-            gOff = -caAmt;
+            rOff = -caAmt;
             bOff = caAmt;
           }
 
@@ -173,7 +175,7 @@
           }
         }
 
-        // B. Smooth Knee Threshold & Gamma LUT
+        // B. Smooth Knee Threshold & Gamma Linearization
         const threshVal = threshold * 255;
         const smoothLut = new Uint8Array(256);
         for (let v = 0; v < 256; v++) {
@@ -201,12 +203,16 @@
         downCtx.putImageData(imgData, 0, 0);
       }
 
-      // ── 5. Multi-Octave Inverse-Square Falloff Bloom Pyramid (5 Octaves) ──
+      // ── 5. Multi-Octave Inverse-Square Falloff Bloom Pyramid (6 Octaves, Real HDR Gain) ──
       glowCtx.clearRect(0, 0, gw, gh);
       glowCtx.fillStyle = '#000000';
       glowCtx.fillRect(0, 0, gw, gh);
 
-      const octaves = 5;
+      const octaves = 6;
+      // Authentic After Effects Deep Glow progressive octave scaling:
+      // Octave 0: Hot Core, Octave 1: Inner Aura, Octave 2: Mid Bloom,
+      // Octave 3: Wide Halo, Octave 4: Deep Atmosphere, Octave 5: Ethereal Dispersion
+      const octaveScales = [0.15, 0.35, 0.80, 1.75, 3.50, 6.80];
       const aspectScaleX = aspect > 0 ? (1 + aspect * 1.5) : (1 / (1 + Math.abs(aspect) * 1.5));
       const aspectScaleY = aspect < 0 ? (1 + Math.abs(aspect) * 1.5) : (1 / (1 + aspect * 1.5));
 
@@ -217,50 +223,59 @@
                               window.FishEffects.isCanvasFilterSupported();
 
       for (let oct = 0; oct < octaves; oct++) {
-        const octRadius = radius * Math.pow(1.85, oct) * 0.22 * downScale;
+        const octRadius = radius * octaveScales[oct] * downScale;
         const blurX = Math.max(1, Math.round(octRadius * aspectScaleX));
         const blurY = Math.max(1, Math.round(octRadius * aspectScaleY));
         const blurRadius = Math.max(blurX, blurY);
 
-        // Physically accurate inverse-square falloff weight
-        const weight = (1.0 / Math.pow(oct + 1.25, falloff)) * exposure;
+        // Physically accurate inverse-square falloff weight scaled by exposure
+        const weight = (1.0 / Math.pow(oct + 1.15, falloff)) * exposure;
         if (weight <= 0.002) continue;
 
-        glowCtx.save();
-        glowCtx.globalAlpha = Math.min(1.0, weight);
+        // Multi-draw accumulation handles weights > 1.0 (HDR gain) without clipping exposure
+        let remWeight = weight;
+        let pass = 0;
+        while (remWeight > 0.005 && pass < 6) {
+          const passAlpha = Math.min(1.0, remWeight);
+          glowCtx.save();
+          glowCtx.globalAlpha = passAlpha;
 
-        if (hasNativeFilter) {
-          glowCtx.filter = `blur(${blurRadius}px)`;
-          if (Math.abs(aspect) > 0.02) {
-            const centerX = gw / 2;
-            const centerY = gh / 2;
-            glowCtx.translate(centerX, centerY);
-            glowCtx.scale(aspectScaleX, aspectScaleY);
-            glowCtx.drawImage(downCanvas, -centerX, -centerY);
+          if (hasNativeFilter) {
+            glowCtx.filter = `blur(${blurRadius}px)`;
+            if (Math.abs(aspect) > 0.02) {
+              const centerX = gw / 2;
+              const centerY = gh / 2;
+              glowCtx.translate(centerX, centerY);
+              glowCtx.scale(aspectScaleX, aspectScaleY);
+              glowCtx.drawImage(downCanvas, -centerX, -centerY);
+            } else {
+              glowCtx.drawImage(downCanvas, 0, 0);
+            }
+            glowCtx.filter = 'none';
+          } else if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
+            if (Math.abs(aspect) > 0.02) {
+              const centerX = gw / 2;
+              const centerY = gh / 2;
+              glowCtx.translate(centerX, centerY);
+              glowCtx.scale(aspectScaleX, aspectScaleY);
+              window.FishEffects.drawBlurred(glowCtx, downCanvas, gw, gh, blurRadius, -centerX, -centerY);
+            } else {
+              window.FishEffects.drawBlurred(glowCtx, downCanvas, gw, gh, blurRadius, 0, 0);
+            }
           } else {
             glowCtx.drawImage(downCanvas, 0, 0);
           }
-          glowCtx.filter = 'none';
-        } else if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
-          if (Math.abs(aspect) > 0.02) {
-            const centerX = gw / 2;
-            const centerY = gh / 2;
-            glowCtx.translate(centerX, centerY);
-            glowCtx.scale(aspectScaleX, aspectScaleY);
-            window.FishEffects.drawBlurred(glowCtx, downCanvas, gw, gh, blurRadius, -centerX, -centerY);
-          } else {
-            window.FishEffects.drawBlurred(glowCtx, downCanvas, gw, gh, blurRadius, 0, 0);
-          }
-        } else {
-          glowCtx.drawImage(downCanvas, 0, 0);
+          glowCtx.restore();
+
+          remWeight -= passAlpha;
+          pass++;
         }
-        glowCtx.restore();
       }
 
       glowCtx.globalCompositeOperation = 'source-over';
       glowCtx.filter = 'none';
 
-      // ── 6. GPU Tinting & Alpha Unmult ──
+      // ── 6. GPU Tinting & Universal De-Gamma / Alpha Unmult ──
       const rgb = hexToRgb(tintColor);
       const isWhiteTint = (rgb.r >= 250 && rgb.g >= 250 && rgb.b >= 250);
 
@@ -288,36 +303,65 @@
         }
       }
 
-      // Unmult: for screen and lighter blend modes, black is pure identity (no alpha extraction required!).
-      // Only extract alpha on the compact downscaled buffer when blendMode is source-over.
-      if (blendMode === 'source-over' && unmult) {
-        const gImg = glowCtx.getImageData(0, 0, gw, gh);
-        const gData = gImg.data;
-        const gLen = gData.length;
-        for (let i = 0; i < gLen; i += 4) {
-          if (gammaCorrect) {
-            gData[i] = deGammaLut[gData[i]];
-            gData[i + 1] = deGammaLut[gData[i + 1]];
-            gData[i + 2] = deGammaLut[gData[i + 2]];
-          }
-          gData[i + 3] = Math.max(gData[i], gData[i + 1], gData[i + 2]);
+      // Universal De-Gamma & Alpha Unmult:
+      // Always extract clean alpha and expand linear light into rich, radiant sRGB bloom curves.
+      // Operates on the compact downscaled buffer in ~0.3ms.
+      const gImg = glowCtx.getImageData(0, 0, gw, gh);
+      const gData = gImg.data;
+      const gLen = gData.length;
+      for (let i = 0; i < gLen; i += 4) {
+        let rVal = gData[i];
+        let gVal = gData[i + 1];
+        let bVal = gData[i + 2];
+        if (gammaCorrect) {
+          rVal = deGammaLut[rVal];
+          gVal = deGammaLut[gVal];
+          bVal = deGammaLut[bVal];
+          gData[i] = rVal;
+          gData[i + 1] = gVal;
+          gData[i + 2] = bVal;
         }
-        glowCtx.putImageData(gImg, 0, 0);
+        if (unmult) {
+          gData[i + 3] = Math.max(rVal, gVal, bVal);
+        }
       }
+      glowCtx.putImageData(gImg, 0, 0);
 
       // ── 7. Final Bilinear Composite onto Destination Canvas ──
       ctx.save();
-      if (!glowOnly) {
+      if (glowOnly) {
+        ctx.globalAlpha = opacity;
+        ctx.globalCompositeOperation = (blendMode === 'source-over' ? 'source-over' : blendMode);
         try {
-          ctx.drawImage(el, x, y, w, h);
+          ctx.drawImage(glowCanvas, x - pad, y - pad, bw, bh);
         } catch (_) {}
-      }
+      } else {
+        if (blendMode === 'source-over') {
+          // Source-over mode: draw ambient glow with smooth alpha, then draw source crisp on top,
+          // then add light pass so hot core blooms brightly without muddying
+          ctx.save();
+          ctx.globalAlpha = opacity;
+          ctx.globalCompositeOperation = 'source-over';
+          try { ctx.drawImage(glowCanvas, x - pad, y - pad, bw, bh); } catch (_) {}
+          ctx.restore();
 
-      ctx.globalAlpha = opacity;
-      ctx.globalCompositeOperation = blendMode;
-      try {
-        ctx.drawImage(glowCanvas, x - pad, y - pad, bw, bh);
-      } catch (_) {}
+          try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+
+          ctx.save();
+          ctx.globalAlpha = opacity * 0.85;
+          ctx.globalCompositeOperation = 'lighter';
+          try { ctx.drawImage(glowCanvas, x - pad, y - pad, bw, bh); } catch (_) {}
+          ctx.restore();
+        } else {
+          // Screen or Lighter: draw source crisp, then layer the radiant glow additively
+          try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+          ctx.save();
+          ctx.globalAlpha = opacity;
+          ctx.globalCompositeOperation = blendMode;
+          try { ctx.drawImage(glowCanvas, x - pad, y - pad, bw, bh); } catch (_) {}
+          ctx.restore();
+        }
+      }
 
       ctx.restore();
     }

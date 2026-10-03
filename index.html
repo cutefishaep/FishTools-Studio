@@ -30,7 +30,7 @@
         <h1 class="brand-title">OpenFishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.5.119</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.5.120</span>
         </div>
       </div>
       <div class="studio-header-actions">
@@ -509,7 +509,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.119</span>
+          <span class="welcome-badge">v0.5.120</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -545,11 +545,54 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.120 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.120</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 3, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Deep Glow Radiant Bloom &amp; True Optical Falloff Engine (`effects/deep_glow.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">HDR Exposure Accumulation</span>
+                  <span class="changelog-item-desc">Replaced single-clamp alpha limiter with progressive multi-pass accumulator, allowing `exposure` (up to 500%) to scale light exponentially without premature 1.0 clamping.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">6-Octave Optical Bloom Pyramid</span>
+                  <span class="changelog-item-desc">Expanded from 5 to 6 progressive octaves (from 0.15x hot core to 6.8x atmospheric dispersion) with 500px boundary padding to eliminate border cutoff.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Universal Linear De-Gamma</span>
+                  <span class="changelog-item-desc">Applied `deGammaLut` (`pow(x, 1/2.2)`) and clean alpha unmulting across all blend modes, restoring luminous inverse-square glow in mid-tones and outer halos that were previously squashed dark.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-improved">Improved</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Non-Destructive Composite</span>
+                  <span class="changelog-item-desc">Re-engineered `source-over`, `screen`, and `lighter` compositing so the glow layers additively over the source without muting or dimming the crisp white cores.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.119 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.119</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 3, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -2785,11 +2828,11 @@
   </div>
 
   <script src="js/jszip.min.js"></script>
-  <script src="js/db.js?v=0.5.119"></script>
-  <script src="js/modal.js?v=0.5.119"></script>
-  <script src="js/pwa-install.js?v=0.5.119"></script>
-  <script src="js/context-menu.js?v=0.5.119"></script>
+  <script src="js/db.js?v=0.5.120"></script>
+  <script src="js/modal.js?v=0.5.120"></script>
+  <script src="js/pwa-install.js?v=0.5.120"></script>
+  <script src="js/context-menu.js?v=0.5.120"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="js/main.js?v=0.5.119"></script>
+  <script src="js/main.js?v=0.5.120"></script>
 </body>
 </html>

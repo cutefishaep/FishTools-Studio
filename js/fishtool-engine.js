@@ -426,7 +426,12 @@
             : ((typeof window !== 'undefined' && typeof window.currentPlaybackSec === 'number')
               ? window.currentPlaybackSec
               : 0)));
-      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: padX, y: padY, w, h, bufferScale: (bounds && bounds.bufferScale) || 1 }, curSec);
+      // unitScale = effect-space px per comp px. Effects are rendered at media size here, then the quad
+      // is scaled to the layer → comp-px distances must be expressed in media px.
+      const bScaleFx = (bounds && bounds.bufferScale) || 1;
+      const quadCompW = Math.abs(bounds && (bounds.absW || bounds.w) || 0) / bScaleFx;
+      const unitScale = quadCompW > 0 ? (w / quadCompW) : 1;
+      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: padX, y: padY, w, h, bufferScale: bScaleFx, unitScale }, curSec);
       return { el: this._fxCanvas, padX, padY, origW: w, origH: h };
     }
 
@@ -1148,7 +1153,7 @@
                   ? window.currentPlaybackSec
                   : 0)));
           if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-            window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH, bufferScale: bounds.bufferScale || bufferScale || 1 }, curSec);
+            window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH, bufferScale: bounds.bufferScale || bufferScale || 1, unitScale: bounds.bufferScale || bufferScale || 1 }, curSec);
           } else {
             ctx.drawImage(el, drawX, drawY, absW, absH);
           }
@@ -2044,7 +2049,7 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
     }
 
-    _blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale) {
+    _blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale, cropRect = null) {
       try {
         ctx.save();
         if (layer.blendMode && layer.blendMode !== 'normal') {
@@ -2065,6 +2070,12 @@
           ? layer.effects.find(f => f && !f.disabled && f.type === 'drop-shadow')
           : null;
 
+        const hasCrop = !!(cropRect && cropRect.w > 0 && cropRect.h > 0 && (cropRect.w < vw || cropRect.h < vh));
+        const sx = hasCrop ? Math.max(0, Math.floor(cropRect.x)) : 0;
+        const sy = hasCrop ? Math.max(0, Math.floor(cropRect.y)) : 0;
+        const sw = hasCrop ? Math.min(vw - sx, Math.ceil(cropRect.w)) : vw;
+        const sh = hasCrop ? Math.min(vh - sy, Math.ceil(cropRect.h)) : vh;
+
         if (dsFx) {
           const op = Math.max(0, Math.min(1, (dsFx.opacity !== undefined ? dsFx.opacity : 75) / 100));
           const angle = ((dsFx.angle !== undefined ? dsFx.angle : 135) * Math.PI) / 180;
@@ -2083,16 +2094,16 @@
             if (rgbSplitFx) {
               const offX = vw + blur * 2 + Math.abs(ox);
               ctx.shadowOffsetX = ox + offX;
-              ctx.drawImage(this.glCanvas, -offX, 0);
+              ctx.drawImage(this.glCanvas, sx, sy, sw, sh, sx - offX, sy, sw, sh);
             } else {
-              ctx.drawImage(this.glCanvas, 0, 0);
+              ctx.drawImage(this.glCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
             }
             ctx.restore();
           } else if (!rgbSplitFx) {
-            ctx.drawImage(this.glCanvas, 0, 0);
+            ctx.drawImage(this.glCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
           }
         } else if (!rgbSplitFx) {
-          ctx.drawImage(this.glCanvas, 0, 0);
+          ctx.drawImage(this.glCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
         }
 
         if (rgbSplitFx && window.FishEffects && typeof window.FishEffects.renderRGBSplit === 'function') {
@@ -2105,12 +2116,12 @@
             this._copyCanvas.height = vh;
           }
           this._copyCtx.clearRect(0, 0, vw, vh);
-          this._copyCtx.drawImage(this.glCanvas, 0, 0);
-          window.FishEffects.renderRGBSplit(ctx, this._copyCanvas, layer, { x: 0, y: 0, w: vw, h: vh }, rgbSplitFx);
+          this._copyCtx.drawImage(this.glCanvas, sx, sy, sw, sh, sx, sy, sw, sh);
+          window.FishEffects.renderRGBSplit(ctx, this._copyCanvas, layer, { x: sx, y: sy, w: sw, h: sh }, rgbSplitFx);
         }
 
         if (window.FishEffects && typeof window.FishEffects.applyPostEffects === 'function') {
-          window.FishEffects.applyPostEffects(ctx, this.glCanvas, layer, { x: 0, y: 0, w: vw, h: vh });
+          window.FishEffects.applyPostEffects(ctx, this.glCanvas, layer, { x: sx, y: sy, w: sw, h: sh });
         }
         ctx.restore();
       } catch (_) {}
@@ -2128,44 +2139,70 @@
         return;
       }
 
-      const bounds = this.getBounds(layer, bufferScale, camera);
+      const pool = (compState && Array.isArray(compState.layers) && compState.layers)
+        || ((typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) ? window.currentProjectState.layers : null);
+      const evalSec = (typeof currentSec === 'number' && !isNaN(currentSec))
+        ? currentSec
+        : ((layer && typeof layer._currentSec === 'number') ? layer._currentSec : 0);
+      const curEff = (typeof window.getLayerEffectivePropsAtTime === 'function')
+        ? window.getLayerEffectivePropsAtTime(layer, evalSec, null, pool)
+        : null;
+      const animLayer = curEff ? Object.assign({}, layer, curEff) : layer;
+      animLayer._currentSec = evalSec;
+
+      const bounds = this.getBounds(animLayer, bufferScale, camera);
       if (bounds.isBehindCamera || ((bounds.aabbW < 1.0 && bounds.w < 1.0) || (bounds.aabbH < 1.0 && bounds.h < 1.0))) {
         return;
       }
 
       const mbEngine = window.FishMotionBlurEngine;
-      const config = mbEngine ? mbEngine.getConfig(compState) : { shutterAngle: 180, shutterPhase: 0, samples: 8 };
-      const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
-      const frameDur = 1 / Math.max(1, fps);
-      const exposureTime = (config.shutterAngle / 360) * frameDur;
-      const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
+      const shutter = mbEngine && typeof mbEngine.getShutter === 'function'
+        ? mbEngine.getShutter(compState, evalSec)
+        : {
+            exposureTime: (180 / 360) * (1 / ((typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60)),
+            tStart: evalSec
+          };
+      const exposureTime = shutter.exposureTime;
+      const tStart = shutter.tStart;
 
-      const isExport = (typeof window !== 'undefined' && (window._isExportingVideo === true || window._isExportingSequence === true));
-      const draftBtn = (typeof document !== 'undefined') ? document.getElementById('editor-icon-low-quality') : null;
-      const isDraft = draftBtn && draftBtn.classList.contains('is-active');
-      const isMobile = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
-
-      const samples = isExport ? Math.max(4, config.samples || 16) : ((isDraft || isMobile) ? 2 : 3);
-      const previewWeights = (samples === 2) ? [0.5, 0.5] : [0.25, 0.50, 0.25];
-      const previewOffsets = (samples === 2) ? [0.25, 0.75] : [0.15, 0.50, 0.85];
+      const plan = mbEngine && typeof mbEngine.planSamples === 'function'
+        ? mbEngine.planSamples(animLayer, bufferScale, camera, tStart, exposureTime, compState)
+        : { n: 16 };
+      const cfgSamples = (mbEngine && typeof mbEngine.getConfig === 'function') ? mbEngine.getConfig(compState).samples : 16;
+      const samples = Math.max(2, cfgSamples || 16);
+      const weight = 1 / samples;
 
       const targetCanvas = ctx.canvas;
       const vw = targetCanvas ? targetCanvas.width : (bounds.cx * 2 || 1920);
       const vh = targetCanvas ? targetCanvas.height : (bounds.cy * 2 || 1080);
 
       // Pre-process 2D effects onto local offscreen canvas if needed
-      const layerSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((layer && typeof layer._currentSec === 'number') ? layer._currentSec : null);
-      const processed = this._getEffectProcessedElement(el, layer, bounds, layerSec);
+      const processed = this._getEffectProcessedElement(el, animLayer, bounds, evalSec);
       const sourceEl = processed.el;
 
       const gl = this.gl;
       if (this.glCanvas.width !== vw || this.glCanvas.height !== vh) {
         this.glCanvas.width = vw;
         this.glCanvas.height = vh;
-        gl.viewport(0, 0, vw, vh);
       }
 
+      // Dynamic Bounding Box & Scissor Clamping: restrict rendering & clearing to moving layer AABB
+      const cropRect = plan && plan.rect;
+      const hasCrop = !!(cropRect && cropRect.w > 0 && cropRect.h > 0 && (cropRect.w < vw || cropRect.h < vh));
+      const cropX = hasCrop ? Math.max(0, Math.floor(cropRect.x)) : 0;
+      const cropY = hasCrop ? Math.max(0, Math.floor(cropRect.y)) : 0;
+      const cropW = hasCrop ? Math.min(vw - cropX, Math.ceil(cropRect.w)) : vw;
+      const cropH = hasCrop ? Math.min(vh - cropY, Math.ceil(cropRect.h)) : vh;
+
       gl.viewport(0, 0, vw, vh);
+      if (hasCrop) {
+        const glScissorY = Math.max(0, vh - (cropY + cropH));
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(cropX, glScissorY, cropW, cropH);
+      } else {
+        gl.disable(gl.SCISSOR_TEST);
+      }
+
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -2187,11 +2224,14 @@
 
       // Upload/Bind texture ONCE for all samples
       const tex = this._getOrCreateTexture(sourceEl);
-      if (!tex) return;
+      if (!tex) {
+        if (hasCrop) gl.disable(gl.SCISSOR_TEST);
+        return;
+      }
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(this.locations.texture, 0);
-      if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(camera));
+      if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(bounds.is3D ? camera : null));
 
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.CULL_FACE);
@@ -2215,53 +2255,38 @@
         ? layer.effects.find(f => f && !f.disabled && f.type === 'sphere_3d')
         : null;
 
-      const pStart = (typeof window.getLayerEffectivePropsAtTime === 'function')
-        ? window.getLayerEffectivePropsAtTime(layer, tStart)
-        : layer;
-      const pEnd = (typeof window.getLayerEffectivePropsAtTime === 'function')
-        ? window.getLayerEffectivePropsAtTime(layer, tStart + exposureTime)
-        : layer;
-
       const camLayer = (camera && camera._rawCamera)
         || (camera && camera.type === 'camera' ? camera : null)
-        || (compState && Array.isArray(compState.layers) && compState.layers.find(l => l && l.type === 'camera' && !l.hidden))
-        || (typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers) && window.currentProjectState.layers.find(l => l && l.type === 'camera' && !l.hidden))
+        || (pool && pool.find(l => l && l.type === 'camera' && !l.hidden))
         || null;
 
-      // Multi-sample accumulation loop with sub-frame shutter interpolation
+      let drawnSamples = 0;
       for (let s = 0; s < samples; s++) {
-        const u = (samples <= 3) ? previewOffsets[s] : ((s + 0.5) / samples);
-        const weight = (samples <= 3) ? previewWeights[s] : (1 / samples);
+        const u = (s + 0.5) / samples;
         const subSec = tStart + u * exposureTime;
 
         const subCamera = (camLayer && typeof window.getLayerEffectivePropsAtTime === 'function')
-          ? window.getLayerEffectivePropsAtTime(camLayer, subSec)
+          ? window.getLayerEffectivePropsAtTime(camLayer, subSec, null, pool)
           : camera;
 
         const subEff = (typeof window.getLayerEffectivePropsAtTime === 'function')
-          ? window.getLayerEffectivePropsAtTime(layer, subSec)
-          : {
-              posX: pStart.posX + ((pEnd.posX !== undefined ? pEnd.posX : pStart.posX) - pStart.posX) * u,
-              posY: pStart.posY + ((pEnd.posY !== undefined ? pEnd.posY : pStart.posY) - pStart.posY) * u,
-              posZ: (pStart.posZ || 0) + ((pEnd.posZ || 0) - (pStart.posZ || 0)) * u,
-              rotX: (pStart.rotX || 0) + ((pEnd.rotX || 0) - (pStart.rotX || 0)) * u,
-              rotY: (pStart.rotY || 0) + ((pEnd.rotY || 0) - (pStart.rotY || 0)) * u,
-              rotZ: (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)) + (((pEnd.rotZ !== undefined ? pEnd.rotZ : (pEnd.rotation || 0)) - (pStart.rotZ !== undefined ? pStart.rotZ : (pStart.rotation || 0)))) * u,
-              scaleW: (pStart.scaleW !== undefined ? pStart.scaleW : 1) + (((pEnd.scaleW !== undefined ? pEnd.scaleW : 1) - (pStart.scaleW !== undefined ? pStart.scaleW : 1))) * u,
-              scaleH: (pStart.scaleH !== undefined ? pStart.scaleH : 1) + (((pEnd.scaleH !== undefined ? pEnd.scaleH : 1) - (pStart.scaleH !== undefined ? pStart.scaleH : 1))) * u,
-              opacity: (pStart.opacity !== undefined ? pStart.opacity : 1) + (((pEnd.opacity !== undefined ? pEnd.opacity : 1) - (pStart.opacity !== undefined ? pStart.opacity : 1))) * u,
-              anchorX: pStart.anchorX,
-              anchorY: pStart.anchorY,
-              anchorZ: pStart.anchorZ
-            };
-        const subAnimLayer = Object.assign({}, layer, subEff);
+          ? window.getLayerEffectivePropsAtTime(layer, subSec, null, pool)
+          : null;
+        const subAnimLayer = subEff
+          ? Object.assign({}, layer, subEff, { is3D: !!(layer.is3D || bounds.is3D) })
+          : Object.assign({}, animLayer, { is3D: !!(layer.is3D || bounds.is3D) });
+        subAnimLayer._currentSec = subSec;
+
         const subBounds = this.getBounds(subAnimLayer, bufferScale, subCamera);
         if (subBounds.isBehindCamera) continue;
 
-        let mvp = this._computeMVP(subBounds, vw, vh, 0, subCamera);
+        // The scene camera only transforms 3D layers. A 2D layer must keep identical placement with
+        // blur on/off (effects like shatter/particles apply the camera inside their own texture).
+        const mvpCamera = (subBounds.is3D || bounds.is3D) ? subCamera : null;
+        let mvp = this._computeMVP(subBounds, vw, vh, 0, mvpCamera);
         if (!mvp) continue;
 
-        if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(subCamera));
+        if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(mvpCamera));
 
         if (processed.padX > 0 || processed.padY > 0) {
           const sX = (processed.origW + processed.padX * 2) / processed.origW;
@@ -2278,17 +2303,24 @@
         gl.uniform1f(this.locations.opacity, sampleOp);
 
         if (boxFx || extrudeFx || pyramidFx || sphereFx) {
-          if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, subBounds, sampleOp, layer);
-          else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, subBounds, sampleOp, layer);
-          else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, subBounds, sampleOp, layer);
-          else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, subBounds, sampleOp, layer);
+          if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, subBounds, sampleOp, subAnimLayer);
+          else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, subBounds, sampleOp, subAnimLayer);
+          else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, subBounds, sampleOp, subAnimLayer);
+          else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, subBounds, sampleOp, subAnimLayer);
         } else {
           this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, subBounds);
         }
+        drawnSamples++;
       }
 
-      // Blit accumulated result to 2D canvas context ONCE with shadow / RGB split
-      this._blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale);
+      if (hasCrop) {
+        gl.disable(gl.SCISSOR_TEST);
+      }
+
+      // Blit accumulated result to 2D canvas context ONCE with shadow / RGB split (clipped to cropRect)
+      if (drawnSamples > 0) {
+        this._blitGLToContext(ctx, animLayer, bounds, vw, vh, bufferScale, hasCrop ? { x: cropX, y: cropY, w: cropW, h: cropH } : null);
+      }
     }
 
     /**

@@ -1261,6 +1261,38 @@
   box-sizing: border-box !important;
 }
 
+/* Effects Gallery (desktop inspector): title row + full-width search row, one flat surface,
+   categories start right under the search (no stacked header/body padding band). */
+.desktop-panel-right .effects-gallery-header,
+#desktop-panel-inspector .effects-gallery-header {
+  gap: 6px !important;
+  padding: 8px 10px 8px !important;
+  background-color: var(--bg-dashboard) !important;
+}
+.desktop-panel-right .effects-gallery-header-left,
+#desktop-panel-inspector .effects-gallery-header-left {
+  flex: 1 1 100% !important;
+  min-height: 26px !important;
+}
+.desktop-panel-right .effects-gallery-search-box,
+#desktop-panel-inspector .effects-gallery-search-box {
+  flex: 1 1 100% !important;
+  max-width: none !important;
+  height: 32px !important;
+  margin-left: 0 !important;
+}
+.desktop-panel-right .effects-gallery-body,
+#desktop-panel-inspector .effects-gallery-body {
+  padding: 0 10px 16px !important;
+  background-color: var(--bg-dashboard) !important;
+}
+.desktop-panel-right .effects-chip-bar,
+#desktop-panel-inspector .effects-chip-bar {
+  margin: 0 -10px !important;
+  padding: 0 10px 8px !important;
+  background-color: var(--bg-dashboard) !important;
+}
+
 /* Universal Subview Top Bar in Desktop Inspector */
 .desktop-panel-right .transform-nav-col,
 .desktop-panel-right .blend-nav-col,

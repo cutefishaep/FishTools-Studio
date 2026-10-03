@@ -19,6 +19,57 @@
       this._accumCtx = null;
       this._sampleCanvas = null;
       this._sampleCtx = null;
+      this._subDepth = 0;
+      this._lastDirty = null;
+    }
+
+    /* ── Central quality policy (single definition for text / shatter / layer / 3D) ───────── */
+
+    /**
+     * @returns {{tier:'draft'|'mobile'|'preview'|'export', isExport:boolean, isDraft:boolean,
+     *            isMobile:boolean, limit:number, maxSamples:number, spacing:number}}
+     * limit = Settings > Motion Blur > Samples (AE "adaptive sample limit").
+     */
+    getQuality(compState = null) {
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      const draftBtn = (typeof document !== 'undefined' && document.getElementById)
+        ? document.getElementById('editor-icon-low-quality') : null;
+      const isDraft = !!(draftBtn && draftBtn.classList && draftBtn.classList.contains('is-active'));
+      const isMobile = !!(typeof w.innerWidth === 'number' && (w.innerWidth <= 600 || ('ontouchstart' in w && w.innerWidth <= 900)));
+      const limit = Math.max(2, this.getConfig(compState).samples || 16);
+
+      let tier, cap, spacing;
+      if (isExport)      { tier = 'export';  cap = limit;                    spacing = 1.0; }
+      else if (isDraft)  { tier = 'draft';   cap = Math.min(limit, 6);       spacing = 3.0; }
+      else if (isMobile) { tier = 'mobile';  cap = Math.min(limit, 8);       spacing = 2.5; }
+      else               { tier = 'preview'; cap = Math.min(limit, 16);      spacing = 2.0; }
+      return { tier, isExport, isDraft, isMobile, limit, maxSamples: cap, spacing };
+    }
+
+    /**
+     * Sample count for a given screen travel (px). costFactor scales the cap for cheap
+     * accumulators (text sprites ≈ 2) vs expensive ones (full GPU passes = 1).
+     */
+    adaptiveCount(travelPx, costFactor = 1, compState = null) {
+      const q = this.getQuality(compState);
+      const cap = Math.max(2, Math.round(q.maxSamples * costFactor));
+      const minN = q.isExport ? Math.min(8, cap) : Math.min(3, cap);
+      return Math.max(minN, Math.min(cap, Math.ceil((travelPx || 0) / q.spacing)));
+    }
+
+    /* ── Sub-sample guard: effects must NOT blur themselves while a layer-level pass is sampling ── */
+
+    beginSubSample() { this._subDepth++; }
+    endSubSample() { if (this._subDepth > 0) this._subDepth--; }
+    isInSubSample() { return this._subDepth > 0; }
+
+    /**
+     * Should an effect/text engine accumulate its own shutter blur right now?
+     * False inside a layer-level sample (the layer pass already averages those frames).
+     */
+    isEffectBlurActive(layer, compState = null, activeCamera = null) {
+      return this._subDepth === 0 && this.isLayerActive(layer, compState, activeCamera);
     }
 
     /**
@@ -68,9 +119,8 @@
      * A layer is MB-active if:
      *   1. Global MB is enabled in the project/precomp composition state, AND
      *   2. The layer's own motionBlur toggle is on (layer.motionBlur === true),
-     *      OR the containing precomp LAYER has its MB switch on (ForCompLayer mode —
-     *      only applies when compState is a precomp layer with motionBlur as a boolean,
-     *      NOT when compState is a composition/project settings object).
+     *      OR the containing precomp LAYER has its MB switch on (ForCompLayer mode),
+     *      OR active camera has motion blur enabled and layer is a 3D layer in camera view.
      */
     isLayerActive(layer, compState = null, activeCamera = null) {
       if (!layer) return false;
@@ -78,10 +128,11 @@
       // Per-layer switch: layer.motionBlur is on
       const layerMbOn = !!layer.motionBlur;
 
-      // Camera-level switch: if active camera has motion blur on, all visual content recorded by camera receives motion blur!
+      // Camera-level switch: if active camera has motion blur on, 3D visual content recorded by camera receives motion blur!
       const pool = (compState && Array.isArray(compState.layers) && compState.layers) || ((typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) ? window.currentProjectState.layers : null);
       const cam = activeCamera || (pool ? pool.find(l => l && l.type === 'camera' && !l.hidden) : null);
-      const cameraMbOn = !!(cam && cam.motionBlur && layer.type !== 'audio');
+      const is3DLayer = !!(layer.is3D || (layer.type === 'camera') || (Array.isArray(layer.effects) && layer.effects.some(f => f && !f.disabled && (f.type === 'box_3d' || f.type === 'extrude_3d' || f.type === 'pyramid_3d' || f.type === 'sphere_3d'))));
+      const cameraMbOn = !!(cam && cam.motionBlur && is3DLayer && layer.type !== 'audio');
 
       // ForCompLayer: propagate when compState is a precomp layer with motionBlur boolean
       const compMbOn = !!(compState &&
@@ -105,9 +156,25 @@
      * source's natural size and would stretch/squash them.
      */
     needsSampledPath(layer) {
-      if (layer && layer.type === 'text') return true;
-      if (!layer || !Array.isArray(layer.effects)) return false;
-      return layer.effects.some(f => f && !f.disabled && f.type === 'particle-engine');
+      if (!layer) return false;
+      // Effects that handle their own GPU shutter accumulation (e.g. Shatter 3D FBO) must NOT use the 2D sampled path!
+      if (Array.isArray(layer.effects)) {
+        const hasSelfBlur = layer.effects.some(f => {
+          if (!f || f.disabled) return false;
+          if (f.type === 'shatter') return true;
+          const d = this._effectDef(f);
+          return !!(d && d.selfBlur);
+        });
+        if (hasSelfBlur) return false;
+      }
+      if (layer.type === 'text') return true;
+      if (!Array.isArray(layer.effects)) return false;
+      return layer.effects.some(f => {
+        if (!f || f.disabled) return false;
+        if (f.type === 'particle-engine') return true;
+        const d = this._effectDef(f);
+        return !!(d && (d.isExpanding || d.cameraDriven));
+      });
     }
 
     /**
@@ -247,52 +314,57 @@
         return true;
       }
 
-      // Check if text layer has active character-level animation in the shutter interval
-      if (checkLayer.type === 'text' && this.hasTextMotion(checkLayer, currentSec, cfg, fps)) {
-        return true;
-      }
+      // Text glyph animation blur is rendered inside FishTextEngine (per-glyph shutter
+      // accumulation). Only layer transform motion should trigger layer multi-sampling here.
 
       if (typeof window.getLayerEffectivePropsAtTime !== 'function') return false;
 
       const pool = layerList || (typeof window !== 'undefined' && window.currentProjectState && window.currentProjectState.layers) || null;
       const cam = cameraLayer || (pool && pool.find(l => l && l.type === 'camera' && !l.hidden)) || null;
-      const isAffectedByCamera = !layer.hidden && layer.type !== 'audio' && (!!cam || layer.is3D || layer.type === 'camera' || (layer.type === 'precomp' && !!layer.collapseTransformations));
+      // A scene camera only moves layers that are 3D (or precomps collapsing into 3D space).
+      // 2D layers are NOT transformed by the camera → camera motion must not trigger layer-level blur
+      // for them. Effects that read the camera themselves (particles, star-burst) are the exception
+      // (they re-project internally, so averaging whole frames is the right blur); effects flagged
+      // `selfBlur` (shatter) accumulate their own shutter and are excluded to avoid double blur.
+      const followsCameraFx = this.hasCameraDrivenEffect(checkLayer);
+      const isAffectedByCamera = !layer.hidden && layer.type !== 'audio' && (
+        layer.is3D || layer.type === 'camera' || followsCameraFx ||
+        (layer.type === 'precomp' && !!layer.collapseTransformations) ||
+        (Array.isArray(layer.effects) && layer.effects.some(f => f && !f.disabled && (f.type === 'box_3d' || f.type === 'extrude_3d' || f.type === 'pyramid_3d' || f.type === 'sphere_3d'))) ||
+        !!layer._isCollapsedPrecompChild
+      );
 
       if (isAffectedByCamera && cam) {
-        const cHasKeyframes = (cam.keyframes && Object.keys(cam.keyframes).length > 0) || !!(cam.parentId);
-        const cHasMovement = this.hasMovementEffect(cam);
-        if (cHasKeyframes || cHasMovement) {
-          const c0 = window.getLayerEffectivePropsAtTime(cam, tStart, null, pool);
-          const c1 = window.getLayerEffectivePropsAtTime(cam, tEnd, null, pool);
-          if (c0 && c1) {
-            const cdx = Math.abs((c0.posX || 0) - (c1.posX || 0));
-            const cdy = Math.abs((c0.posY || 0) - (c1.posY || 0));
-            const cdz = Math.abs((c0.posZ || 0) - (c1.posZ || 0));
-            const cdrX = Math.abs((c0.rotX || 0) - (c1.rotX || 0));
-            const cdrY = Math.abs((c0.rotY || 0) - (c1.rotY || 0));
-            const cdrZ = Math.abs((c0.rotZ !== undefined ? c0.rotZ : (c0.rotation || 0)) - (c1.rotZ !== undefined ? c1.rotZ : (c1.rotation || 0)));
-            const cdLens = Math.abs((c0.cameraLens || 50) - (c1.cameraLens || 50));
-            const cdZoom = Math.abs((c0.cameraZoom || 100) - (c1.cameraZoom || 100));
-            if (cdx > 0.4 || cdy > 0.4 || cdz > 0.4 || cdrX > 0.2 || cdrY > 0.2 || cdrZ > 0.2 || cdLens > 0.5 || cdZoom > 0.5) {
-              return true; // Camera motion directly induces motion blur on 3D layer!
-            }
+        const c0 = window.getLayerEffectivePropsAtTime(cam, tStart, null, pool);
+        const c1 = window.getLayerEffectivePropsAtTime(cam, tEnd, null, pool);
+        if (c0 && c1) {
+          const cdx = Math.abs((c0.posX || 0) - (c1.posX || 0));
+          const cdy = Math.abs((c0.posY || 0) - (c1.posY || 0));
+          const cdz = Math.abs((c0.posZ || 0) - (c1.posZ || 0));
+          const cdrX = Math.abs((c0.rotX || 0) - (c1.rotX || 0));
+          const cdrY = Math.abs((c0.rotY || 0) - (c1.rotY || 0));
+          const cdrZ = Math.abs((c0.rotZ !== undefined ? c0.rotZ : (c0.rotation || 0)) - (c1.rotZ !== undefined ? c1.rotZ : (c1.rotation || 0)));
+          const cdLens = Math.abs((c0.cameraLens || 50) - (c1.cameraLens || 50));
+          const cdZoom = Math.abs((c0.cameraZoom || 100) - (c1.cameraZoom || 100));
+          const cdTgtX = Math.abs((c0.cameraTargetX !== undefined ? c0.cameraTargetX : (c0.targetX || 0)) - (c1.cameraTargetX !== undefined ? c1.cameraTargetX : (c1.targetX || 0)));
+          const cdTgtY = Math.abs((c0.cameraTargetY !== undefined ? c0.cameraTargetY : (c0.targetY || 0)) - (c1.cameraTargetY !== undefined ? c1.cameraTargetY : (c1.targetY || 0)));
+          const cdTgtZ = Math.abs((c0.cameraTargetZ !== undefined ? c0.cameraTargetZ : (c0.targetZ || 0)) - (c1.cameraTargetZ !== undefined ? c1.cameraTargetZ : (c1.targetZ || 0)));
+          if (cdx > 0.04 || cdy > 0.04 || cdz > 0.04 || cdrX > 0.02 || cdrY > 0.02 || cdrZ > 0.02 || cdLens > 0.05 || cdZoom > 0.05 || cdTgtX > 0.04 || cdTgtY > 0.04 || cdTgtZ > 0.04) {
+            return true; // Camera motion directly induces motion blur on 3D layer!
           }
         }
       }
 
       const hasKeyframes = checkLayer.keyframes && Object.keys(checkLayer.keyframes).length > 0;
       const parentHasKeyframes = parentLayer && parentLayer.keyframes && Object.keys(parentLayer.keyframes).length > 0;
-
-      // Also check if layer is driven by a null parent chain (expressions, no keyframes on null)
-      // getLayerEffectivePropsAtTime already resolves full parentId chain + expressions.
-      // If no keyframes anywhere in the chain, compare effective world pos at tStart vs tEnd.
       const hasNullParent = !layer._isCollapsedPrecompChild && !!(checkLayer.parentId);
+      const hasExpressions = !!(checkLayer.expressions && Object.keys(checkLayer.expressions).length > 0);
 
-      if (!hasKeyframes && !parentHasKeyframes && !hasNullParent) return false;
+      if (!hasKeyframes && !parentHasKeyframes && !hasNullParent && !hasExpressions && !this.hasMovementEffect(checkLayer)) return false;
 
-      const epsPos = 0.4;
-      const epsRot = 0.2;
-      const epsScale = 0.005;
+      const epsPos = 0.04;
+      const epsRot = 0.02;
+      const epsScale = 0.001;
 
       // For collapsed precomp children: compare world positions at tStart vs tEnd
       // We need to re-compute world transforms using the parent+child combo
@@ -458,77 +530,221 @@
       };
     }
 
+    /* ── Effect hooks (defined by effect modules, read here — single place) ─────────────────
+     *   def.cameraDriven : effect re-projects with the scene camera itself (particles, star-burst)
+     *   def.selfBlur     : effect accumulates its own shutter when run top-level (shatter)
+     *   def.motionTravel(layer, fx, info) → screen px the effect's content moves across the shutter
+     *        info = { t0, t1, exposure, bufferScale, camTravelPx, size }
+     */
+    _effectDef(fx) {
+      const reg = (typeof window !== 'undefined') ? window.FishEffectsRegistry : null;
+      return (reg && typeof reg.get === 'function' && fx) ? reg.get(fx.type) : null;
+    }
+
+    hasCameraDrivenEffect(layer) {
+      if (!layer || !Array.isArray(layer.effects)) return false;
+      return layer.effects.some(fx => {
+        if (!fx || fx.disabled) return false;
+        const d = this._effectDef(fx);
+        return !!(d && d.cameraDriven && !d.selfBlur && fx.useCamera !== 0 && fx.useCamera !== false);
+      });
+    }
+
+    /** Screen-px travel of the scene camera across the shutter (pos + rot + zoom, perspective headroom ×1.5). */
+    _cameraTravelPx(camLayer, t0, t1, bufferScale, sizePx) {
+      const getEff = (typeof window !== 'undefined') ? window.getLayerEffectivePropsAtTime : null;
+      if (!camLayer || typeof getEff !== 'function') return 0;
+      const c0 = getEff(camLayer, t0), c1 = getEff(camLayer, t1);
+      if (!c0 || !c1) return 0;
+      const rz = (c) => (c.rotZ !== undefined ? c.rotZ : (c.rotation || 0));
+      const pos = Math.hypot((c1.posX || 0) - (c0.posX || 0), (c1.posY || 0) - (c0.posY || 0)) * bufferScale;
+      const dz = Math.abs((c1.posZ || 0) - (c0.posZ || 0)) * bufferScale * 0.5;
+      const rad = (Math.abs((c1.rotX || 0) - (c0.rotX || 0)) + Math.abs((c1.rotY || 0) - (c0.rotY || 0)) + Math.abs(rz(c1) - rz(c0))) * Math.PI / 180;
+      const zoom = Math.abs(((c1.cameraZoom || 100) - (c0.cameraZoom || 100)) / 100) * sizePx * 0.5
+                 + Math.abs(((c1.cameraLens || 50) - (c0.cameraLens || 50)) / 50) * sizePx * 0.5;
+      return (pos + dz + rad * sizePx * 0.8 + zoom) * 1.5;
+    }
+
+    /** Max travel (px) over this layer's effects that declare motionTravel / cameraDriven. */
+    _effectTravelPx(layer, bufferScale, camLayer, t0, exposure) {
+      if (!layer || !Array.isArray(layer.effects)) return { travel: 0, hasFxMotion: false };
+      let travel = 0, hasFxMotion = false, camPx = null;
+      const t1 = t0 + exposure;
+      const size = Math.max(Math.abs(layer.scaleW || 0), Math.abs(layer.scaleH || 0), 500) * bufferScale;
+      for (const fx of layer.effects) {
+        if (!fx || fx.disabled) continue;
+        const d = this._effectDef(fx);
+        if (!d) continue;
+        const follows = d.cameraDriven && fx.useCamera !== 0 && fx.useCamera !== false;
+        if (!follows && typeof d.motionTravel !== 'function') continue;
+        if (camPx === null) camPx = this._cameraTravelPx(camLayer, t0, t1, bufferScale, size);
+        let tr = follows ? camPx : 0;
+        if (typeof d.motionTravel === 'function') {
+          try { tr = Math.max(tr, Number(d.motionTravel(layer, fx, { t0, t1, exposure, bufferScale, camTravelPx: follows ? camPx : 0, size })) || 0); } catch (_) {}
+        }
+        if (tr > 0.5) hasFxMotion = true;
+        if (tr > travel) travel = tr;
+      }
+      return { travel, hasFxMotion };
+    }
+
     /**
-     * Render layer with multi-sampled sub-frame accumulation (AE-accurate equal-weight averaging)
+     * AE-style adaptive sample plan (central).
+     * N from projected corner travel + effect travel, bounded by getQuality() (draft/mobile/preview/export).
+     * Also returns the union screen rect the layer sweeps (null = unknown/large → full canvas).
+     */
+    planSamples(layer, bufferScale, camera, tStart, exposureTime, compState = null) {
+      const q = this.getQuality(compState);
+      const maxN = q.maxSamples;
+      const minN = q.isExport ? Math.min(8, maxN) : Math.min(3, maxN);
+      const spacing = q.spacing;
+
+      const engine = window.FishToolEngine || window.LayerTransform;
+      const getEff = window.getLayerEffectivePropsAtTime;
+      const pool = (compState && Array.isArray(compState.layers) && compState.layers)
+        || ((typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) ? window.currentProjectState.layers : null);
+      const camLayer = (camera && camera._rawCamera)
+        || (camera && camera.type === 'camera' ? camera : null)
+        || (pool ? pool.find(l => l && l.type === 'camera' && !l.hidden) : null)
+        || null;
+      const fxInfo = this._effectTravelPx(layer, bufferScale, camLayer, tStart, exposureTime);
+
+      if (!engine || typeof engine.getBounds !== 'function' || typeof getEff !== 'function' || layer._isCollapsedPrecompChild) {
+        return { n: maxN, rect: null, travel: fxInfo.travel };
+      }
+
+      let travel = 0;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let prev = null;
+      const probes = 2; // start / mid / end are enough: keyframe motion is smooth inside one shutter
+      try {
+        for (let i = 0; i <= probes; i++) {
+          const t = tStart + (i / probes) * exposureTime;
+          const eff = getEff(layer, t, null, pool);
+          const al = Object.assign({}, layer, eff);
+          if (layer.type === 'text' && typeof this.compensateTextPad === 'function' && layer._textBufferCanvas) {
+            Object.assign(al, this.compensateTextPad(layer, layer._textBufferCanvas, al));
+          }
+          const cam = camLayer ? getEff(camLayer, t, null, pool) : camera;
+          const b = engine.getBounds(al, bufferScale, cam);
+          if (!b) continue;
+          const pts = Array.isArray(b.corners) && b.corners.length ? b.corners : [{ x: b.x, y: b.y }, { x: b.x + b.aabbW, y: b.y + b.aabbH }];
+          if (prev && prev.length === pts.length) {
+            let segMax = 0;
+            for (let k = 0; k < pts.length; k++) {
+              const d = Math.hypot((pts[k].x || 0) - (prev[k].x || 0), (pts[k].y || 0) - (prev[k].y || 0));
+              if (d > segMax) segMax = d;
+            }
+            travel += segMax;
+          }
+          prev = pts;
+          minX = Math.min(minX, b.x); minY = Math.min(minY, b.y);
+          maxX = Math.max(maxX, b.x + b.aabbW); maxY = Math.max(maxY, b.y + b.aabbH);
+        }
+      } catch (_) {
+        return { n: maxN, rect: null, travel };
+      }
+
+      const cfg = this.getConfig(compState);
+      const fixedN = Math.max(2, cfg.samples || 16);
+      const n = fixedN;
+
+      let rect = null;
+      if (isFinite(minX) && isFinite(maxX) && isFinite(minY) && isFinite(maxY)) {
+        const pad = Math.max(32 * (bufferScale || 1), 0.15 * Math.max(maxX - minX, maxY - minY));
+        const rx = Math.max(0, Math.floor(minX - pad));
+        const ry = Math.max(0, Math.floor(minY - pad));
+        const rw = Math.ceil(maxX + pad) - rx;
+        const rh = Math.ceil(maxY + pad) - ry;
+        rect = { x: rx, y: ry, w: Math.max(1, rw), h: Math.max(1, rh) };
+      }
+      return { n, rect, travel, minX, minY, maxX, maxY };
+    }
+
+    /**
+     * Render layer with multi-sampled sub-frame accumulation (AE-accurate equal-weight averaging).
+     * Effects inside a sample never blur themselves (guard) — the sample average IS the blur.
      */
     renderLayerWithMotionBlur(ctx, el, layer, bufferScale, camera, currentSec, renderSinglePassFn, compState = null) {
       if (!ctx || !el || !layer || typeof renderSinglePassFn !== 'function') return;
 
-      const config = this.getConfig(compState);
-      const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
-      const frameDur = 1 / Math.max(1, fps);
-      const exposureTime = (config.shutterAngle / 360) * frameDur;
-      const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
-
-      const isExport = (typeof window !== 'undefined' && (window._isExportingVideo === true || window._isExportingSequence === true));
-      const draftBtn = (typeof document !== 'undefined') ? document.getElementById('editor-icon-low-quality') : null;
-      const isDraft = draftBtn && draftBtn.classList.contains('is-active');
-      const isMobile = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
-
-      const samples = isExport
-        ? Math.max(4, config.samples || 16)
-        : ((isDraft || isMobile) ? 2 : 3);
-      const previewWeights = (samples === 2) ? [0.5, 0.5] : [0.25, 0.50, 0.25];
-      const previewOffsets = (samples === 2) ? [0.1, 0.9] : [0.15, 0.50, 0.85];
+      const shutter = this.getShutter(compState, currentSec);
+      const exposureTime = shutter.exposureTime;
+      const tStart = shutter.tStart;
 
       const targetW = ctx.canvas.width;
       const targetH = ctx.canvas.height;
       if (targetW <= 0 || targetH <= 0) return;
 
-      // Ensure accumulation canvas matches target resolution
-      if (!this._accumCanvas) {
-        this._accumCanvas = document.createElement('canvas');
+      const plan = this.planSamples(layer, bufferScale, camera, tStart, exposureTime, compState);
+      const samples = plan.n;
+
+      // Dirty rect: only clear/blit the region the layer sweeps through (big win on 1080p/mobile)
+      let rx = 0, ry = 0, rw = targetW, rh = targetH;
+      if (plan.rect) {
+        const x0 = Math.max(0, Math.floor(plan.rect.x));
+        const y0 = Math.max(0, Math.floor(plan.rect.y));
+        const x1 = Math.min(targetW, Math.ceil(plan.rect.x + plan.rect.w));
+        const y1 = Math.min(targetH, Math.ceil(plan.rect.y + plan.rect.h));
+        if (x1 <= x0 || y1 <= y0) return; // fully off-screen during the whole shutter
+        if ((x1 - x0) * (y1 - y0) < targetW * targetH * 0.7) { rx = x0; ry = y0; rw = x1 - x0; rh = y1 - y0; }
       }
+
+      if (!this._accumCanvas) this._accumCanvas = document.createElement('canvas');
       if (this._accumCanvas.width !== targetW || this._accumCanvas.height !== targetH) {
         this._accumCanvas.width = targetW;
         this._accumCanvas.height = targetH;
       }
-      const actx = this._accumCanvas.getContext('2d');
-      if (!actx) return;
-      actx.clearRect(0, 0, targetW, targetH);
-
-      // Ensure single-sample buffer matches target resolution
-      if (!this._sampleCanvas) {
-        this._sampleCanvas = document.createElement('canvas');
-      }
+      if (!this._sampleCanvas) this._sampleCanvas = document.createElement('canvas');
       if (this._sampleCanvas.width !== targetW || this._sampleCanvas.height !== targetH) {
         this._sampleCanvas.width = targetW;
         this._sampleCanvas.height = targetH;
       }
+      const actx = this._accumCanvas.getContext('2d');
       const sctx = this._sampleCanvas.getContext('2d');
-      if (!sctx) return;
+      if (!actx || !sctx) return;
 
-      // AE-Accurate Motion Blur Accumulation — Premultiplied Additive:
+      // Both buffers are only ever drawn inside the dirty rect (sample pass is clipped to it), so
+      // clearing that rect fully resets them — no full-canvas clears, no ghost pixels.
+      actx.setTransform(1, 0, 0, 1, 0, 0);
+      actx.globalCompositeOperation = 'source-over';
+      actx.globalAlpha = 1;
+      actx.clearRect(rx, ry, rw, rh);
+      sctx.setTransform(1, 0, 0, 1, 0, 0);
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.globalAlpha = 1;
+
+      // AE-Accurate Motion Blur Accumulation — Premultiplied Additive, equal weights 1/N:
       actx.globalCompositeOperation = 'lighter';
+      actx.globalAlpha = 1 / samples;
 
       const camLayer = (camera && camera.type === 'camera')
         ? camera
         : (camera && camera._rawCamera ? camera._rawCamera : null);
 
-      for (let i = 0; i < samples; i++) {
-        const u = (samples <= 3) ? previewOffsets[i] : ((i + 0.5) / samples);
-        const weight = (samples <= 3) ? previewWeights[i] : (1 / samples);
-        const subSec = tStart + u * exposureTime;
+      this.beginSubSample();
+      try {
+        for (let i = 0; i < samples; i++) {
+          const subSec = tStart + ((i + 0.5) / samples) * exposureTime;
 
-        const subCamera = (camLayer && typeof window.getLayerEffectivePropsAtTime === 'function')
-          ? window.getLayerEffectivePropsAtTime(camLayer, subSec)
-          : camera;
+          const subCamera = (camLayer && typeof window.getLayerEffectivePropsAtTime === 'function')
+            ? window.getLayerEffectivePropsAtTime(camLayer, subSec)
+            : camera;
 
-        sctx.clearRect(0, 0, targetW, targetH);
-        renderSinglePassFn(sctx, el, layer, bufferScale, subCamera, subSec);
-
-        actx.globalAlpha = weight;
-        actx.drawImage(this._sampleCanvas, 0, 0);
+          sctx.clearRect(rx, ry, rw, rh);
+          sctx.save();
+          sctx.beginPath();
+          sctx.rect(rx, ry, rw, rh);
+          sctx.clip();
+          try {
+            renderSinglePassFn(sctx, el, layer, bufferScale, subCamera, subSec);
+          } finally {
+            sctx.restore();
+          }
+          actx.drawImage(this._sampleCanvas, rx, ry, rw, rh, rx, ry, rw, rh);
+        }
+      } finally {
+        this.endSubSample();
       }
 
       // Reset composite mode before drawing result to destination
@@ -536,7 +752,37 @@
       actx.globalCompositeOperation = 'source-over';
 
       // Draw accumulated motion blur result onto destination canvas
-      ctx.drawImage(this._accumCanvas, 0, 0);
+      ctx.drawImage(this._accumCanvas, rx, ry, rw, rh, rx, ry, rw, rh);
+    }
+
+    /**
+     * Single Source of Truth for shutter calculations across all systems (3D engine, Shatter, Text, etc.)
+     */
+    getShutter(compState = null, currentSec = 0) {
+      const config = this.getConfig(compState);
+      const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+      const frameDur = 1 / Math.max(1, fps);
+      const exposureTime = (config.shutterAngle / 360) * frameDur;
+      const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
+      return {
+        config,
+        fps,
+        frameDur,
+        exposureTime,
+        tStart,
+        shutterAngle: config.shutterAngle,
+        shutterPhase: config.shutterPhase,
+        samples: config.samples
+      };
+    }
+
+    getSampleTimes(tStart, exposureTime, samples) {
+      const times = [];
+      const n = Math.max(1, samples);
+      for (let i = 0; i < n; i++) {
+        times.push(tStart + ((i + 0.5) / n) * exposureTime);
+      }
+      return times;
     }
   }
 

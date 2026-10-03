@@ -584,7 +584,7 @@
       const by = bounds && bounds.y !== undefined ? bounds.y : 0;
       const bw = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 100));
       const bh = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 100));
-      const normBounds = { x: bx, y: by, w: bw, h: bh, bufferScale: (bounds && bounds.bufferScale) || 1 };
+      const normBounds = { x: bx, y: by, w: bw, h: bh, bufferScale: (bounds && bounds.bufferScale) || 1, unitScale: (bounds && bounds.unitScale > 0) ? bounds.unitScale : ((bounds && bounds.bufferScale) || 1) };
 
       const effectiveSec = (typeof currentSec === 'number' && !isNaN(currentSec))
         ? currentSec
@@ -660,8 +660,8 @@
         const buf = this._getPipelineCanvas(i % 2, pipeW, pipeH);
         const targetCtx = isLast ? ctx : buf.ctx;
         const targetBounds = isLast
-          ? (hasExpandingFx ? { x: normBounds.x - offX, y: normBounds.y - offY, w: pipeW, h: pipeH, bufferScale: normBounds.bufferScale } : normBounds)
-          : { x: offX, y: offY, w: bw, h: bh, bufferScale: normBounds.bufferScale };
+          ? (hasExpandingFx ? { x: normBounds.x - offX, y: normBounds.y - offY, w: pipeW, h: pipeH, bufferScale: normBounds.bufferScale, unitScale: normBounds.unitScale } : normBounds)
+          : { x: offX, y: offY, w: bw, h: bh, bufferScale: normBounds.bufferScale, unitScale: normBounds.unitScale };
 
         if (!isLast) {
           buf.ctx.clearRect(0, 0, pipeW, pipeH);

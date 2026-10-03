@@ -889,6 +889,7 @@
     icon: 'assets/FXPH.svg',
     description: '3D particle simulation engine like Trapcode Particular with ambient in-place spawn, physics, turbulence, and 3D camera depth',
     isExpanding: true,
+    cameraDriven: true,
 
     params: [
       /* Spawn & Motion Group */

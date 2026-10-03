@@ -2494,19 +2494,7 @@
             null,
             innerSec,
             (subCtx, subEl, subChild, subScale, subCam, subSec) => {
-              let currentSubEl = subEl;
-              if (subChild.type === 'text' && window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
-                const clipStart = subChild.startSec !== undefined ? subChild.startSec : ((subChild.startPx || 0) / pps);
-                const clipDur = subChild.durationSec !== undefined ? subChild.durationSec : ((subChild.widthPx || 400) / pps);
-                const localSubSec = Math.max(0, subSec - clipStart);
-                if (!subChild._textMbCanvas || !(subChild._textMbCanvas instanceof HTMLCanvasElement)) {
-                  subChild._textMbCanvas = document.createElement('canvas');
-                }
-                const tw = Math.max(1, Math.round(Math.abs(subChild.scaleW || subChild.mediaWidth || 500)));
-                const th = Math.max(1, Math.round(Math.abs(subChild.scaleH || subChild.mediaHeight || 180)));
-                window.FishTextEngine.renderTextToCanvas(subChild, subChild._textMbCanvas, tw, th, localSubSec, clipDur, true);
-                currentSubEl = subChild._textMbCanvas;
-              }
+              const currentSubEl = subEl; // text glyph blur already baked in buffer
               const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subChild, subSec, null, childLayers) : subChild;
               if (subEff) subEff._currentSec = subSec;
               drawChildSinglePass(subCtx, currentSubEl, subChild, subEff);
@@ -2830,38 +2818,34 @@
 
             layersToRender.forEach(item => {
               const rawLayer = item.layer;
-              const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
+              const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState, activeCamera) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
               if (isMbActive) {
                 flushStaticBatch();
-                const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
+                const bounds = engine ? engine.getBounds(item.animLayer || rawLayer, compositionBufferScale, camEff) : null;
                 const hasMoveFx = mbEngine && ((typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer)) || (typeof mbEngine.needsSampledPath === 'function' && mbEngine.needsSampledPath(rawLayer)));
-                if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
-                  engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
+                const hasSelfBlur = mbEngine && Array.isArray(rawLayer.effects) && rawLayer.effects.some(f => {
+                  if (!f || f.disabled) return false;
+                  if (f.type === 'shatter') return true;
+                  const d = typeof mbEngine._effectDef === 'function' ? mbEngine._effectDef(f) : null;
+                  return !!(d && d.selfBlur);
+                });
+                if (hasSelfBlur) {
+                  engine.renderLayer(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec);
+                } else if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
+                  engine.render3DMotionBlur(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec, compState);
                 } else {
                   mbEngine.renderLayerWithMotionBlur(
                     ctx,
                     item.el,
-                    rawLayer,
+                    item.animLayer || rawLayer,
                     compositionBufferScale,
                     camEff,
                     currentSec,
                     (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
-                      let currentSubEl = subEl;
-                      if (subLayer.type === 'text' && window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
-                        const pps = window.currentPixelsPerSecond || 80;
-                        const clipStart = subLayer.startSec !== undefined ? subLayer.startSec : ((subLayer.startPx || 0) / pps);
-                        const clipDur = subLayer.durationSec !== undefined ? subLayer.durationSec : ((subLayer.widthPx || 400) / pps);
-                        const localSubSec = Math.max(0, subSec - clipStart);
-                        if (!subLayer._textMbCanvas || !(subLayer._textMbCanvas instanceof HTMLCanvasElement)) {
-                          subLayer._textMbCanvas = document.createElement('canvas');
-                        }
-                        const pw = Math.max(1, Math.round(subLayer.mediaWidth || (subLayer._textNaturalW ? subLayer._textNaturalW : 320)));
-                        const ph = Math.max(1, Math.round(subLayer.mediaHeight || (subLayer._textNaturalH ? subLayer._textNaturalH : 100)));
-                        window.FishTextEngine.renderTextToCanvas(subLayer, subLayer._textMbCanvas, pw, ph, localSubSec, clipDur, true);
-                        currentSubEl = subLayer._textMbCanvas;
-                      }
+                      const currentSubEl = subEl; // text glyph blur already baked in buffer
+                      const pool = (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [];
                       const subCamera = (activeCamera && typeof getLayerEffectivePropsAtTime === 'function')
-                        ? getLayerEffectivePropsAtTime(activeCamera, subSec)
+                        ? getLayerEffectivePropsAtTime(activeCamera, subSec, null, pool)
                         : (subCam || camEff);
                       // For collapsed precomp children: re-evaluate world transform at subSec
                       if (subLayer._isCollapsedPrecompChild && subLayer._precompParentLayer && subLayer._childOrigLayer && window.FishMotionBlurEngine) {
@@ -3801,13 +3785,13 @@
                   const drawX = -drawW / 2 - ax;
                   const drawY = -drawH / 2 - ay;
                   if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-                    window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: drawX, y: drawY, w: drawW, h: drawH }, currentSec);
+                    window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: drawX, y: drawY, w: drawW, h: drawH, bufferScale: bufferScale, unitScale: bufferScale }, currentSec);
                   } else {
                     ctx.drawImage(el, drawX, drawY, drawW, drawH);
                   }
                 } else {
                   if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-                    window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: -absW / 2 - ax, y: -absH / 2 - ay, w: absW, h: absH }, currentSec);
+                    window.FishEffects.renderLayer(ctx, el, animLayerPost, { x: -absW / 2 - ax, y: -absH / 2 - ay, w: absW, h: absH, bufferScale: bufferScale, unitScale: bufferScale }, currentSec);
                   } else {
                     ctx.drawImage(el, -absW / 2 - ax, -absH / 2 - ay, absW, absH);
                   }
@@ -3911,38 +3895,34 @@
 
           layersToRender.forEach(item => {
             const rawLayer = item.layer;
-            const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
+            const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState, activeCamera) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
             if (isMbActive) {
               flushStaticBatch();
-              const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
+              const bounds = engine ? engine.getBounds(item.animLayer || rawLayer, compositionBufferScale, camEff) : null;
               const hasMoveFx = mbEngine && ((typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer)) || (typeof mbEngine.needsSampledPath === 'function' && mbEngine.needsSampledPath(rawLayer)));
-              if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
-                engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
+              const hasSelfBlur = mbEngine && Array.isArray(rawLayer.effects) && rawLayer.effects.some(f => {
+                if (!f || f.disabled) return false;
+                if (f.type === 'shatter') return true;
+                const d = typeof mbEngine._effectDef === 'function' ? mbEngine._effectDef(f) : null;
+                return !!(d && d.selfBlur);
+              });
+              if (hasSelfBlur) {
+                engine.renderLayer(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec);
+              } else if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
+                engine.render3DMotionBlur(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec, compState);
               } else {
                 mbEngine.renderLayerWithMotionBlur(
                   ctx,
                   item.el,
-                  rawLayer,
+                  item.animLayer || rawLayer,
                   compositionBufferScale,
                   camEff,
                   currentSec,
                   (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
-                    let currentSubEl = subEl;
-                    if (subLayer.type === 'text' && window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
-                      const pps = window.currentPixelsPerSecond || 80;
-                      const clipStart = subLayer.startSec !== undefined ? subLayer.startSec : ((subLayer.startPx || 0) / pps);
-                      const clipDur = subLayer.durationSec !== undefined ? subLayer.durationSec : ((subLayer.widthPx || 400) / pps);
-                      const localSubSec = Math.max(0, subSec - clipStart);
-                      if (!subLayer._textMbCanvas || !(subLayer._textMbCanvas instanceof HTMLCanvasElement)) {
-                        subLayer._textMbCanvas = document.createElement('canvas');
-                      }
-                      const pw = Math.max(1, Math.round(subLayer.mediaWidth || (subLayer._textNaturalW ? subLayer._textNaturalW : 320)));
-                      const ph = Math.max(1, Math.round(subLayer.mediaHeight || (subLayer._textNaturalH ? subLayer._textNaturalH : 100)));
-                      window.FishTextEngine.renderTextToCanvas(subLayer, subLayer._textMbCanvas, pw, ph, localSubSec, clipDur, true);
-                      currentSubEl = subLayer._textMbCanvas;
-                    }
+                    const currentSubEl = subEl; // text glyph blur already baked in buffer
+                    const pool = (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [];
                     const subCamera = (activeCamera && typeof getLayerEffectivePropsAtTime === 'function')
-                      ? getLayerEffectivePropsAtTime(activeCamera, subSec)
+                      ? getLayerEffectivePropsAtTime(activeCamera, subSec, null, pool)
                       : (subCam || camEff);
                     // For collapsed precomp children: re-evaluate world transform at subSec
                     // so motion blur samples real parent+child animation, not baked static position

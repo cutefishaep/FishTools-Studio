@@ -51,6 +51,7 @@
     icon: 'assets/FXPH.svg',
     description: '3D starfield burst moving through space with true 3D rotation and camera depth support',
     isExpanding: true,
+    cameraDriven: true,
     params: [
       { id: 'speed', label: 'Speed', type: 'number', min: -10, max: 10, default: 2.0 },
       { id: 'density', label: 'Star Count', type: 'number', min: 20, max: 1200, default: 300 },

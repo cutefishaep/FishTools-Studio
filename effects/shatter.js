@@ -22,6 +22,152 @@
     return 0;
   }
 
+  /* ── 3D Camera Resolution for Shatter (matching particle_engine.js) ───────── */
+  let _camMemo = null;
+  let _camMemoClearScheduled = false;
+
+  function scheduleCamMemoClear() {
+    if (_camMemoClearScheduled) return;
+    _camMemoClearScheduled = true;
+    Promise.resolve().then(() => {
+      _camMemo = null;
+      _camMemoClearScheduled = false;
+    });
+  }
+
+  function resolveCameraState(curTime) {
+    let compLayers = null;
+    if (typeof window !== 'undefined') {
+      if (window.currentActivePrecomp && Array.isArray(window.currentActivePrecomp.layers)) {
+        compLayers = window.currentActivePrecomp.layers;
+      } else if (window.currentProjectState && Array.isArray(window.currentProjectState.layers)) {
+        compLayers = window.currentProjectState.layers;
+      }
+    }
+
+    if (_camMemo && _camMemo.time === curTime && _camMemo.layers === compLayers) {
+      return _camMemo.state;
+    }
+
+    const state = { found: false, posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0, zoom: 1.0, lens: 50 };
+    if (compLayers) {
+      let cam = null;
+      for (let i = 0; i < compLayers.length; i++) {
+        const l = compLayers[i];
+        if (l && l.type === 'camera' && !l.hidden) { cam = l; break; }
+      }
+      if (cam) {
+        const camEff = (typeof window !== 'undefined' && typeof window.getLayerEffectivePropsAtTime === 'function' && typeof curTime === 'number')
+          ? window.getLayerEffectivePropsAtTime(cam, curTime, null, compLayers)
+          : cam;
+        state.found = true;
+        state.posX = camEff.posX || 0;
+        state.posY = camEff.posY || 0;
+        state.posZ = camEff.posZ || 0;
+        state.rotX = camEff.rotX || 0;
+        state.rotY = camEff.rotY || 0;
+        state.rotZ = camEff.rotZ !== undefined ? camEff.rotZ : (camEff.rotation || 0);
+        state.zoom = (camEff.cameraZoom !== undefined ? camEff.cameraZoom : 100) / 100;
+        state.lens = Math.max(1, camEff.cameraLens !== undefined ? camEff.cameraLens : 50);
+      }
+    }
+
+    _camMemo = { time: curTime, layers: compLayers, state };
+    scheduleCamMemoClear();
+    return state;
+  }
+
+  function computeShatterCamera(w, h, curTime, fx, layer, unit) {
+    let camPosX = 0, camPosY = 0, camPosZ = 0;
+    let camRotX = 0, camRotY = 0, camRotZ = 0;
+    let camZoom = 1.0;
+    let camLens = 50;
+
+    const useCamera = (fx.useCamera !== 0 && fx.useCamera !== false && fx.useCamera !== '0');
+    if (useCamera && typeof window !== 'undefined') {
+      const cam = resolveCameraState(curTime);
+      if (cam && cam.found) {
+        const isLayer3D = !!(layer && layer.is3D);
+        if (!isLayer3D) {
+          camPosX = cam.posX;
+          camPosY = cam.posY;
+          camPosZ = cam.posZ;
+          camRotX = cam.rotX;
+          camRotY = cam.rotY;
+          camRotZ = cam.rotZ;
+        }
+        camZoom = cam.zoom;
+        camLens = cam.lens;
+      }
+    }
+
+    const totalRotX = camRotX + (fx.camRotX || 0);
+    const totalRotY = camRotY + (fx.camRotY || 0);
+    const totalRotZ = camRotZ + (fx.camRotZ || 0);
+
+    const radZ = (-totalRotZ * Math.PI) / 180;
+    const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
+    const radY = (totalRotY * Math.PI) / 180;
+    const cY = Math.cos(radY), sY = Math.sin(radY);
+    const radX = (totalRotX * Math.PI) / 180;
+    const cX = Math.cos(radX), sX = Math.sin(radX);
+
+    // 3x3 Combined Camera Rotation Matrix (Roll Z -> Yaw Y -> Pitch X)
+    const m00 = cY * cZ;
+    const m01 = -cY * sZ;
+    const m02 = sY;
+    const m10 = cX * sZ + sX * sY * cZ;
+    const m11 = cX * cZ - sX * sY * sZ;
+    const m12 = -sX * cY;
+    const m20 = sX * sZ - cX * sY * cZ;
+    const m21 = sX * cZ + cX * sY * sZ;
+    const m22 = cX * cY;
+
+    const lensFactor = Math.max(0.01, camLens / 50);
+    const totalZoom = Math.max(0.01, lensFactor * camZoom);
+    const D = Math.max(w, h) * 1.25 * lensFactor;
+
+    // Camera translation is authored in comp px → convert to this buffer's px.
+    const u = (unit > 0) ? unit : 1;
+    camPosX *= u; camPosY *= u; camPosZ *= u;
+
+    // Translation relative to camera center
+    const tx = -(w * 0.5 + camPosX);
+    const ty = -(h * 0.5 + camPosY);
+    const tz = -(camPosZ + D);
+
+    const kx = (2.0 * totalZoom) / w;
+    const ky = (-2.0 * totalZoom) / h;
+
+    // Standard OpenGL perspective depth mapping with near plane n = 0.02 * D, far plane f = 10.0 * D.
+    // Nearer shards strictly have smaller NDC z (winning gl.LEQUAL depth test).
+    // Near shards never get clipped by near plane (up to 98% travel towards camera).
+    const un = 0.02;
+    const uf = 10.0;
+    const diff = uf - un;
+    const A = (uf + un) / diff;
+    const B = (-2.0 * un * uf) / diff;
+
+    const cz = tx * m20 + ty * m21 + tz * m22;
+    const projMat = new Float32Array([
+      m00 * kx,       m10 * ky,       -(A * m20) / D,       -m20 / D,
+      m01 * kx,       m11 * ky,       -(A * m21) / D,       -m21 / D,
+      m02 * kx,       m12 * ky,       -(A * m22) / D,       -m22 / D,
+      (tx * m00 + ty * m01 + tz * m02) * kx,
+      (tx * m10 + ty * m11 + tz * m12) * ky,
+      -(A * cz) / D + B,
+      -cz / D
+    ]);
+
+    const camRotMat = new Float32Array([
+      m00, m10, m20,
+      m01, m11, m21,
+      m02, m12, m22
+    ]);
+
+    return { projMat, camRotMat, D, totalZoom, totalRotX, totalRotY, totalRotZ, camPosX, camPosY, camPosZ };
+  }
+
   // Generate authentic glass fracture shards (radial + concentric spiderweb crack model)
   function generateGlassShards(w, h, pieceCount, originXPercent, originYPercent, pattern) {
     const ox = w * (0.5 + (originXPercent || 0) / 200);
@@ -162,6 +308,7 @@
         'attribute float a_isSide;',
         '',
         'uniform mat4 u_proj;',
+        'uniform mat3 u_camRot;',
         'uniform float u_progress;',
         'uniform float u_force;',
         'uniform float u_spin;',
@@ -205,7 +352,7 @@
         '',
         '  vec3 rotPos = rotateAxis(localPos, a_rotAxis, rotAngle);',
         '  vec3 rotNormal = normalize(rotateAxis(a_normal, a_rotAxis, rotAngle));',
-        '  v_normal = rotNormal;',
+        '  v_normal = normalize(u_camRot * rotNormal);',
         '',
         // Physics: position = v0 * integral(e^-drag*t) + 0.5*g*t^2
         // The impulse integral gives smooth deceleration
@@ -214,13 +361,13 @@
         '  trans.y += 0.5 * u_gravity * t * t * 1200.0;',
         '',
         '  vec3 worldPos = a_center + rotPos + trans;',
-        '  worldPos.z = min(worldPos.z, u_camDist * 0.88);',
+        '  worldPos.z = min(worldPos.z, u_camDist * 0.96);',
         '',
         // Specular glint
         '  vec3 lightDir = normalize(vec3(0.35, 0.55, 0.85));',
         '  vec3 viewDir = vec3(0.0, 0.0, 1.0);',
         '  vec3 halfVec = normalize(lightDir + viewDir);',
-        '  float spec = pow(max(0.0, dot(rotNormal, halfVec)), 28.0);',
+        '  float spec = pow(max(0.0, dot(v_normal, halfVec)), 28.0);',
         '  v_glint = spec;',
         '',
         '  gl_Position = u_proj * vec4(worldPos, 1.0);',
@@ -293,6 +440,7 @@
       _glProg = prog;
       _glUniforms = {
         proj: gl.getUniformLocation(prog, 'u_proj'),
+        camRot: gl.getUniformLocation(prog, 'u_camRot'),
         progress: gl.getUniformLocation(prog, 'u_progress'),
         force: gl.getUniformLocation(prog, 'u_force'),
         spin: gl.getUniformLocation(prog, 'u_spin'),
@@ -319,6 +467,62 @@
     } catch (e) {
       console.warn('[Shatter GL] Init failed, using fallback:', e);
       _glFailed = true;
+      return false;
+    }
+  }
+
+  // ── GPU motion-blur accumulation resources (FBO sample target + additive composite) ──
+  let _accFbo = null, _accTex = null, _accDepth = null, _accProg = null, _accQuad = null;
+  let _accPosLoc = -1, _accTexLoc = null, _accW = 0, _accH = 0, _accFailed = false;
+
+  function initAccumGL(w, h) {
+    const gl = _gl;
+    if (!gl || _accFailed) return false;
+    try {
+      if (!_accProg) {
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vs, 'attribute vec2 a_p; varying vec2 v_uv; void main(){ v_uv = a_p * 0.5 + 0.5; gl_Position = vec4(a_p, 0.0, 1.0); }');
+        gl.compileShader(vs);
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, 'precision mediump float; varying vec2 v_uv; uniform sampler2D u_t; void main(){ gl_FragColor = texture2D(u_t, v_uv); }');
+        gl.compileShader(fs);
+        const pr = gl.createProgram();
+        gl.attachShader(pr, vs);
+        gl.attachShader(pr, fs);
+        gl.linkProgram(pr);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { _accFailed = true; return false; }
+        _accProg = pr;
+        _accPosLoc = gl.getAttribLocation(pr, 'a_p');
+        _accTexLoc = gl.getUniformLocation(pr, 'u_t');
+        _accQuad = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, _accQuad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+        _accFbo = gl.createFramebuffer();
+        _accTex = gl.createTexture();
+        _accDepth = gl.createRenderbuffer();
+      }
+      if (_accW !== w || _accH !== h) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, _accTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, _accDepth);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, _accFbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, _accTex, 0);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, _accDepth);
+        const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.activeTexture(gl.TEXTURE0);
+        if (!ok) { _accFailed = true; return false; }
+        _accW = w; _accH = h;
+      }
+      return true;
+    } catch (e) {
+      _accFailed = true;
       return false;
     }
   }
@@ -448,7 +652,29 @@
     name: 'Shatter',
     category: 'layer',
     icon: 'assets/FXPH.svg',
-    description: 'Hardware WebGL 3D glass shatter explosion with true perspective projection, realistic radial glass cracks, specular glints, and thickness extrusion',
+    isExpanding: true,
+    cameraDriven: true,
+    selfBlur: true,
+    motionTravel(layer, fx, info) {
+      const force = Math.max(0, fx.force !== undefined ? Number(fx.force) : 162);
+      const gravity = (fx.gravity !== undefined ? Number(fx.gravity) : 80) / 100;
+      const spin = Math.max(0, fx.spin !== undefined ? Number(fx.spin) : 65);
+      const dur = Math.max(0.2, fx.duration !== undefined ? Number(fx.duration) : 6.0);
+      const clipStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
+      const isAuto = (fx.autoAnimate === 1 || fx.autoAnimate === true || fx.autoAnimate === undefined);
+      const pAt = (t) => {
+        if (isAuto) return Math.max(0, Math.min(1, (t - clipStart) / dur));
+        let v = fx.progress !== undefined ? fx.progress : 0;
+        return Math.max(0, Math.min(100, Number(v) || 0)) / 100;
+      };
+      const e0 = pAt(info.t0);
+      const e1 = pAt(info.t1);
+      const dP = Math.abs(e1 - e0);
+      const size = info.size || 500;
+      const u = info.bufferScale || 1;
+      return dP * (force * 2.8 + Math.abs(gravity) * 1200 + spin * 0.04 * size * 0.25) * u + (info.camTravelPx || 0);
+    },
+    description: 'Hardware WebGL 3D glass shatter explosion with true perspective projection, 3D camera tracking, realistic radial glass cracks, specular glints, and thickness extrusion',
     params: [
       { id: 'progress', label: 'Progress', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
       { id: 'autoAnimate', label: 'Auto Animate', type: 'switch', default: 1 },
@@ -462,8 +688,11 @@
       { id: 'originX', label: 'Impact X', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
       { id: 'originY', label: 'Impact Y', type: 'number', min: -100, max: 100, default: 0, unit: '%' },
       { id: 'pattern', label: 'Pattern', type: 'select', options: ['glass', 'hexagons'], default: 'glass' },
-      { id: 'motionBlur', label: 'Motion Blur', type: 'number', min: 0, max: 100, default: 0, unit: '%' },
-      { id: 'easing', label: 'Easing', type: 'select', options: ['ease-out', 'linear', 'ease-in-out'], default: 'ease-out' }
+      { id: 'easing', label: 'Easing', type: 'select', options: ['ease-out', 'linear', 'ease-in-out'], default: 'ease-out' },
+      { id: 'useCamera', label: 'Follow 3D Camera', type: 'switch', default: 1 },
+      { id: 'camRotX', label: 'Manual Pitch (X)', type: 'angle', default: 0, unit: '°' },
+      { id: 'camRotY', label: 'Manual Yaw (Y)', type: 'angle', default: 0, unit: '°' },
+      { id: 'camRotZ', label: 'Manual Roll (Z)', type: 'angle', default: 0, unit: '°' }
     ],
     render(ctx, el, layer, bounds, fx, currentSec) {
       if (!ctx || !el) return;
@@ -472,19 +701,14 @@
       const w = Math.max(1, bounds && bounds.w !== undefined ? bounds.w : (ctx.canvas ? ctx.canvas.width : 500));
       const h = Math.max(1, bounds && bounds.h !== undefined ? bounds.h : (ctx.canvas ? ctx.canvas.height : 500));
 
+      const unitScale = (bounds && typeof bounds.unitScale === 'number' && bounds.unitScale > 0)
+        ? bounds.unitScale
+        : (bounds && typeof bounds.bufferScale === 'number' && bounds.bufferScale > 0 ? bounds.bufferScale : (ctx.canvas && ctx.canvas.width ? ctx.canvas.width / 1920 : 1));
+
       const elW = el.videoWidth || el.naturalWidth || el.width || 0;
       const elH = el.videoHeight || el.naturalHeight || el.height || 0;
       if (elW <= 0 || elH <= 0) return;
 
-      let prog = Math.max(0, Math.min(100, fx.progress !== undefined ? fx.progress : 0)) / 100;
-      if (fx.autoAnimate === 1 || fx.autoAnimate === true || fx.autoAnimate === undefined) {
-        const curTime = getCurrentTime(layer, currentSec);
-        const start = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
-        const dur = Math.max(0.2, fx.duration !== undefined ? fx.duration : 6.0);
-        prog = Math.max(0, Math.min(1.0, (curTime - start) / dur));
-      }
-
-      // Apply easing curve for smooth AE-like animation
       const easingType = fx.easing || 'ease-out';
       function applyEasing(t) {
         if (easingType === 'ease-out') {
@@ -499,30 +723,94 @@
         return t; // linear
       }
 
+      const isAuto = (fx.autoAnimate === 1 || fx.autoAnimate === true || fx.autoAnimate === undefined);
+      const clipStart = (layer && layer.startSec !== undefined) ? layer.startSec : 0;
+      const animDur = Math.max(0.2, fx.duration !== undefined ? fx.duration : 6.0);
+      const curTime = getCurrentTime(layer, currentSec);
+      // Raw (un-eased) progress at any absolute time — auto mode or keyframed Progress param
+      function progAt(t) {
+        if (isAuto) return Math.max(0, Math.min(1, (t - clipStart) / animDur));
+        let v = fx.progress !== undefined ? fx.progress : 0;
+        if (typeof window !== 'undefined' && typeof window.getLayerEffectivePropsAtTime === 'function' && layer && fx.id) {
+          try {
+            const eff = window.getLayerEffectivePropsAtTime(layer, t);
+            const f = eff && Array.isArray(eff.effects) ? eff.effects.find(e => e && e.id === fx.id) : null;
+            if (f && f.progress !== undefined) v = f.progress;
+          } catch (_) {}
+        }
+        return Math.max(0, Math.min(100, Number(v) || 0)) / 100;
+      }
+
+      // Motion blur follows the LAYER switch + central motion blur engine, like AE.
+      const mbEng = (typeof window !== 'undefined') ? window.FishMotionBlurEngine : null;
+      let shutterTimes = null;
+      const isMbActive = mbEng
+        ? (typeof mbEng.isEffectBlurActive === 'function' ? mbEng.isEffectBlurActive(layer) : mbEng.isLayerActive(layer))
+        : false;
+      if (isMbActive) {
+        const shutter = (typeof mbEng.getShutter === 'function')
+          ? mbEng.getShutter(null, curTime)
+          : null;
+        if (shutter && shutter.exposureTime > 0.0001) {
+          shutterTimes = { t0: shutter.tStart, exposure: shutter.exposureTime };
+        }
+      }
+
+      const prog = progAt(curTime);
       const easedProg = applyEasing(prog);
 
-      // Intact state: render base image directly
-      if (prog <= 0.001) {
+      // Intact state: render base image directly if no progress and no motion blur
+      if (prog <= 0.001 && !shutterTimes) {
         try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
         return;
       }
 
-      const force = Math.max(0, fx.force !== undefined ? Number(fx.force) : 162);
+      const rawForce = Math.max(0, fx.force !== undefined ? Number(fx.force) : 162);
+      const force = rawForce * unitScale;
       const pieces = Math.max(12, Math.min(120, Math.round(fx.pieces !== undefined ? Number(fx.pieces) : 58)));
-      const thickness = Math.max(0, (fx.thickness !== undefined ? Number(fx.thickness) : (fx.extrusion !== undefined ? Number(fx.extrusion) : 0)));
+      const rawThickness = Math.max(0, (fx.thickness !== undefined ? Number(fx.thickness) : (fx.extrusion !== undefined ? Number(fx.extrusion) : 0)));
+      const thickness = rawThickness * unitScale;
       const spin = Math.max(0, fx.spin !== undefined ? Number(fx.spin) : 65);
-      const gravity = (fx.gravity !== undefined ? Number(fx.gravity) : 80) / 100;
+      const rawGravity = (fx.gravity !== undefined ? Number(fx.gravity) : 80) / 100;
+      const gravity = rawGravity * unitScale;
       const glint = Math.max(0, Math.min(100, fx.glint !== undefined ? Number(fx.glint) : 0));
       const oxPercent = fx.originX !== undefined ? Number(fx.originX) : 0;
       const oyPercent = fx.originY !== undefined ? Number(fx.originY) : 0;
       const pattern = fx.pattern || 'glass';
-      const motionBlur = Math.max(0, Math.min(100, fx.motionBlur !== undefined ? Number(fx.motionBlur) : 0)) / 100;
 
-      // Motion blur: number of temporal sub-samples and time spread
-      // More samples = smoother blur but heavier; 1 sample = no blur
-      const mblurSamples = motionBlur > 0.01 ? Math.max(2, Math.min(8, Math.round(motionBlur * 8))) : 1;
-      // Time spread: how far back in time to sample (fraction of current eased progress)
-      const mblurSpread = motionBlur * 0.12;
+      // Shutter sub-samples (eased progress values). Count adapts to shard travel + camera travel (~2px spacing)
+      let sampleProgs = [easedProg];
+      let sampleTimes = [curTime];
+      if (shutterTimes) {
+        const e0 = applyEasing(progAt(shutterTimes.t0));
+        const e1 = applyEasing(progAt(shutterTimes.t0 + shutterTimes.exposure));
+        const dP = Math.abs(e1 - e0);
+
+        // Check shard travel AND camera travel over shutter
+        let camTravel = 0;
+        const cam0 = resolveCameraState(shutterTimes.t0);
+        const cam1 = resolveCameraState(shutterTimes.t0 + shutterTimes.exposure);
+        if (cam0 && cam1 && cam0.found && cam1.found) {
+          camTravel = Math.hypot(cam1.posX - cam0.posX, cam1.posY - cam0.posY)
+            + (Math.abs(cam1.rotX - cam0.rotX) + Math.abs(cam1.rotY - cam0.rotY) + Math.abs(cam1.rotZ - cam0.rotZ)) * Math.PI / 180 * Math.max(w, h) * 0.5;
+        }
+
+        const travel = dP * (force * 2.8 + Math.abs(gravity) * 1200 + spin * 0.04 * Math.max(w, h) * 0.25) + camTravel;
+        if (travel > 1) {
+          const cfg = (mbEng && typeof mbEng.getConfig === 'function') ? mbEng.getConfig() : null;
+          const n = (cfg && cfg.samples) ? Math.max(2, Number(cfg.samples)) : 16;
+          sampleProgs = [];
+          sampleTimes = [];
+          for (let si = 0; si < n; si++) {
+            const ts = shutterTimes.t0 + ((si + 0.5) / n) * shutterTimes.exposure;
+            sampleTimes.push(ts);
+            sampleProgs.push(applyEasing(progAt(ts)));
+          }
+        } else if (prog <= 0.001 && camTravel < 0.5) {
+          try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+          return;
+        }
+      }
 
       // NATIVE WEBGL 3D PIPELINE
       if (!_glFailed && initShatterGL()) {
@@ -562,84 +850,96 @@
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
             gl.uniform1i(u.image, 0);
 
-            // True 3D Perspective Projection Matrix
-            const D = Math.max(w, h) * 1.25;
-            const projMat = new Float32Array([
-              2.0 / w,      0,            0,         0,
-              0,            -2.0 / h,     0,         0,
-              0,            0,            -1.0 / D,  -1.0 / D,
-              -1.0,         1.0,          0,         1.0
-            ]);
+            // True 3D Perspective Projection Matrix with 3D Camera integration
+            const camRes = computeShatterCamera(w, h, curTime, fx, layer, unitScale);
 
-            gl.uniformMatrix4fv(u.proj, false, projMat);
+            gl.uniformMatrix4fv(u.proj, false, camRes.projMat);
+            if (u.camRot) gl.uniformMatrix3fv(u.camRot, false, camRes.camRotMat);
             gl.uniform1f(u.force, force);
             gl.uniform1f(u.spin, spin);
             gl.uniform1f(u.gravity, gravity);
             gl.uniform1f(u.thickness, thickness);
-            gl.uniform1f(u.camDist, D);
+            gl.uniform1f(u.camDist, camRes.D);
             gl.uniform1f(u.glintAmount, glint);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, _vbo);
             const STRIDE = 19 * 4;
+            const bindShatterAttribs = () => {
+              gl.bindBuffer(gl.ARRAY_BUFFER, _vbo);
+              const set = (name, size, off) => {
+                const loc = gl.getAttribLocation(progId, name);
+                if (loc < 0) return;
+                gl.enableVertexAttribArray(loc);
+                gl.vertexAttribPointer(loc, size, gl.FLOAT, false, STRIDE, off * 4);
+              };
+              set('a_pos', 3, 0);
+              set('a_uv', 2, 3);
+              set('a_center', 3, 5);
+              set('a_velocity', 3, 8);
+              set('a_rotAxis', 3, 11);
+              set('a_rotSpeed', 1, 14);
+              set('a_normal', 3, 15);
+              set('a_isSide', 1, 18);
+            };
+            bindShatterAttribs();
 
-            const aPos = gl.getAttribLocation(progId, 'a_pos');
-            gl.enableVertexAttribArray(aPos);
-            gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, STRIDE, 0);
+            gl.uniform1f(u.mblurAlpha, 1.0);
+            gl.uniform1f(u.motionBlur, 0.0);
 
-            const aUv = gl.getAttribLocation(progId, 'a_uv');
-            gl.enableVertexAttribArray(aUv);
-            gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, STRIDE, 3 * 4);
-
-            const aCenter = gl.getAttribLocation(progId, 'a_center');
-            gl.enableVertexAttribArray(aCenter);
-            gl.vertexAttribPointer(aCenter, 3, gl.FLOAT, false, STRIDE, 5 * 4);
-
-            const aVel = gl.getAttribLocation(progId, 'a_velocity');
-            gl.enableVertexAttribArray(aVel);
-            gl.vertexAttribPointer(aVel, 3, gl.FLOAT, false, STRIDE, 8 * 4);
-
-            const aRotAxis = gl.getAttribLocation(progId, 'a_rotAxis');
-            gl.enableVertexAttribArray(aRotAxis);
-            gl.vertexAttribPointer(aRotAxis, 3, gl.FLOAT, false, STRIDE, 11 * 4);
-
-            const aRotSpd = gl.getAttribLocation(progId, 'a_rotSpeed');
-            gl.enableVertexAttribArray(aRotSpd);
-            gl.vertexAttribPointer(aRotSpd, 1, gl.FLOAT, false, STRIDE, 14 * 4);
-
-            const aNorm = gl.getAttribLocation(progId, 'a_normal');
-            gl.enableVertexAttribArray(aNorm);
-            gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, STRIDE, 15 * 4);
-
-            const aSide = gl.getAttribLocation(progId, 'a_isSide');
-            gl.enableVertexAttribArray(aSide);
-            gl.vertexAttribPointer(aSide, 1, gl.FLOAT, false, STRIDE, 18 * 4);
-
-            // Multi-pass temporal motion blur accumulation
-            const sampleAlpha = 1.0 / mblurSamples;
-            for (let si = 0; si < mblurSamples; si++) {
-              // Sample time spread: from (prog - spread) to prog
-              const sampleT = mblurSamples === 1
-                ? easedProg
-                : applyEasing(Math.max(0, prog - mblurSpread + (mblurSpread * si / (mblurSamples - 1))));
-
-              if (si > 0) {
-                // Don't clear depth/color between blur passes — accumulate
-                gl.depthMask(false);
-              } else {
-                gl.depthMask(true);
-              }
-
-              gl.uniform1f(u.progress, sampleT);
-              gl.uniform1f(u.mblurAlpha, sampleAlpha);
-              gl.uniform1f(u.motionBlur, motionBlur);
-
+            const nS = sampleProgs.length;
+            if (nS === 1 || !initAccumGL(w, h)) {
+              const midIdx = Math.floor(nS / 2);
+              const midCam = computeShatterCamera(w, h, sampleTimes[midIdx], fx, layer, unitScale);
+              gl.uniformMatrix4fv(u.proj, false, midCam.projMat);
+              if (u.camRot) gl.uniformMatrix3fv(u.camRot, false, midCam.camRotMat);
+              gl.uniform1f(u.camDist, midCam.D);
+              gl.uniform1f(u.progress, sampleProgs[midIdx]);
               gl.drawArrays(gl.TRIANGLES, 0, _vertexCount);
+              ctx.drawImage(_glCanvas, x, y, w, h);
+              return;
             }
 
-            gl.depthMask(true);
+            // ── GPU shutter accumulation (AE-style) ──
+            // Each sample: full depth-correct pass into an FBO, then added to the screen
+            // buffer at weight 1/N (CONSTANT_ALPHA blend). Everything stays on the GPU;
+            // only ONE readback (drawImage) happens at the end → light on CPU/mobile.
+            for (let si = 0; si < nS; si++) {
+              const subCam = computeShatterCamera(w, h, sampleTimes[si], fx, layer, unitScale);
+              gl.bindFramebuffer(gl.FRAMEBUFFER, _accFbo);
+              gl.viewport(0, 0, w, h);
+              gl.clearColor(0, 0, 0, 0);
+              gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+              gl.enable(gl.DEPTH_TEST);
+              gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+              gl.useProgram(progId);
+              if (si > 0) bindShatterAttribs();
+              gl.activeTexture(gl.TEXTURE0);
+              gl.bindTexture(gl.TEXTURE_2D, _tex);
+              gl.uniformMatrix4fv(u.proj, false, subCam.projMat);
+              if (u.camRot) gl.uniformMatrix3fv(u.camRot, false, subCam.camRotMat);
+              gl.uniform1f(u.camDist, subCam.D);
+              gl.uniform1f(u.progress, sampleProgs[si]);
+              gl.drawArrays(gl.TRIANGLES, 0, _vertexCount);
+
+              gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+              gl.viewport(0, 0, w, h);
+              gl.disable(gl.DEPTH_TEST);
+              gl.useProgram(_accProg);
+              gl.bindBuffer(gl.ARRAY_BUFFER, _accQuad);
+              gl.enableVertexAttribArray(_accPosLoc);
+              gl.vertexAttribPointer(_accPosLoc, 2, gl.FLOAT, false, 0, 0);
+              gl.activeTexture(gl.TEXTURE1);
+              gl.bindTexture(gl.TEXTURE_2D, _accTex);
+              gl.uniform1i(_accTexLoc, 1);
+              gl.blendColor(0, 0, 0, 1 / nS);
+              gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE);
+              gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+            gl.activeTexture(gl.TEXTURE0);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
             ctx.drawImage(_glCanvas, x, y, w, h);
             return;
+
           }
         } catch (err) {
           console.warn('[Shatter] WebGL execution error, using fallback:', err);
@@ -650,7 +950,9 @@
       const rawShards = generateGlassShards(w, h, pieces, oxPercent, oyPercent, pattern);
       const ox = w * (0.5 + oxPercent / 200);
       const oy = h * (0.5 + oyPercent / 200);
-      const D = Math.max(w, h) * 1.2;
+      const camRes = computeShatterCamera(w, h, curTime, fx, layer, unitScale);
+      const D = camRes.D;
+      const totalZoom = camRes.totalZoom;
 
       ctx.save();
       let sIdx = 0;
@@ -675,13 +977,23 @@
         const vy = (Math.sin(ang) * spd + ((sIdx * 23) % 9 - 4) / 9 * 0.3) * force * ep * 1.4 + 0.5 * gravity * ep * ep * 1200;
         const vz = (((sIdx * 29) % 11) / 10 * 1.5 + 0.4) * force * ep;
 
-        const eyeZ = Math.max(50, D - vz);
-        const scale = D / eyeZ;
+        // Apply camera rotation & translation to 3D center
+        const relX = (cx - w * 0.5) + vx - camRes.camPosX;
+        const relY = (cy - h * 0.5) + vy - camRes.camPosY;
+        const relZ = vz - D;
 
-        const rot = ((sIdx * 13) % 11 - 5) * (spin * 0.04) * ep;
+        const camRot = camRes.camRotMat;
+        const rotX = relX * camRot[0] + relY * camRot[3] + relZ * camRot[6];
+        const rotY = relX * camRot[1] + relY * camRot[4] + relZ * camRot[7];
+        const rotZ = relX * camRot[2] + relY * camRot[5] + relZ * camRot[8];
+
+        const eyeZ = Math.max(50, -rotZ);
+        const scale = (D * totalZoom) / eyeZ;
+
+        const rot = ((sIdx * 13) % 11 - 5) * (spin * 0.04) * ep - (camRes.totalRotZ * Math.PI / 180);
 
         ctx.save();
-        ctx.translate(x + cx + vx * scale, y + cy + vy * scale);
+        ctx.translate(x + w * 0.5 + rotX * (scale / totalZoom), y + h * 0.5 + rotY * (scale / totalZoom));
         ctx.scale(scale, scale);
         ctx.rotate(rot);
 

@@ -480,18 +480,27 @@
 
       // Fast-path: if text is static or resting in steady state and properties did not change, bypass re-rendering
       const isContinuous = (normIn === 'wave' || normIn === 'glitch' || normOut === 'wave' || normOut === 'glitch');
+      const projFps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
+      const quant = Math.max(30, Math.round(projFps * 2));
       const timeKey = isSubSample
         ? ('sub_' + Math.round(localSec * 24000))
         : (isContinuous
-            ? Math.round(localSec * 60)
+            ? Math.round(localSec * quant)
             : (normIn === 'none' && normOut === 'none'
                 ? 'static'
                 : ((localSec >= inDur && (normOut === 'none' || localSec < outStartSec))
                     ? 'steady'
-                    : Math.round(localSec * 60))));
+                    : Math.round(localSec * quant))));
 
       const pKey = JSON.stringify(p);
-      const renderKey = `${pKey}_${resScale}_${targetW}_${targetH}_${timeKey}_mb${layer && layer.motionBlur ? 1 : 0}`;
+      const _mbE = (typeof window !== 'undefined') ? window.FishMotionBlurEngine : null;
+      let mbSig = '0';
+      if (_mbE && layer && typeof _mbE.isLayerActive === 'function' && _mbE.isLayerActive(layer)) {
+        const c = _mbE.getConfig();
+        mbSig = `${c.shutterAngle}_${c.shutterPhase}`;
+      }
+      const renderKey = `${pKey}_${resScale}_${targetW}_${targetH}_${timeKey}_mb${mbSig}`;
+      const isStaticKey = (timeKey === 'static');
 
       if (!layer._textDirty && canvas._lastRenderKey === renderKey && canvas.width > 0 && canvas.height > 0) {
         return canvas;
@@ -594,13 +603,85 @@
 
       const animCfg = buildAnimConfig(p, normIn, normOut, inDur, outDur, outStartSec, totalUnits, fontSize, resScale);
 
-      // Motion blur flag (respects global master switch in More Settings > Motion Blur)
-      const gmb = (typeof window !== 'undefined' && window.currentProjectState && window.currentProjectState.motionBlur) || null;
-      const hasMB = !!(layer && layer.motionBlur) && !(gmb && gmb.enabled === false);
-      const mbDt = hasMB
-        ? 1 / Math.max(24, (typeof window !== 'undefined' && typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60)
-        : 0;
+      // Full styled glyph (long shadow, glow, drop shadow, stroke, fill) at origin = glyph center.
+      const paintGlyph = (g, ch, chW) => {
+        g.font = font;
+        g.textBaseline = 'middle';
+        g.lineJoin = p.strokeJoin || 'round';
+        if (p.longShadow && p.longShadowLength > 0) {
+          g.save();
+          g.fillStyle = p.longShadowColor || 'rgba(0, 0, 0, 0.4)';
+          const rad = ((p.longShadowAngle !== undefined ? p.longShadowAngle : 45) * Math.PI) / 180;
+          const cosA = Math.cos(rad);
+          const sinA = Math.sin(rad);
+          const steps = Math.min(80, Math.round(p.longShadowLength * resScale));
+          for (let s = 1; s <= steps; s++) g.fillText(ch, -(chW / 2) + s * cosA, s * sinA);
+          g.restore();
+        }
+        if (p.neonGlow) {
+          g.save();
+          g.shadowColor = p.neonGlowColor || '#98ce7b';
+          g.shadowBlur = (p.neonGlowBlur || 16) * resScale;
+          g.shadowOffsetX = 0;
+          g.shadowOffsetY = 0;
+          g.fillStyle = p.fillColor || '#ffffff';
+          g.fillText(ch, -(chW / 2), 0);
+          g.fillText(ch, -(chW / 2), 0); // Double pass for intense neon
+          g.restore();
+        }
+        if (p.shadowEnabled) {
+          g.save();
+          g.shadowColor = p.shadowColor || 'rgba(0,0,0,0.6)';
+          g.shadowBlur = (p.shadowBlur || 8) * resScale;
+          g.shadowOffsetX = (p.shadowOffsetX || 4) * resScale;
+          g.shadowOffsetY = (p.shadowOffsetY || 4) * resScale;
+          g.fillStyle = p.fillColor || '#ffffff';
+          g.fillText(ch, -(chW / 2), 0);
+          g.restore();
+        }
+        if (p.strokeWidth > 0) {
+          g.save();
+          g.strokeStyle = p.strokeColor || '#000000';
+          g.lineWidth = p.strokeWidth * resScale;
+          g.strokeText(ch, -(chW / 2), 0);
+          g.restore();
+        }
+        g.fillStyle = p.fillColor || '#ffffff';
+        g.fillText(ch, -(chW / 2), 0);
+      };
 
+      // Pre-rasterized glyph sprites (per layer, invalidated when style changes). Motion-blur
+      // sub-samples just blit these → N samples cost ≈ N cheap drawImage, not N text rasterizations.
+      const spriteKey = `${font}|${resScale}|${p.fillColor}|${p.strokeColor}|${p.strokeWidth}|${p.strokeJoin}|${p.shadowEnabled}|${p.shadowColor}|${p.shadowBlur}|${p.shadowOffsetX}|${p.shadowOffsetY}|${p.neonGlow}|${p.neonGlowColor}|${p.neonGlowBlur}|${p.longShadow}|${p.longShadowColor}|${p.longShadowLength}|${p.longShadowAngle}`;
+      if (!layer._glyphSprites || layer._glyphSprites.key !== spriteKey) {
+        layer._glyphSprites = { key: spriteKey, map: new Map() };
+      }
+      const spriteMap = layer._glyphSprites.map;
+      const spritePad = Math.ceil((computeEffectPad(p) + (Number(p.strokeWidth) || 0) + (p.longShadow ? (Number(p.longShadowLength) || 0) : 0)) * resScale + 4);
+      const getGlyphSprite = (ch, chW) => {
+        const k = ch + '|' + chW.toFixed(2);
+        let sp = spriteMap.get(k);
+        if (sp) return sp;
+        const c = document.createElement('canvas');
+        const sw = Math.max(1, Math.ceil(chW + fontSize * 0.5 + spritePad * 2));
+        const sh = Math.max(1, Math.ceil(fontSize * 1.5 + spritePad * 2));
+        c.width = sw;
+        c.height = sh;
+        const g = c.getContext('2d');
+        g.translate(sw / 2, sh / 2);
+        paintGlyph(g, ch, chW);
+        sp = { c, ox: sw / 2, oy: sh / 2 };
+        spriteMap.set(k, sp);
+        return sp;
+      };
+
+      // Per-line character advances are time-independent → measure once, reuse every sample.
+      const lineAdvanceCache = [];
+
+      // One full frame of glyphs at time `localSec` into `ctx` (shadowed params so the
+      // same body serves the single pass and every motion-blur sub-sample).
+      const drawFrame = (ctx, localSec, useSprites = false) => {
+      globalCharIndex = 0;
       // Typewriter IN progress
       let isTypewriter = (normIn === 'typewriter' || p.animation === 'typewriter');
       let visibleChars = totalChars;
@@ -655,13 +736,20 @@
         const curY = startY + lineIdx * lineH;
 
         // Calculate line width for alignment
-        let lineWidth = 0;
-        const charWidths = [];
-        for (let i = 0; i < line.length; i++) {
-          const cw = ctx.measureText(line[i]).width + letterSpacing;
-          charWidths.push(cw);
-          lineWidth += cw;
+        let adv = lineAdvanceCache[lineIdx];
+        if (!adv) {
+          ctx.font = font;
+          const ws = [];
+          let tw = 0;
+          for (let i = 0; i < line.length; i++) {
+            const cw = ctx.measureText(line[i]).width + letterSpacing;
+            ws.push(cw);
+            tw += cw;
+          }
+          adv = lineAdvanceCache[lineIdx] = { ws, tw };
         }
+        const charWidths = adv.ws;
+        const lineWidth = adv.tw;
 
         let curX = cx - (lineWidth / 2);
         if (p.textAlign === 'left') curX = cx - (measure.width / 2);
@@ -697,27 +785,6 @@
             continue;
           }
 
-          // ── Per-character motion blur (fallback when FishMotionBlurEngine is not present) ──
-          // When FishMotionBlurEngine is available, it handles full multi-sampled accumulation.
-          if (!isSubSample && !(typeof window !== 'undefined' && window.FishMotionBlurEngine) && hasMB && (offX !== 0 || offY !== 0 || scaleX !== 1 || scaleY !== 1 || charRotation !== 0)) {
-            const mbSamples = 4;
-            for (let mbI = mbSamples; mbI >= 1; mbI--) {
-              const g = evalGlyphAnim(animCfg, Math.max(0, localSec - mbDt * 0.5 * (mbI / mbSamples)), animIndex, charIndex);
-              if (g.alpha <= 0.001) continue;
-              const mbAlpha = Math.min(charAlpha, g.alpha) * (1 - mbI / (mbSamples + 1)) * 0.35;
-
-              ctx.save();
-              ctx.globalAlpha = mbAlpha;
-              ctx.translate(curX + (chW / 2) + g.offX, curY + g.offY);
-              if (g.rot !== 0) ctx.rotate(g.rot * Math.PI / 180);
-              if (g.scaleX !== 1.0 || g.scaleY !== 1.0) ctx.scale(g.scaleX, g.scaleY);
-              ctx.font = font;
-              ctx.fillStyle = p.fillColor || '#ffffff';
-              ctx.fillText(ch, -(chW / 2), 0);
-              ctx.restore();
-            }
-          }
-
           ctx.save();
           ctx.globalAlpha = charAlpha;
 
@@ -730,57 +797,12 @@
             ctx.scale(scaleX, scaleY);
           }
 
-          // A. Draw Long Shadow (Extruded multi-step flat shadow)
-          if (p.longShadow && p.longShadowLength > 0) {
-            ctx.save();
-            ctx.fillStyle = p.longShadowColor || 'rgba(0, 0, 0, 0.4)';
-            const rad = ((p.longShadowAngle !== undefined ? p.longShadowAngle : 45) * Math.PI) / 180;
-            const cosA = Math.cos(rad);
-            const sinA = Math.sin(rad);
-            const steps = Math.min(80, Math.round(p.longShadowLength * resScale));
-            for (let s = 1; s <= steps; s++) {
-              const sx = s * cosA;
-              const sy = s * sinA;
-              ctx.fillText(ch, -(chW / 2) + sx, sy);
-            }
-            ctx.restore();
+          if (useSprites) {
+            const sp = getGlyphSprite(ch, chW);
+            ctx.drawImage(sp.c, -sp.ox, -sp.oy);
+          } else {
+            paintGlyph(ctx, ch, chW);
           }
-
-          // B. Draw Drop Shadow / Neon Glow
-          if (p.neonGlow) {
-            ctx.save();
-            ctx.shadowColor = p.neonGlowColor || '#98ce7b';
-            ctx.shadowBlur = (p.neonGlowBlur || 16) * resScale;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-            ctx.fillStyle = p.fillColor || '#ffffff';
-            ctx.fillText(ch, -(chW / 2), 0);
-            ctx.fillText(ch, -(chW / 2), 0); // Double pass for intense neon
-            ctx.restore();
-          }
-          if (p.shadowEnabled) {
-            ctx.save();
-            ctx.shadowColor = p.shadowColor || 'rgba(0,0,0,0.6)';
-            ctx.shadowBlur = (p.shadowBlur || 8) * resScale;
-            ctx.shadowOffsetX = (p.shadowOffsetX || 4) * resScale;
-            ctx.shadowOffsetY = (p.shadowOffsetY || 4) * resScale;
-            ctx.fillStyle = p.fillColor || '#ffffff';
-            ctx.fillText(ch, -(chW / 2), 0);
-            ctx.restore();
-          }
-
-          // C. Draw Stroke / Outline
-          if (p.strokeWidth > 0) {
-            ctx.save();
-            ctx.strokeStyle = p.strokeColor || '#000000';
-            ctx.lineWidth = p.strokeWidth * resScale;
-            ctx.strokeText(ch, -(chW / 2), 0);
-            ctx.restore();
-          }
-
-          // D. Draw Fill Text
-          ctx.fillStyle = p.fillColor || '#ffffff';
-          ctx.fillText(ch, -(chW / 2), 0);
 
           ctx.restore();
 
@@ -798,6 +820,71 @@
           }
         }
       });
+      }; // end drawFrame
+
+      // ── AE-style per-glyph motion blur ─────────────────────────────────────────
+      // Every glyph is sampled across the shutter interval and averaged ('lighter' +
+      // 1/N alpha on premultiplied canvas = true average). Sample count is adaptive to
+      // the fastest glyph's travel (≈1.5px spacing) so the smear is continuous, never
+      // stepped ghost copies. Layer-transform blur stays in FishMotionBlurEngine.
+      const mbEng = (typeof window !== 'undefined') ? window.FishMotionBlurEngine : null;
+      const mbOn = !isSubSample && !isStaticKey && mbEng && (typeof mbEng.isEffectBlurActive === 'function' ? mbEng.isEffectBlurActive(layer) : (typeof mbEng.isLayerActive === 'function' && mbEng.isLayerActive(layer)));
+      let drewBlur = false;
+      if (mbOn) {
+        const shutter = (typeof mbEng.getShutter === 'function')
+          ? mbEng.getShutter(null, localSec)
+          : { exposureTime: 0, tStart: localSec };
+        const exposure = shutter.exposureTime;
+        const t0 = shutter.tStart;
+        const t1 = t0 + exposure;
+        if (exposure > 0.0001) {
+          // Measure max glyph travel inside shutter window
+          let maxTravel = 0;
+          const probeN = Math.min(totalChars, 64);
+          for (let ci = 0; ci < probeN; ci++) {
+            const gi = Math.floor(ci * totalChars / probeN);
+            const ui = unitIndexByChar[gi] !== undefined ? unitIndexByChar[gi] : gi;
+            const a = evalGlyphAnim(animCfg, t0, ui, gi);
+            const b = evalGlyphAnim(animCfg, (t0 + t1) / 2, ui, gi);
+            const c = evalGlyphAnim(animCfg, t1, ui, gi);
+            const seg = (g1, g2) => Math.hypot(g2.offX - g1.offX, g2.offY - g1.offY)
+              + Math.abs(g2.rot - g1.rot) * Math.PI / 180 * fontSize * 0.5
+              + Math.max(Math.abs(g2.scaleX - g1.scaleX), Math.abs(g2.scaleY - g1.scaleY)) * fontSize * 0.5;
+            const travel = seg(a, b) + seg(b, c);
+            if (travel > maxTravel) maxTravel = travel;
+          }
+          if (maxTravel > 0.75) {
+            const q = (mbEng && typeof mbEng.getQuality === 'function') ? mbEng.getQuality() : null;
+            const isMobileDev = window.innerWidth <= 600;
+            // Sprite blits are cheap → generous caps; spacing ~1.5px preview, ~1px export
+            const cap = q ? (q.isExport ? 64 : q.maxSamples * 2) : (window.isExporting ? 64 : (isMobileDev ? 16 : 32));
+            const spacing = q ? (q.isExport ? 1.0 : q.spacing * 0.75) : (window.isExporting ? 1.0 : 1.5);
+            const n = Math.max(3, Math.min(cap, Math.ceil(maxTravel / spacing)));
+            if (!FishTextEngine._mbScratch) {
+              FishTextEngine._mbScratch = document.createElement('canvas');
+              FishTextEngine._mbScratchCtx = FishTextEngine._mbScratch.getContext('2d');
+            }
+            const sc = FishTextEngine._mbScratch;
+            const sctx = FishTextEngine._mbScratchCtx;
+            if (sc.width !== reqW || sc.height !== reqH) { sc.width = reqW; sc.height = reqH; }
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha = 1 / n;
+            for (let si = 0; si < n; si++) {
+              const ts = t0 + ((si + 0.5) / n) * exposure;
+              sctx.setTransform(1, 0, 0, 1, 0, 0);
+              sctx.clearRect(0, 0, reqW, reqH);
+              sctx.save();
+              drawFrame(sctx, ts, true);
+              sctx.restore();
+              ctx.drawImage(sc, 0, 0);
+            }
+            ctx.restore();
+            drewBlur = true;
+          }
+        }
+      }
+      if (!drewBlur) drawFrame(ctx, localSec);
 
       ctx.restore();
       canvas._lastRenderKey = renderKey;

@@ -556,7 +556,7 @@
           <div class="brand-title">FishTool</div>
           <div class="brand-subtitle-row">
             <span class="brand-subtitle">Studio</span>
-            <span class="badge-pre-alpha" id="studio-version-badge">0.5.114</span>
+            <span class="badge-pre-alpha" id="studio-version-badge">0.5.115</span>
           </div>
           <h2 class="projects-title" style="margin-top: 10px;">Your Project</h2>
         </div>
@@ -564,7 +564,7 @@
         <div class="component-box">
           <span class="component-box-title">Badges & Metadata</span>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <span class="badge-pre-alpha">0.5.114</span>
+            <span class="badge-pre-alpha">0.5.115</span>
             <span class="project-count-badge">5</span>
             <span class="project-count-badge">12</span>
             <span class="project-count-badge">99+</span>
@@ -5667,7 +5667,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.114</span>
+          <span class="welcome-badge">v0.5.115</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -5703,11 +5703,61 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.115 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.115</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 3, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">3D Particle Engine Layer Effect (`effects/particle_engine.js`, `assets/icon-particles.svg`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Source Fill Suppression</span>
+                  <span class="changelog-item-desc">When placed on a Solid Layer or any layer, the original fill color or image is suppressed by default (`hideSource: 1`), turning the layer into a pure particle canvas.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">3D Camera Depth &amp; Tracking</span>
+                  <span class="changelog-item-desc">Full real-time integration with scene 3D Camera (`cam.posX`, `cam.posY`, `cam.posZ`, `cam.rotX`, `cam.rotY`, `cam.rotZ`, `cam.cameraZoom`, `cam.cameraLens`). Moving, panning, tilting, dollying, and orbiting the camera renders particles with authentic 3D parallax, depth scaling, near/far depth fade, and painter's algorithm Z-sorting.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Comprehensive Emitter Controls</span>
+                  <span class="changelog-item-desc">Point, Box, Sphere, and Disc emitters with 3D positions, volumes, directional angles, cone spread, and initial velocity with randomness.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Physics &amp; Dynamics</span>
+                  <span class="changelog-item-desc">Analytical 3D physics with gravity, air resistance/drag, 3D directional wind, and harmonic curl turbulence wiggle.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-new">New</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Particle Styles &amp; Optimization</span>
+                  <span class="changelog-item-desc">Glow Sphere, Sparkle Star, Crisp Circle, Glowing Ring, Smoke Puff, and Streak with cached sprite rendering, color blending over life, and 100% deterministic frame scrubbing and export.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.106 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.106</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 3, 2026</span>
               </div>
               <div class="welcome-changelog-item">
@@ -8199,56 +8249,67 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="shapes/capsule.js"></script>
   <script src="shapes/heart.js"></script>
   <script src="js/effects.js?v=4"></script>
+  <script src="effects/anamorphic_flare.js"></script>
+  <script src="effects/angle_control.js"></script>
+  <script src="effects/bevel.js"></script>
+  <script src="effects/box_3d.js"></script>
   <script src="effects/brightness_contrast.js"></script>
+  <script src="effects/camera_lens_blur.js"></script>
+  <script src="effects/checkbox_control.js"></script>
+  <script src="effects/chromatic_aberration.js"></script>
   <script src="effects/color_balance.js"></script>
+  <script src="effects/color_control.js"></script>
   <script src="effects/color_temperature.js"></script>
   <script src="effects/colorize.js"></script>
+  <script src="effects/curve.js"></script>
+  <script src="effects/deep_glow.js"></script>
+  <script src="effects/diffusion.js"></script>
+  <script src="effects/drop_shadow.js"></script>
   <script src="effects/exposure_gamma.js"></script>
+  <script src="effects/expression_controls.js"></script>
+  <script src="effects/extrude_3d.js"></script>
+  <script src="effects/fast_box_blur.js"></script>
+  <script src="effects/fill.js"></script>
+  <script src="effects/flicker.js"></script>
+  <script src="effects/fsmb.js"></script>
+  <script src="effects/glow_aura.js"></script>
+  <script src="effects/grad_exposure.js"></script>
   <script src="effects/gradient_overlay.js"></script>
+  <script src="effects/grid.js"></script>
+  <script src="effects/haze_flare.js"></script>
   <script src="effects/highlight_shadow.js"></script>
   <script src="effects/hue_shift.js"></script>
   <script src="effects/invert.js"></script>
-  <script src="effects/saturation_vibrant.js"></script>
-  <script src="effects/rgb_split.js"></script>
-  <script src="effects/rays.js"></script>
-  <script src="effects/tile.js"></script>
-  <script src="effects/wave_warp.js"></script>
-  <script src="effects/warp.js"></script>
-  <script src="effects/turbulent_displace.js?v=0.5.114"></script>
-  <script src="effects/optic_compensation.js"></script>
-  <script src="effects/transform.js"></script>
-  <script src="effects/oscillate.js"></script>
-  <script src="effects/swing.js"></script>
-  <script src="effects/drop_shadow.js"></script>
-  <script src="effects/fill.js"></script>
-  <script src="effects/expression_controls.js"></script>
-  <script src="effects/slider_control.js"></script>
-  <script src="effects/point_control.js"></script>
-  <script src="effects/angle_control.js"></script>
-  <script src="effects/checkbox_control.js"></script>
-  <script src="effects/color_control.js"></script>
-  <script src="effects/star_burst.js"></script>
-  <script src="effects/grid.js"></script>
-  <script src="effects/radio_waves.js"></script>
-  <script src="effects/scanline.js"></script>
-  <script src="effects/mono.js"></script>
-  <script src="effects/glow_aura.js"></script>
-  <script src="effects/solid_aura.js"></script>
-  <script src="effects/bevel.js"></script>
-  <script src="effects/shatter.js"></script>
-  <script src="effects/deep_glow.js"></script>
-  <script src="effects/camera_lens_blur.js"></script>
-  <script src="effects/curve.js"></script>
-  <script src="effects/fast_box_blur.js"></script>
+  <script src="effects/linear_wipe.js"></script>
   <script src="effects/lumia.js"></script>
-  <script src="effects/tint.js"></script>
-  <script src="effects/fsmb.js"></script>
-  <script src="effects/chromatic_aberration.js"></script>
-  <script src="effects/haze_flare.js"></script>
-  <script src="effects/anamorphic_flare.js"></script>
-  <script src="effects/vignette.js"></script>
+  <script src="effects/mono.js"></script>
   <script src="effects/optic_compensation.js"></script>
+  <script src="effects/oscillate.js"></script>
+  <script src="effects/particle_engine.js"></script>
+  <script src="effects/point_control.js"></script>
+  <script src="effects/pyramid_3d.js"></script>
+  <script src="effects/radio_waves.js"></script>
+  <script src="effects/rays.js"></script>
   <script src="effects/remove_bg.js"></script>
+  <script src="effects/rgb_split.js"></script>
+  <script src="effects/saturation_vibrant.js"></script>
+  <script src="effects/scanline.js"></script>
+  <script src="effects/shake.js"></script>
+  <script src="effects/sharpen.js"></script>
+  <script src="effects/shatter.js"></script>
+  <script src="effects/slider_control.js"></script>
+  <script src="effects/solid_aura.js"></script>
+  <script src="effects/sphere_3d.js"></script>
+  <script src="effects/star_burst.js"></script>
+  <script src="effects/swing.js"></script>
+  <script src="effects/tile.js"></script>
+  <script src="effects/tint.js"></script>
+  <script src="effects/transform.js"></script>
+  <script src="effects/turbulent_displace.js"></script>
+  <script src="effects/unsharp_mask.js"></script>
+  <script src="effects/vignette.js"></script>
+  <script src="effects/warp.js"></script>
+  <script src="effects/wave_warp.js"></script>
   <script src="js/fishtool-engine.js?v=6"></script>
   <script src="js/color-picker.js"></script>
   <script src="js/bg-removal-engine.js"></script>

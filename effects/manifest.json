@@ -252,6 +252,13 @@
     "icon": "assets/FXPH.svg"
   },
   {
+    "file": "particle_engine.js",
+    "id": "particle-engine",
+    "name": "Particle Engine",
+    "category": "layer",
+    "icon": "assets/icon-particles.svg"
+  },
+  {
     "file": "point_control.js",
     "id": "point-control",
     "name": "Point Control",

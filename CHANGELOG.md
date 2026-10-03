@@ -5,6 +5,17 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.115] - 2026-10-03
+
+### Added
+- **3D Particle Engine Layer Effect (`effects/particle_engine.js`, `assets/icon-particles.svg`)**:
+  - Implemented Trapcode Particular-style 3D particle simulation engine in the `layer` category.
+  - **Source Fill Suppression**: When placed on a Solid Layer or any layer, the original fill color or image is suppressed by default (`hideSource: 1`), turning the layer into a pure particle canvas.
+  - **3D Camera Depth & Tracking**: Full real-time integration with scene 3D Camera (`cam.posX`, `cam.posY`, `cam.posZ`, `cam.rotX`, `cam.rotY`, `cam.rotZ`, `cam.cameraZoom`, `cam.cameraLens`). Moving, panning, tilting, dollying, and orbiting the camera renders particles with authentic 3D parallax, depth scaling, near/far depth fade, and painter's algorithm Z-sorting.
+  - **Comprehensive Emitter Controls**: Point, Box, Sphere, and Disc emitters with 3D positions, volumes, directional angles, cone spread, and initial velocity with randomness.
+  - **Physics & Dynamics**: Analytical 3D physics with gravity, air resistance/drag, 3D directional wind, and harmonic curl turbulence wiggle.
+  - **Particle Styles & Optimization**: Glow Sphere, Sparkle Star, Crisp Circle, Glowing Ring, Smoke Puff, and Streak with cached sprite rendering, color blending over life, and 100% deterministic frame scrubbing and export.
+
 ## [0.5.106] - 2026-10-03
 
 ### Performance & Optimization

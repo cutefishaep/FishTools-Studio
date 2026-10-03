@@ -90,7 +90,7 @@ function syncEffects() {
 
   // 3. Synchronize static script tags in editor.html and desktop.html
   const effectScriptsBlock = files.map(f => `  <script src="effects/${f}"></script>`).join('\n');
-  const htmlTargets = ['editor.html', 'desktop.html'];
+  const htmlTargets = ['editor.html', 'desktop.html', 'demo.html'];
   const effectsBlockRegex = /(?:[ \t]*<script src="effects\/[^"]+"><\/script>\r?\n)+/;
 
   htmlTargets.forEach(relPath => {

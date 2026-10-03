@@ -43,7 +43,13 @@
     },
 
     get(id) {
-      return registry.get(id);
+      if (!id) return null;
+      let def = registry.get(id);
+      if (!def && typeof id === 'string') {
+        if (id.includes('_')) def = registry.get(id.replace(/_/g, '-'));
+        else if (id.includes('-')) def = registry.get(id.replace(/-/g, '_'));
+      }
+      return def || null;
     },
 
     getAll() {

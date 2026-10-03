@@ -5,6 +5,15 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.118] - 2026-10-03
+
+### Improved
+- **Particle Engine Ambient In-Place Spawn & Glow Synergy (`effects/particle_engine.js`)**:
+  - Added `motionType`: `'Floating Ambient (In-Place)'` (default), `'Emitter Jet / Fountain'`, and `'Static Floating'`, allowing particles to materialize naturally in-place across 3D space with gentle organic drift instead of erupting from center.
+  - Added `emitterType`: `'Full Space (Comp Volume)'` (default), `'Box'`, `'Sphere'`, `'Point'`, and `'Disc'`, spanning full composition depth and field.
+  - Set default `blendMode` to `'Normal / Alpha'` (`source-over`), preserving full opacity and RGB channels on transparent pipeline canvases.
+  - Upgraded particle sprites with high-luminance cores (`#ffffff`) ensuring instant, vivid bloom when paired with **Deep Glow**.
+
 ## [0.5.117] - 2026-10-03
 
 ### Performance & Optimization

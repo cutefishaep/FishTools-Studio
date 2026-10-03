@@ -144,30 +144,30 @@
       ctx.quadraticCurveTo(c, c, c - rad, c);
       ctx.quadraticCurveTo(c, c, c, c - rad);
       ctx.closePath();
-      ctx.fillStyle = `rgba(${rgbStr}, 0.85)`;
+      ctx.fillStyle = `rgba(${rgbStr}, 0.95)`;
       ctx.fill();
 
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(c, c, rad * 0.15, 0, Math.PI * 2);
+      ctx.arc(c, c, rad * 0.2, 0, Math.PI * 2);
       ctx.fill();
     } else if (type === 'Smoke Puff') {
       const grad = ctx.createRadialGradient(c, c, 0, c, c, rad);
-      grad.addColorStop(0, `rgba(${rgbStr}, 0.5)`);
-      grad.addColorStop(0.5, `rgba(${rgbStr}, 0.25)`);
-      grad.addColorStop(0.85, `rgba(${rgbStr}, 0.08)`);
+      grad.addColorStop(0, `rgba(${rgbStr}, 0.6)`);
+      grad.addColorStop(0.4, `rgba(${rgbStr}, 0.35)`);
+      grad.addColorStop(0.85, `rgba(${rgbStr}, 0.1)`);
       grad.addColorStop(1, `rgba(${rgbStr}, 0)`);
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(c, c, rad, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      // Default: Glow Sphere (Trapcode Particular classic)
+      // Default: Glow Sphere (with intense high-luminance white core so Deep Glow triggers heavily!)
       const grad = ctx.createRadialGradient(c, c, 0, c, c, rad);
       grad.addColorStop(0, '#ffffff');
-      grad.addColorStop(0.2, `rgb(${rgbStr})`);
-      const glowEdge = Math.min(0.9, 0.4 + (glowAmt / 200));
-      grad.addColorStop(glowEdge, `rgba(${rgbStr}, ${(glowAmt / 150).toFixed(2)})`);
+      grad.addColorStop(0.25, `rgb(${rgbStr})`);
+      const glowEdge = Math.min(0.92, 0.45 + (glowAmt / 200));
+      grad.addColorStop(glowEdge, `rgba(${rgbStr}, ${(0.4 + glowAmt / 150).toFixed(2)})`);
       grad.addColorStop(1, `rgba(${rgbStr}, 0)`);
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -175,7 +175,6 @@
       ctx.fill();
     }
 
-    // Limit cache size to 120 sprites to prevent memory growth
     if (spriteCache.size > 120) {
       const firstKey = spriteCache.keys().next().value;
       spriteCache.delete(firstKey);
@@ -191,54 +190,56 @@
     name: 'Particle Engine',
     category: 'layer',
     icon: 'assets/FXPH.svg',
-    description: '3D particle simulation engine like Trapcode Particular with emitter, physics, turbulence, and 3D camera depth',
+    description: '3D particle simulation engine like Trapcode Particular with ambient in-place spawn, physics, turbulence, and 3D camera depth',
     isExpanding: true,
 
     params: [
-      /* Emitter Group */
-      { id: 'emitterType',     label: 'Emitter Type',     type: 'select', options: ['Point', 'Box', 'Sphere', 'Disc'], default: 'Point' },
+      /* Spawn & Motion Group */
+      { id: 'motionType',      label: 'Motion Style',     type: 'select', options: ['Floating Ambient (In-Place)', 'Emitter Jet / Fountain', 'Static Floating'], default: 'Floating Ambient (In-Place)' },
+      { id: 'emitterType',     label: 'Spawn Area',       type: 'select', options: ['Full Space (Comp Volume)', 'Box', 'Sphere', 'Point', 'Disc'], default: 'Full Space (Comp Volume)' },
       { id: 'birthRate',       label: 'Birth Rate',       type: 'number', min: 10, max: 1000, default: 150, unit: 'p/s', step: 5 },
-      { id: 'velocity',        label: 'Velocity',         type: 'number', min: 0, max: 1000, default: 180, unit: 'px/s', step: 2 },
-      { id: 'velocityRandom',  label: 'Velocity Random',  type: 'number', min: 0, max: 100, default: 30, unit: '%', step: 1 },
-      { id: 'direction',       label: 'Direction',        type: 'select', options: ['Omni (Uniform)', 'Directional', 'Up', 'Down', 'Disc Plane'], default: 'Omni (Uniform)' },
+      { id: 'velocity',        label: 'Velocity / Drift', type: 'number', min: 0, max: 1000, default: 25, unit: 'px/s', step: 1 },
+      { id: 'velocityRandom',  label: 'Velocity Random',  type: 'number', min: 0, max: 100, default: 40, unit: '%', step: 1 },
+      { id: 'direction',       label: 'Jet Direction',    type: 'select', options: ['Omni (Uniform)', 'Directional', 'Up', 'Down', 'Disc Plane'], default: 'Omni (Uniform)' },
       { id: 'dirAngleX',       label: 'Dir Pitch (X)',    type: 'angle',  default: 0, unit: '°' },
       { id: 'dirAngleY',       label: 'Dir Yaw (Y)',      type: 'angle',  default: 0, unit: '°' },
       { id: 'spread',          label: 'Spread Angle',     type: 'number', min: 0, max: 100, default: 100, unit: '%', step: 1 },
-      { id: 'emitterX',        label: 'Emitter Pos X',    type: 'number', min: -1000, max: 1000, default: 0, unit: 'px', step: 1 },
-      { id: 'emitterY',        label: 'Emitter Pos Y',    type: 'number', min: -1000, max: 1000, default: 0, unit: 'px', step: 1 },
-      { id: 'emitterZ',        label: 'Emitter Pos Z',    type: 'number', min: -2000, max: 2000, default: 0, unit: 'px', step: 5 },
-      { id: 'emitterSizeX',    label: 'Emitter Size X',   type: 'number', min: 0, max: 2000, default: 120, unit: 'px', step: 2 },
-      { id: 'emitterSizeY',    label: 'Emitter Size Y',   type: 'number', min: 0, max: 2000, default: 120, unit: 'px', step: 2 },
-      { id: 'emitterSizeZ',    label: 'Emitter Size Z',   type: 'number', min: 0, max: 2000, default: 120, unit: 'px', step: 2 },
-      { id: 'preRun',          label: 'Warmup Time',      type: 'number', min: 0, max: 10, default: 2.0, unit: 's', step: 0.1 },
+      { id: 'emitterX',        label: 'Center Pos X',     type: 'number', min: -1000, max: 1000, default: 0, unit: 'px', step: 1 },
+      { id: 'emitterY',        label: 'Center Pos Y',     type: 'number', min: -1000, max: 1000, default: 0, unit: 'px', step: 1 },
+      { id: 'emitterZ',        label: 'Center Pos Z',     type: 'number', min: -2000, max: 2000, default: 0, unit: 'px', step: 5 },
+      { id: 'emitterSizeX',    label: 'Area Width (X)',   type: 'number', min: 0, max: 3000, default: 900, unit: 'px', step: 10 },
+      { id: 'emitterSizeY',    label: 'Area Height (Y)',  type: 'number', min: 0, max: 3000, default: 700, unit: 'px', step: 10 },
+      { id: 'emitterSizeZ',    label: 'Area Depth (Z)',   type: 'number', min: 0, max: 4000, default: 1200, unit: 'px', step: 10 },
+      { id: 'preRun',          label: 'Warmup Time',      type: 'number', min: 0, max: 10, default: 2.5, unit: 's', step: 0.1 },
 
-      /* Particle Group */
+      /* Particle Appearance Group */
       { id: 'particleType',    label: 'Particle Type',    type: 'select', options: ['Glow Sphere', 'Sparkle Star', 'Crisp Circle', 'Glowing Ring', 'Smoke Puff', 'Streak'], default: 'Glow Sphere' },
-      { id: 'life',            label: 'Life',             type: 'number', min: 0.2, max: 10, default: 2.5, unit: 's', step: 0.1 },
-      { id: 'lifeRandom',      label: 'Life Random',      type: 'number', min: 0, max: 100, default: 25, unit: '%', step: 1 },
-      { id: 'size',            label: 'Size',             type: 'number', min: 1, max: 100, default: 12, unit: 'px', step: 1 },
+      { id: 'life',            label: 'Life',             type: 'number', min: 0.2, max: 10, default: 3.0, unit: 's', step: 0.1 },
+      { id: 'lifeRandom',      label: 'Life Random',      type: 'number', min: 0, max: 100, default: 30, unit: '%', step: 1 },
+      { id: 'size',            label: 'Size',             type: 'number', min: 1, max: 100, default: 14, unit: 'px', step: 1 },
       { id: 'sizeRandom',      label: 'Size Random',      type: 'number', min: 0, max: 100, default: 40, unit: '%', step: 1 },
       { id: 'sizeOverLife',    label: 'Size over Life',   type: 'select', options: ['Grow & Shrink', 'Shrink Only', 'Grow Only', 'Constant'], default: 'Grow & Shrink' },
       { id: 'color',           label: 'Primary Color',    type: 'color',  default: '#38bdf8' },
       { id: 'color2',          label: 'Secondary Color',  type: 'color',  default: '#fbbf24' },
-      { id: 'colorMode',       label: 'Color Mode',       type: 'select', options: ['Single Color', 'Two Color Blend', 'Rainbow Hue'], default: 'Two Color Blend' },
-      { id: 'opacity',         label: 'Opacity',          type: 'number', min: 0, max: 100, default: 90, unit: '%', step: 1 },
+      { id: 'colorMode',       label: 'Color Mode',       type: 'select', options: ['Two Color Blend', 'Single Color', 'Rainbow Hue'], default: 'Two Color Blend' },
+      { id: 'opacity',         label: 'Opacity',          type: 'number', min: 0, max: 100, default: 100, unit: '%', step: 1 },
       { id: 'opacityOverLife', label: 'Opacity over Life',type: 'select', options: ['Fade In & Out', 'Fade Out Only', 'Fade In Only', 'Constant'], default: 'Fade In & Out' },
-      { id: 'blendMode',       label: 'Blend Mode',       type: 'select', options: ['Screen / Additive', 'Normal / Alpha'], default: 'Screen / Additive' },
-      { id: 'glow',            label: 'Glow Halo',        type: 'number', min: 0, max: 100, default: 50, unit: '%', step: 1 },
+      // Wajib Blend Mode Normal by default: enables full alpha compatibility with downstream Deep Glow
+      { id: 'blendMode',       label: 'Blend Mode',       type: 'select', options: ['Normal / Alpha', 'Screen / Additive'], default: 'Normal / Alpha' },
+      { id: 'glow',            label: 'Inner Glow Halo',  type: 'number', min: 0, max: 100, default: 40, unit: '%', step: 1 },
 
       /* Physics Group */
-      { id: 'gravity',         label: 'Gravity (Y)',      type: 'number', min: -1000, max: 1000, default: 35, unit: 'px/s²', step: 5 },
-      { id: 'drag',            label: 'Air Resistance',   type: 'number', min: 0, max: 100, default: 15, unit: '%', step: 1 },
+      { id: 'gravity',         label: 'Gravity (Y)',      type: 'number', min: -1000, max: 1000, default: 0, unit: 'px/s²', step: 5 },
+      { id: 'drag',            label: 'Air Resistance',   type: 'number', min: 0, max: 100, default: 10, unit: '%', step: 1 },
       { id: 'windX',           label: 'Wind X',           type: 'number', min: -500, max: 500, default: 0, unit: 'px/s', step: 2 },
       { id: 'windY',           label: 'Wind Y',           type: 'number', min: -500, max: 500, default: 0, unit: 'px/s', step: 2 },
       { id: 'windZ',           label: 'Wind Z',           type: 'number', min: -500, max: 500, default: 0, unit: 'px/s', step: 2 },
-      { id: 'turbulence',      label: 'Turbulence Wiggle',type: 'number', min: 0, max: 200, default: 35, unit: 'px', step: 1 },
-      { id: 'turbSpeed',       label: 'Turbulence Speed', type: 'number', min: 0.1, max: 5.0, default: 1.2, step: 0.1 },
+      { id: 'turbulence',      label: 'Turbulence Wiggle',type: 'number', min: 0, max: 200, default: 25, unit: 'px', step: 1 },
+      { id: 'turbSpeed',       label: 'Turbulence Speed', type: 'number', min: 0.1, max: 5.0, default: 0.8, step: 0.1 },
 
       /* 3D Camera & Layer Group */
       { id: 'useCamera',       label: 'Follow 3D Camera', type: 'switch', default: 1 },
-      { id: 'depthFade',       label: 'Depth Fade',       type: 'number', min: 0, max: 100, default: 80, unit: '%', step: 1 },
+      { id: 'depthFade',       label: 'Depth Fade',       type: 'number', min: 0, max: 100, default: 75, unit: '%', step: 1 },
       { id: 'camRotX',         label: 'Manual Pitch (X)', type: 'angle',  default: 0, unit: '°' },
       { id: 'camRotY',         label: 'Manual Yaw (Y)',   type: 'angle',  default: 0, unit: '°' },
       { id: 'camRotZ',         label: 'Manual Roll (Z)',  type: 'angle',  default: 0, unit: '°' },
@@ -264,19 +265,20 @@
       const curTime = getCurrentTime(layer, currentSec);
       const startSec = (layer && typeof layer.startSec === 'number') ? layer.startSec : 0;
       const relTime = curTime - startSec;
-      const preRun = Math.max(0, fx.preRun !== undefined ? Number(fx.preRun) : 2.0);
+      const preRun = Math.max(0, fx.preRun !== undefined ? Number(fx.preRun) : 2.5);
       const simTime = Math.max(0, relTime + preRun);
 
       /* ── 3. Parameter Parsing ── */
       const seed = Math.round(fx.seed !== undefined ? Number(fx.seed) : 1234);
       const birthRate = Math.max(5, Math.min(1000, fx.birthRate !== undefined ? Number(fx.birthRate) : 150));
-      const baseLife = Math.max(0.2, Math.min(10, fx.life !== undefined ? Number(fx.life) : 2.5));
-      const lifeRandom = Math.max(0, Math.min(100, fx.lifeRandom !== undefined ? Number(fx.lifeRandom) : 25)) / 100;
+      const baseLife = Math.max(0.2, Math.min(10, fx.life !== undefined ? Number(fx.life) : 3.0));
+      const lifeRandom = Math.max(0, Math.min(100, fx.lifeRandom !== undefined ? Number(fx.lifeRandom) : 30)) / 100;
       const maxLife = baseLife * (1 + lifeRandom);
 
-      const emitterType = fx.emitterType || 'Point';
-      const baseVel = Math.max(0, fx.velocity !== undefined ? Number(fx.velocity) : 180);
-      const velRand = Math.max(0, Math.min(100, fx.velocityRandom !== undefined ? Number(fx.velocityRandom) : 30)) / 100;
+      const motionType = fx.motionType || 'Floating Ambient (In-Place)';
+      const emitterType = fx.emitterType || 'Full Space (Comp Volume)';
+      const baseVel = Math.max(0, fx.velocity !== undefined ? Number(fx.velocity) : 25);
+      const velRand = Math.max(0, Math.min(100, fx.velocityRandom !== undefined ? Number(fx.velocityRandom) : 40)) / 100;
       const direction = fx.direction || 'Omni (Uniform)';
       const spread = Math.max(0, Math.min(100, fx.spread !== undefined ? Number(fx.spread) : 100)) / 100;
       const dirAngleX = (fx.dirAngleX || 0) * (Math.PI / 180);
@@ -285,32 +287,34 @@
       const emX = fx.emitterX || 0;
       const emY = fx.emitterY || 0;
       const emZ = fx.emitterZ || 0;
-      const emSx = (fx.emitterSizeX !== undefined ? Number(fx.emitterSizeX) : 120) / 2;
-      const emSy = (fx.emitterSizeY !== undefined ? Number(fx.emitterSizeY) : 120) / 2;
-      const emSz = (fx.emitterSizeZ !== undefined ? Number(fx.emitterSizeZ) : 120) / 2;
+      const emSx = (fx.emitterSizeX !== undefined ? Number(fx.emitterSizeX) : 900) / 2;
+      const emSy = (fx.emitterSizeY !== undefined ? Number(fx.emitterSizeY) : 700) / 2;
+      const emSz = (fx.emitterSizeZ !== undefined ? Number(fx.emitterSizeZ) : 1200) / 2;
 
       const pType = fx.particleType || 'Glow Sphere';
-      const baseSize = Math.max(1, fx.size !== undefined ? Number(fx.size) : 12);
+      const baseSize = Math.max(1, fx.size !== undefined ? Number(fx.size) : 14);
       const sizeRand = Math.max(0, Math.min(100, fx.sizeRandom !== undefined ? Number(fx.sizeRandom) : 40)) / 100;
       const sizeOverLife = fx.sizeOverLife || 'Grow & Shrink';
 
       const primaryColor = hexToRgb(fx.color || '#38bdf8');
       const secondaryColor = hexToRgb(fx.color2 || '#fbbf24');
       const colorMode = fx.colorMode || 'Two Color Blend';
-      const baseOp = Math.max(0, Math.min(100, fx.opacity !== undefined ? Number(fx.opacity) : 90)) / 100;
+      const baseOp = Math.max(0, Math.min(100, fx.opacity !== undefined ? Number(fx.opacity) : 100)) / 100;
       const opOverLife = fx.opacityOverLife || 'Fade In & Out';
-      const isScreenBlend = (fx.blendMode === undefined || fx.blendMode === 'Screen / Additive');
-      const glowAmt = Math.max(0, Math.min(100, fx.glow !== undefined ? Number(fx.glow) : 50));
 
-      const gravity = fx.gravity !== undefined ? Number(fx.gravity) : 35;
-      const dragVal = Math.max(0, Math.min(100, fx.drag !== undefined ? Number(fx.drag) : 15)) / 100;
+      // Default blendMode is Normal / Alpha so downstream effects like Deep Glow see full RGB and alpha!
+      const isNormalBlend = (fx.blendMode === undefined || fx.blendMode === 'Normal / Alpha' || fx.blendMode === 'normal');
+      const glowAmt = Math.max(0, Math.min(100, fx.glow !== undefined ? Number(fx.glow) : 40));
+
+      const gravity = fx.gravity !== undefined ? Number(fx.gravity) : 0;
+      const dragVal = Math.max(0, Math.min(100, fx.drag !== undefined ? Number(fx.drag) : 10)) / 100;
       const dragK = dragVal * 2.5;
       const windX = fx.windX || 0;
       const windY = fx.windY || 0;
       const windZ = fx.windZ || 0;
-      const turbulence = Math.max(0, fx.turbulence !== undefined ? Number(fx.turbulence) : 35);
-      const turbSpeed = Math.max(0.1, fx.turbSpeed !== undefined ? Number(fx.turbSpeed) : 1.2);
-      const depthFade = Math.max(0, Math.min(100, fx.depthFade !== undefined ? Number(fx.depthFade) : 80)) / 100;
+      const turbulence = Math.max(0, fx.turbulence !== undefined ? Number(fx.turbulence) : 25);
+      const turbSpeed = Math.max(0.1, fx.turbSpeed !== undefined ? Number(fx.turbSpeed) : 0.8);
+      const depthFade = Math.max(0, Math.min(100, fx.depthFade !== undefined ? Number(fx.depthFade) : 75)) / 100;
 
       /* ── 4. 3D Camera Tracking & Perspective Projection ── */
       let camPosX = 0, camPosY = 0, camPosZ = 0;
@@ -335,7 +339,6 @@
               ? window.getLayerEffectivePropsAtTime(cam, curTime)
               : cam;
 
-            // Only track camera translational shift on 2D layers; 3D layers handle their own quad transform
             if (!isLayer3D) {
               camPosX = camEff.posX || 0;
               camPosY = camEff.posY || 0;
@@ -350,12 +353,10 @@
         }
       }
 
-      // Combine camera angles with effect's manual 3D rotation angles
       const totalRotX = camRotX + (fx.camRotX || 0);
       const totalRotY = camRotY + (fx.camRotY || 0);
       const totalRotZ = camRotZ + (fx.camRotZ || 0);
 
-      // Camera view rotation matrix components: R = Rz(-rotZ) * Rx(-rotX) * Ry(-rotY)
       const ax = -(totalRotX * Math.PI) / 180;
       const ay = -(totalRotY * Math.PI) / 180;
       const az = -(totalRotZ * Math.PI) / 180;
@@ -383,18 +384,24 @@
         const age = simTime - tBirth;
         if (age < 0) continue;
 
-        // Individual particle life
         const pLife = baseLife * (1 + (hash(j, seed + 1) - 0.5) * 2 * lifeRandom);
         if (age >= pLife) continue;
 
         const progress = Math.max(0, Math.min(1, age / pLife));
 
-        // 5a. Initial Emitter Position
+        // 5a. Initial 3D Spawn Position (In-place ambient distribution across space)
         let px0 = emX;
         let py0 = emY;
         let pz0 = emZ;
 
-        if (emitterType === 'Box') {
+        if (emitterType === 'Full Space (Comp Volume)') {
+          const spanX = Math.max(w * 1.3, emSx * 2);
+          const spanY = Math.max(h * 1.3, emSy * 2);
+          const spanZ = Math.max(1400, emSz * 2);
+          px0 += (hash(j, seed + 2) - 0.5) * spanX;
+          py0 += (hash(j, seed + 3) - 0.5) * spanY;
+          pz0 += (hash(j, seed + 4) - 0.5) * spanZ;
+        } else if (emitterType === 'Box') {
           px0 += (hash(j, seed + 2) - 0.5) * 2 * emSx;
           py0 += (hash(j, seed + 3) - 0.5) * 2 * emSy;
           pz0 += (hash(j, seed + 4) - 0.5) * 2 * emSz;
@@ -415,44 +422,59 @@
           pz0 += (hash(j, seed + 4) - 0.5) * emSz * 0.15;
         }
 
-        // 5b. Initial Velocity Vector
+        // 5b. Initial Velocity Vector / Drift Behavior
         const pSpeed = Math.max(0, baseVel * (1 + (hash(j, seed + 5) - 0.5) * 2 * velRand));
         let vx0 = 0, vy0 = 0, vz0 = 0;
 
-        if (direction === 'Omni (Uniform)') {
-          const theta = hash(j, seed + 6) * Math.PI * 2;
-          const zDir = hash(j, seed + 7) * 2 - 1;
-          const rXy = Math.sqrt(Math.max(0, 1 - zDir * zDir));
-          vx0 = rXy * Math.cos(theta) * pSpeed;
-          vy0 = rXy * Math.sin(theta) * pSpeed;
-          vz0 = zDir * pSpeed;
-        } else if (direction === 'Up') {
-          const coneU = (hash(j, seed + 6) - 0.5) * spread;
-          const coneV = (hash(j, seed + 7) - 0.5) * spread;
-          vx0 = coneU * pSpeed;
-          vy0 = -pSpeed;
-          vz0 = coneV * pSpeed;
-        } else if (direction === 'Down') {
-          const coneU = (hash(j, seed + 6) - 0.5) * spread;
-          const coneV = (hash(j, seed + 7) - 0.5) * spread;
-          vx0 = coneU * pSpeed;
-          vy0 = pSpeed;
-          vz0 = coneV * pSpeed;
-        } else if (direction === 'Disc Plane') {
-          const theta = hash(j, seed + 6) * Math.PI * 2;
-          vx0 = Math.cos(theta) * pSpeed;
-          vy0 = Math.sin(theta) * pSpeed;
-          vz0 = (hash(j, seed + 7) - 0.5) * pSpeed * spread * 0.2;
+        if (motionType === 'Static Floating') {
+          // Particles stay locked in place where they spawn with 0 initial velocity
+          vx0 = 0;
+          vy0 = 0;
+          vz0 = 0;
+        } else if (motionType === 'Floating Ambient (In-Place)') {
+          // Particles appear in-place across the room and gently float/shimmer (NO fountain shoot!)
+          const driftAngle = hash(j, seed + 6) * Math.PI * 2;
+          const driftZ = (hash(j, seed + 7) - 0.5) * 2;
+          const driftSpeed = pSpeed * 0.5;
+          vx0 = Math.cos(driftAngle) * driftSpeed;
+          vy0 = (Math.sin(driftAngle) * 0.3 - 0.5) * driftSpeed; // slight buoyant rise
+          vz0 = driftZ * driftSpeed * 0.4;
         } else {
-          // Directional with dirAngleX and dirAngleY
-          const coneSpread = (1 - spread) * 0.5;
-          const ru = (hash(j, seed + 6) - 0.5) * 2 * (1 - coneSpread);
-          const rv = (hash(j, seed + 7) - 0.5) * 2 * (1 - coneSpread);
-          const cDirX = Math.cos(dirAngleX), sDirX = Math.sin(dirAngleX);
-          const cDirY = Math.cos(dirAngleY), sDirY = Math.sin(dirAngleY);
-          vx0 = (sDirY + ru * spread) * pSpeed;
-          vy0 = (-sDirX + rv * spread) * pSpeed;
-          vz0 = (cDirY * cDirX) * pSpeed;
+          // Emitter Jet / Fountain (Classic ejection outward)
+          if (direction === 'Omni (Uniform)') {
+            const theta = hash(j, seed + 6) * Math.PI * 2;
+            const zDir = hash(j, seed + 7) * 2 - 1;
+            const rXy = Math.sqrt(Math.max(0, 1 - zDir * zDir));
+            vx0 = rXy * Math.cos(theta) * pSpeed;
+            vy0 = rXy * Math.sin(theta) * pSpeed;
+            vz0 = zDir * pSpeed;
+          } else if (direction === 'Up') {
+            const coneU = (hash(j, seed + 6) - 0.5) * spread;
+            const coneV = (hash(j, seed + 7) - 0.5) * spread;
+            vx0 = coneU * pSpeed;
+            vy0 = -pSpeed;
+            vz0 = coneV * pSpeed;
+          } else if (direction === 'Down') {
+            const coneU = (hash(j, seed + 6) - 0.5) * spread;
+            const coneV = (hash(j, seed + 7) - 0.5) * spread;
+            vx0 = coneU * pSpeed;
+            vy0 = pSpeed;
+            vz0 = coneV * pSpeed;
+          } else if (direction === 'Disc Plane') {
+            const theta = hash(j, seed + 6) * Math.PI * 2;
+            vx0 = Math.cos(theta) * pSpeed;
+            vy0 = Math.sin(theta) * pSpeed;
+            vz0 = (hash(j, seed + 7) - 0.5) * pSpeed * spread * 0.2;
+          } else {
+            const coneSpread = (1 - spread) * 0.5;
+            const ru = (hash(j, seed + 6) - 0.5) * 2 * (1 - coneSpread);
+            const rv = (hash(j, seed + 7) - 0.5) * 2 * (1 - coneSpread);
+            const cDirX = Math.cos(dirAngleX), sDirX = Math.sin(dirAngleX);
+            const cDirY = Math.cos(dirAngleY), sDirY = Math.sin(dirAngleY);
+            vx0 = (sDirY + ru * spread) * pSpeed;
+            vy0 = (-sDirX + rv * spread) * pSpeed;
+            vz0 = (cDirY * cDirX) * pSpeed;
+          }
         }
 
         // 5c. Physics Integration (Analytical, O(1) Zero Drift)
@@ -472,7 +494,7 @@
         if (turbulence > 0) {
           const phase = (j * 0.381966 + seed) % 1000;
           const ft = age * turbSpeed * 3.14 + phase;
-          const tScale = Math.min(1, age * 2.5) * turbulence;
+          const tScale = Math.min(1, age * 2.0) * turbulence;
           turbX = (Math.sin(ft) + 0.5 * Math.sin(ft * 2.3 + 1.2)) * tScale;
           turbY = (Math.cos(ft * 1.37 + 1.8) + 0.5 * Math.cos(ft * 2.71 + 0.4)) * tScale;
           turbZ = (Math.sin(ft * 0.89 + 3.1) + 0.5 * Math.sin(ft * 1.93 + 2.5)) * tScale;
@@ -502,15 +524,13 @@
         const camPy = x2 * sinZ + y2 * cosZ;
         const camPz = z2;
 
-        // Eye-depth calculation (camera eye is at focalDist in front of origin)
         const zDepth = focalDist + camPz;
-        if (zDepth <= 25) continue; // Clipped behind camera near plane
+        if (zDepth <= 25) continue; // Behind camera near plane
 
         const projScale = focalDist / zDepth;
         const scrX = screenCenterX + camPx * projScale;
         const scrY = screenCenterY + camPy * projScale;
 
-        // Screen bounding box cull with generous padding
         if (scrX < x - 120 || scrX > x + w + 120 || scrY < y - 120 || scrY > y + h + 120) {
           continue;
         }
@@ -550,7 +570,6 @@
         // 5g. Particle Color
         let pColor;
         if (colorMode === 'Two Color Blend') {
-          // Subtle blend over life with particle-to-particle variance
           const colorBlendT = (progress * 0.7 + hash(j, seed + 9) * 0.3);
           pColor = lerpRgb(primaryColor, secondaryColor, colorBlendT);
         } else if (colorMode === 'Rainbow Hue') {
@@ -581,10 +600,10 @@
       ctx.rect(x, y, w, h);
       ctx.clip();
 
-      if (isScreenBlend) {
-        ctx.globalCompositeOperation = 'screen';
-      } else {
+      if (isNormalBlend) {
         ctx.globalCompositeOperation = 'source-over';
+      } else {
+        ctx.globalCompositeOperation = 'screen';
       }
 
       const totalAlive = aliveParticles.length;
@@ -596,7 +615,6 @@
         const diam = p.scrRadius * 2;
 
         if (pType === 'Streak') {
-          // Render velocity streak line
           const spd = Math.sqrt(p.velX * p.velX + p.velY * p.velY);
           if (spd > 15) {
             const streakLen = Math.min(40, spd * 0.08 * (focalDist / p.zDepth));
@@ -617,7 +635,6 @@
     }
   };
 
-  // Register effect
   reg.register(particleEngineDef);
 
 })(typeof window !== 'undefined' ? window : this);

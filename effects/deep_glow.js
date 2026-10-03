@@ -20,11 +20,18 @@
     deGammaLut[i] = Math.round(Math.pow(i / 255, 0.454545) * 255);
   }
 
-  // Offscreen canvas pools for high-performance zero-allocation rendering
-  let threshCanvas = null;
-  let threshCtx = null;
+  // Offscreen canvas pools (reused across frames for zero-allocation performance)
+  // downCanvas: handles lightweight downscaled source and threshold LUT
+  let downCanvas = null;
+  let downCtx = null;
+
+  // glowCanvas: hardware-accelerated (willReadFrequently: false) for ultra-fast GPU filter blur
   let glowCanvas = null;
   let glowCtx = null;
+
+  // tintCanvas: lightweight scratchpad for GPU tint compositing
+  let tintCanvas = null;
+  let tintCtx = null;
 
   reg.register({
     id: 'deep-glow',
@@ -80,99 +87,126 @@
         return;
       }
 
-      // Generous padding to capture full radiant bloom falloff without box clipping
-      const pad = Math.min(350, Math.round(radius * 1.5));
+      // ── 1. Calculate Bloom Bounding Box & Target Downsampling Resolution ──
+      // Glow is low-frequency light diffusion: downsampling to max 640px cuts pixel work by ~90%
+      // while hardware bilinear texture scaling renders a silky-smooth, banding-free bloom.
+      const pad = Math.min(280, Math.round(radius * 1.4));
       const bw = w + pad * 2;
       const bh = h + pad * 2;
 
-      if (!threshCanvas) {
-        threshCanvas = document.createElement('canvas');
-        threshCtx = threshCanvas.getContext('2d', { willReadFrequently: true });
+      const TARGET_MAX_DIM = 640;
+      const maxDim = Math.max(bw, bh);
+      const downScale = maxDim > TARGET_MAX_DIM ? (TARGET_MAX_DIM / maxDim) : 1.0;
+      const gw = Math.max(16, Math.round(bw * downScale));
+      const gh = Math.max(16, Math.round(bh * downScale));
+
+      // ── 2. Initialize Reusable Canvas Pools ──
+      if (!downCanvas) {
+        downCanvas = document.createElement('canvas');
+        downCtx = downCanvas.getContext('2d', { willReadFrequently: true });
         glowCanvas = document.createElement('canvas');
-        glowCtx = glowCanvas.getContext('2d', { willReadFrequently: true });
-      }
-      if (threshCanvas.width !== bw || threshCanvas.height !== bh) {
-        threshCanvas.width = bw;
-        threshCanvas.height = bh;
-        glowCanvas.width = bw;
-        glowCanvas.height = bh;
+        // glowCtx does NOT use willReadFrequently: true so GPU hardware acceleration is preserved!
+        glowCtx = glowCanvas.getContext('2d');
+        tintCanvas = document.createElement('canvas');
+        tintCtx = tintCanvas.getContext('2d');
       }
 
-      // 1. Draw source layer onto black background to eliminate alpha dilution
-      // (Stars and particles radiate full RGB energy into dark space without fading to transparent)
-      threshCtx.fillStyle = '#000000';
-      threshCtx.fillRect(0, 0, bw, bh);
+      if (downCanvas.width !== gw || downCanvas.height !== gh) {
+        downCanvas.width = gw;
+        downCanvas.height = gh;
+      }
+      if (glowCanvas.width !== gw || glowCanvas.height !== gh) {
+        glowCanvas.width = gw;
+        glowCanvas.height = gh;
+      }
+
+      // ── 3. Draw Source Layer into Downscaled Buffer with Solid Black Base ──
+      downCtx.fillStyle = '#000000';
+      downCtx.fillRect(0, 0, gw, gh);
       try {
-        threshCtx.drawImage(el, pad, pad, w, h);
+        downCtx.drawImage(
+          el,
+          Math.round(pad * downScale),
+          Math.round(pad * downScale),
+          Math.round(w * downScale),
+          Math.round(h * downScale)
+        );
       } catch (_) {
         return;
       }
 
-      // 2. Pre-Process: Chromatic Aberration, Threshold with Smooth Knee, Gamma 2.2
-      const imgData = threshCtx.getImageData(0, 0, bw, bh);
-      const data = imgData.data;
+      // ── 4. Pre-Process: Threshold Knee, Gamma Linearization, & Chromatic Aberration ──
+      // Only execute pixel readback if threshold, gamma curve, or chromatic shift is non-default
+      const needsPreProcess = (threshold > 0.005) || gammaCorrect || (chromatic > 0.5);
 
-      // A. Pre-Process Chromatic Aberration (Channel Separation)
-      const caAmt = Math.round(chromatic);
-      if (caAmt > 0) {
-        const srcData = new Uint8ClampedArray(data);
-        let rOff = 0, gOff = 0, bOff = 0;
-        if (caChannels === 'red-blue') {
-          rOff = -caAmt;
-          bOff = caAmt;
-        } else if (caChannels === 'red-green') {
-          rOff = -caAmt;
-          gOff = caAmt;
-        } else if (caChannels === 'green-blue') {
-          gOff = -caAmt;
-          bOff = caAmt;
-        }
+      if (needsPreProcess) {
+        const imgData = downCtx.getImageData(0, 0, gw, gh);
+        const data = imgData.data;
 
-        for (let py = 0; py < bh; py++) {
-          const row = py * bw * 4;
-          for (let px = 0; px < bw; px++) {
-            const idx = row + px * 4;
-            const rx = Math.max(0, Math.min(bw - 1, px + rOff));
-            const gx = Math.max(0, Math.min(bw - 1, px + gOff));
-            const bx = Math.max(0, Math.min(bw - 1, px + bOff));
-            data[idx] = srcData[row + rx * 4];
-            data[idx + 1] = srcData[row + gx * 4 + 1];
-            data[idx + 2] = srcData[row + bx * 4 + 2];
+        // A. Chromatic Aberration (Channel Shift)
+        const caAmt = Math.round(chromatic * downScale);
+        if (caAmt > 0) {
+          const srcData = new Uint8ClampedArray(data);
+          let rOff = 0, gOff = 0, bOff = 0;
+          if (caChannels === 'red-blue') {
+            rOff = -caAmt;
+            bOff = caAmt;
+          } else if (caChannels === 'red-green') {
+            rOff = -caAmt;
+            gOff = caAmt;
+          } else if (caChannels === 'green-blue') {
+            gOff = -caAmt;
+            bOff = caAmt;
+          }
+
+          for (let py = 0; py < gh; py++) {
+            const row = py * gw * 4;
+            for (let px = 0; px < gw; px++) {
+              const idx = row + px * 4;
+              const rx = Math.max(0, Math.min(gw - 1, px + rOff));
+              const gx = Math.max(0, Math.min(gw - 1, px + gOff));
+              const bx = Math.max(0, Math.min(gw - 1, px + bOff));
+              data[idx] = srcData[row + rx * 4];
+              data[idx + 1] = srcData[row + gx * 4 + 1];
+              data[idx + 2] = srcData[row + bx * 4 + 2];
+            }
           }
         }
-      }
 
-      // B. Pre-Process Smooth Knee Threshold & Gamma Linearization LUT
-      const threshVal = threshold * 255;
-      const smoothLut = new Uint8Array(256);
-      for (let v = 0; v < 256; v++) {
-        let val = v;
-        if (threshVal > 0) {
-          if (val < threshVal) {
-            const tPct = val / Math.max(1, threshVal);
-            val = (tPct * val) * thresholdSmooth;
+        // B. Smooth Knee Threshold & Gamma LUT
+        const threshVal = threshold * 255;
+        const smoothLut = new Uint8Array(256);
+        for (let v = 0; v < 256; v++) {
+          let val = v;
+          if (threshVal > 0) {
+            if (val < threshVal) {
+              const tPct = val / Math.max(1, threshVal);
+              val = (tPct * val) * thresholdSmooth;
+            }
           }
+          if (gammaCorrect) {
+            val = Math.pow(val / 255, 2.2222) * 255;
+          }
+          smoothLut[v] = Math.max(0, Math.min(255, Math.round(val)));
         }
-        if (gammaCorrect) {
-          val = Math.pow(val / 255, 2.2222) * 255;
+
+        const len = data.length;
+        for (let i = 0; i < len; i += 4) {
+          data[i] = smoothLut[data[i]];
+          data[i + 1] = smoothLut[data[i + 1]];
+          data[i + 2] = smoothLut[data[i + 2]];
+          data[i + 3] = 255;
         }
-        smoothLut[v] = Math.max(0, Math.min(255, Math.round(val)));
+
+        downCtx.putImageData(imgData, 0, 0);
       }
 
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = smoothLut[data[i]];
-        data[i + 1] = smoothLut[data[i + 1]];
-        data[i + 2] = smoothLut[data[i + 2]];
-        data[i + 3] = 255; // Keep opaque for multi-octave blur
-      }
-      threshCtx.putImageData(imgData, 0, 0);
-
-      // 3. Multi-Octave Inverse-Square Falloff Bloom Pyramid (6 octaves)
-      glowCtx.clearRect(0, 0, bw, bh);
+      // ── 5. Multi-Octave Inverse-Square Falloff Bloom Pyramid (5 Octaves) ──
+      glowCtx.clearRect(0, 0, gw, gh);
       glowCtx.fillStyle = '#000000';
-      glowCtx.fillRect(0, 0, bw, bh);
+      glowCtx.fillRect(0, 0, gw, gh);
 
-      const octaves = 6;
+      const octaves = 5;
       const aspectScaleX = aspect > 0 ? (1 + aspect * 1.5) : (1 / (1 + Math.abs(aspect) * 1.5));
       const aspectScaleY = aspect < 0 ? (1 + Math.abs(aspect) * 1.5) : (1 / (1 + aspect * 1.5));
 
@@ -183,40 +217,42 @@
                               window.FishEffects.isCanvasFilterSupported();
 
       for (let oct = 0; oct < octaves; oct++) {
-        const octRadius = radius * Math.pow(1.85, oct) * 0.22;
+        const octRadius = radius * Math.pow(1.85, oct) * 0.22 * downScale;
         const blurX = Math.max(1, Math.round(octRadius * aspectScaleX));
         const blurY = Math.max(1, Math.round(octRadius * aspectScaleY));
+        const blurRadius = Math.max(blurX, blurY);
 
-        // Physically accurate inverse-square weight
+        // Physically accurate inverse-square falloff weight
         const weight = (1.0 / Math.pow(oct + 1.25, falloff)) * exposure;
         if (weight <= 0.002) continue;
 
         glowCtx.save();
         glowCtx.globalAlpha = Math.min(1.0, weight);
-        const blurRadius = Math.max(blurX, blurY);
 
         if (hasNativeFilter) {
           glowCtx.filter = `blur(${blurRadius}px)`;
           if (Math.abs(aspect) > 0.02) {
-            const centerX = bw / 2;
-            const centerY = bh / 2;
+            const centerX = gw / 2;
+            const centerY = gh / 2;
             glowCtx.translate(centerX, centerY);
             glowCtx.scale(aspectScaleX, aspectScaleY);
-            glowCtx.drawImage(threshCanvas, -centerX, -centerY);
+            glowCtx.drawImage(downCanvas, -centerX, -centerY);
           } else {
-            glowCtx.drawImage(threshCanvas, 0, 0);
+            glowCtx.drawImage(downCanvas, 0, 0);
           }
           glowCtx.filter = 'none';
         } else if (typeof window !== 'undefined' && window.FishEffects && typeof window.FishEffects.drawBlurred === 'function') {
           if (Math.abs(aspect) > 0.02) {
-            const centerX = bw / 2;
-            const centerY = bh / 2;
+            const centerX = gw / 2;
+            const centerY = gh / 2;
             glowCtx.translate(centerX, centerY);
             glowCtx.scale(aspectScaleX, aspectScaleY);
-            window.FishEffects.drawBlurred(glowCtx, threshCanvas, bw, bh, blurRadius, -centerX, -centerY);
+            window.FishEffects.drawBlurred(glowCtx, downCanvas, gw, gh, blurRadius, -centerX, -centerY);
           } else {
-            window.FishEffects.drawBlurred(glowCtx, threshCanvas, bw, bh, blurRadius, 0, 0);
+            window.FishEffects.drawBlurred(glowCtx, downCanvas, gw, gh, blurRadius, 0, 0);
           }
+        } else {
+          glowCtx.drawImage(downCanvas, 0, 0);
         }
         glowCtx.restore();
       }
@@ -224,70 +260,59 @@
       glowCtx.globalCompositeOperation = 'source-over';
       glowCtx.filter = 'none';
 
-      // 4. Post-Process: Gamma De-linearization, Tint Modulation, and Unmult Alpha
-      const glowImgData = glowCtx.getImageData(0, 0, bw, bh);
-      const gData = glowImgData.data;
+      // ── 6. GPU Tinting & Alpha Unmult ──
       const rgb = hexToRgb(tintColor);
-      const isWhiteTint = (rgb.r >= 252 && rgb.g >= 252 && rgb.b >= 252);
-      const tR = rgb.r / 255;
-      const tG = rgb.g / 255;
-      const tB = rgb.b / 255;
+      const isWhiteTint = (rgb.r >= 250 && rgb.g >= 250 && rgb.b >= 250);
 
-      for (let i = 0; i < gData.length; i += 4) {
-        let r = gData[i];
-        let g = gData[i + 1];
-        let b = gData[i + 2];
-
-        // De-linearize gamma back to sRGB display space
-        if (gammaCorrect) {
-          r = deGammaLut[r];
-          g = deGammaLut[g];
-          b = deGammaLut[b];
+      // Fast GPU Tint pass without CPU byte loops
+      if (!isWhiteTint) {
+        if (tintCanvas.width !== gw || tintCanvas.height !== gh) {
+          tintCanvas.width = gw;
+          tintCanvas.height = gh;
         }
+        tintCtx.clearRect(0, 0, gw, gh);
+        tintCtx.drawImage(glowCanvas, 0, 0);
+        tintCtx.globalCompositeOperation = 'source-in';
+        tintCtx.fillStyle = tintColor;
+        tintCtx.fillRect(0, 0, gw, gh);
+        tintCtx.globalCompositeOperation = 'source-over';
 
-        // Tint modulation
-        if (!isWhiteTint) {
-          if (tintMode === 'multiply') {
-            r = Math.round((r * rgb.r) / 255);
-            g = Math.round((g * rgb.g) / 255);
-            b = Math.round((b * rgb.b) / 255);
-          } else if (tintMode === 'overlay') {
-            const ov = (bg, fg) => bg < 128 ? (2 * bg * fg) / 255 : 255 - (2 * (255 - bg) * (255 - fg)) / 255;
-            r = Math.round(ov(r, rgb.r));
-            g = Math.round(ov(g, rgb.g));
-            b = Math.round(ov(b, rgb.b));
-          } else if (tintMode === 'soft-light') {
-            // Pegtop soft light formula
-            const sl = (a, b) => ((1 - 2 * b) * (a * a) + 2 * b * a) * 255;
-            r = Math.round(sl(r / 255, tR));
-            g = Math.round(sl(g / 255, tG));
-            b = Math.round(sl(b / 255, tB));
-          }
-        }
-
-        gData[i] = Math.min(255, Math.max(0, r));
-        gData[i + 1] = Math.min(255, Math.max(0, g));
-        gData[i + 2] = Math.min(255, Math.max(0, b));
-
-        // Unmult: extract transparent alpha from brightest channel
-        if (unmult) {
-          gData[i + 3] = Math.min(255, Math.max(gData[i], Math.max(gData[i + 1], gData[i + 2])));
+        if (tintMode === 'multiply') {
+          glowCtx.globalCompositeOperation = 'multiply';
+          glowCtx.drawImage(tintCanvas, 0, 0);
+          glowCtx.globalCompositeOperation = 'source-over';
         } else {
-          gData[i + 3] = 255;
+          glowCtx.globalCompositeOperation = tintMode;
+          glowCtx.drawImage(tintCanvas, 0, 0);
+          glowCtx.globalCompositeOperation = 'source-over';
         }
       }
-      glowCtx.putImageData(glowImgData, 0, 0);
 
-      // 5. Composite Final Result onto Destination Canvas
+      // Unmult: for screen and lighter blend modes, black is pure identity (no alpha extraction required!).
+      // Only extract alpha on the compact downscaled buffer when blendMode is source-over.
+      if (blendMode === 'source-over' && unmult) {
+        const gImg = glowCtx.getImageData(0, 0, gw, gh);
+        const gData = gImg.data;
+        const gLen = gData.length;
+        for (let i = 0; i < gLen; i += 4) {
+          if (gammaCorrect) {
+            gData[i] = deGammaLut[gData[i]];
+            gData[i + 1] = deGammaLut[gData[i + 1]];
+            gData[i + 2] = deGammaLut[gData[i + 2]];
+          }
+          gData[i + 3] = Math.max(gData[i], gData[i + 1], gData[i + 2]);
+        }
+        glowCtx.putImageData(gImg, 0, 0);
+      }
+
+      // ── 7. Final Bilinear Composite onto Destination Canvas ──
       ctx.save();
-      // A. Original Layer (if not glowOnly)
       if (!glowOnly) {
         try {
           ctx.drawImage(el, x, y, w, h);
         } catch (_) {}
       }
 
-      // B. Blended Glow
       ctx.globalAlpha = opacity;
       ctx.globalCompositeOperation = blendMode;
       try {

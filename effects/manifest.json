@@ -256,7 +256,7 @@
     "id": "particle-engine",
     "name": "Particle Engine",
     "category": "layer",
-    "icon": "assets/icon-particles.svg"
+    "icon": "assets/FXPH.svg"
   },
   {
     "file": "point_control.js",

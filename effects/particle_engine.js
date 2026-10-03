@@ -190,7 +190,7 @@
     id: 'particle-engine',
     name: 'Particle Engine',
     category: 'layer',
-    icon: 'assets/icon-particles.svg',
+    icon: 'assets/FXPH.svg',
     description: '3D particle simulation engine like Trapcode Particular with emitter, physics, turbulence, and 3D camera depth',
     isExpanding: true,
 

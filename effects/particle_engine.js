@@ -336,7 +336,7 @@
           const cam = compLayers.find(l => l && l.type === 'camera' && !l.hidden);
           if (cam) {
             const camEff = (typeof window.getLayerEffectivePropsAtTime === 'function' && typeof curTime === 'number')
-              ? window.getLayerEffectivePropsAtTime(cam, curTime)
+              ? window.getLayerEffectivePropsAtTime(cam, curTime, null, compLayers)
               : cam;
 
             if (!isLayer3D) {
@@ -357,19 +357,27 @@
       const totalRotY = camRotY + (fx.camRotY || 0);
       const totalRotZ = camRotZ + (fx.camRotZ || 0);
 
-      const ax = -(totalRotX * Math.PI) / 180;
-      const ay = -(totalRotY * Math.PI) / 180;
-      const az = -(totalRotZ * Math.PI) / 180;
+      const radZ = (-totalRotZ * Math.PI) / 180;
+      const cZ = Math.cos(radZ), sZ = Math.sin(radZ);
 
-      const cosX = Math.cos(ax), sinX = Math.sin(ax);
-      const cosY = Math.cos(ay), sinY = Math.sin(ay);
-      const cosZ = Math.cos(az), sinZ = Math.sin(az);
+      const radY = (totalRotY * Math.PI) / 180;
+      const cY = Math.cos(radY), sY = Math.sin(radY);
 
-      const lensFactor = camLens / 50;
-      const focalDist = 1000 * lensFactor * camZoom;
+      const radX = (totalRotX * Math.PI) / 180;
+      const cX = Math.cos(radX), sX = Math.sin(radX);
 
-      const screenCenterX = x + w / 2;
-      const screenCenterY = y + h / 2;
+      const lensFactor = Math.max(0.01, camLens / 50);
+      const totalZoom = lensFactor * camZoom;
+      const D = 1000.0 * lensFactor;
+
+      const compW = (window.currentProjectState && window.currentProjectState.width) || w;
+      const compH = (window.currentProjectState && window.currentProjectState.height) || h;
+      const compCenterX = compW / 2;
+      const compCenterY = compH / 2;
+      const layerPosX = (layer && layer.posX !== undefined) ? layer.posX : compCenterX;
+      const layerPosY = (layer && layer.posY !== undefined) ? layer.posY : compCenterY;
+      const screenCenterX = (x + w / 2) + (compCenterX - layerPosX);
+      const screenCenterY = (y + h / 2) + (compCenterY - layerPosY);
 
       /* ── 5. Deterministic Particle Simulation Loop ── */
       const lastIdx = Math.floor(simTime * birthRate);
@@ -397,7 +405,7 @@
         if (emitterType === 'Full Space (Comp Volume)') {
           const spanX = Math.max(w * 1.3, emSx * 2);
           const spanY = Math.max(h * 1.3, emSy * 2);
-          const spanZ = Math.max(1400, emSz * 2);
+          const spanZ = Math.max(w * 1.3, Math.max(1400, emSz * 2));
           px0 += (hash(j, seed + 2) - 0.5) * spanX;
           py0 += (hash(j, seed + 3) - 0.5) * spanY;
           pz0 += (hash(j, seed + 4) - 0.5) * spanZ;
@@ -516,32 +524,42 @@
           worldPz += vz0 * velDisp + netAccZ * halfAge2 + turbZ;
         }
 
-        // 5d. Camera Space Coordinate Transformation
-        const dx = worldPx - camPosX;
-        const dy = worldPy - camPosY;
-        const dz = worldPz - camPosZ;
+        // 5d. Camera Space Coordinate Transformation (Exact FishTool 3D Camera Model)
+        let relX = worldPx - camPosX;
+        let relY = worldPy - camPosY;
+        let relZ = (worldPz - camPosZ) - D;
 
-        // Ry around Y
-        const x1 = dx * cosY + dz * sinY;
-        const y1 = dy;
-        const z1 = -dx * sinY + dz * cosY;
+        // Roll Z
+        if (totalRotZ !== 0) {
+          const nX = relX * cZ - relY * sZ;
+          const nY = relX * sZ + relY * cZ;
+          relX = nX;
+          relY = nY;
+        }
 
-        // Rx around X
-        const x2 = x1;
-        const y2 = y1 * cosX - z1 * sinX;
-        const z2 = y1 * sinX + z1 * cosX;
+        // Yaw Y
+        if (totalRotY !== 0) {
+          const nX = relX * cY + relZ * sY;
+          const nZ = -relX * sY + relZ * cY;
+          relX = nX;
+          relZ = nZ;
+        }
 
-        // Rz around Z
-        const camPx = x2 * cosZ - y2 * sinZ;
-        const camPy = x2 * sinZ + y2 * cosZ;
-        const camPz = z2;
+        // Pitch X
+        if (totalRotX !== 0) {
+          const nY = relY * cX - relZ * sX;
+          const nZ = relY * sX + relZ * cX;
+          relY = nY;
+          relZ = nZ;
+        }
 
-        const zDepth = focalDist + camPz;
-        if (zDepth <= 25) continue; // Behind camera near plane
+        const dist = -relZ;
+        const pNear = 20.0;
+        if (dist <= pNear) continue; // Behind camera near plane
 
-        const projScale = focalDist / zDepth;
-        const scrX = screenCenterX + camPx * projScale;
-        const scrY = screenCenterY + camPy * projScale;
+        const projScale = (D * totalZoom) / dist;
+        const scrX = screenCenterX + relX * projScale;
+        const scrY = screenCenterY + relY * projScale;
 
         if (scrX < x - 120 || scrX > x + w + 120 || scrY < y - 120 || scrY > y + h + 120) {
           continue;
@@ -571,9 +589,9 @@
 
         let depthAlpha = 1.0;
         if (depthFade > 0.05) {
-          const nearFade = Math.min(1.0, Math.max(0.0, (zDepth - 35) / 120));
-          const farThreshold = focalDist * (1.8 + (1 - depthFade) * 2.0);
-          const farFade = Math.min(1.0, Math.max(0.0, (farThreshold * 1.5 - zDepth) / farThreshold));
+          const nearFade = Math.min(1.0, Math.max(0.0, (dist - pNear - 15) / 120));
+          const farThreshold = D * (1.8 + (1 - depthFade) * 2.0);
+          const farFade = Math.min(1.0, Math.max(0.0, (farThreshold * 1.5 - dist) / farThreshold));
           depthAlpha = nearFade * farFade;
         }
 
@@ -592,7 +610,7 @@
         }
 
         aliveParticles.push({
-          zDepth,
+          dist,
           scrX,
           scrY,
           scrRadius,
@@ -604,7 +622,7 @@
       }
 
       /* ── 6. Painter's Algorithm Depth Sort (Farthest to Nearest) ── */
-      aliveParticles.sort((a, b) => b.zDepth - a.zDepth);
+      aliveParticles.sort((a, b) => b.dist - a.dist);
 
       /* ── 7. Render Particle Sprites to Canvas ── */
       ctx.save();
@@ -629,7 +647,7 @@
         if (pType === 'Streak') {
           const spd = Math.sqrt(p.velX * p.velX + p.velY * p.velY);
           if (spd > 15) {
-            const streakLen = Math.min(40, spd * 0.08 * (focalDist / p.zDepth));
+            const streakLen = Math.min(40, spd * 0.08 * (D / p.dist));
             const angle = Math.atan2(p.velY, p.velX);
             ctx.save();
             ctx.translate(p.scrX, p.scrY);

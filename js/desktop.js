@@ -1960,6 +1960,18 @@
     let isNeedleDragging = false;
     needle.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
+      // If clicking directly over a keyframe diamond or marker, yield control to keyframe
+      const elementsUnder = (typeof document.elementsFromPoint === 'function')
+        ? document.elementsFromPoint(e.clientX, e.clientY)
+        : [];
+      const kfUnder = elementsUnder.find(el => el && el.classList && (
+        el.classList.contains('desktop-kf-diamond') ||
+        el.classList.contains('timeline-keyframe-marker')
+      ));
+      if (kfUnder) {
+        kfUnder.dispatchEvent(new PointerEvent('pointerdown', e));
+        return;
+      }
       isNeedleDragging = true;
       try { needle.setPointerCapture(e.pointerId); } catch (_) {}
       e.stopPropagation();

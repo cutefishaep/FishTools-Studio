@@ -5489,24 +5489,25 @@
   bottom: 0;
   width: 2px;
   background-color: var(--color-primary);
-  pointer-events: auto !important;
-  cursor: ew-resize;
+  pointer-events: none !important;
+  cursor: default;
   z-index: 45;
   will-change: transform;
   transform: translate3d(var(--desktop-layer-panel-w, 240px), 0, 0);
   transition: none !important;
 }
 
-/* Wide transparent grab zone around needle — AE-style easy drag */
+/* Grab zone constrained ONLY to top playhead cap / ruler area (zero track interference) */
 .desktop-timeline-wrapper .timeline-center-needle::after {
   content: '';
   position: absolute;
   top: 0;
   left: -10px;
   right: -10px;
-  bottom: 0;
+  height: 16px;
+  bottom: auto;
   cursor: ew-resize;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 /* Playhead Top Scrubber Cap (AE-style pentagon / flag needle head on ruler) */
@@ -5520,7 +5521,7 @@
   background-color: var(--color-primary);
   clip-path: polygon(0% 0%, 100% 0%, 100% 65%, 50% 100%, 0% 65%);
   cursor: ew-resize;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 /* --- Marquee Selection Box (Multi-select on empty timeline drag) --- */
@@ -6140,12 +6141,26 @@
   border: 1px solid var(--bg-canvas);
   border-radius: 0.5px;
   cursor: pointer;
-  z-index: 15;
+  z-index: 50;
   transition: transform 0.06s ease;
   touch-action: none;
   user-select: none;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
+}
+
+/* Tactile Hit Target Extension (Generous 22px click & drag target without needle interference) */
+.desktop-kf-diamond::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  right: -7px;
+  bottom: -7px;
+  border-radius: 2px;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 2;
 }
 
 /* AE Dual-Tone Split: left half light silver highlight */
@@ -6159,12 +6174,13 @@
   clip-path: polygon(0 0, 100% 0, 0 100%);
   background-color: rgba(255, 255, 255, 0.45);
   pointer-events: none;
+  z-index: 1;
 }
 
 .desktop-kf-diamond:hover {
   transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
   border-color: var(--color-primary-hover);
-  z-index: 20;
+  z-index: 55;
 }
 
 /* Selected Keyframe: 12px + 2px solid theme primary selection border (AE Match) */
@@ -6178,9 +6194,19 @@
   outline: 1px solid var(--bg-canvas) !important;
   outline-offset: 0 !important;
   transform: translate(-50%, -50%) rotate(45deg) !important;
-  z-index: 25 !important;
+  z-index: 60 !important;
 }
 
 .desktop-kf-diamond.is-selected-kf:hover {
   border-color: var(--color-primary-hover) !important;
 }
+
+/* Desktop Keyframe Markers on Clip Blocks elevated above playhead needle */
+.desktop-timeline-wrapper .timeline-keyframe-marker.is-active-prop {
+  z-index: 50 !important;
+}
+
+.desktop-timeline-wrapper .timeline-keyframe-marker.is-selected-kf {
+  z-index: 60 !important;
+}
+

@@ -14,6 +14,12 @@
     };
   }
 
+  // Precomputed de-gamma lookup table (x^0.454545) for true physical optical expansion
+  const deGammaLut = new Uint8Array(256);
+  for (let v = 0; v < 256; v++) {
+    deGammaLut[v] = Math.min(255, Math.max(0, Math.round(Math.pow(v / 255, 0.45454545) * 255)));
+  }
+
   // Offscreen canvas pools (reused across frames for zero-allocation performance)
   let threshCanvas = null;
   let threshCtx = null;
@@ -68,6 +74,7 @@
       const aspect = Math.max(-100, Math.min(100, fx.aspect !== undefined ? fx.aspect : 0)) / 100;
       const blendMode = fx.blendMode || 'screen';
       const glowOnly = !!fx.glowOnly;
+      const unmult = fx.unmult !== undefined ? !!fx.unmult : true;
       const opacity = Math.max(0, Math.min(1, (fx.opacity !== undefined ? fx.opacity : 100) / 100));
 
       if (opacity <= 0.001) {
@@ -77,7 +84,7 @@
         return;
       }
 
-      // Strictly layer-bounded: pad = 0 guarantees glow stays 100% inside the layer
+      // Strictly layer-bounded: pad = 0 guarantees glow stays 100% inside the layer boundary
       const bw = w;
       const bh = h;
 
@@ -85,7 +92,7 @@
         threshCanvas = document.createElement('canvas');
         threshCtx = threshCanvas.getContext('2d', { willReadFrequently: true });
         glowCanvas = document.createElement('canvas');
-        glowCtx = glowCanvas.getContext('2d');
+        glowCtx = glowCanvas.getContext('2d', { willReadFrequently: true });
         chromaCanvas = document.createElement('canvas');
         chromaCtx = chromaCanvas.getContext('2d');
         tintCanvas = document.createElement('canvas');
@@ -112,11 +119,11 @@
         return;
       }
 
-      // 2. Thresholding & Gamma Linearization (Only run pixel scan when threshold or gamma is active)
+      // 2. Pre-process: Thresholding Knee & Gamma Linearization
       const threshVal = threshold * 255;
-      const needsLumaProcessing = (threshVal > 0.5 || gammaCorrect);
+      const needsPreproc = (threshVal > 0.5 || gammaCorrect);
 
-      if (needsLumaProcessing) {
+      if (needsPreproc) {
         const imgData = threshCtx.getImageData(0, 0, bw, bh);
         const data = imgData.data;
         const len = data.length;
@@ -144,8 +151,13 @@
         threshCtx.putImageData(imgData, 0, 0);
       }
 
-      // 3. Multi-Octave Inverse-Square Falloff Bloom Pyramid (5 octaves, Native Full-Resolution Quality)
-      const octaves = 5;
+      // 3. Multi-Octave Inverse-Square Falloff Bloom
+      // 6 distinct octave tiers spanning from sub-pixel tight core up to broad cosmic bloom.
+      // This ensures small particles and stars retain an intense incandescent burning core,
+      // while large text and solids produce a rich, deep, expansive halo.
+      const octaves = 6;
+      const octMultipliers = [0.012, 0.045, 0.15, 0.45, 1.25, 2.80];
+
       const aspectScaleX = aspect > 0 ? (1 + aspect * 1.5) : (1 / (1 + Math.abs(aspect) * 1.5));
       const aspectScaleY = aspect < 0 ? (1 + Math.abs(aspect) * 1.5) : (1 / (1 + aspect * 1.5));
 
@@ -156,12 +168,12 @@
                               window.FishEffects.isCanvasFilterSupported();
 
       for (let oct = 0; oct < octaves; oct++) {
-        const octRadius = radius * Math.pow(1.8, oct) * 0.25;
+        const octRadius = Math.max(1.2, radius * octMultipliers[oct]);
         const blurX = Math.max(1, Math.round(octRadius * aspectScaleX));
         const blurY = Math.max(1, Math.round(octRadius * aspectScaleY));
 
-        // Weight decreases by inverse-square law
-        const weight = 1.0 / Math.pow(oct + 1.2, falloff);
+        // Physically accurate inverse-square falloff weight
+        const weight = 1.0 / Math.pow(oct + 1.15, falloff);
         if (weight <= 0.005) continue;
 
         glowCtx.save();
@@ -199,7 +211,35 @@
       glowCtx.globalCompositeOperation = 'source-over';
       glowCtx.filter = 'none';
 
-      // 4. Tinting (Multiply, Overlay, Soft Light) via GPU Compositing
+      // 4. Post-process: Authentic AE Deep Glow De-Gamma (x^0.4545) & Alpha Unmult
+      // Expands linear bloom falloff so small particles and faint glow tails radiate vividly without 8-bit clipping.
+      if (gammaCorrect || unmult) {
+        const gImg = glowCtx.getImageData(0, 0, bw, bh);
+        const gData = gImg.data;
+        const gLen = gData.length;
+
+        for (let i = 0; i < gLen; i += 4) {
+          let r = gData[i];
+          let g = gData[i + 1];
+          let b = gData[i + 2];
+
+          if (gammaCorrect) {
+            r = deGammaLut[r];
+            g = deGammaLut[g];
+            b = deGammaLut[b];
+            gData[i] = r;
+            gData[i + 1] = g;
+            gData[i + 2] = b;
+          }
+
+          if (unmult) {
+            gData[i + 3] = Math.max(r, g, b);
+          }
+        }
+        glowCtx.putImageData(gImg, 0, 0);
+      }
+
+      // 5. GPU Tinting (Multiply, Overlay, Soft Light)
       const rgb = hexToRgb(tintColor);
       const isWhiteTint = (rgb.r >= 250 && rgb.g >= 250 && rgb.b >= 250);
 
@@ -226,7 +266,7 @@
         glowCtx.globalCompositeOperation = 'source-over';
       }
 
-      // 5. Chromatic Aberration Shift on Glow Buffer (Red and Blue channel separation)
+      // 6. Chromatic Aberration Shift on Glow Buffer (Red and Blue channel separation)
       let finalGlowSource = glowCanvas;
       if (chromatic > 0.5) {
         chromaCtx.clearRect(0, 0, bw, bh);
@@ -249,7 +289,7 @@
         finalGlowSource = chromaCanvas;
       }
 
-      // 6. Draw to Target Canvas with Enhanced Exposure & Strict Layer Clipping
+      // 7. Draw to Target Canvas with Enhanced Exposure & Strict Layer Clipping
       ctx.save();
       ctx.beginPath();
       ctx.rect(x, y, w, h);

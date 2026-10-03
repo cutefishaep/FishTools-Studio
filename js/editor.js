@@ -90,94 +90,94 @@
     }
     window.isAnyPlaybackActive = isAnyPlaybackActive;
 
-    // Universal Root Function Delegates (prevents lexical closure ReferenceErrors)
+    // Universal Root Function Delegates (prevents lexical closure ReferenceErrors & circular self-calls)
     function renderTimelineLayers(...args) {
-      if (typeof window.renderTimelineLayers === 'function') {
+      if (typeof window.renderTimelineLayers === 'function' && window.renderTimelineLayers !== renderTimelineLayers) {
         return window.renderTimelineLayers.apply(this, args);
       }
     }
     function selectTimelineLayer(...args) {
-      if (typeof window.selectTimelineLayer === 'function') {
+      if (typeof window.selectTimelineLayer === 'function' && window.selectTimelineLayer !== selectTimelineLayer) {
         return window.selectTimelineLayer.apply(this, args);
       }
     }
     function deselectTimelineLayer(...args) {
-      if (typeof window.deselectTimelineLayer === 'function') {
+      if (typeof window.deselectTimelineLayer === 'function' && window.deselectTimelineLayer !== deselectTimelineLayer) {
         return window.deselectTimelineLayer.apply(this, args);
       }
     }
     function centerSelectedTimelineLayer(...args) {
-      if (typeof window.centerSelectedTimelineLayer === 'function') {
+      if (typeof window.centerSelectedTimelineLayer === 'function' && window.centerSelectedTimelineLayer !== centerSelectedTimelineLayer) {
         return window.centerSelectedTimelineLayer.apply(this, args);
       }
     }
     function updateEditorHeaderMode(...args) {
-      if (typeof window.updateEditorHeaderMode === 'function') {
+      if (typeof window.updateEditorHeaderMode === 'function' && window.updateEditorHeaderMode !== updateEditorHeaderMode) {
         return window.updateEditorHeaderMode.apply(this, args);
       }
     }
     function updatePlayButtonUI(...args) {
-      if (typeof window.updatePlayButtonUI === 'function') {
+      if (typeof window.updatePlayButtonUI === 'function' && window.updatePlayButtonUI !== updatePlayButtonUI) {
         return window.updatePlayButtonUI.apply(this, args);
       }
     }
     function updateGraphEditorUI(...args) {
-      if (typeof window.updateGraphEditorUI === 'function') {
+      if (typeof window.updateGraphEditorUI === 'function' && window.updateGraphEditorUI !== updateGraphEditorUI) {
         return window.updateGraphEditorUI.apply(this, args);
       }
     }
     function syncLayerKeyframeMarkersInPlace(...args) {
-      if (typeof window.syncLayerKeyframeMarkersInPlace === 'function') {
+      if (typeof window.syncLayerKeyframeMarkersInPlace === 'function' && window.syncLayerKeyframeMarkersInPlace !== syncLayerKeyframeMarkersInPlace) {
         return window.syncLayerKeyframeMarkersInPlace.apply(this, args);
       }
     }
     function syncBeatmarkDrawerUI(...args) {
-      if (typeof window.syncBeatmarkDrawerUI === 'function') {
+      if (typeof window.syncBeatmarkDrawerUI === 'function' && window.syncBeatmarkDrawerUI !== syncBeatmarkDrawerUI) {
         return window.syncBeatmarkDrawerUI.apply(this, args);
       }
     }
     function updateVolumeAndSpeedBtnState(...args) {
-      if (typeof window.updateVolumeAndSpeedBtnState === 'function') {
+      if (typeof window.updateVolumeAndSpeedBtnState === 'function' && window.updateVolumeAndSpeedBtnState !== updateVolumeAndSpeedBtnState) {
         return window.updateVolumeAndSpeedBtnState.apply(this, args);
       }
     }
     function enterPrecompose(...args) {
-      if (typeof window.enterPrecompose === 'function') {
+      if (typeof window.enterPrecompose === 'function' && window.enterPrecompose !== enterPrecompose) {
         return window.enterPrecompose.apply(this, args);
       }
     }
     function exitPrecompose(...args) {
-      if (typeof window.exitPrecompose === 'function') {
+      if (typeof window.exitPrecompose === 'function' && window.exitPrecompose !== exitPrecompose) {
         return window.exitPrecompose.apply(this, args);
       }
     }
     function toggleBeatmarkAtCurrentTime(...args) {
-      if (typeof window.toggleBeatmarkAtCurrentTime === 'function') {
+      if (typeof window.toggleBeatmarkAtCurrentTime === 'function' && window.toggleBeatmarkAtCurrentTime !== toggleBeatmarkAtCurrentTime) {
         return window.toggleBeatmarkAtCurrentTime.apply(this, args);
       }
     }
     function seekTimelineToTime(...args) {
-      if (typeof window.seekTimelineToTime === 'function') {
+      if (typeof window.seekTimelineToTime === 'function' && window.seekTimelineToTime !== seekTimelineToTime) {
         return window.seekTimelineToTime.apply(this, args);
       }
     }
     function updateGraphPlayheadLine(...args) {
-      if (typeof window.updateGraphPlayheadLine === 'function') {
+      if (typeof window.updateGraphPlayheadLine === 'function' && window.updateGraphPlayheadLine !== updateGraphPlayheadLine) {
         return window.updateGraphPlayheadLine.apply(this, args);
       }
     }
     function updateBeatmarkPlayheadNeedle(...args) {
-      if (typeof window.updateBeatmarkPlayheadNeedle === 'function') {
+      if (typeof window.updateBeatmarkPlayheadNeedle === 'function' && window.updateBeatmarkPlayheadNeedle !== updateBeatmarkPlayheadNeedle) {
         return window.updateBeatmarkPlayheadNeedle.apply(this, args);
       }
     }
     function pausePlayback(...args) {
-      if (typeof window.pausePlayback === 'function') {
+      if (typeof window.pausePlayback === 'function' && window.pausePlayback !== pausePlayback) {
         return window.pausePlayback.apply(this, args);
       }
     }
     function formatTransformNumber(val) {
-      if (typeof window.formatTransformNumber === 'function') {
+      if (typeof window.formatTransformNumber === 'function' && window.formatTransformNumber !== formatTransformNumber) {
         return window.formatTransformNumber(val);
       }
       if (val === null || val === undefined || isNaN(val)) return '0';
@@ -186,7 +186,7 @@
       return n.toFixed(1);
     }
     function findSnapTarget(val, targets, threshold) {
-      if (typeof window.findSnapTarget === 'function') {
+      if (typeof window.findSnapTarget === 'function' && window.findSnapTarget !== findSnapTarget) {
         return window.findSnapTarget(val, targets, threshold);
       }
       if (!targets || !targets.length) return null;
@@ -202,35 +202,21 @@
       return closest;
     }
     function renderMediaGrid(...args) {
-      if (typeof window.renderMediaGrid === 'function') {
+      if (typeof window.renderMediaGrid === 'function' && window.renderMediaGrid !== renderMediaGrid) {
         return window.renderMediaGrid.apply(this, args);
       }
     }
     function decodeAudioFromBlob(...args) {
-      if (typeof window.decodeAudioFromBlob === 'function') {
+      if (typeof window.decodeAudioFromBlob === 'function' && window.decodeAudioFromBlob !== decodeAudioFromBlob) {
         return window.decodeAudioFromBlob.apply(this, args);
       }
     }
     function audioBufferToMp3(...args) {
-      if (typeof window.audioBufferToMp3 === 'function') {
+      if (typeof window.audioBufferToMp3 === 'function' && window.audioBufferToMp3 !== audioBufferToMp3) {
         return window.audioBufferToMp3.apply(this, args);
       }
     }
-    function showOFTSProgressModal(...args) {
-      if (typeof window.showOFTSProgressModal === 'function') {
-        return window.showOFTSProgressModal.apply(this, args);
-      }
-    }
-    function updateOFTSProgress(...args) {
-      if (typeof window.updateOFTSProgress === 'function') {
-        return window.updateOFTSProgress.apply(this, args);
-      }
-    }
-    function hideOFTSProgressModal(...args) {
-      if (typeof window.hideOFTSProgressModal === 'function') {
-        return window.hideOFTSProgressModal.apply(this, args);
-      }
-    }
+    
 
     // 100% Functional Undo / Redo Manager
     const UndoRedoManager = {
@@ -32916,14 +32902,18 @@
           return;
         }
 
+        const showOFTSProgress = (typeof window.showOFTSProgressModal === 'function' ? window.showOFTSProgressModal : (window.FishDatabase && window.FishDatabase.showOFTSProgressModal));
+        const updateOFTSProg = (typeof window.updateOFTSProgress === 'function' ? window.updateOFTSProgress : (window.FishDatabase && window.FishDatabase.updateOFTSProgress));
+        const hideOFTSProgress = (typeof window.hideOFTSProgressModal === 'function' ? window.hideOFTSProgressModal : (window.FishDatabase && window.FishDatabase.hideOFTSProgressModal));
+
         // Save current changes first
         if (typeof saveCurrentProjectLayers === 'function') {
           await saveCurrentProjectLayers(true);
         }
 
         try {
-          if (typeof showOFTSProgressModal === 'function') {
-            showOFTSProgressModal('Sharing Project', 0, 'Packing .ofts bundle...');
+          if (typeof showOFTSProgress === 'function') {
+            showOFTSProgress('Sharing Project', 0, 'Packing .ofts bundle...');
           }
 
           // 1. Generate package keeping progress modal open (0% - 50%)
@@ -32933,14 +32923,14 @@
           });
 
           if (!zipBlob) {
-            if (typeof hideOFTSProgressModal === 'function') hideOFTSProgressModal();
+            if (typeof hideOFTSProgress === 'function') hideOFTSProgress();
             return;
           }
 
           // Check project size limit (15MB)
           const MAX_SHARE_SIZE = 15 * 1024 * 1024; // 15MB
           if (zipBlob.size > MAX_SHARE_SIZE) {
-            if (typeof hideOFTSProgressModal === 'function') hideOFTSProgressModal();
+            if (typeof hideOFTSProgress === 'function') hideOFTSProgress();
             const formattedSize = window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : `${(zipBlob.size / (1024 * 1024)).toFixed(1)} MB`;
             const shouldSaveLocal = confirm(
               `Project size (${formattedSize}) exceeds the 15MB share limit.\n\n` +
@@ -32955,8 +32945,8 @@
             return;
           }
 
-          if (typeof updateOFTSProgress === 'function') {
-            updateOFTSProgress(50, 'Package prepared. Connecting to cloud storage...');
+          if (typeof updateOFTSProg === 'function') {
+            updateOFTSProg(50, 'Package prepared. Connecting to cloud storage...');
           }
 
           // 2. Compress thumbnail
@@ -32980,8 +32970,8 @@
               if (e.lengthComputable && e.total > 0) {
                 const uploadPct = 50 + Math.round((e.loaded / e.total) * 45); // 50% -> 95%
                 const pctUploadOnly = Math.round((e.loaded / e.total) * 100);
-                if (typeof updateOFTSProgress === 'function') {
-                  updateOFTSProgress(uploadPct, `Uploading to storage (${pctUploadOnly}%)...`);
+                if (typeof updateOFTSProg === 'function') {
+                  updateOFTSProg(uploadPct, `Uploading to storage (${pctUploadOnly}%)...`);
                 }
               }
             };
@@ -32998,8 +32988,8 @@
               }
 
               try {
-                if (typeof updateOFTSProgress === 'function') {
-                  updateOFTSProgress(98, 'Generating QR code & short link...');
+                if (typeof updateOFTSProg === 'function') {
+                  updateOFTSProg(98, 'Generating QR code & short link...');
                 }
                 const res = JSON.parse(xhr.responseText);
                 resolve(res);
@@ -33017,18 +33007,18 @@
           });
 
           if (!json.success || !json.shareUrl) {
-            if (typeof hideOFTSProgressModal === 'function') hideOFTSProgressModal();
+            if (typeof hideOFTSProgress === 'function') hideOFTSProgress();
             alert('Share upload failed: ' + (json.error || 'Server error'));
             return;
           }
 
-          if (typeof updateOFTSProgress === 'function') {
-            updateOFTSProgress(100, 'Ready!');
+          if (typeof updateOFTSProg === 'function') {
+            updateOFTSProg(100, 'Ready!');
           }
           await new Promise(r => setTimeout(r, 280));
 
-          if (typeof hideOFTSProgressModal === 'function') {
-            hideOFTSProgressModal();
+          if (typeof hideOFTSProgress === 'function') {
+            hideOFTSProgress();
           }
 
           // Save to persistent uploaded projects storage
@@ -33071,8 +33061,8 @@
             const progModal = document.getElementById('modal-ofts-progress');
             if (progModal) progModal.classList.remove('is-active');
           }
-          if (typeof hideOFTSProgressModal === 'function') {
-            hideOFTSProgressModal();
+          if (typeof hideOFTSProgress === 'function') {
+            hideOFTSProgress();
           }
           if (typeof updatePlayButtonUI === 'function') {
             try { updatePlayButtonUI(); } catch (_) {}

@@ -3011,6 +3011,9 @@ window.FishDatabase = (function () {
     deleteEffectPreset: deleteEffectPreset,
     getSavedElements: getSavedElements,
     saveSavedElement: saveSavedElement,
-    deleteSavedElement: deleteSavedElement
+    deleteSavedElement: deleteSavedElement,
+    showOFTSProgressModal: showOFTSProgressModal,
+    updateOFTSProgress: updateOFTSProgress,
+    hideOFTSProgressModal: hideOFTSProgressModal
   };
 })();

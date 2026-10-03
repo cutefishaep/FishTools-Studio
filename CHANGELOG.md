@@ -5,6 +5,13 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.119] - 2026-10-03
+
+### Added
+- **Particle Engine 'Still / Locked in Place' Motion Style (`effects/particle_engine.js`)**:
+  - Added `'Still / Locked in Place'` motion style (default), locking particles at their spawn 3D coordinates with zero initial velocity and complete bypass of physics displacement (gravity, wind, drag, and turbulence wiggle).
+  - Particles remain completely motionless in place while preserving full 3D camera depth parallax and in-place opacity/size lifecycle.
+
 ## [0.5.118] - 2026-10-03
 
 ### Improved

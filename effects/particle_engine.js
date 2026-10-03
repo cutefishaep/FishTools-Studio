@@ -195,7 +195,7 @@
 
     params: [
       /* Spawn & Motion Group */
-      { id: 'motionType',      label: 'Motion Style',     type: 'select', options: ['Floating Ambient (In-Place)', 'Emitter Jet / Fountain', 'Static Floating'], default: 'Floating Ambient (In-Place)' },
+      { id: 'motionType',      label: 'Motion Style',     type: 'select', options: ['Still / Locked in Place', 'Floating Ambient (In-Place)', 'Emitter Jet / Fountain'], default: 'Still / Locked in Place' },
       { id: 'emitterType',     label: 'Spawn Area',       type: 'select', options: ['Full Space (Comp Volume)', 'Box', 'Sphere', 'Point', 'Disc'], default: 'Full Space (Comp Volume)' },
       { id: 'birthRate',       label: 'Birth Rate',       type: 'number', min: 10, max: 1000, default: 150, unit: 'p/s', step: 5 },
       { id: 'velocity',        label: 'Velocity / Drift', type: 'number', min: 0, max: 1000, default: 25, unit: 'px/s', step: 1 },
@@ -275,7 +275,7 @@
       const lifeRandom = Math.max(0, Math.min(100, fx.lifeRandom !== undefined ? Number(fx.lifeRandom) : 30)) / 100;
       const maxLife = baseLife * (1 + lifeRandom);
 
-      const motionType = fx.motionType || 'Floating Ambient (In-Place)';
+      const motionType = fx.motionType || 'Still / Locked in Place';
       const emitterType = fx.emitterType || 'Full Space (Comp Volume)';
       const baseVel = Math.max(0, fx.velocity !== undefined ? Number(fx.velocity) : 25);
       const velRand = Math.max(0, Math.min(100, fx.velocityRandom !== undefined ? Number(fx.velocityRandom) : 40)) / 100;
@@ -423,11 +423,17 @@
         }
 
         // 5b. Initial Velocity Vector / Drift Behavior
+        const isStill = (
+          motionType === 'Still / Locked in Place' ||
+          motionType === 'Static Floating' ||
+          (typeof motionType === 'string' && (motionType.toLowerCase().includes('still') || motionType.toLowerCase().includes('locked')))
+        );
+
         const pSpeed = Math.max(0, baseVel * (1 + (hash(j, seed + 5) - 0.5) * 2 * velRand));
         let vx0 = 0, vy0 = 0, vz0 = 0;
 
-        if (motionType === 'Static Floating') {
-          // Particles stay locked in place where they spawn with 0 initial velocity
+        if (isStill) {
+          // Particles stay completely locked at spawn coordinates (0 velocity, 0 drift)
           vx0 = 0;
           vy0 = 0;
           vz0 = 0;
@@ -478,31 +484,37 @@
         }
 
         // 5c. Physics Integration (Analytical, O(1) Zero Drift)
-        let velDisp = age;
-        if (dragK > 0.02) {
-          velDisp = (1 - Math.exp(-dragK * age)) / dragK;
+        let worldPx = px0;
+        let worldPy = py0;
+        let worldPz = pz0;
+
+        if (!isStill) {
+          let velDisp = age;
+          if (dragK > 0.02) {
+            velDisp = (1 - Math.exp(-dragK * age)) / dragK;
+          }
+
+          const netAccX = windX;
+          const netAccY = gravity + windY;
+          const netAccZ = windZ;
+
+          const halfAge2 = 0.5 * age * age;
+
+          // 3D Turbulence Curl Wiggle
+          let turbX = 0, turbY = 0, turbZ = 0;
+          if (turbulence > 0) {
+            const phase = (j * 0.381966 + seed) % 1000;
+            const ft = age * turbSpeed * 3.14 + phase;
+            const tScale = Math.min(1, age * 2.0) * turbulence;
+            turbX = (Math.sin(ft) + 0.5 * Math.sin(ft * 2.3 + 1.2)) * tScale;
+            turbY = (Math.cos(ft * 1.37 + 1.8) + 0.5 * Math.cos(ft * 2.71 + 0.4)) * tScale;
+            turbZ = (Math.sin(ft * 0.89 + 3.1) + 0.5 * Math.sin(ft * 1.93 + 2.5)) * tScale;
+          }
+
+          worldPx += vx0 * velDisp + netAccX * halfAge2 + turbX;
+          worldPy += vy0 * velDisp + netAccY * halfAge2 + turbY;
+          worldPz += vz0 * velDisp + netAccZ * halfAge2 + turbZ;
         }
-
-        const netAccX = windX;
-        const netAccY = gravity + windY;
-        const netAccZ = windZ;
-
-        const halfAge2 = 0.5 * age * age;
-
-        // 3D Turbulence Curl Wiggle
-        let turbX = 0, turbY = 0, turbZ = 0;
-        if (turbulence > 0) {
-          const phase = (j * 0.381966 + seed) % 1000;
-          const ft = age * turbSpeed * 3.14 + phase;
-          const tScale = Math.min(1, age * 2.0) * turbulence;
-          turbX = (Math.sin(ft) + 0.5 * Math.sin(ft * 2.3 + 1.2)) * tScale;
-          turbY = (Math.cos(ft * 1.37 + 1.8) + 0.5 * Math.cos(ft * 2.71 + 0.4)) * tScale;
-          turbZ = (Math.sin(ft * 0.89 + 3.1) + 0.5 * Math.sin(ft * 1.93 + 2.5)) * tScale;
-        }
-
-        const worldPx = px0 + vx0 * velDisp + netAccX * halfAge2 + turbX;
-        const worldPy = py0 + vy0 * velDisp + netAccY * halfAge2 + turbY;
-        const worldPz = pz0 + vz0 * velDisp + netAccZ * halfAge2 + turbZ;
 
         // 5d. Camera Space Coordinate Transformation
         const dx = worldPx - camPosX;

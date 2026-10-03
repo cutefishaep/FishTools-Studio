@@ -5,6 +5,13 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.116] - 2026-10-03
+
+### Fixed
+- **Effects Gallery Static Registration & Cache Busting (`editor.html`, `desktop.html`, `scripts/sync-effects.js`)**:
+  - Embedded static `.effects-gallery-item-card` elements for **Linear Wipe** and **Particle Engine** directly into `#effects-items-grid` under category `layer`.
+  - Added dynamic version cache-busting parameters (`?v=<version>`) to all modular effect script tags in HTML templates, preventing browser HTTP and Service Worker cache desyncs.
+
 ## [0.5.115] - 2026-10-03
 
 ### Added

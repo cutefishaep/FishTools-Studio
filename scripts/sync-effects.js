@@ -89,7 +89,12 @@ function syncEffects() {
   fs.writeFileSync(LOADER_PATH, loaderContent, 'utf8');
 
   // 3. Synchronize static script tags in editor.html and desktop.html
-  const effectScriptsBlock = files.map(f => `  <script src="effects/${f}"></script>`).join('\n');
+  let verParam = '';
+  try {
+    const vJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
+    if (vJson && vJson.version) verParam = `?v=${vJson.version}`;
+  } catch (_) {}
+  const effectScriptsBlock = files.map(f => `  <script src="effects/${f}${verParam}"></script>`).join('\n');
   const htmlTargets = ['editor.html', 'desktop.html', 'demo.html'];
   const effectsBlockRegex = /(?:[ \t]*<script src="effects\/[^"]+"><\/script>\r?\n)+/;
 

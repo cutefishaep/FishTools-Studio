@@ -255,9 +255,12 @@
         this.updateUI();
       },
 
-      _cloneLayersForSnapshot(layers) {
+      _cloneLayersForSnapshot(layers, visited = new Set()) {
         if (!layers || !layers.length) return [];
         return layers.map(l => {
+          if (!l || visited.has(l) || (l.id && visited.has(l.id))) return null;
+          if (l.id) visited.add(l.id);
+          visited.add(l);
           const c = {};
           for (const k in l) {
             if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') continue;
@@ -270,9 +273,9 @@
           if (l.effects) c.effects = JSON.parse(JSON.stringify(l.effects));
           if (l.shapeProps) c.shapeProps = JSON.parse(JSON.stringify(l.shapeProps));
           if (l.parentBind) c.parentBind = JSON.parse(JSON.stringify(l.parentBind));
-          if (Array.isArray(l.layers)) c.layers = this._cloneLayersForSnapshot(l.layers);
+          if (Array.isArray(l.layers)) c.layers = this._cloneLayersForSnapshot(l.layers, visited);
           return c;
-        });
+        }).filter(Boolean);
       },
 
       _computeFingerprint(layers, beatmarks, markerNames = {}) {
@@ -519,10 +522,13 @@
 
         // If this layer has children (e.g. Null linked to camera or layers), include all descendants spans
         if (Array.isArray(currentProjectState.layers)) {
+          const visitedDescendants = new Set([layer.id]);
           const findDescendants = (parentId) => {
+            if (!parentId) return [];
             const list = [];
             currentProjectState.layers.forEach(l => {
-              if (l.parentId === parentId) {
+              if (l && l.parentId === parentId && !visitedDescendants.has(l.id)) {
+                visitedDescendants.add(l.id);
                 list.push(l);
                 list.push(...findDescendants(l.id));
               }
@@ -667,6 +673,28 @@
           }
         });
 
+        // Break any circular or self-referencing parentId before saving
+        if (Array.isArray(currentProjectState.layers)) {
+          const layerMap = new Map();
+          currentProjectState.layers.forEach(l => { if (l && l.id) layerMap.set(l.id, l); });
+          currentProjectState.layers.forEach(l => {
+            if (!l || !l.parentId) return;
+            if (l.parentId === l.id) {
+              l.parentId = null;
+              return;
+            }
+            const seenParents = new Set([l.id]);
+            let curr = layerMap.get(l.parentId);
+            while (curr) {
+              if (seenParents.has(curr.id)) {
+                l.parentId = null;
+                break;
+              }
+              seenParents.add(curr.id);
+              curr = curr.parentId ? layerMap.get(curr.parentId) : null;
+            }
+          });
+        }
 
         if (!window.FishDatabase) return;
         try {
@@ -704,8 +732,11 @@
               ? compositionStack[0].layers
               : (currentProjectState.layers || []);
 
+            const visitedSerialize = new Set();
             function serializeLayer(l) {
-              if (!l) return null;
+              if (!l || visitedSerialize.has(l) || (l.id && visitedSerialize.has(l.id))) return null;
+              if (l.id) visitedSerialize.add(l.id);
+              visitedSerialize.add(l);
               return {
                 id: l.id,
                 sourceLayerId: l.sourceLayerId || undefined,
@@ -2130,8 +2161,11 @@
     window.resolveBlendMode = resolveBlendMode;
 
     // Render Precompose Layer onto offscreen canvas buffer
-    function renderPrecompToCanvas(precompLayer, targetCanvas, innerSec, targetW = null, targetH = null, triggerSource = '') {
+    function renderPrecompToCanvas(precompLayer, targetCanvas, innerSec, targetW = null, targetH = null, triggerSource = '', visitedPrecomps = new Set()) {
       if (!targetCanvas || typeof targetCanvas.getContext !== 'function' || !precompLayer) return;
+      if (visitedPrecomps.has(precompLayer) || (precompLayer.id && visitedPrecomps.has(precompLayer.id))) return;
+      visitedPrecomps.add(precompLayer);
+      if (precompLayer.id) visitedPrecomps.add(precompLayer.id);
       const pctx = targetCanvas.getContext('2d');
       if (!pctx) return;
       const pw = targetW || targetCanvas.width || precompLayer.mediaWidth || Math.round(Math.abs(precompLayer.scaleW)) || 1920;
@@ -2204,7 +2238,7 @@
           child._userResized = true;
           const cStart = child.startSec !== undefined ? child.startSec : ((child.startPx || 0) / pps);
           const cInnerSec = Math.max(0, (child.sourceOffsetSec || 0) + (innerSec - cStart) * effSpeed);
-          renderPrecompToCanvas(child, child._precompBufferCanvas, cInnerSec, childW, childH, triggerSource);
+          renderPrecompToCanvas(child, child._precompBufferCanvas, cInnerSec, childW, childH, triggerSource, visitedPrecomps);
           childEl = child._precompBufferCanvas;
         } else if (child.type === 'adjustment') {
           if (!child._adjSnapCanvas) {
@@ -32616,8 +32650,11 @@
               : (window.FishBgRemovalEngine.getActiveTasks ? window.FishBgRemovalEngine.getActiveTasks().some(t => !t.cancelled && t.status !== 'done') : false);
 
             if (!isPending && currentProjectState && currentProjectState.layers) {
-              const checkLayers = (layers) => {
+              const checkLayers = (layers, visited = new Set()) => {
                 for (let l of layers) {
+                  if (!l || visited.has(l) || (l.id && visited.has(l.id))) continue;
+                  visited.add(l);
+                  if (l.id) visited.add(l.id);
                   if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
                     if (l.type === 'video') {
                       if (!l._extractComplete) {
@@ -32629,7 +32666,7 @@
                       return true;
                     }
                   }
-                  if (Array.isArray(l.layers) && checkLayers(l.layers)) return true;
+                  if (Array.isArray(l.layers) && checkLayers(l.layers, visited)) return true;
                 }
                 return false;
               };
@@ -32747,8 +32784,11 @@
               : (window.FishBgRemovalEngine.getActiveTasks ? window.FishBgRemovalEngine.getActiveTasks().some(t => !t.cancelled && t.status !== 'done') : false);
 
             if (!isPending && currentProjectState && currentProjectState.layers) {
-              const checkLayers = (layers) => {
+              const checkLayers = (layers, visited = new Set()) => {
                 for (let l of layers) {
+                  if (!l || visited.has(l) || (l.id && visited.has(l.id))) continue;
+                  visited.add(l);
+                  if (l.id) visited.add(l.id);
                   if (window.FishBgRemovalEngine.isLayerMattingActive(l)) {
                     if (l.type === 'video') {
                       if (!l._extractComplete) {
@@ -32760,7 +32800,7 @@
                       return true;
                     }
                   }
-                  if (Array.isArray(l.layers) && checkLayers(l.layers)) return true;
+                  if (Array.isArray(l.layers) && checkLayers(l.layers, visited)) return true;
                 }
                 return false;
               };

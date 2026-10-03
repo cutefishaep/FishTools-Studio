@@ -198,8 +198,11 @@ window.FishDatabase = (function () {
 
   function stripDeadBlobUrls(proj) {
     if (!proj) return proj;
+    var visited = new Set();
     function cleanLayer(l) {
-      if (!l) return;
+      if (!l || visited.has(l) || (l.id && visited.has(l.id))) return;
+      if (l.id) visited.add(l.id);
+      visited.add(l);
       if (l.dataUrl && typeof l.dataUrl === 'string' && l.dataUrl.startsWith('blob:')) l.dataUrl = '';
       if (l.thumbUrl && typeof l.thumbUrl === 'string' && l.thumbUrl.startsWith('blob:')) l.thumbUrl = '';
       if (l.fillMediaUrl && typeof l.fillMediaUrl === 'string' && l.fillMediaUrl.startsWith('blob:')) l.fillMediaUrl = '';
@@ -214,8 +217,11 @@ window.FishDatabase = (function () {
   function saveLocalProjects(list) {
     if (!list || !Array.isArray(list)) return;
 
+    var visitedSanitize = new Set();
     function sanitizeLayer(l) {
-      if (!l) return l;
+      if (!l || visitedSanitize.has(l) || (l.id && visitedSanitize.has(l.id))) return null;
+      if (l.id) visitedSanitize.add(l.id);
+      visitedSanitize.add(l);
       var lClone = Object.assign({}, l);
       // Strip all heavy base64 / blob / frame data from localStorage mirror (full data safely stored in IndexedDB)
       if (lClone.dataUrl && (lClone.dataUrl.startsWith('blob:') || lClone.dataUrl.startsWith('data:') || lClone.dataUrl.length > 100)) lClone.dataUrl = '';
@@ -231,7 +237,7 @@ window.FishDatabase = (function () {
       delete lClone._alphaHitCtx;
       delete lClone._canvasBounds;
       if (Array.isArray(lClone.layers)) {
-        lClone.layers = lClone.layers.map(sanitizeLayer);
+        lClone.layers = lClone.layers.map(sanitizeLayer).filter(Boolean);
       }
       return lClone;
     }
@@ -246,7 +252,7 @@ window.FishDatabase = (function () {
         pClone.thumbnail = '';
       }
       if (Array.isArray(p.layers)) {
-        pClone.layers = p.layers.map(sanitizeLayer);
+        pClone.layers = p.layers.map(sanitizeLayer).filter(Boolean);
       }
       return pClone;
     }
@@ -1957,7 +1963,31 @@ window.FishDatabase = (function () {
    */
   function sanitizeProjectForExport(project, mediaItems) {
     if (!project) return null;
-    var projectData = JSON.parse(JSON.stringify(project));
+    function safeCloneObj(val, seen) {
+      if (!seen) seen = new WeakSet();
+      if (!val || typeof val !== 'object') return val;
+      if (seen.has(val)) return undefined;
+      seen.add(val);
+      if (Array.isArray(val)) {
+        var arr = [];
+        for (var i = 0; i < val.length; i++) {
+          var item = safeCloneObj(val[i], seen);
+          if (item !== undefined) arr.push(item);
+        }
+        return arr;
+      }
+      var out = {};
+      var keys = Object.keys(val);
+      for (var k = 0; k < keys.length; k++) {
+        var key = keys[k];
+        if (key.startsWith('_') && key !== '_userResized' && key !== '_defaultEasing') continue;
+        var pVal = safeCloneObj(val[key], seen);
+        if (pVal !== undefined) out[key] = pVal;
+      }
+      return out;
+    }
+
+    var projectData = safeCloneObj(project) || {};
 
     // Strip project-level runtime caches and preview screenshots
     projectData.previewUrl = '';
@@ -1981,8 +2011,11 @@ window.FishDatabase = (function () {
       });
     }
 
+    var visitedClean = new Set();
     function cleanLayer(l) {
-      if (!l) return l;
+      if (!l || visitedClean.has(l) || (l.id && visitedClean.has(l.id))) return null;
+      if (l.id) visitedClean.add(l.id);
+      visitedClean.add(l);
 
       // 1. Strip all frame extraction caches, preview caches, and temporary canvas buffers
       delete l.cache;
@@ -2121,9 +2154,12 @@ window.FishDatabase = (function () {
 
     var layersToCheck = [];
     if (Array.isArray(project.layers)) {
+      var visitedCollect = new Set();
       var collectLayers = function (arr) {
         arr.forEach(function (l) {
-          if (!l) return;
+          if (!l || visitedCollect.has(l) || (l.id && visitedCollect.has(l.id))) return;
+          if (l.id) visitedCollect.add(l.id);
+          visitedCollect.add(l);
           layersToCheck.push(l);
           if (Array.isArray(l.layers)) collectLayers(l.layers);
         });

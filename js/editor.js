@@ -13945,6 +13945,9 @@
         targetL.type = newType;
         targetL.mediaId = item.id;
         if (item.name) targetL.name = item.name;
+        // Break cut-linkage to old sibling: this layer now has its own unique media source
+        targetL.sourceLayerId = targetL.id;
+        targetL.sourceOffsetSec = 0;
 
         if (newType === 'precomp') {
           targetL.layers = Array.isArray(item.layers) ? JSON.parse(JSON.stringify(item.layers)) : (targetL.layers || []);
@@ -14040,6 +14043,8 @@
         targetL.fillMediaName = item.name || 'Media';
         if (item.name) targetL.name = item.name;
         delete targetL.mediaId; // Strict: do not assign mediaId so playback engine never plays it
+        targetL.sourceLayerId = targetL.id;
+        targetL.sourceOffsetSec = 0;
         delete targetL._fillBufferCanvas;
         delete targetL._fillMediaImg;
         if (targetL._shapeBufferCanvas) {

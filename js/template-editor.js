@@ -678,8 +678,8 @@
           if (byThumb) return byThumb;
         }
 
-        // Match by layer.sourceLayerId if sibling layer resolved to a media pool item
-        if (layer.sourceLayerId) {
+        // Match by layer.sourceLayerId if sibling layer resolved to a media pool item (only if layer has no mediaId of its own)
+        if (layer.sourceLayerId && !layer.mediaId && !layer.fillMediaId) {
           const sibling = (state.layers || []).find(l => l && l.id !== layer.id && (l.sourceLayerId === layer.sourceLayerId || l.id === layer.sourceLayerId));
           if (sibling && (sibling.mediaId || sibling.fillMediaId)) {
             const bySibId = projectMedias.find(m => m.id === (sibling.mediaId || sibling.fillMediaId));
@@ -747,9 +747,21 @@
             }
 
             // Match by sourceLayerId (cut / split pieces of the same clip)
+            // STRICT: Only match if both cuts actually share the same media!
             if (!matchedSlot) {
               const srcId = layer.sourceLayerId || layer.id;
               matchedSlot = this.slots.find(s => {
+                // If both slot and incoming layer have defined media identifiers and they differ, DO NOT MERGE!
+                if (layerMediaId && s.mediaId && s.mediaId !== layerMediaId && (!s.mediaIds || !s.mediaIds.has(layerMediaId))) {
+                  return false;
+                }
+                if (poolItem && s.mediaPoolId && s.mediaPoolId !== poolItem.id) {
+                  return false;
+                }
+                if (layerDataUrl && s.dataUrl && layerDataUrl.length > 30 && s.dataUrl.length > 30 && s.dataUrl !== layerDataUrl) {
+                  return false;
+                }
+
                 if (s.sourceLayerId && (s.sourceLayerId === srcId || s.sourceLayerId === layer.id || (layer.sourceLayerId && s.sourceLayerId === layer.sourceLayerId))) return true;
                 if (s.sourceLayerIds && (s.sourceLayerIds.has(srcId) || (layer.sourceLayerId && s.sourceLayerIds.has(layer.sourceLayerId)) || s.sourceLayerIds.has(layer.id))) return true;
                 if (s.layerIds && (s.layerIds.includes(srcId) || (layer.sourceLayerId && s.layerIds.includes(layer.sourceLayerId)) || s.layerIds.includes(layer.id))) return true;

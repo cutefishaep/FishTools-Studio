@@ -77,11 +77,9 @@
         return;
       }
 
-      // Detection: full-comp adjustment layers vs bounded layers
-      const isCompSized = (w >= 900 || (ctx.canvas && w >= ctx.canvas.width * 0.9 && h >= ctx.canvas.height * 0.9));
-      const pad = isCompSized ? 0 : Math.min(250, Math.round(radius * 1.5));
-      const bw = Math.min(1920, Math.round(w + pad * 2));
-      const bh = Math.min(1080, Math.round(h + pad * 2));
+      // Strictly layer-bounded: pad = 0 guarantees glow stays 100% inside the layer
+      const bw = w;
+      const bh = h;
 
       if (!threshCanvas) {
         threshCanvas = document.createElement('canvas');
@@ -107,9 +105,9 @@
       glowCtx.clearRect(0, 0, bw, bh);
       chromaCtx.clearRect(0, 0, bw, bh);
 
-      // 1. Draw source layer centered in padded threshCanvas
+      // 1. Draw source layer fitted exactly inside layer buffer
       try {
-        threshCtx.drawImage(el, pad, pad, w, h);
+        threshCtx.drawImage(el, 0, 0, w, h);
       } catch (_) {
         return;
       }
@@ -163,7 +161,7 @@
         const blurY = Math.max(1, Math.round(octRadius * aspectScaleY));
 
         // Weight decreases by inverse-square law
-        const weight = (1.0 / Math.pow(oct + 1.2, falloff)) * exposure;
+        const weight = 1.0 / Math.pow(oct + 1.2, falloff);
         if (weight <= 0.005) continue;
 
         glowCtx.save();
@@ -251,21 +249,61 @@
         finalGlowSource = chromaCanvas;
       }
 
-      // 6. Draw to Target Canvas (Pristine Visuals, Zero Artifacts)
+      // 6. Draw to Target Canvas with Enhanced Exposure & Strict Layer Clipping
       ctx.save();
-      // Original Layer (if not glowOnly)
-      if (!glowOnly) {
-        try {
-          ctx.drawImage(el, x, y, w, h);
-        } catch (_) {}
-      }
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip(); // 100% guarantee: glow NEVER spills outside layer boundary
 
-      // Blended Glow
-      ctx.globalAlpha = opacity;
-      ctx.globalCompositeOperation = blendMode;
-      try {
-        ctx.drawImage(finalGlowSource, x - pad, y - pad, bw, bh);
-      } catch (_) {}
+      const expPct = Math.round(exposure * 100);
+      const filterStr = `brightness(${expPct}%)`;
+
+      if (glowOnly) {
+        ctx.globalAlpha = opacity;
+        ctx.globalCompositeOperation = (blendMode === 'source-over' ? 'source-over' : blendMode);
+        if (hasNativeFilter) ctx.filter = filterStr;
+        try { ctx.drawImage(finalGlowSource, x, y, w, h); } catch (_) {}
+      } else if (blendMode === 'source-over') {
+        // Ambient background glow
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.globalCompositeOperation = 'source-over';
+        if (hasNativeFilter) ctx.filter = filterStr;
+        try { ctx.drawImage(finalGlowSource, x, y, w, h); } catch (_) {}
+        ctx.restore();
+
+        // Crisp source layer
+        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+
+        // Intense radiant core boosted by exposure
+        ctx.save();
+        ctx.globalAlpha = opacity * Math.min(1.0, exposure * 0.75);
+        ctx.globalCompositeOperation = 'lighter';
+        if (hasNativeFilter) ctx.filter = filterStr;
+        try { ctx.drawImage(finalGlowSource, x, y, w, h); } catch (_) {}
+        ctx.restore();
+      } else {
+        // Screen or Lighter: draw source, composite radiant glow with full exposure multiplication
+        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
+
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.globalCompositeOperation = blendMode;
+        if (hasNativeFilter) ctx.filter = filterStr;
+        try { ctx.drawImage(finalGlowSource, x, y, w, h); } catch (_) {}
+        ctx.restore();
+
+        // Extra hot core pass for high exposure (> 1.2)
+        if (exposure > 1.2) {
+          ctx.save();
+          const extraCore = Math.min(1.0, (exposure - 1.0) * 0.65);
+          ctx.globalAlpha = opacity * extraCore;
+          ctx.globalCompositeOperation = 'lighter';
+          if (hasNativeFilter) ctx.filter = filterStr;
+          try { ctx.drawImage(finalGlowSource, x, y, w, h); } catch (_) {}
+          ctx.restore();
+        }
+      }
 
       ctx.restore();
     }

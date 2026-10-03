@@ -1086,9 +1086,13 @@
             const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
             const targetLayer = currentLayers.find(l => String(l.id) === String(layerId)) || layer;
             if (targetLayer) {
-              targetLayer._kfExpanded = !targetLayer._kfExpanded;
-              if (typeof window.renderTimelineLayers === 'function') {
-                window.renderTimelineLayers();
+              if (typeof window.toggleLayerKeyframeExpansion === 'function') {
+                window.toggleLayerKeyframeExpansion(targetLayer.id, !targetLayer._kfExpanded, false);
+              } else {
+                targetLayer._kfExpanded = !targetLayer._kfExpanded;
+                if (typeof window.renderTimelineLayers === 'function') {
+                  window.renderTimelineLayers();
+                }
               }
             }
           });
@@ -3011,19 +3015,25 @@
             if (selectedIds.length > 0) {
               e.preventDefault();
               e.stopPropagation();
+              if (typeof window.toggleKeyframeExpansionForSelection === 'function') {
+                window.toggleKeyframeExpansionForSelection(selectedIds, true);
+              } else {
+                const anyExpanded = selectedIds.some(id => {
+                  const l = currentLayers.find(ly => ly.id === id);
+                  return l && l._kfExpanded;
+                });
 
-              const anyExpanded = selectedIds.some(id => {
-                const l = currentLayers.find(ly => ly.id === id);
-                return l && l._kfExpanded;
-              });
+                selectedIds.forEach(id => {
+                  const l = currentLayers.find(ly => ly.id === id);
+                  if (l) {
+                    l._kfExpanded = !anyExpanded;
+                    l._kfExpandedOnlyKeyframed = !anyExpanded;
+                  }
+                });
 
-              selectedIds.forEach(id => {
-                const l = currentLayers.find(ly => ly.id === id);
-                if (l) l._kfExpanded = !anyExpanded;
-              });
-
-              if (typeof window.renderTimelineLayers === 'function') {
-                window.renderTimelineLayers();
+                if (typeof window.renderTimelineLayers === 'function') {
+                  window.renderTimelineLayers();
+                }
               }
             }
           }

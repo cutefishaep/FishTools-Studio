@@ -1,12 +1,12 @@
 /**
  * OpenFishTools Studio - Service Worker
- * Version: 0.5.109
+ * Version: 0.5.110
  * 
  * Provides offline caching, lightning-fast boot times,
  * and enables PWA standalone install experience.
  */
 
-const CACHE_NAME = 'oft-studio-v0.5.109';
+const CACHE_NAME = 'oft-studio-v0.5.110';
 
 const CORE_ASSETS = [
   './',

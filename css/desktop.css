@@ -4235,6 +4235,7 @@
 .svg-icon-3d { -webkit-mask-image: url('../assets/icon-3d.svg'); mask-image: url('../assets/icon-3d.svg'); }
 .svg-icon-copy { -webkit-mask-image: url('../assets/copy.svg'); mask-image: url('../assets/copy.svg'); }
 .svg-icon-paste { -webkit-mask-image: url('../assets/paste.svg'); mask-image: url('../assets/paste.svg'); }
+.svg-icon-freeze-frame { -webkit-mask-image: url('../assets/freeze-frame.svg'); mask-image: url('../assets/freeze-frame.svg'); }
 .svg-icon-pickwhip { -webkit-mask-image: url('../assets/pickwhip.svg?v=0.5.62'); mask-image: url('../assets/pickwhip.svg?v=0.5.62'); }
 .svg-icon-null { -webkit-mask-image: url('../assets/layer-null.svg'); mask-image: url('../assets/layer-null.svg'); }
 

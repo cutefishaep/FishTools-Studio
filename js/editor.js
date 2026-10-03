@@ -29792,7 +29792,89 @@
 
         // User requirement: "(yang di select itu layer yang setelah current)"
         selectTimelineLayer(newLayerId, false);
+        return newLayerId;
       }
+
+      // 4. Freeze Current Frame: Cut video in middle & freeze upper piece with Time Remapping
+      function executeFreezeCurrentFrame() {
+        const info = getSelectedLayerForCut();
+        if (!info) {
+          if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Select a video layer to freeze');
+          return;
+        }
+        const { layer, playheadPx } = info;
+        if (layer.type !== 'video') {
+          if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Freeze frame requires a video layer');
+          return;
+        }
+
+        const pps = info.pps || window.currentPixelsPerSecond || pixelsPerSecond || 80;
+        const currentSec = playheadPx / pps;
+        const startSec = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const durSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+        const endSec = startSec + durSec;
+
+        const minDuration = 16 / pps;
+        if (currentSec <= startSec + minDuration || currentSec >= endSec - minDuration) {
+          if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Playhead must be inside video clip');
+          return;
+        }
+
+        // Calculate exact source video frame timestamp at current playhead before cut
+        let freezeSourceTime = 0;
+        if (layer.speedMode === 'time_remap') {
+          const eff = (typeof getLayerEffectivePropsAtTime === 'function')
+            ? getLayerEffectivePropsAtTime(layer, currentSec)
+            : layer;
+          freezeSourceTime = eff.timeRemap !== undefined ? eff.timeRemap : (layer.timeRemap || 0);
+        } else {
+          freezeSourceTime = (typeof getLayerIntegratedSpeedTime === 'function')
+            ? getLayerIntegratedSpeedTime(layer, currentSec)
+            : Math.max(0, (layer.sourceOffsetSec || 0) + (currentSec - startSec) * (layer.speed || 1.0));
+        }
+        freezeSourceTime = Number(freezeSourceTime.toFixed(3));
+
+        // Execute split at current frame
+        const newLayerId = executeCutMid();
+        if (!newLayerId) return;
+
+        // Freeze the right half (which was inserted directly above the original layer) using Time Remapping
+        const newLayer = (currentProjectState.layers || []).find(l => l.id === newLayerId);
+        if (newLayer) {
+          const nStartSec = newLayer.startSec !== undefined ? newLayer.startSec : currentSec;
+          const nDurSec = newLayer.durationSec !== undefined ? newLayer.durationSec : (endSec - currentSec);
+          const nEndSec = Number((nStartSec + nDurSec).toFixed(3));
+
+          newLayer.speedMode = 'time_remap';
+          newLayer.timeRemap = freezeSourceTime;
+          newLayer.isMuted = true;
+          newLayer.muted = true;
+          if (!newLayer.keyframes) newLayer.keyframes = {};
+          newLayer.keyframes.timeRemap = [
+            {
+              time: Number(nStartSec.toFixed(3)),
+              value: { timeRemap: freezeSourceTime },
+              easing: [0, 0, 1, 1]
+            },
+            {
+              time: nEndSec,
+              value: { timeRemap: freezeSourceTime },
+              easing: [0, 0, 1, 1]
+            }
+          ];
+
+          invalidatePreviewCacheForLayer(newLayer);
+          if (window.PreviewCacheManager) {
+            window.PreviewCacheManager.invalidateRange(nStartSec, nEndSec);
+          }
+
+          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+          if (typeof redrawComposition === 'function') redrawComposition('freeze-frame');
+          if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+          if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Frame Frozen (Time Remapped)');
+        }
+      }
+      window.executeFreezeCurrentFrame = executeFreezeCurrentFrame;
 
       // 3. Cut Right: Trim end of layer to current playhead
       function executeCutRight() {
@@ -30454,9 +30536,27 @@
         });
       }
 
+      const btnFreezeDock = document.getElementById('editor-btn-freeze-frame');
+      if (btnFreezeDock) {
+        btnFreezeDock.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.Popover) window.Popover.close(false);
+          executeFreezeCurrentFrame();
+        });
+      }
+
+      const desktopBtnFreeze = document.getElementById('desktop-btn-freeze-frame');
+      if (desktopBtnFreeze) {
+        desktopBtnFreeze.addEventListener('click', (e) => {
+          e.stopPropagation();
+          executeFreezeCurrentFrame();
+        });
+      }
+
       window.executeCutLeft = executeCutLeft;
       window.executeCutMid = executeCutMid;
       window.executeCutRight = executeCutRight;
+      window.executeFreezeCurrentFrame = executeFreezeCurrentFrame;
       window.executeExpandRight = executeExpandRight;
       window.executeMoveRight = executeMoveRight;
       window.executeMoveLeft = executeMoveLeft;

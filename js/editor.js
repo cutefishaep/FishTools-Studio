@@ -468,11 +468,65 @@
     };
     window.UndoRedoManager = UndoRedoManager;
 
+    // Interaction-session dedupe for preview cache invalidation.
+    // During a drag (rotate dial, move pad, scrubbers...) pointermove fires 60-120x/s and every
+    // handler calls invalidatePreviewCacheForLayer(). The cached RAM preview range only needs to be
+    // purged ONCE per layer per drag (PreviewCacheManager never caches while interacting), plus a
+    // final purge when the drag ends. Effective-props cache is still cleared on every call.
+    const _interactionTouchedLayers = new Map();
+
+    (function installTransformInteractionFlag() {
+      try {
+        const desc = Object.getOwnPropertyDescriptor(window, 'isTransformInteracting');
+        if (desc && typeof desc.set === 'function') return;
+        let flagValue = !!(desc && desc.value);
+        Object.defineProperty(window, 'isTransformInteracting', {
+          configurable: true,
+          enumerable: true,
+          get() { return flagValue; },
+          set(v) {
+            const next = !!v;
+            const wasInteracting = flagValue;
+            flagValue = next;
+            if (wasInteracting && !next && _interactionTouchedLayers.size > 0) {
+              const touched = Array.from(_interactionTouchedLayers.values());
+              _interactionTouchedLayers.clear();
+              touched.forEach(l => {
+                try { invalidatePreviewCacheForLayer(l); } catch (_) {}
+              });
+            }
+          }
+        });
+      } catch (_) {}
+    })();
+
     // Fast selective preview cache invalidation for a specific layer's timeline range (or union with prior range)
     function invalidatePreviewCacheForLayer(layer, customStartSec = null, customEndSec = null) {
       if (!window.PreviewCacheManager) return;
       const pps = window.currentPixelsPerSecond || 80;
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : (parseInt(currentProjectState.fps, 10) || 60);
+
+      // Drag fast path: range already purged this session and layer timing unchanged → skip heavy work
+      if (window.isTransformInteracting && layer && layer.id !== undefined &&
+          (customStartSec === null || customStartSec === undefined) &&
+          (customEndSec === null || customEndSec === undefined)) {
+        const curStartFast = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+        const curDurFast = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+        const timingUnchanged = (layer._cachedStartSec === curStartFast && layer._cachedEndSec === curStartFast + curDurFast);
+        if (_interactionTouchedLayers.has(layer.id) && timingUnchanged) {
+          if (layer.type === 'text') {
+            layer._textDirty = true;
+            if (layer._textBufferCanvas) layer._textBufferCanvas._lastRenderKey = null;
+          }
+          if (layer.type === 'precomp') {
+            layer._dirty = true;
+            if (layer._precompBufferCanvas) layer._precompBufferCanvas._lastRenderKey = null;
+          }
+          if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+          return;
+        }
+        _interactionTouchedLayers.set(layer.id, layer);
+      }
 
       let minStart = Infinity;
       let maxEnd = -Infinity;
@@ -2440,9 +2494,22 @@
             null,
             innerSec,
             (subCtx, subEl, subChild, subScale, subCam, subSec) => {
+              let currentSubEl = subEl;
+              if (subChild.type === 'text' && window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
+                const clipStart = subChild.startSec !== undefined ? subChild.startSec : ((subChild.startPx || 0) / pps);
+                const clipDur = subChild.durationSec !== undefined ? subChild.durationSec : ((subChild.widthPx || 400) / pps);
+                const localSubSec = Math.max(0, subSec - clipStart);
+                if (!subChild._textMbCanvas || !(subChild._textMbCanvas instanceof HTMLCanvasElement)) {
+                  subChild._textMbCanvas = document.createElement('canvas');
+                }
+                const tw = Math.max(1, Math.round(Math.abs(subChild.scaleW || subChild.mediaWidth || 500)));
+                const th = Math.max(1, Math.round(Math.abs(subChild.scaleH || subChild.mediaHeight || 180)));
+                window.FishTextEngine.renderTextToCanvas(subChild, subChild._textMbCanvas, tw, th, localSubSec, clipDur, true);
+                currentSubEl = subChild._textMbCanvas;
+              }
               const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subChild, subSec, null, childLayers) : subChild;
               if (subEff) subEff._currentSec = subSec;
-              drawChildSinglePass(subCtx, subEl, subChild, subEff);
+              drawChildSinglePass(subCtx, currentSubEl, subChild, subEff);
             },
             precompLayer
           );
@@ -2767,7 +2834,7 @@
               if (isMbActive) {
                 flushStaticBatch();
                 const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
-                const hasMoveFx = mbEngine && typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer);
+                const hasMoveFx = mbEngine && ((typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer)) || (typeof mbEngine.needsSampledPath === 'function' && mbEngine.needsSampledPath(rawLayer)));
                 if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
                   engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
                 } else {
@@ -2779,6 +2846,20 @@
                     camEff,
                     currentSec,
                     (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                      let currentSubEl = subEl;
+                      if (subLayer.type === 'text' && window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
+                        const pps = window.currentPixelsPerSecond || 80;
+                        const clipStart = subLayer.startSec !== undefined ? subLayer.startSec : ((subLayer.startPx || 0) / pps);
+                        const clipDur = subLayer.durationSec !== undefined ? subLayer.durationSec : ((subLayer.widthPx || 400) / pps);
+                        const localSubSec = Math.max(0, subSec - clipStart);
+                        if (!subLayer._textMbCanvas || !(subLayer._textMbCanvas instanceof HTMLCanvasElement)) {
+                          subLayer._textMbCanvas = document.createElement('canvas');
+                        }
+                        const pw = Math.max(1, Math.round(subLayer.mediaWidth || (subLayer._textNaturalW ? subLayer._textNaturalW : 320)));
+                        const ph = Math.max(1, Math.round(subLayer.mediaHeight || (subLayer._textNaturalH ? subLayer._textNaturalH : 100)));
+                        window.FishTextEngine.renderTextToCanvas(subLayer, subLayer._textMbCanvas, pw, ph, localSubSec, clipDur, true);
+                        currentSubEl = subLayer._textMbCanvas;
+                      }
                       const subCamera = (activeCamera && typeof getLayerEffectivePropsAtTime === 'function')
                         ? getLayerEffectivePropsAtTime(activeCamera, subSec)
                         : (subCam || camEff);
@@ -2801,7 +2882,7 @@
                             _currentSec: subSec
                           });
                           if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                          engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
+                          engine.renderLayer(subCtx, currentSubEl, mbEngine.compensateTextPad(subLayer, currentSubEl, subAnimLayer), subScale, subCamera, subSec);
                           return;
                         }
                       }
@@ -2810,7 +2891,7 @@
                       subAnimLayer._currentSec = subSec;
                       if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
                       else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                      engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
+                      engine.renderLayer(subCtx, currentSubEl, mbEngine.compensateTextPad(subLayer, currentSubEl, subAnimLayer), subScale, subCamera, subSec);
                     },
                     compState
                   );
@@ -3834,7 +3915,7 @@
             if (isMbActive) {
               flushStaticBatch();
               const bounds = engine ? engine.getBounds(rawLayer, compositionBufferScale, camEff) : null;
-              const hasMoveFx = mbEngine && typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer);
+              const hasMoveFx = mbEngine && ((typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer)) || (typeof mbEngine.needsSampledPath === 'function' && mbEngine.needsSampledPath(rawLayer)));
               if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
                 engine.render3DMotionBlur(ctx, item.el, rawLayer, compositionBufferScale, camEff, currentSec, compState);
               } else {
@@ -3846,6 +3927,20 @@
                   camEff,
                   currentSec,
                   (subCtx, subEl, subLayer, subScale, subCam, subSec) => {
+                    let currentSubEl = subEl;
+                    if (subLayer.type === 'text' && window.FishTextEngine && typeof window.FishTextEngine.renderTextToCanvas === 'function') {
+                      const pps = window.currentPixelsPerSecond || 80;
+                      const clipStart = subLayer.startSec !== undefined ? subLayer.startSec : ((subLayer.startPx || 0) / pps);
+                      const clipDur = subLayer.durationSec !== undefined ? subLayer.durationSec : ((subLayer.widthPx || 400) / pps);
+                      const localSubSec = Math.max(0, subSec - clipStart);
+                      if (!subLayer._textMbCanvas || !(subLayer._textMbCanvas instanceof HTMLCanvasElement)) {
+                        subLayer._textMbCanvas = document.createElement('canvas');
+                      }
+                      const pw = Math.max(1, Math.round(subLayer.mediaWidth || (subLayer._textNaturalW ? subLayer._textNaturalW : 320)));
+                      const ph = Math.max(1, Math.round(subLayer.mediaHeight || (subLayer._textNaturalH ? subLayer._textNaturalH : 100)));
+                      window.FishTextEngine.renderTextToCanvas(subLayer, subLayer._textMbCanvas, pw, ph, localSubSec, clipDur, true);
+                      currentSubEl = subLayer._textMbCanvas;
+                    }
                     const subCamera = (activeCamera && typeof getLayerEffectivePropsAtTime === 'function')
                       ? getLayerEffectivePropsAtTime(activeCamera, subSec)
                       : (subCam || camEff);
@@ -3869,7 +3964,7 @@
                           _currentSec: subSec
                         });
                         if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                        engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
+                        engine.renderLayer(subCtx, currentSubEl, mbEngine.compensateTextPad(subLayer, currentSubEl, subAnimLayer), subScale, subCamera, subSec);
                         return;
                       }
                     }
@@ -3878,7 +3973,7 @@
                     subAnimLayer._currentSec = subSec;
                     if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
                     else if (Array.isArray(subLayer.effects)) subAnimLayer.effects = subLayer.effects;
-                    engine.renderLayer(subCtx, subEl, subAnimLayer, subScale, subCamera, subSec);
+                    engine.renderLayer(subCtx, currentSubEl, mbEngine.compensateTextPad(subLayer, currentSubEl, subAnimLayer), subScale, subCamera, subSec);
                   },
                   compState
                 );
@@ -5954,14 +6049,20 @@
         const parent = pool.find(l => l.id === layer.parentId);
         if (parent && !visited.has(parent.id)) {
           const parentEff = getLayerEffectivePropsAtTime(parent, currentSec, visited, pool);
+          const aspect = currentProjectState.aspectRatio || '16:9';
+          const res = currentProjectState.resolution || '1080p';
+          const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseW = (currentProjectState.width && currentProjectState.width > 0) ? currentProjectState.width : baseDims[0];
+          const baseH = (currentProjectState.height && currentProjectState.height > 0) ? currentProjectState.height : baseDims[1];
+
           let bind = layer.parentBind;
           if (!bind) {
             const pps = (typeof window.currentPixelsPerSecond === 'number' && window.currentPixelsPerSecond > 0) ? window.currentPixelsPerSecond : 80;
             const pInitSec = parent.startSec !== undefined ? parent.startSec : ((parent.startPx || 0) / pps);
             const parentInit = getLayerEffectivePropsAtTime(parent, pInitSec, visited, pool);
             bind = {
-              parentPosX: parentInit.posX !== undefined ? parentInit.posX : 540,
-              parentPosY: parentInit.posY !== undefined ? parentInit.posY : 960,
+              parentPosX: parentInit.posX !== undefined ? parentInit.posX : (baseW / 2),
+              parentPosY: parentInit.posY !== undefined ? parentInit.posY : (baseH / 2),
               parentPosZ: parentInit.posZ || 0,
               parentRotX: parentInit.rotX || 0,
               parentRotY: parentInit.rotY || 0,
@@ -5980,12 +6081,6 @@
           const deltaRotZ = pCurRotZ - (bind.parentRotZ || 0);
           const scaleRatioW = bind.parentScaleW ? (parentEff.scaleW / bind.parentScaleW) : 1;
           const scaleRatioH = bind.parentScaleH ? (parentEff.scaleH / bind.parentScaleH) : 1;
-
-          const aspect = currentProjectState.aspectRatio || '16:9';
-          const res = currentProjectState.resolution || '1080p';
-          const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
-          const baseW = baseDims[0];
-          const baseH = baseDims[1];
           const isCamera = (layer.type === 'camera');
           const camDist = 1000 * ((baseProps.cameraLens !== undefined ? baseProps.cameraLens : 50) / 50);
 
@@ -11477,6 +11572,263 @@
     }
     window.renderTextPresetsGrid = renderTextPresetsGrid;
 
+    // ======================================================================
+    // TEXT FORMATTING CONTROLS (data-driven: data-text-jog / -select / -switch / -color)
+    // Every control declares its textProps key in HTML; one binder wires them all.
+    // ======================================================================
+    function getSelectedTextLayer() {
+      const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+      if (!layer || layer.type !== 'text') return null;
+      if (!layer.textProps) layer.textProps = window.FishTextEngine ? window.FishTextEngine.getDefaultProps() : {};
+      return layer;
+    }
+
+    function getTextPropValue(tp, key) {
+      if (tp && tp[key] !== undefined && tp[key] !== null && tp[key] !== '') return tp[key];
+      const defs = window.FishTextEngine ? window.FishTextEngine.getDefaultProps() : {};
+      return defs[key];
+    }
+
+    function applyTextLayerChange(layer, opts = {}) {
+      if (!layer) return;
+      layer._textBufferCanvas = null;
+      layer._textMbCanvas = null;
+      layer._textDirty = true;
+      if (window.FishTextEngine) {
+        const nat = window.FishTextEngine.getNaturalSize(layer);
+        layer.scaleW = nat.width * (layer.transformScaleX || 1);
+        layer.scaleH = nat.height * (layer.transformScaleY || 1);
+        layer.mediaWidth = nat.width;
+        layer.mediaHeight = nat.height;
+      }
+      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+      if (opts.timeline) renderTimelineLayers();
+      redrawComposition();
+      if (opts.save) saveCurrentProjectLayers();
+    }
+
+    // Parse '#rgb' | '#rrggbb' | 'rgb(a)(...)' -> { hex: '#RRGGBB', alpha }
+    function parseTextColor(c) {
+      const s = String(c || '').trim();
+      let m = s.match(/^#([0-9a-f]{3})$/i);
+      if (m) {
+        const h = m[1].split('').map(x => x + x).join('');
+        return { hex: '#' + h.toUpperCase(), alpha: 1 };
+      }
+      m = s.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i);
+      if (m) return { hex: '#' + m[1].toUpperCase(), alpha: m[2] ? parseInt(m[2], 16) / 255 : 1 };
+      m = s.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\s*\)$/i);
+      if (m) {
+        const toH = v => Math.max(0, Math.min(255, Math.round(Number(v)))).toString(16).padStart(2, '0');
+        return { hex: ('#' + toH(m[1]) + toH(m[2]) + toH(m[3])).toUpperCase(), alpha: m[4] !== undefined ? Number(m[4]) : 1 };
+      }
+      return { hex: '#FFFFFF', alpha: 1 };
+    }
+
+    function formatTextJogValue(jogEl, v) {
+      const dec = Number(jogEl.dataset.decimals) || 0;
+      const unit = jogEl.dataset.unit || '';
+      return `${Number(v).toFixed(dec)}${unit}`;
+    }
+
+    function syncTextFormatControls(tp) {
+      // Jog badges
+      document.querySelectorAll('[data-text-jog]').forEach(jog => {
+        const key = jog.dataset.textJog;
+        const v = Number(getTextPropValue(tp, key)) || 0;
+        document.querySelectorAll(`[data-text-badge="${key}"]`).forEach(b => { b.textContent = formatTextJogValue(jog, v); });
+      });
+      // Dropdowns
+      document.querySelectorAll('[data-text-select]').forEach(dd => {
+        const v = String(getTextPropValue(tp, dd.dataset.textSelect));
+        dd.dataset.value = v;
+        let found = null;
+        dd.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          const hit = item.dataset.val === v;
+          item.classList.toggle('is-selected', hit);
+          if (hit) found = item;
+        });
+        const label = dd.querySelector('.custom-dropdown-label');
+        if (label) label.textContent = found ? found.textContent : v.split(',')[0].replace(/['"]/g, '');
+      });
+      // Segmented switches (string / bool / layer-bool)
+      const curTextLayer = getSelectedTextLayer();
+      document.querySelectorAll('[data-text-switch]').forEach(sw => {
+        const key = sw.dataset.textSwitch;
+        let v;
+        if (sw.dataset.type === 'layer-bool') {
+          v = String(!!(curTextLayer && curTextLayer[key]));
+        } else if (sw.dataset.type === 'bool') {
+          const raw = getTextPropValue(tp, key);
+          v = String(!!raw);
+        } else {
+          const raw = getTextPropValue(tp, key);
+          v = String(raw);
+        }
+        sw.querySelectorAll('.segmented-switch-item').forEach(item => {
+          const hit = item.dataset.val === v;
+          item.classList.toggle('is-active', hit);
+          item.classList.toggle('is-selected', hit);
+          item.setAttribute('aria-selected', hit ? 'true' : 'false');
+        });
+      });
+      // Sections gated by a toggle
+      document.querySelectorAll('[data-text-depends]').forEach(body => {
+        body.classList.toggle('is-disabled', !getTextPropValue(tp, body.dataset.textDepends));
+      });
+      // Color swatches (chip uses the user's chosen swatch value)
+      document.querySelectorAll('[data-text-color]').forEach(btn => {
+        const v = getTextPropValue(tp, btn.dataset.textColor) || '#FFFFFF';
+        const chip = btn.querySelector('.color-swatch-chip');
+        const hexEl = btn.querySelector('.color-swatch-hex');
+        if (chip) chip.style.backgroundColor = v;
+        if (hexEl) {
+          const pc = parseTextColor(v);
+          hexEl.textContent = pc.alpha < 1 ? `${pc.hex} ${Math.round(pc.alpha * 100)}%` : pc.hex;
+        }
+      });
+    }
+    window.syncTextFormatControls = syncTextFormatControls;
+
+    function initTextFormatControls() {
+      // 1. Pane tabs (Text / Style / Animate)
+      document.querySelectorAll('.text-panel-tabs').forEach(tabs => {
+        tabs.querySelectorAll('[data-text-tab]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const name = btn.dataset.textTab;
+            tabs.querySelectorAll('[data-text-tab]').forEach(b => {
+              const on = b === btn;
+              b.classList.toggle('is-active', on);
+              b.classList.toggle('is-selected', on);
+              b.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            const root = tabs.closest('.shape-work-area') || document;
+            root.querySelectorAll('[data-text-pane]').forEach(p => p.classList.toggle('is-active', p.dataset.textPane === name));
+          });
+        });
+      });
+
+      // 2. Jog wheels
+      document.querySelectorAll('[data-text-jog]').forEach(jog => {
+        const key = jog.dataset.textJog;
+        const mn = Number(jog.dataset.min);
+        const mx = Number(jog.dataset.max);
+        const step = Number(jog.dataset.step) || 1;
+        const dec = Number(jog.dataset.decimals) || 0;
+        let initVal = 0;
+        bindJogWheel(jog, {
+          onStart: () => {
+            const layer = getSelectedTextLayer();
+            if (!layer) return;
+            initVal = Number(getTextPropValue(layer.textProps, key)) || 0;
+          },
+          onMove: (delta) => {
+            const layer = getSelectedTextLayer();
+            if (!layer) return;
+            const v = Number(Math.max(mn, Math.min(mx, initVal + delta * step)).toFixed(dec));
+            layer.textProps[key] = v;
+            document.querySelectorAll(`[data-text-badge="${key}"]`).forEach(b => { b.textContent = formatTextJogValue(jog, v); });
+            applyTextLayerChange(layer);
+          },
+          onEnd: () => { saveCurrentProjectLayers(); }
+        });
+      });
+
+      // 3. Dropdowns
+      document.querySelectorAll('[data-text-select]').forEach(dd => {
+        const key = dd.dataset.textSelect;
+        dd.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const layer = getSelectedTextLayer();
+            if (!layer) return;
+            layer.textProps[key] = item.dataset.val;
+            dd.classList.remove('is-open');
+            syncTextFormatControls(layer.textProps);
+            applyTextLayerChange(layer, { save: true });
+          });
+        });
+      });
+
+      // 4. Segmented switches (string / bool / layer-bool)
+      document.querySelectorAll('[data-text-switch]').forEach(sw => {
+        const key = sw.dataset.textSwitch;
+        sw.querySelectorAll('.segmented-switch-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const layer = getSelectedTextLayer();
+            if (!layer) return;
+            if (sw.dataset.type === 'layer-bool') {
+              const nextVal = item.dataset.val === 'true';
+              layer[key] = nextVal;
+              if (key === 'motionBlur') {
+                layer._textDirty = true;
+                if (layer._textBufferCanvas) layer._textBufferCanvas._lastRenderKey = null;
+                if (layer._textMbCanvas) layer._textMbCanvas._lastRenderKey = null;
+                if (nextVal && currentProjectState) {
+                  currentProjectState.motionBlur = currentProjectState.motionBlur || { shutterAngle: 180, shutterPhase: 0, samples: 16 };
+                  currentProjectState.motionBlur.enabled = true;
+                  try { localStorage.setItem('oft_global_motion_blur', 'true'); } catch (_) {}
+                  const globalMbIcon = document.getElementById('editor-icon-motion-blur');
+                  if (globalMbIcon) globalMbIcon.classList.add('is-active');
+                }
+                const topHeaderMb = document.getElementById('btn-layer-header-motion-blur');
+                if (topHeaderMb) topHeaderMb.classList.toggle('is-active', nextVal);
+                const overlay = document.getElementById('timeline-lane-heads-overlay');
+                const pillSlot = overlay ? overlay.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layer.id}"]`) : null;
+                if (pillSlot) {
+                  const b = pillSlot.querySelector('.desktop-layer-mblur-btn');
+                  if (b) {
+                    b.classList.toggle('is-active', nextVal);
+                    b.title = nextVal ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
+                  }
+                }
+                if (window.PreviewCacheManager) window.PreviewCacheManager.clearAll();
+                if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+              }
+            } else {
+              layer.textProps[key] = sw.dataset.type === 'bool' ? item.dataset.val === 'true' : item.dataset.val;
+            }
+            syncTextFormatControls(layer.textProps);
+            applyTextLayerChange(layer, { save: true });
+          });
+        });
+      });
+
+      // 5. Color swatches -> universal FishColorPicker popover
+      document.querySelectorAll('[data-text-color]').forEach(btn => {
+        const key = btn.dataset.textColor;
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const layer = getSelectedTextLayer();
+          if (!layer || !window.FishColorPicker || typeof window.FishColorPicker.open !== 'function') return;
+          const cur = parseTextColor(getTextPropValue(layer.textProps, key));
+          const apply = (hex, alpha, rgba, commit) => {
+            const lyr = getSelectedTextLayer();
+            if (!lyr) return;
+            const val = (typeof alpha === 'number' && alpha < 1 && rgba) ? rgba : hex;
+            lyr.textProps[key] = val;
+            if (key === 'fillColor') lyr.fillColor = hex;
+            syncTextFormatControls(lyr.textProps);
+            applyTextLayerChange(lyr, { save: !!commit });
+          };
+          btn.classList.add('is-active');
+          window.FishColorPicker.open({
+            anchor: btn,
+            color: cur.hex,
+            opacity: cur.alpha,
+            onChange: (hex, alpha, rgba) => apply(hex, alpha, rgba, false),
+            onCommit: (hex, alpha, rgba) => apply(hex, alpha, rgba, true),
+            onClose: () => btn.classList.remove('is-active')
+          });
+        });
+      });
+    }
+
     function syncTextControllerUI() {
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer || layer.type !== 'text') return;
@@ -11484,6 +11836,7 @@
         layer.textProps = window.FishTextEngine.getDefaultProps();
       }
       const tp = layer.textProps || {};
+      syncTextFormatControls(tp);
 
       const inputContent = document.getElementById('input-text-content');
       if (inputContent && document.activeElement !== inputContent) {
@@ -11700,6 +12053,7 @@
             if (!layer.textProps) layer.textProps = {};
             layer.textProps.animIn = val;
             layer.textProps.animation = val;
+            seedTextAnimatorIfNeutral(layer, val);
             ddAnimIn.dataset.value = val;
             const label = ddAnimIn.querySelector('.custom-dropdown-label');
             if (label) label.textContent = item.textContent;
@@ -11781,6 +12135,7 @@
             if (!layer || layer.type !== 'text') return;
             if (!layer.textProps) layer.textProps = {};
             layer.textProps.animOut = val;
+            seedTextAnimatorIfNeutral(layer, val);
             ddAnimOut.dataset.value = val;
             const label = ddAnimOut.querySelector('.custom-dropdown-label');
             if (label) label.textContent = item.textContent;
@@ -11917,8 +12272,24 @@
         },
         onEnd: () => { saveCurrentProjectLayers(); }
       });
+
+      initTextFormatControls();
     }
     window.initTextController = initTextController;
+
+    // Picking "Custom (Animator)" with all-neutral animator values would animate nothing,
+    // so give it a visible starting point (rise + fade) the user can then tweak.
+    function seedTextAnimatorIfNeutral(layer, animVal) {
+      if (animVal !== 'custom' || !layer || !layer.textProps) return;
+      const tp = layer.textProps;
+      const neutral = !(Number(tp.animPosX) || 0) && !(Number(tp.animPosY) || 0) && !(Number(tp.animRotation) || 0) &&
+        (tp.animScale === undefined || Number(tp.animScale) === 100) &&
+        (tp.animOpacity === undefined || Number(tp.animOpacity) === 100);
+      if (!neutral) return;
+      tp.animPosY = 60;
+      tp.animOpacity = 0;
+      syncTextFormatControls(tp);
+    }
 
     // Precomp clip cache progress helper (no-op: baked precomp removed)
     function updatePrecompClipProgress(layerOrId) {}
@@ -12572,10 +12943,16 @@
         ? getLayerEffectivePropsAtTime(parentLayer, currentSec)
         : parentLayer;
 
+      const aspect = currentProjectState.aspectRatio || '16:9';
+      const res = currentProjectState.resolution || '1080p';
+      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseW = (currentProjectState.width && currentProjectState.width > 0) ? currentProjectState.width : baseDims[0];
+      const baseH = (currentProjectState.height && currentProjectState.height > 0) ? currentProjectState.height : baseDims[1];
+
       childLayer.parentId = parentLayer.id;
       childLayer.parentBind = {
-        parentPosX: pEff.posX !== undefined ? pEff.posX : 540,
-        parentPosY: pEff.posY !== undefined ? pEff.posY : 960,
+        parentPosX: pEff.posX !== undefined ? pEff.posX : (baseW / 2),
+        parentPosY: pEff.posY !== undefined ? pEff.posY : (baseH / 2),
         parentRotX: pEff.rotX || 0,
         parentRotY: pEff.rotY || 0,
         parentRotZ: pEff.rotZ !== undefined ? pEff.rotZ : (pEff.rotation || 0),
@@ -16421,69 +16798,198 @@
       const searchInput = document.getElementById('effects-search-input');
       const noResultsEl = document.getElementById('effects-gallery-no-results');
 
-      function syncGalleryItemsFromRegistry() {
-        if (!effectsItemsGrid || !window.FishEffectsRegistry || typeof window.FishEffectsRegistry.getAll !== 'function') return;
-        const allRegistered = window.FishEffectsRegistry.getAll();
-        allRegistered.forEach(def => {
-          if (!def || !def.id) return;
-          const selector = `.effects-gallery-item-card[data-effect-id="${def.id}"]`;
-          let card = effectsItemsGrid.querySelector(selector);
-          if (!card) {
-            card = document.createElement('div');
-            card.className = 'effects-gallery-item-card';
-            card.setAttribute('role', 'button');
-            card.setAttribute('tabindex', '0');
-            card.dataset.effectId = def.id;
-            card.dataset.category = def.category || 'lightning';
-            card.title = def.name || def.id;
-            card.innerHTML = `
-              <div class="effects-gallery-item-thumb">
-                <img src="${def.icon || 'assets/FXPH.svg'}" alt="${def.name || def.id}" class="effects-gallery-item-img" loading="lazy">
-              </div>
-              <span class="effects-gallery-item-name">${def.name || def.id}</span>
-            `;
-            effectsItemsGrid.appendChild(card);
-          } else {
-            card.dataset.category = def.category || card.dataset.category || 'lightning';
-            card.title = def.name || card.title;
-            const nameEl = card.querySelector('.effects-gallery-item-name');
-            if (nameEl && def.name && nameEl.textContent !== def.name) {
-              nameEl.textContent = def.name;
-            }
-          }
+      // Category presentation: known categories get a stable order + label; any NEW category introduced
+      // by a plugin is picked up automatically (appended alphabetically, Title Case label).
+      const GALLERY_CATEGORY_ORDER = ['lightning', 'color', 'warp', 'movement', 'layer', 'wipe', 'background', 'artificial intelligence', 'expression', '3d'];
+      const GALLERY_CATEGORY_LABELS = { '3d': '3D', 'expression': 'Expression', 'artificial intelligence': 'Artificial Intelligence' };
+      const chipBar = document.getElementById('effects-chip-bar');
+      const itemsCountEl = document.getElementById('effects-items-count');
+      const itemsTitleEl = document.getElementById('effects-items-category-title');
+      const galleryBodyEl = document.getElementById('effects-gallery-body');
+      const FALLBACK_EFFECT_ICON = 'assets/FXPH.svg';
 
-          // Auto-discover and generate missing category cards in grid
-          if (categoryGrid && def.category) {
-            const catLower = def.category.toLowerCase();
-            if (!categoryGrid.querySelector(`.effects-category-card[data-category="${catLower}"]`)) {
-              const catCard = document.createElement('div');
-              catCard.className = 'effects-category-card';
-              catCard.setAttribute('role', 'button');
-              catCard.setAttribute('tabindex', '0');
-              catCard.dataset.category = catLower;
-              const displayName = (catLower === '3d') ? '3D' : def.category;
-              catCard.title = displayName;
-              catCard.innerHTML = `
-                <div class="effects-category-card-overlay"></div>
-                <span class="effects-category-name">${displayName}</span>
-              `;
-              catCard.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openGalleryCategory(displayName, catLower);
-              });
-              catCard.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  openGalleryCategory(displayName, catLower);
-                }
-              });
-              categoryGrid.appendChild(catCard);
-            }
-          }
-        });
+      // activeCat: null = category home, 'all' = every effect, otherwise a category key
+      const galleryUi = { activeCat: null, query: '', cards: new Map(), catSignature: '', searchRaf: 0, syncRaf: 0 };
+
+      function galleryCatKey(def) {
+        const c = String((def && def.category) || 'lightning').toLowerCase();
+        return c === 'extension' ? 'expression' : c;
+      }
+      function galleryCatLabel(key) {
+        return GALLERY_CATEGORY_LABELS[key] || key.replace(/\b\w/g, ch => ch.toUpperCase());
       }
 
-      // Dynamic automatic effects discovery & loader from manifest.json
+      function buildGalleryCard(def) {
+        const label = def.name || def.id;
+        const card = document.createElement('div');
+        card.className = 'effects-gallery-item-card';
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.dataset.effectId = def.id;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'effects-gallery-item-thumb';
+        const img = document.createElement('img');
+        img.className = 'effects-gallery-item-img';
+        img.alt = label;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.draggable = false;
+        img.src = 'assets/effects/thumbs/' + def.id + '.png';
+        img.addEventListener('error', () => {
+          const fb = def.icon || FALLBACK_EFFECT_ICON;
+          if (!img.src.endsWith(fb)) img.src = fb;
+        }, { once: true });
+        thumb.appendChild(img);
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'effects-gallery-item-name';
+        card.appendChild(thumb);
+        card.appendChild(nameEl);
+        return card;
+      }
+
+      function updateGalleryCard(card, def) {
+        const label = def.name || def.id;
+        const catKey = galleryCatKey(def);
+        card.dataset.category = catKey;
+        card.title = label;
+        const nameEl = card.querySelector('.effects-gallery-item-name');
+        if (nameEl && nameEl.textContent !== label) nameEl.textContent = label;
+        // Search haystack: name, id, category label, description and optional plugin keywords
+        const keywords = Array.isArray(def.keywords) ? def.keywords.join(' ') : '';
+        const alias = /box|cube/i.test(def.id + ' ' + label) ? ' cube kubus' : '';
+        card.dataset.search = (label + ' ' + def.id + ' ' + galleryCatLabel(catKey) + ' ' + (def.description || '') + ' ' + keywords + alias).toLowerCase();
+      }
+
+      function rebuildGalleryCategories(counts) {
+        const keys = Array.from(counts.keys()).sort((a, b) => {
+          const ia = GALLERY_CATEGORY_ORDER.indexOf(a);
+          const ib = GALLERY_CATEGORY_ORDER.indexOf(b);
+          if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+          return a.localeCompare(b);
+        });
+
+        if (categoryGrid) {
+          categoryGrid.replaceChildren();
+          keys.forEach(key => {
+            const tile = document.createElement('div');
+            tile.className = 'effects-category-card';
+            tile.setAttribute('role', 'button');
+            tile.setAttribute('tabindex', '0');
+            tile.dataset.category = key;
+            tile.title = galleryCatLabel(key);
+            tile.style.backgroundImage = 'url("assets/effects/categories/' + key.replace(/\s+/g, '-') + '.png")';
+            const name = document.createElement('span');
+            name.className = 'effects-category-name';
+            name.textContent = galleryCatLabel(key);
+            const count = document.createElement('span');
+            count.className = 'effects-category-count';
+            count.textContent = String(counts.get(key));
+            tile.appendChild(name);
+            tile.appendChild(count);
+            categoryGrid.appendChild(tile);
+          });
+        }
+
+        if (chipBar) {
+          chipBar.replaceChildren();
+          const addChip = (key, label) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'effects-chip';
+            chip.setAttribute('role', 'tab');
+            chip.dataset.category = key;
+            chip.textContent = label;
+            chipBar.appendChild(chip);
+          };
+          addChip('all', 'All');
+          keys.forEach(key => addChip(key, galleryCatLabel(key)));
+        }
+      }
+
+      function renderGalleryView() {
+        const q = galleryUi.query;
+        const cat = galleryUi.activeCat;
+        const atHome = (!q && cat === null);
+
+        if (atHome) {
+          if (categoryGrid) categoryGrid.style.display = 'grid';
+          if (itemsView) itemsView.style.display = 'none';
+          if (noResultsEl) noResultsEl.style.display = 'none';
+          if (btnEffectsGalleryBack) btnEffectsGalleryBack.title = 'Back to Effects Rack';
+          return;
+        }
+
+        let shown = 0;
+        galleryUi.cards.forEach(card => {
+          const match = q
+            ? (card.dataset.search || '').includes(q)
+            : (cat === 'all' || card.dataset.category === cat);
+          card.style.display = match ? '' : 'none';
+          if (match) shown++;
+        });
+
+        if (categoryGrid) categoryGrid.style.display = 'none';
+        if (btnEffectsGalleryBack) btnEffectsGalleryBack.title = 'Back to Categories';
+        if (shown === 0) {
+          if (itemsView) itemsView.style.display = 'none';
+          if (noResultsEl) noResultsEl.style.display = 'flex';
+          return;
+        }
+        if (noResultsEl) noResultsEl.style.display = 'none';
+        if (itemsView) itemsView.style.display = 'flex';
+
+        if (itemsTitleEl) itemsTitleEl.textContent = q ? 'Search Results' : (cat === 'all' ? 'All Effects' : galleryCatLabel(cat));
+        if (itemsCountEl) itemsCountEl.textContent = shown + (shown === 1 ? ' effect' : ' effects');
+        if (chipBar) {
+          chipBar.style.display = q ? 'none' : '';
+          chipBar.querySelectorAll('.effects-chip').forEach(chip => {
+            const active = (chip.dataset.category === cat);
+            chip.classList.toggle('is-active', active);
+            chip.setAttribute('aria-selected', active ? 'true' : 'false');
+            if (active && !q && typeof chip.scrollIntoView === 'function') {
+              try { chip.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
+            }
+          });
+        }
+      }
+
+      function syncGalleryItemsFromRegistry() {
+        if (!effectsItemsGrid || !window.FishEffectsRegistry || typeof window.FishEffectsRegistry.getAll !== 'function') return;
+        const defs = window.FishEffectsRegistry.getAll().filter(d => d && d.id);
+        defs.sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+
+        let added = false;
+        const counts = new Map();
+        defs.forEach(def => {
+          let card = galleryUi.cards.get(def.id);
+          if (!card) {
+            card = buildGalleryCard(def);
+            galleryUi.cards.set(def.id, card);
+            added = true;
+          }
+          updateGalleryCard(card, def);
+          const key = galleryCatKey(def);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        });
+
+        if (added) {
+          const frag = document.createDocumentFragment();
+          defs.forEach(def => frag.appendChild(galleryUi.cards.get(def.id)));
+          effectsItemsGrid.appendChild(frag);
+        }
+
+        const signature = Array.from(counts.entries()).sort().map(e => e[0] + ':' + e[1]).join('|');
+        if (signature !== galleryUi.catSignature) {
+          galleryUi.catSignature = signature;
+          rebuildGalleryCategories(counts);
+        }
+        if (added || signature) renderGalleryView();
+      }
+
+      // Dynamic automatic effects discovery & loader from manifest.json (safety net for late-added files;
+      // effects/loader.js already discovers and loads everything during page parse).
       async function autoFetchAndLoadEffects() {
         if (typeof fetch !== 'function') return;
         try {
@@ -16507,51 +17013,55 @@
       }
       window.autoFetchAndLoadEffects = autoFetchAndLoadEffects;
 
-      // Initial auto-sync of registered effects & listen for runtime registrations
-      syncGalleryItemsFromRegistry();
-      autoFetchAndLoadEffects();
-
-      if (typeof window !== 'undefined') {
-        window.addEventListener('fisheffects:registered', () => {
-          syncGalleryItemsFromRegistry();
-        });
-      }
-
       function openGalleryCategory(catName, catId) {
+        let cat = String(catId || catName || 'all').toLowerCase();
+        if (cat === 'extension') cat = 'expression';
+        galleryUi.activeCat = cat;
+        galleryUi.query = '';
+        if (searchInput) searchInput.value = '';
         syncGalleryItemsFromRegistry();
-        const cat = (catId || catName || 'lightning').toLowerCase();
-        if (categoryGrid) categoryGrid.style.display = 'none';
-        if (itemsView) itemsView.style.display = 'flex';
-        const titleEl = document.getElementById('effects-items-category-title');
-        if (titleEl) titleEl.textContent = catName || 'Effects';
-        if (btnEffectsGalleryBack) btnEffectsGalleryBack.title = 'Back to Categories';
-
-        const allItemCards = effectsItemsGrid ? Array.from(effectsItemsGrid.querySelectorAll('.effects-gallery-item-card')) : [];
-        allItemCards.forEach(c => {
-          const itemCat = (c.dataset.category || '').toLowerCase();
-          const matches = (itemCat === cat) ||
-            ((cat === 'extension' || cat === 'expression') && (itemCat === 'extension' || itemCat === 'expression'));
-          c.style.display = matches ? '' : 'none';
-        });
+        renderGalleryView();
+        if (galleryBodyEl) galleryBodyEl.scrollTop = 0;
       }
 
       function closeGalleryCategory() {
-        if (categoryGrid) categoryGrid.style.display = 'grid';
-        if (itemsView) itemsView.style.display = 'none';
-        if (noResultsEl) noResultsEl.style.display = 'none';
-        if (btnEffectsGalleryBack) btnEffectsGalleryBack.title = 'Back to Effects Rack';
-
-        const allCategoryCards = categoryGrid ? Array.from(categoryGrid.querySelectorAll('.effects-category-card')) : [];
-        allCategoryCards.forEach(c => c.style.display = '');
+        galleryUi.activeCat = null;
+        galleryUi.query = '';
+        if (searchInput) searchInput.value = '';
+        renderGalleryView();
+        if (galleryBodyEl) galleryBodyEl.scrollTop = 0;
       }
 
       window.openGalleryCategory = openGalleryCategory;
       window.closeGalleryCategory = closeGalleryCategory;
 
+      // Delegated interaction (tiles/chips are rebuilt dynamically, so no per-element listeners)
+      const activateGalleryTarget = (e, selector, handler) => {
+        const el = e.target.closest(selector);
+        if (!el) return false;
+        e.stopPropagation();
+        handler(el);
+        return true;
+      };
+      if (categoryGrid) {
+        categoryGrid.addEventListener('click', (e) => {
+          activateGalleryTarget(e, '.effects-category-card', el => openGalleryCategory(galleryCatLabel(el.dataset.category), el.dataset.category));
+        });
+        categoryGrid.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          if (activateGalleryTarget(e, '.effects-category-card', el => openGalleryCategory(galleryCatLabel(el.dataset.category), el.dataset.category))) e.preventDefault();
+        });
+      }
+      if (chipBar) {
+        chipBar.addEventListener('click', (e) => {
+          activateGalleryTarget(e, '.effects-chip', el => openGalleryCategory(el.textContent, el.dataset.category));
+        });
+      }
+
       if (btnEffectsGalleryBack) {
         btnEffectsGalleryBack.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (itemsView && itemsView.style.display !== 'none') {
+          if (galleryUi.activeCat !== null || galleryUi.query) {
             closeGalleryCategory();
           } else {
             switchLayerDrawerSubview('effects');
@@ -16559,22 +17069,19 @@
         });
       }
 
-      // 7. Gallery Category Drill-Down (Supports All Registered Categories)
-      const categoryCards = document.querySelectorAll('#effects-category-grid .effects-category-card');
-      categoryCards.forEach(card => {
-        const cat = card.dataset.category || 'lightning';
-        const catName = card.querySelector('.effects-category-name')?.textContent.trim() || cat;
-        card.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openGalleryCategory(catName, cat);
+      // Initial registry sync + listen for runtime registrations (coalesced to one sync per frame)
+      syncGalleryItemsFromRegistry();
+      autoFetchAndLoadEffects();
+      if (typeof window !== 'undefined') {
+        window.addEventListener('fisheffects:registered', () => {
+          if (galleryUi.syncRaf) return;
+          galleryUi.syncRaf = requestAnimationFrame(() => {
+            galleryUi.syncRaf = 0;
+            syncGalleryItemsFromRegistry();
+          });
         });
-        card.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            openGalleryCategory(catName, cat);
-          }
-        });
-      });
+      }
+
 
       // 8. Add Effect: Universal Gallery Item Click (Stacking / Double supported!)
       function addEffectToLayer(effectTypeId = 'brightness-contrast') {
@@ -16694,56 +17201,17 @@
         });
       }
 
-      // 9. Gallery Search Filter
+      // 9. Gallery Search Filter (frame-throttled; matches name, id, category, description, keywords)
       if (searchInput) {
         searchInput.addEventListener('input', () => {
-          syncGalleryItemsFromRegistry();
-          const q = searchInput.value.trim().toLowerCase();
-          const allItemCards = effectsItemsGrid ? Array.from(effectsItemsGrid.querySelectorAll('.effects-gallery-item-card')) : [];
-          const allCategoryCards = categoryGrid ? Array.from(categoryGrid.querySelectorAll('.effects-category-card')) : [];
-          if (!q) {
-            closeGalleryCategory();
-            allCategoryCards.forEach(c => c.style.display = '');
-            if (noResultsEl) noResultsEl.style.display = 'none';
-            allItemCards.forEach(c => c.style.display = '');
-            return;
-          }
-
-          let matchedCount = 0;
-          allItemCards.forEach(c => {
-            const name = (c.querySelector('.effects-gallery-item-name')?.textContent || c.dataset.effectId || '').toLowerCase();
-            const cat = (c.dataset.category || '').toLowerCase();
-            const isExtOrExpr = (cat === 'extension' || cat === 'expression') && ('extension'.includes(q) || 'expression'.includes(q));
-            const isCubeMatch = (c.dataset.effectId === 'box_3d' || name.includes('box') || name.includes('cube')) && ('cube'.includes(q) || 'kubus'.includes(q));
-            const matches = name.includes(q) || cat.includes(q) || isExtOrExpr || isCubeMatch;
-            c.style.display = matches ? '' : 'none';
-            if (matches) matchedCount++;
+          if (galleryUi.searchRaf) cancelAnimationFrame(galleryUi.searchRaf);
+          galleryUi.searchRaf = requestAnimationFrame(() => {
+            galleryUi.searchRaf = 0;
+            galleryUi.query = searchInput.value.trim().toLowerCase();
+            syncGalleryItemsFromRegistry();
+            renderGalleryView();
+            if (galleryBodyEl) galleryBodyEl.scrollTop = 0;
           });
-
-          let matchedCatCount = 0;
-          allCategoryCards.forEach(c => {
-            const cat = (c.dataset.category || '').toLowerCase();
-            const catName = (c.querySelector('.effects-category-name')?.textContent || '').toLowerCase();
-            const isExtOrExpr = (cat === 'extension' || cat === 'expression' || catName.includes('ext') || catName.includes('expr')) && ('extension'.includes(q) || 'expression'.includes(q));
-            const matches = cat.includes(q) || catName.includes(q) || isExtOrExpr;
-            c.style.display = matches ? '' : 'none';
-            if (matches) matchedCatCount++;
-          });
-
-          if (matchedCount > 0) {
-            if (categoryGrid) categoryGrid.style.display = 'none';
-            if (itemsView) itemsView.style.display = 'flex';
-            const titleEl = document.getElementById('effects-items-category-title');
-            if (titleEl) titleEl.textContent = 'Search Results';
-            if (noResultsEl) noResultsEl.style.display = 'none';
-          } else if (matchedCatCount > 0) {
-            closeGalleryCategory();
-            if (noResultsEl) noResultsEl.style.display = 'none';
-          } else {
-            if (categoryGrid) categoryGrid.style.display = 'none';
-            if (itemsView) itemsView.style.display = 'none';
-            if (noResultsEl) noResultsEl.style.display = 'flex';
-          }
         });
       }
 
@@ -17338,68 +17806,11 @@
     window.getSelectedTimelineLayers = getSelectedTimelineLayers;
 
     function getAllAvailableEffects() {
+      // Single source of truth: FishEffectsRegistry (populated by effects/loader.js auto-discovery)
       if (window.FishEffectsRegistry && typeof window.FishEffectsRegistry.getAll === 'function') {
-        const all = window.FishEffectsRegistry.getAll();
-        if (all && all.length > 0) return all;
+        return window.FishEffectsRegistry.getAll();
       }
-      const domCards = document.querySelectorAll('#effects-items-grid .effects-gallery-item-card');
-      if (domCards && domCards.length > 0) {
-        return Array.from(domCards).map(card => ({
-          id: card.dataset.effectId,
-          name: card.querySelector('.effects-gallery-item-name')?.textContent || card.dataset.effectId,
-          category: card.dataset.category || 'fx',
-          icon: 'assets/FXPH.svg'
-        }));
-      }
-      return [
-        { id: 'brightness-contrast', name: 'Brightness / Contrast', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'color-balance', name: 'Color Balance', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'color-temperature', name: 'Color Temperature', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'colorize', name: 'Colorize', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'exposure-gamma', name: 'Exposure / Gamma', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'hue-shift', name: 'Hue Shift', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'highlight-shadow', name: 'Highlight / Shadow', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'invert', name: 'Invert', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'gradient-overlay', name: 'Gradient Overlay', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'saturation-vibrant', name: 'Saturation / Vibrant', category: 'color', icon: 'assets/FXPH.svg' },
-        { id: 'rgb-split', name: 'RGB Split', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'rays', name: 'Rays', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'tile', name: 'Tile', category: 'warp', icon: 'assets/FXPH.svg' },
-        { id: 'wave-warp', name: 'Wave Warp', category: 'warp', icon: 'assets/FXPH.svg' },
-        { id: 'warp', name: 'Warp', category: 'warp', icon: 'assets/FXPH.svg' },
-        { id: 'turbulent-displace', name: 'Turbulent Displace', category: 'warp', icon: 'assets/FXPH.svg' },
-        { id: 'optic-compensation', name: 'Optic Compensation', category: 'warp', icon: 'assets/FXPH.svg' },
-        { id: 'transform', name: 'Transform', category: 'movement', icon: 'assets/FXPH.svg' },
-        { id: 'oscillate', name: 'Oscillate', category: 'movement', icon: 'assets/FXPH.svg' },
-        { id: 'swing', name: 'Swing', category: 'movement', icon: 'assets/FXPH.svg' },
-        { id: 'fsmb', name: 'FSMB (Motion Blur)', category: 'movement', icon: 'assets/FXPH.svg' },
-        { id: 'tint', name: 'Tint', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'lumia', name: 'Lumia', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'curve', name: 'Curve', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'sharpen', name: 'Sharpen', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'unsharp-mask', name: 'Unsharp Mask', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'grad-exposure', name: 'Grad Exposure', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'diffusion', name: 'Diffusion', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'anamorphic-flare', name: 'Anamorphic Flare', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'haze-flare', name: 'Haze / Flare', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'vignette', name: 'Vignette', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'chromatic-aberration', name: 'Chromatic Aberration', category: 'lightning', icon: 'assets/FXPH.svg' },
-        { id: 'drop-shadow', name: 'Drop Shadow', category: 'layer', icon: 'assets/FXPH.svg' },
-        { id: 'shatter', name: 'Shatter', category: 'layer', icon: 'assets/FXPH.svg' },
-        { id: 'fill', name: 'Fill', category: 'layer', icon: 'assets/FXPH.svg' },
-        { id: 'fast-box-blur', name: 'Fast Box Blur', category: 'layer', icon: 'assets/FXPH.svg' },
-        { id: 'camera-lens-blur', name: 'Camera Lens Blur', category: 'layer', icon: 'assets/FXPH.svg' },
-        { id: 'expression-controls', name: 'Expression Controls', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'slider-control', name: 'Slider Control', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'point-control', name: 'Point Control', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'angle-control', name: 'Angle Control', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'checkbox-control', name: 'Checkbox Control', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'color-control', name: 'Color Control', category: 'expression', icon: 'assets/FXPH.svg' },
-        { id: 'box_3d', name: '3D Box / Cube', category: '3d', icon: 'assets/FXPH.svg' },
-        { id: 'extrude_3d', name: '3D Extrude', category: '3d', icon: 'assets/FXPH.svg' },
-        { id: 'pyramid_3d', name: '3D Pyramid', category: '3d', icon: 'assets/FXPH.svg' },
-        { id: 'sphere_3d', name: '3D Sphere', category: '3d', icon: 'assets/FXPH.svg' }
-      ];
+      return [];
     }
     window.getAllAvailableEffects = getAllAvailableEffects;
 
@@ -23760,6 +24171,11 @@
             currentProjectState.layers.forEach(l => {
               if (targetIds.has(l.id)) {
                 l.motionBlur = nextState;
+                if (l.type === 'text') {
+                  l._textDirty = true;
+                  if (l._textBufferCanvas) l._textBufferCanvas._lastRenderKey = null;
+                  if (l._textMbCanvas) l._textMbCanvas._lastRenderKey = null;
+                }
                 invalidatePreviewCacheForLayer(l);
               }
             });
@@ -23787,6 +24203,11 @@
                 }
               }
             });
+
+            const selectedTextLyr = getSelectedTextLayer();
+            if (selectedTextLyr && targetIds.has(selectedTextLyr.id) && typeof syncTextFormatControls === 'function') {
+              syncTextFormatControls(selectedTextLyr.textProps);
+            }
 
             saveCurrentProjectLayers();
             redrawComposition();

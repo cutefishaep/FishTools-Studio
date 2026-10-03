@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/popover.css">
   <link rel="stylesheet" href="css/drawer.css">
   <link rel="stylesheet" href="css/switch.css">
+  <link rel="stylesheet" href="css/text-format.css">
   <link rel="stylesheet" href="css/segmented-button.css">
   <link rel="stylesheet" href="css/wireframe.css">
   <link rel="stylesheet" href="css/transform-controller.css">
@@ -1339,363 +1340,16 @@
 
                     <!-- Scrollable Gallery Body -->
                     <main class="effects-gallery-body" id="effects-gallery-body">
-                      <!-- 1. Categories Grid -->
-                      <div class="effects-category-grid" id="effects-category-grid">
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="lightning" title="Lightning">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Lightning</span>
-                        </div>
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="warp" title="Warp">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Warp</span>
-                        </div>
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="movement" title="Movement">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Movement</span>
-                        </div>
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="layer" title="Layer">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Layer</span>
-                        </div>
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="background" title="Background">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Background</span>
-                        </div>
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="artificial intelligence" title="Artificial Intelligence">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Artificial Intelligence</span>
-                        </div>
-                        <div class="effects-category-card" role="button" tabindex="0" data-category="expression" title="Expression Controls">
-                          <div class="effects-category-card-overlay"></div>
-                          <span class="effects-category-name">Expression</span>
-                        </div>
-                      </div>
+                      <!-- Category tiles + effect cards are generated at runtime from FishEffectsRegistry (js/editor.js). Never list effects here. -->
+                      <div class="effects-category-grid" id="effects-category-grid"></div>
 
-                      <!-- 2. Category Effects Items View (Inside "Lightning") -->
                       <div class="effects-items-view" id="effects-items-view" style="display: none;">
+                        <div class="effects-chip-bar" id="effects-chip-bar" role="tablist" aria-label="Effect categories"></div>
                         <div class="effects-items-header">
-                          <span class="effects-items-category-title" id="effects-items-category-title">Lightning</span>
+                          <span class="effects-items-category-title" id="effects-items-category-title">Effects</span>
+                          <span class="effects-items-count" id="effects-items-count"></span>
                         </div>
-                        <div class="effects-items-grid" id="effects-items-grid">
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="brightness-contrast" data-category="lightning" title="Brightness / Contrast">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Brightness/Contrast" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Brightness / Contrast</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="color-balance" data-category="lightning" title="Color Balance">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Color Balance" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Color Balance</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="color-temperature" data-category="lightning" title="Color Temperature">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Color Temperature" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Color Temperature</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="colorize" data-category="lightning" title="Colorize">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Colorize" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Colorize</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="exposure-gamma" data-category="lightning" title="Exposure / Gamma">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Exposure / Gamma" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Exposure / Gamma</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="hue-shift" data-category="lightning" title="Hue Shift">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Hue Shift" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Hue Shift</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="highlight-shadow" data-category="lightning" title="Highlight / Shadow">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Highlight / Shadow" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Highlight / Shadow</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="invert" data-category="lightning" title="Invert">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Invert" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Invert</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="gradient-overlay" data-category="lightning" title="Gradient Overlay">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Gradient Overlay" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Gradient Overlay</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="saturation-vibrant" data-category="lightning" title="Saturation / Vibrant">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Saturation / Vibrant" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Saturation / Vibrant</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="rgb-split" data-category="lightning" title="RGB Split">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="RGB Split" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">RGB Split</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="rays" data-category="lightning" title="Rays">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Rays" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Rays</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="tint" data-category="lightning" title="Tint">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Tint" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Tint</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="lumia" data-category="lightning" title="Lumia">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Lumia" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Lumia</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="curve" data-category="lightning" title="Curve">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Curve" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Curve</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="sharpen" data-category="lightning" title="Sharpen">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Sharpen" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Sharpen</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="unsharp-mask" data-category="lightning" title="Unsharp Mask">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Unsharp Mask" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Unsharp Mask</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="grad-exposure" data-category="lightning" title="Grad Exposure">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Grad Exposure" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Grad Exposure</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="diffusion" data-category="lightning" title="Diffusion">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Diffusion" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Diffusion</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="anamorphic-flare" data-category="lightning" title="Anamorphic Flare">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Anamorphic Flare" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Anamorphic Flare</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="haze-flare" data-category="lightning" title="Haze / Flare">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Haze / Flare" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Haze / Flare</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="vignette" data-category="lightning" title="Vignette">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Vignette" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Vignette</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="scanline" data-category="lightning" title="Scanline">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Scanline" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Scanline</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="mono" data-category="lightning" title="Mono">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Mono" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Mono</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="tile" data-category="warp" title="Tile">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Tile" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Tile</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="wave-warp" data-category="warp" title="Wave Warp">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Wave Warp" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Wave Warp</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="warp" data-category="warp" title="Warp">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Warp" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Warp</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="turbulent-displace" data-category="warp" title="Turbulent Displace">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Turbulent Displace" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Turbulent Displace</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="optic-compensation" data-category="warp" title="Optic Compensation">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Optic Compensation" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Optic Compensation</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="transform" data-category="movement" title="Transform">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Transform" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Transform</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="oscillate" data-category="movement" title="Oscillate">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Oscillate" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Oscillate</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="swing" data-category="movement" title="Swing">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Swing" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Swing</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="fsmb" data-category="movement" title="FSMB (Motion Blur)">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="FSMB (Motion Blur)" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">FSMB</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="drop-shadow" data-category="layer" title="Drop Shadow">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Drop Shadow" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Drop Shadow</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="fill" data-category="layer" title="Fill">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Fill" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Fill</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="fast-box-blur" data-category="layer" title="Fast Box Blur">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Fast Box Blur" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Fast Box Blur</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="camera-lens-blur" data-category="layer" title="Camera Lens Blur">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Camera Lens Blur" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Camera Lens Blur</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="glow-aura" data-category="layer" title="Glow Aura">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Glow Aura" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Glow Aura</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="deep-glow" data-category="layer" title="Deep Glow">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Deep Glow" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Deep Glow</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="solid-aura" data-category="layer" title="Solid Aura (Flux)">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Solid Aura (Flux)" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Solid Aura (Flux)</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="bevel" data-category="layer" title="Bevel">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Bevel" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Bevel</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="shatter" data-category="layer" title="Shatter">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Shatter" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Shatter</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="linear_wipe" data-category="layer" title="Linear Wipe">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Linear Wipe" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Linear Wipe</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="particle-engine" data-category="layer" title="Particle Engine">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Particle Engine" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Particle Engine</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="star-burst" data-category="background" title="Star Burst">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Star Burst" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Star Burst</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="grid" data-category="background" title="Grid">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Grid" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Grid</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="radio-waves" data-category="background" title="Radio Waves">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Radio Waves" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Radio Waves</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="expression-controls" data-category="expression" title="Expression Controls">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Expression Controls" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Expression Controls</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="slider-control" data-category="expression" title="Slider Control">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Slider Control" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Slider Control</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="point-control" data-category="expression" title="Point Control">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Point Control" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Point Control</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="angle-control" data-category="expression" title="Angle Control">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Angle Control" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Angle Control</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="checkbox-control" data-category="expression" title="Checkbox Control">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Checkbox Control" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Checkbox Control</span>
-                          </div>
-                          <div class="effects-gallery-item-card" role="button" tabindex="0" data-effect-id="color-control" data-category="expression" title="Color Control">
-                            <div class="effects-gallery-item-thumb">
-                              <img src="assets/FXPH.svg" alt="Color Control" class="effects-gallery-item-img" loading="lazy">
-                            </div>
-                            <span class="effects-gallery-item-name">Color Control</span>
-                          </div>
-                        </div>
+                        <div class="effects-items-grid" id="effects-items-grid"></div>
                       </div>
 
                       <div class="effects-gallery-no-results" id="effects-gallery-no-results">
@@ -2368,14 +2022,85 @@
                         <span class="shape-type-badge" id="lbl-text-preset-name">FishText</span>
                       </div>
 
+                      <!-- Text Panel Tabs (Text / Style / Animate) -->
+                      <div class="segmented-switch is-compact text-panel-tabs" role="tablist" aria-label="Text panel sections">
+                        <button type="button" class="segmented-switch-item is-active" data-text-tab="text" aria-selected="true">Text</button>
+                        <button type="button" class="segmented-switch-item" data-text-tab="style" aria-selected="false">Style</button>
+                        <button type="button" class="segmented-switch-item" data-text-tab="animate" aria-selected="false">Animate</button>
+                      </div>
+
+                      <!-- Text Panel Pane: text -->
+                      <div class="text-tab-pane is-active" data-text-pane="text">
                       <!-- 1. Text Input -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
                           <span class="shape-control-label">Text Content</span>
                         </div>
-                        <input type="text" id="input-text-content" class="modal-input" style="width: 100%; height: 38px; border-radius: 8px; font-family: var(--font-brand); font-size: 14px; background: var(--bg-dashboard); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 0 12px; box-sizing: border-box; outline: none;" placeholder="Enter text..." autocomplete="off">
+                        <textarea id="input-text-content" class="text-content-textarea" rows="2" placeholder="Enter text... (Enter = new line)" autocomplete="off" spellcheck="false"></textarea>
                       </div>
 
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Font Family</span>
+                        </div>
+                        <div class="custom-dropdown" data-text-select="fontFamily" style="width: 100%;">
+                          <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Font Family" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
+                            <span class="custom-dropdown-label">Cal Sans</span>
+                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                          </button>
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 220px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
+                            <div class="custom-dropdown-item" role="option" data-val="Cal Sans, Inter, sans-serif" style="font-family: 'Cal Sans', sans-serif;">Cal Sans</div>
+                            <div class="custom-dropdown-item" role="option" data-val="Inter, sans-serif" style="font-family: Inter, sans-serif;">Inter</div>
+                            <div class="custom-dropdown-item" role="option" data-val="system-ui, sans-serif" style="font-family: system-ui, sans-serif;">System UI</div>
+                            <div class="custom-dropdown-item" role="option" data-val="Helvetica, Arial, sans-serif" style="font-family: Helvetica, Arial, sans-serif;">Helvetica</div>
+                            <div class="custom-dropdown-item" role="option" data-val="Arial, sans-serif" style="font-family: Arial, sans-serif;">Arial</div>
+                            <div class="custom-dropdown-item" role="option" data-val="Verdana, sans-serif" style="font-family: Verdana, sans-serif;">Verdana</div>
+                            <div class="custom-dropdown-item" role="option" data-val="'Trebuchet MS', sans-serif" style="font-family: 'Trebuchet MS', sans-serif;">Trebuchet MS</div>
+                            <div class="custom-dropdown-item" role="option" data-val="Impact, sans-serif" style="font-family: Impact, sans-serif;">Impact</div>
+                            <div class="custom-dropdown-item" role="option" data-val="Georgia, serif" style="font-family: Georgia, serif;">Georgia</div>
+                            <div class="custom-dropdown-item" role="option" data-val="'Times New Roman', serif" style="font-family: 'Times New Roman', serif;">Times New Roman</div>
+                            <div class="custom-dropdown-item" role="option" data-val="'Courier New', monospace" style="font-family: 'Courier New', monospace;">Courier New</div>
+                            <div class="custom-dropdown-item" role="option" data-val="'Comic Sans MS', cursive" style="font-family: 'Comic Sans MS', cursive;">Comic Sans MS</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Font Weight</span>
+                        </div>
+                        <div class="custom-dropdown" data-text-select="fontWeight" style="width: 100%;">
+                          <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Font Weight" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
+                            <span class="custom-dropdown-label">Light</span>
+                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                          </button>
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
+                            <div class="custom-dropdown-item" role="option" data-val="300">Light</div>
+                            <div class="custom-dropdown-item" role="option" data-val="400">Regular</div>
+                            <div class="custom-dropdown-item" role="option" data-val="500">Medium</div>
+                            <div class="custom-dropdown-item" role="option" data-val="700">Bold</div>
+                            <div class="custom-dropdown-item" role="option" data-val="900">Black</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Font Style</span>
+                        </div>
+                        <div class="segmented-switch is-compact" data-text-switch="fontStyle" data-type="str" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="normal">Normal</button>
+                          <button type="button" class="segmented-switch-item" data-val="italic">Italic</button>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Alignment</span>
+                        </div>
+                        <div class="segmented-switch is-compact" data-text-switch="textAlign" data-type="str" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="left">Left</button>
+                          <button type="button" class="segmented-switch-item" data-val="center">Center</button>
+                          <button type="button" class="segmented-switch-item" data-val="right">Right</button>
+                        </div>
+                      </div>
                       <!-- 2. Font Size -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
@@ -2388,6 +2113,43 @@
                         </div>
                       </div>
 
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Letter Spacing</span>
+                          <span class="shape-val-badge" data-text-badge="letterSpacing">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="letterSpacing" data-min="-20" data-max="80" data-step="0.2" data-unit="px" data-decimals="1" title="Drag to adjust Letter Spacing">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Line Height</span>
+                          <span class="shape-val-badge" data-text-badge="lineHeight">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="lineHeight" data-min="0.6" data-max="3" data-step="0.01" data-unit="" data-decimals="2" title="Drag to adjust Line Height">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Text Color</span>
+                          <button type="button" class="color-swatch-trigger" data-text-color="fillColor" title="Pick Text Color" aria-label="Pick Text Color">
+                            <span class="color-swatch-chip"></span>
+                            <span class="color-swatch-hex">-</span>
+                          </button>
+                        </div>
+                      </div>
+                      </div>
+
+                      <!-- Text Panel Pane: style -->
+                      <div class="text-tab-pane" data-text-pane="style">
+                      <div class="text-section-head">
+                        <span class="text-section-title">Outline</span>
+                      </div>
+                      <div class="text-section-body">
                       <!-- 3. Outline / Stroke Width -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
@@ -2400,6 +2162,185 @@
                         </div>
                       </div>
 
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Outline Color</span>
+                          <button type="button" class="color-swatch-trigger" data-text-color="strokeColor" title="Pick Outline Color" aria-label="Pick Outline Color">
+                            <span class="color-swatch-chip"></span>
+                            <span class="color-swatch-hex">-</span>
+                          </button>
+                        </div>
+                      </div>
+                      </div>
+                      <div class="text-section-head">
+                        <span class="text-section-title">Background</span>
+                        <div class="segmented-switch is-compact text-toggle-switch" data-text-switch="badgeEnabled" data-type="bool" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="false">Off</button>
+                          <button type="button" class="segmented-switch-item" data-val="true">On</button>
+                        </div>
+                      </div>
+                      <div class="text-section-body" data-text-depends="badgeEnabled">
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Background Color</span>
+                          <button type="button" class="color-swatch-trigger" data-text-color="badgeColor" title="Pick Background Color" aria-label="Pick Background Color">
+                            <span class="color-swatch-chip"></span>
+                            <span class="color-swatch-hex">-</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Padding X</span>
+                          <span class="shape-val-badge" data-text-badge="badgePaddingX">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="badgePaddingX" data-min="0" data-max="160" data-step="0.5" data-unit="px" data-decimals="0" title="Drag to adjust Padding X">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Padding Y</span>
+                          <span class="shape-val-badge" data-text-badge="badgePaddingY">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="badgePaddingY" data-min="0" data-max="120" data-step="0.5" data-unit="px" data-decimals="0" title="Drag to adjust Padding Y">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Corner Radius</span>
+                          <span class="shape-val-badge" data-text-badge="badgeRadius">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="badgeRadius" data-min="0" data-max="120" data-step="0.5" data-unit="px" data-decimals="0" title="Drag to adjust Corner Radius">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      </div>
+                      <div class="text-section-head">
+                        <span class="text-section-title">Drop Shadow</span>
+                        <div class="segmented-switch is-compact text-toggle-switch" data-text-switch="shadowEnabled" data-type="bool" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="false">Off</button>
+                          <button type="button" class="segmented-switch-item" data-val="true">On</button>
+                        </div>
+                      </div>
+                      <div class="text-section-body" data-text-depends="shadowEnabled">
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Shadow Color</span>
+                          <button type="button" class="color-swatch-trigger" data-text-color="shadowColor" title="Pick Shadow Color" aria-label="Pick Shadow Color">
+                            <span class="color-swatch-chip"></span>
+                            <span class="color-swatch-hex">-</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Shadow Blur</span>
+                          <span class="shape-val-badge" data-text-badge="shadowBlur">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="shadowBlur" data-min="0" data-max="60" data-step="0.3" data-unit="px" data-decimals="0" title="Drag to adjust Shadow Blur">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Offset X</span>
+                          <span class="shape-val-badge" data-text-badge="shadowOffsetX">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="shadowOffsetX" data-min="-60" data-max="60" data-step="0.3" data-unit="px" data-decimals="0" title="Drag to adjust Offset X">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Offset Y</span>
+                          <span class="shape-val-badge" data-text-badge="shadowOffsetY">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="shadowOffsetY" data-min="-60" data-max="60" data-step="0.3" data-unit="px" data-decimals="0" title="Drag to adjust Offset Y">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      </div>
+                      <div class="text-section-head">
+                        <span class="text-section-title">Glow</span>
+                        <div class="segmented-switch is-compact text-toggle-switch" data-text-switch="neonGlow" data-type="bool" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="false">Off</button>
+                          <button type="button" class="segmented-switch-item" data-val="true">On</button>
+                        </div>
+                      </div>
+                      <div class="text-section-body" data-text-depends="neonGlow">
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Glow Color</span>
+                          <button type="button" class="color-swatch-trigger" data-text-color="neonGlowColor" title="Pick Glow Color" aria-label="Pick Glow Color">
+                            <span class="color-swatch-chip"></span>
+                            <span class="color-swatch-hex">-</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Glow Size</span>
+                          <span class="shape-val-badge" data-text-badge="neonGlowBlur">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="neonGlowBlur" data-min="0" data-max="80" data-step="0.3" data-unit="px" data-decimals="0" title="Drag to adjust Glow Size">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      </div>
+                      <div class="text-section-head">
+                        <span class="text-section-title">Long Shadow</span>
+                        <div class="segmented-switch is-compact text-toggle-switch" data-text-switch="longShadow" data-type="bool" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="false">Off</button>
+                          <button type="button" class="segmented-switch-item" data-val="true">On</button>
+                        </div>
+                      </div>
+                      <div class="text-section-body" data-text-depends="longShadow">
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Long Shadow Color</span>
+                          <button type="button" class="color-swatch-trigger" data-text-color="longShadowColor" title="Pick Long Shadow Color" aria-label="Pick Long Shadow Color">
+                            <span class="color-swatch-chip"></span>
+                            <span class="color-swatch-hex">-</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Length</span>
+                          <span class="shape-val-badge" data-text-badge="longShadowLength">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="longShadowLength" data-min="0" data-max="120" data-step="0.4" data-unit="px" data-decimals="0" title="Drag to adjust Length">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Angle</span>
+                          <span class="shape-val-badge" data-text-badge="longShadowAngle">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="longShadowAngle" data-min="0" data-max="360" data-step="1" data-unit="°" data-decimals="0" title="Drag to adjust Angle">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      </div>
+                      </div>
+
+                      <!-- Text Panel Pane: animate -->
+                      <div class="text-tab-pane" data-text-pane="animate">
+                      <div class="text-section-head">
+                        <span class="text-section-title">Presets</span>
+                      </div>
                       <!-- Animate By -->
                       <div class="shape-control-row">
                         <div class="shape-control-header">
@@ -2442,6 +2383,7 @@
                             <div class="custom-dropdown-item" role="option" data-val="typewriter">Typewriter</div>
                             <div class="custom-dropdown-item" role="option" data-val="fade_up">Fade Up</div>
                             <div class="custom-dropdown-item" role="option" data-val="glitch">Digital Glitch</div>
+                            <div class="custom-dropdown-item" role="option" data-val="custom">Custom (Animator)</div>
                             <div class="custom-dropdown-item" role="option" data-val="none">None</div>
                           </div>
                         </div>
@@ -2531,6 +2473,7 @@
                             <div class="custom-dropdown-item" role="option" data-val="fade_up">Fade Down</div>
                             <div class="custom-dropdown-item" role="option" data-val="glitch">Digital Glitch</div>
                             <div class="custom-dropdown-item" role="option" data-val="typewriter">Typewriter</div>
+                            <div class="custom-dropdown-item" role="option" data-val="custom">Custom (Animator)</div>
                           </div>
                         </div>
                       </div>
@@ -2545,6 +2488,86 @@
                           <div class="jog-wheel-ticks"></div>
                           <div class="jog-wheel-needle"></div>
                         </div>
+                      </div>
+                      <div class="text-section-head">
+                        <span class="text-section-title">Animator (Animate From)</span>
+                      </div>
+                      <div class="text-section-body">
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Position X</span>
+                          <span class="shape-val-badge" data-text-badge="animPosX">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="animPosX" data-min="-600" data-max="600" data-step="1" data-unit="px" data-decimals="0" title="Glyph X offset at start of IN / end of OUT">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Position Y</span>
+                          <span class="shape-val-badge" data-text-badge="animPosY">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="animPosY" data-min="-600" data-max="600" data-step="1" data-unit="px" data-decimals="0" title="Glyph Y offset at start of IN / end of OUT">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Rotation</span>
+                          <span class="shape-val-badge" data-text-badge="animRotation">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="animRotation" data-min="-720" data-max="720" data-step="1" data-unit="°" data-decimals="0" title="Glyph rotation at start of IN / end of OUT">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Scale</span>
+                          <span class="shape-val-badge" data-text-badge="animScale">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="animScale" data-min="0" data-max="400" data-step="0.5" data-unit="%" data-decimals="0" title="Glyph scale at start of IN / end of OUT">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Opacity</span>
+                          <span class="shape-val-badge" data-text-badge="animOpacity">-</span>
+                        </div>
+                        <div class="jog-wheel-container is-horizontal" data-text-jog="animOpacity" data-min="0" data-max="100" data-step="0.5" data-unit="%" data-decimals="0" title="Glyph opacity at start of IN / end of OUT">
+                          <div class="jog-wheel-ticks"></div>
+                          <div class="jog-wheel-needle"></div>
+                        </div>
+                      </div>
+                      <div class="shape-control-row">
+                        <div class="shape-control-header">
+                          <span class="shape-control-label">Ease</span>
+                        </div>
+                        <div class="custom-dropdown" data-text-select="animEase" style="width: 100%;">
+                          <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Ease" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
+                            <span class="custom-dropdown-label">Ease Out (Expo)</span>
+                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                          </button>
+                          <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
+                            <div class="custom-dropdown-item" role="option" data-val="ease_out">Ease Out (Expo)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="ease_in_out">Easy Ease (In-Out)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="back">Back (Overshoot)</div>
+                            <div class="custom-dropdown-item" role="option" data-val="elastic">Elastic</div>
+                            <div class="custom-dropdown-item" role="option" data-val="linear">Linear</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="text-section-head">
+                        <span class="text-section-title">Motion Blur</span>
+                        <div class="segmented-switch is-compact text-toggle-switch" data-text-switch="motionBlur" data-type="layer-bool" role="tablist">
+                          <button type="button" class="segmented-switch-item" data-val="false">Off</button>
+                          <button type="button" class="segmented-switch-item" data-val="true">On</button>
+                        </div>
+                      </div>
                       </div>
 
                     </main>
@@ -6290,6 +6313,7 @@
   <script src="shapes/capsule.js"></script>
   <script src="shapes/heart.js"></script>
   <script src="js/effects.js?v=0.5.127"></script>
+  <!-- Effects: auto-discovered at runtime (effects/loader.js). Drop effects/<id>.js to add a new effect - no HTML edits. -->
   <script src="effects/anamorphic_flare.js?v=0.5.127"></script>
   <script src="effects/angle_control.js?v=0.5.127"></script>
   <script src="effects/bevel.js?v=0.5.127"></script>

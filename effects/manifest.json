@@ -220,7 +220,7 @@
     "file": "linear_wipe.js",
     "id": "linear_wipe",
     "name": "Linear Wipe",
-    "category": "layer",
+    "category": "wipe",
     "icon": "assets/FXPH.svg"
   },
   {

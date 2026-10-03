@@ -3731,6 +3731,52 @@
   font-weight: 700 !important;
 }
 
+/* Text Subview: Format Panel (tabs / section toggles / panes) */
+.desktop-panel-right #layer-drawer-text-view .segmented-switch {
+  height: 30px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 2px !important;
+  gap: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .segmented-switch-item {
+  height: 24px !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-toggle-switch {
+  width: 96px !important;
+  height: 26px !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-toggle-switch .segmented-switch-item {
+  height: 20px !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-panel-tabs {
+  position: sticky !important;
+  top: -12px !important;
+  z-index: 5 !important;
+  background-color: var(--bg-panel-inner) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-tab-pane .shape-control-row {
+  margin-bottom: 0 !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .color-swatch-trigger {
+  background-color: var(--bg-panel) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .color-swatch-trigger:hover,
+.desktop-panel-right #layer-drawer-text-view .color-swatch-trigger.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
 /* Camera Subview */
 .desktop-panel-right .camera-toggle-row {
   display: flex !important;

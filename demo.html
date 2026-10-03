@@ -755,6 +755,101 @@
 
       <div class="showcase-cards-list">
 
+        <!-- Text Format Controls (Tabs / Section Toggle / Color Swatch Trigger) -->
+        <article class="component-showcase-card">
+          <div class="showcase-preview-area">
+            <div class="showcase-header">
+              <span class="showcase-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg>
+                Text Format Controls (Tabs, Section Toggle, Color Swatch)
+              </span>
+              <span class="showcase-tag">Live Interactive Widget</span>
+            </div>
+            <div class="showcase-live-widget">
+              <div class="shape-work-area" id="demo-text-format" style="max-width: 360px; width: 100%; margin: 0 auto; height: auto;">
+                <div class="segmented-switch is-compact text-panel-tabs" role="tablist">
+                  <button type="button" class="segmented-switch-item is-active" data-text-tab="text">Text</button>
+                  <button type="button" class="segmented-switch-item" data-text-tab="style">Style</button>
+                </div>
+                <div class="text-tab-pane is-active" data-text-pane="text">
+                  <div class="shape-control-row">
+                    <div class="shape-control-header"><span class="shape-control-label">Text Content</span></div>
+                    <textarea class="text-content-textarea" rows="2" placeholder="Enter text..."></textarea>
+                  </div>
+                  <div class="shape-control-row">
+                    <div class="shape-control-header">
+                      <span class="shape-control-label">Text Color</span>
+                      <button type="button" class="color-swatch-trigger" data-demo-color="#FFFFFF" aria-label="Pick Text Color">
+                        <span class="color-swatch-chip" style="background-color: #FFFFFF;"></span>
+                        <span class="color-swatch-hex">#FFFFFF</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="text-tab-pane" data-text-pane="style">
+                  <div class="text-section-head">
+                    <span class="text-section-title">Background</span>
+                    <div class="segmented-switch is-compact text-toggle-switch" data-demo-toggle role="tablist">
+                      <button type="button" class="segmented-switch-item is-active" data-val="false">Off</button>
+                      <button type="button" class="segmented-switch-item" data-val="true">On</button>
+                    </div>
+                  </div>
+                  <div class="text-section-body is-disabled">
+                    <div class="shape-control-row">
+                      <div class="shape-control-header">
+                        <span class="shape-control-label">Background Color</span>
+                        <button type="button" class="color-swatch-trigger" data-demo-color="#1A2215" aria-label="Pick Background Color">
+                          <span class="color-swatch-chip" style="background-color: #1A2215;"></span>
+                          <span class="color-swatch-hex">#1A2215</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="showcase-code-area">
+            <div class="showcase-code-header">
+              <span class="showcase-code-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                HTML Code Snippet
+              </span>
+              <button type="button" class="code-copy-btn" onclick="copySnippet(this, 'code-text-format-example')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                Copy
+              </button>
+            </div>
+            <pre class="code-snippet-body"><code id="code-text-format-example">&lt;!-- Requires css/text-format.css + css/switch.css --&gt;
+&lt;div class="segmented-switch is-compact text-panel-tabs" role="tablist"&gt;
+  &lt;button type="button" class="segmented-switch-item is-active" data-text-tab="text"&gt;Text&lt;/button&gt;
+  &lt;button type="button" class="segmented-switch-item" data-text-tab="style"&gt;Style&lt;/button&gt;
+&lt;/div&gt;
+&lt;div class="text-tab-pane is-active" data-text-pane="text"&gt;...&lt;/div&gt;
+&lt;div class="text-tab-pane" data-text-pane="style"&gt;
+  &lt;div class="text-section-head"&gt;
+    &lt;span class="text-section-title"&gt;Background&lt;/span&gt;
+    &lt;div class="segmented-switch is-compact text-toggle-switch" data-text-switch="badgeEnabled" data-type="bool"&gt;
+      &lt;button type="button" class="segmented-switch-item" data-val="false"&gt;Off&lt;/button&gt;
+      &lt;button type="button" class="segmented-switch-item" data-val="true"&gt;On&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="text-section-body" data-text-depends="badgeEnabled"&gt;
+    &lt;div class="shape-control-row"&gt;
+      &lt;div class="shape-control-header"&gt;
+        &lt;span class="shape-control-label"&gt;Background Color&lt;/span&gt;
+        &lt;button type="button" class="color-swatch-trigger" data-text-color="badgeColor"&gt;
+          &lt;span class="color-swatch-chip"&gt;&lt;/span&gt;
+          &lt;span class="color-swatch-hex"&gt;#1A2215&lt;/span&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+          </div>
+        </article>
+
         <!-- 1. Custom Themed Dropdown -->
         <article class="component-showcase-card">
           <div class="showcase-preview-area">
@@ -8367,6 +8462,7 @@ const reversed = [1 - x2, 1 - y2, 1 - x1, 1 - y1];</code></pre>
   <script src="shapes/capsule.js"></script>
   <script src="shapes/heart.js"></script>
   <script src="js/effects.js?v=4"></script>
+  <!-- Effects: auto-discovered at runtime (effects/loader.js). Drop effects/<id>.js to add a new effect - no HTML edits. -->
   <script src="effects/anamorphic_flare.js?v=0.5.127"></script>
   <script src="effects/angle_control.js?v=0.5.127"></script>
   <script src="effects/bevel.js?v=0.5.127"></script>

@@ -1538,3 +1538,38 @@
         }
       });
     })();
+
+// ── Text Format Controls showcase (tabs, section toggle, color swatch trigger) ──
+(function initDemoTextFormat() {
+  const root = document.getElementById('demo-text-format');
+  if (!root) return;
+  root.querySelectorAll('[data-text-tab]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      root.querySelectorAll('[data-text-tab]').forEach(b => b.classList.toggle('is-active', b === btn));
+      root.querySelectorAll('[data-text-pane]').forEach(p => p.classList.toggle('is-active', p.dataset.textPane === btn.dataset.textTab));
+    });
+  });
+  root.querySelectorAll('[data-demo-toggle]').forEach(sw => {
+    const body = sw.closest('.text-section-head').nextElementSibling;
+    sw.querySelectorAll('.segmented-switch-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sw.querySelectorAll('.segmented-switch-item').forEach(i => i.classList.toggle('is-active', i === item));
+        if (body) body.classList.toggle('is-disabled', item.dataset.val !== 'true');
+      });
+    });
+  });
+  root.querySelectorAll('.color-swatch-trigger').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!window.FishColorPicker || typeof window.FishColorPicker.open !== 'function') return;
+      const setColor = (hex) => {
+        btn.dataset.demoColor = hex;
+        btn.querySelector('.color-swatch-chip').style.backgroundColor = hex;
+        btn.querySelector('.color-swatch-hex').textContent = String(hex).toUpperCase();
+      };
+      window.FishColorPicker.open({ anchor: btn, color: btn.dataset.demoColor, onChange: setColor, onCommit: setColor });
+    });
+  });
+})();

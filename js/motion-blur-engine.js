@@ -91,12 +91,40 @@
       const anyExplicitOn = layerMbOn || cameraMbOn || compMbOn;
       if (!anyExplicitOn) return false;
 
+      // Global master switch (More Settings > Motion Blur) overrides every per-layer,
+      // camera and precomp switch: global OFF means no motion blur anywhere.
       const config = this.getConfig(compState);
-      // If project has explicit motionBlur object with enabled: false AND user didn't explicitly toggle this layer/camera, block.
-      // But if layer or camera explicitly has motionBlur: true, respect the user's explicit action!
-      if (config.enabled === false && !anyExplicitOn) return false;
+      if (!config.enabled) return false;
 
       return true;
+    }
+
+    /**
+     * Layers whose effects generate content sized to the layer bounds (e.g. particle engine).
+     * They must use the sampled 2D render path: the WebGL quad path renders effects at the
+     * source's natural size and would stretch/squash them.
+     */
+    needsSampledPath(layer) {
+      if (layer && layer.type === 'text') return true;
+      if (!layer || !Array.isArray(layer.effects)) return false;
+      return layer.effects.some(f => f && !f.disabled && f.type === 'particle-engine');
+    }
+
+    /**
+     * Text canvases carry animation padding. The normal compositor enlarges the quad by the
+     * padding ratio so the texture maps 1:1; motion-blur sub-samples must do the same
+     * or the padded canvas is squeezed into the unpadded text box (squash).
+     */
+    compensateTextPad(srcLayer, el, animLayer) {
+      if (!srcLayer || srcLayer.type !== 'text' || !(srcLayer._textPadY > 0) || !el || !el.width || !el.height) return animLayer;
+      if (animLayer && animLayer._textPadComp) return animLayer;
+      const natW = srcLayer._textNaturalW || (el.width - 2 * srcLayer._textPadX);
+      const natH = srcLayer._textNaturalH || (el.height - 2 * srcLayer._textPadY);
+      return Object.assign({}, animLayer, {
+        scaleW: animLayer.scaleW * (el.width / Math.max(1, natW)),
+        scaleH: animLayer.scaleH * (el.height / Math.max(1, natH)),
+        _textPadComp: true
+      });
     }
 
     /**
@@ -132,6 +160,66 @@
     }
 
     /**
+     * Check if a text layer has active character-level animation during the shutter window.
+     */
+    hasTextMotion(layer, currentSec, config = null, fps = 60) {
+      if (!layer || layer.type !== 'text') return false;
+      const tp = layer.textProps;
+      if (!tp) return false;
+
+      const normIn = (typeof window !== 'undefined' && window.FishTextEngine && typeof window.FishTextEngine.normalizeAnimIn === 'function')
+        ? window.FishTextEngine.normalizeAnimIn(tp.animIn || tp.animation)
+        : (tp.animIn || tp.animation || 'bounce_1');
+      const normOut = (typeof window !== 'undefined' && window.FishTextEngine && typeof window.FishTextEngine.normalizeAnimOut === 'function')
+        ? window.FishTextEngine.normalizeAnimOut(tp.animOut)
+        : (tp.animOut || 'none');
+
+      const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) || 80;
+      const clipStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+      const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
+
+      const cfg = config || this.getConfig();
+      const frameDur = 1 / Math.max(1, fps);
+      const exposureTime = (cfg.shutterAngle / 360) * frameDur;
+      const tStart = currentSec + (cfg.shutterPhase / 360) * frameDur;
+      const tEnd = tStart + exposureTime;
+
+      const localT0 = tStart - clipStart;
+      const localT1 = tEnd - clipStart;
+
+      // Layer not visible within this shutter window
+      if (localT1 < 0 || localT0 > clipDur) return false;
+
+      // Continuous kinetic motions are active throughout clip
+      if (normIn === 'wave' || normIn === 'glitch' || normOut === 'wave' || normOut === 'glitch') {
+        return true;
+      }
+
+      const inDur = Math.max(0.1, Number(tp.animInDuration || tp.animDuration) || 0.8);
+      const outDur = Math.max(0.1, Number(tp.animOutDuration) || 0.6);
+      const outStartSec = Math.max(inDur, clipDur - outDur);
+
+      const aPosX = Number(tp.animPosX) || 0;
+      const aPosY = Number(tp.animPosY) || 0;
+      const aRot = Number(tp.animRotation) || 0;
+      const aScl = tp.animScale !== undefined && tp.animScale !== '' ? Number(tp.animScale) : 100;
+      const aOp = tp.animOpacity !== undefined && tp.animOpacity !== '' ? Number(tp.animOpacity) : 100;
+      const hasAnimator = aPosX !== 0 || aPosY !== 0 || aRot !== 0 || aScl !== 100 || aOp !== 100;
+
+      const inActive = (normIn !== 'none' || hasAnimator);
+      if (inActive && localT0 < inDur && localT1 > 0) {
+        return true;
+      }
+
+      const outActive = (normOut !== 'none' || hasAnimator);
+      if (outActive && localT1 > outStartSec && localT0 < clipDur) {
+        return true;
+      }
+
+      return false;
+    }
+
+    /**
      * Fast-path check: Did the layer actually move during the shutter exposure interval?
      * If static, multi-sampling is completely bypassed with zero performance overhead.
      * For collapsed precomp children (_precompParentLayer), also checks parent motion.
@@ -156,6 +244,11 @@
 
       // Check if layer or parent has active procedural movement effects (shake, oscillate, swing, etc.)
       if (this.hasMovementEffect(checkLayer) || (parentLayer && this.hasMovementEffect(parentLayer))) {
+        return true;
+      }
+
+      // Check if text layer has active character-level animation in the shutter interval
+      if (checkLayer.type === 'text' && this.hasTextMotion(checkLayer, currentSec, cfg, fps)) {
         return true;
       }
 
@@ -386,7 +479,7 @@
         ? Math.max(4, config.samples || 16)
         : ((isDraft || isMobile) ? 2 : 3);
       const previewWeights = (samples === 2) ? [0.5, 0.5] : [0.25, 0.50, 0.25];
-      const previewOffsets = (samples === 2) ? [0.25, 0.75] : [0.15, 0.50, 0.85];
+      const previewOffsets = (samples === 2) ? [0.1, 0.9] : [0.15, 0.50, 0.85];
 
       const targetW = ctx.canvas.width;
       const targetH = ctx.canvas.height;

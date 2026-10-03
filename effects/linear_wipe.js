@@ -9,7 +9,7 @@
   reg.register({
     id: 'linear_wipe',
     name: 'Linear Wipe',
-    category: 'layer',
+    category: 'wipe',
     icon: 'assets/FXPH.svg',
     description: 'Linear wipe transition effect wiping layer along an angle with adjustable feather',
     params: [

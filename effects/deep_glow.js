@@ -3,45 +3,45 @@
   const reg = (window && window.FishEffectsRegistry) || (typeof global !== 'undefined' && global.FishEffectsRegistry);
   if (!reg) return;
 
-  // Reusable GPU offscreen buffers for zero-allocation performance
-  let _threshCanvas = null;
-  let _threshCtx = null;
-  let _glowCanvas = null;
-  let _glowCtx = null;
+  // Dual-pyramid bloom: extract at 1/2 res, chain-downsample (cheap box filter, no big blurs),
+  // then upsample-accumulate back up. Every octave adds a wider halo => long power-law falloff
+  // (hot clipped core + saturated mid + huge soft haze) like real Deep Glow, at tiny GPU cost.
+  const MAX_LEVELS = 8;
+  const P = []; // downsampled source per level (level 0 = 1/2 res)
+  const A = []; // accumulated glow per level
   let _tintCanvas = null;
   let _tintCtx = null;
 
-  function getBuffers(w, h) {
-    if (typeof document === 'undefined') return null;
-    const rw = Math.max(1, Math.round(w));
-    const rh = Math.max(1, Math.round(h));
-
-    if (!_threshCanvas) {
-      _threshCanvas = document.createElement('canvas');
-      _threshCtx = _threshCanvas.getContext('2d');
-      _glowCanvas = document.createElement('canvas');
-      _glowCtx = _glowCanvas.getContext('2d');
-      _tintCanvas = document.createElement('canvas');
-      _tintCtx = _tintCanvas.getContext('2d');
+  function makeCanvas() {
+    const c = document.createElement('canvas');
+    return { c, cx: c.getContext('2d') };
+  }
+  function sizeCanvas(c, w, h) {
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  }
+  function ensureLevels(w, h, n) {
+    for (let i = 0; i < n; i++) {
+      if (!P[i]) { P[i] = makeCanvas(); A[i] = makeCanvas(); }
+      const lw = Math.max(1, Math.round(w / Math.pow(2, i + 1)));
+      const lh = Math.max(1, Math.round(h / Math.pow(2, i + 1)));
+      sizeCanvas(P[i].c, lw, lh);
+      sizeCanvas(A[i].c, lw, lh);
+      P[i].w = A[i].w = lw;
+      P[i].h = A[i].h = lh;
     }
-
-    if (_threshCanvas.width !== rw || _threshCanvas.height !== rh) {
-      _threshCanvas.width = rw;
-      _threshCanvas.height = rh;
-      _glowCanvas.width = rw;
-      _glowCanvas.height = rh;
-      _tintCanvas.width = rw;
-      _tintCanvas.height = rh;
+  }
+  function getTintBuffer(w, h) {
+    if (!_tintCanvas) { const t = makeCanvas(); _tintCanvas = t.c; _tintCtx = t.cx; }
+    sizeCanvas(_tintCanvas, w, h);
+    return { tintCanvas: _tintCanvas, tintCtx: _tintCtx };
+  }
+  function addLayer(cx, src, weight, sw, sh, dw, dh) {
+    let wt = weight;
+    while (wt > 0.01) {
+      cx.globalAlpha = Math.min(1, wt);
+      cx.drawImage(src, 0, 0, sw, sh, 0, 0, dw, dh);
+      wt -= 1;
     }
-
-    return {
-      threshCanvas: _threshCanvas,
-      threshCtx: _threshCtx,
-      glowCanvas: _glowCanvas,
-      glowCtx: _glowCtx,
-      tintCanvas: _tintCanvas,
-      tintCtx: _tintCtx
-    };
   }
 
   reg.register({
@@ -88,86 +88,88 @@
         return;
       }
 
-      const bufs = getBuffers(w, h);
-      if (!bufs) {
+      if (typeof document === 'undefined') {
         try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
         return;
       }
 
-      const { threshCanvas, threshCtx, glowCanvas, glowCtx, tintCanvas, tintCtx } = bufs;
+      // Octave k covers ~ 3*2^k px of full-res blur radius. Use only octaves up to ~2x radius.
+      let n = 1;
+      while (n < MAX_LEVELS && 3 * Math.pow(2, n - 1) < radius * 2) n++;
+      ensureLevels(w, h, n);
 
-      threshCtx.clearRect(0, 0, w, h);
-      glowCtx.clearRect(0, 0, w, h);
-
-      // 1. Highlight / Source Extraction on GPU (Zero CPU getImageData)
+      // 1. Extraction at half res: threshold + saturation + hot boost in one GPU filter pass
+      const p0 = P[0];
+      const pc = p0.cx;
+      pc.globalCompositeOperation = 'source-over';
+      pc.globalAlpha = 1;
+      pc.clearRect(0, 0, p0.w, p0.h);
+      let f = '';
       if (threshold > 1) {
         const tNorm = threshold / 100;
-        const contrastVal = Math.round((1.0 + tNorm * 2.2) * 100);
-        const brightVal = Math.round(Math.max(0.1, 1.0 - tNorm * 0.75) * 100);
-        threshCtx.filter = `contrast(${contrastVal}%) brightness(${brightVal}%)`;
-      } else {
-        threshCtx.filter = 'none';
+        f += `contrast(${Math.round((1 + tNorm * 2.2) * 100)}%) brightness(${Math.round(Math.max(0.1, 1 - tNorm * 0.75) * 100)}%) `;
+      }
+      f += `saturate(${saturation}%) brightness(130%)`;
+      pc.filter = f;
+      pc.imageSmoothingEnabled = true;
+      pc.imageSmoothingQuality = 'high';
+      try { pc.drawImage(el, 0, 0, p0.w, p0.h); } catch (_) { pc.filter = 'none'; return; }
+      pc.filter = 'none';
+
+      // 2. Chain downsample
+      for (let k = 1; k < n; k++) {
+        const s = P[k - 1], d = P[k];
+        d.cx.globalAlpha = 1;
+        d.cx.clearRect(0, 0, d.w, d.h);
+        d.cx.imageSmoothingEnabled = true;
+        d.cx.imageSmoothingQuality = 'high';
+        d.cx.drawImage(s.c, 0, 0, s.w, s.h, 0, 0, d.w, d.h);
       }
 
-      try {
-        threshCtx.drawImage(el, 0, 0, w, h);
-      } catch (_) {
-        return;
-      }
-      threshCtx.filter = 'none';
+      // 3. Upsample-accumulate from deepest octave to shallowest, weighted with power-law falloff
+      for (let k = n - 1; k >= 0; k--) {
+        const a = A[k];
+        const g = a.cx;
+        g.globalAlpha = 1;
+        g.filter = 'none';
+        g.globalCompositeOperation = 'source-over';
+        g.clearRect(0, 0, a.w, a.h);
+        g.globalCompositeOperation = 'lighter';
+        g.imageSmoothingEnabled = true;
+        g.imageSmoothingQuality = 'high';
 
-      // 2. 4-Tier Deep Optical Bloom Hierarchy
-      // Tier 1 (Core): Tight 2-4px radius keeps small particles, stars, and small layers burning hot and vivid
-      // Tier 2 (Radiance): Inner saturated aura
-      // Tier 3 (Mid Bloom): Smooth atmospheric falloff
-      // Tier 4 (Deep Aura): Expansive cinematic haze
-      const tiers = [
-        {
-          r: Math.max(1.5, radius * 0.04),
-          weight: Math.min(2.0, coreBoost * exposure * 1.5),
-          filter: `brightness(220%) saturate(${saturation}%)`
-        },
-        {
-          r: Math.max(5.0, radius * 0.16),
-          weight: Math.min(1.5, exposure * 0.85),
-          filter: `brightness(150%) saturate(${saturation}%)`
-        },
-        {
-          r: Math.max(14.0, radius * 0.45),
-          weight: Math.min(1.2, exposure * 0.50),
-          filter: `brightness(120%) saturate(${saturation}%)`
-        },
-        {
-          r: Math.max(30.0, radius * 1.00),
-          weight: Math.min(1.0, exposure * 0.28),
-          filter: `brightness(100%) saturate(${saturation}%)`
+        const rk = 3 * Math.pow(2, k);
+        // octaves beyond radius fade out over one octave
+        const rw = rk <= radius ? 1 : Math.max(0, 1 - Math.log2(rk / radius));
+        let wt = exposure * Math.pow(0.78, k) * rw * 0.9;
+        if (k === 0) wt *= coreBoost;
+        else if (k === 1) wt *= 1 + (coreBoost - 1) * 0.5;
+        if (wt > 0.01) addLayer(g, P[k].c, Math.min(wt, 4), P[k].w, P[k].h, a.w, a.h);
+
+        if (k < n - 1) {
+          const up = A[k + 1];
+          g.globalAlpha = 1;
+          if (k <= 1) g.filter = 'blur(1.2px)'; // hide bilinear blockiness on shallow levels only
+          g.drawImage(up.c, 0, 0, up.w, up.h, 0, 0, a.w, a.h);
+          g.filter = 'none';
         }
-      ];
-
-      glowCtx.globalCompositeOperation = 'lighter';
-
-      for (let i = 0; i < tiers.length; i++) {
-        const tier = tiers[i];
-        if (tier.weight <= 0.01) continue;
-
-        glowCtx.save();
-        glowCtx.globalAlpha = Math.min(1.0, tier.weight);
-        glowCtx.filter = `blur(${tier.r.toFixed(1)}px) ${tier.filter}`;
-        glowCtx.drawImage(threshCanvas, 0, 0);
-        glowCtx.restore();
       }
 
+      const L0 = { w: A[0].w, h: A[0].h };
+      const glowCanvas = A[0].c;
+      const glowCtx = A[0].cx;
+      glowCtx.globalAlpha = 1;
       glowCtx.globalCompositeOperation = 'source-over';
-      glowCtx.filter = 'none';
 
       // 3. GPU Color Tinting (Instant, zero CPU readback)
       const isWhite = (!tintColor || tintColor.toLowerCase() === '#ffffff' || tintColor.toLowerCase() === '#fff');
       if (!isWhite && tintStrength > 0.01) {
-        tintCtx.clearRect(0, 0, w, h);
+        const { tintCanvas, tintCtx } = getTintBuffer(L0.w, L0.h);
+        tintCtx.clearRect(0, 0, L0.w, L0.h);
         tintCtx.drawImage(glowCanvas, 0, 0);
         tintCtx.globalCompositeOperation = 'source-in';
         tintCtx.fillStyle = tintColor;
-        tintCtx.fillRect(0, 0, w, h);
+        tintCtx.fillRect(0, 0, L0.w, L0.h);
         tintCtx.globalCompositeOperation = 'source-over';
 
         glowCtx.save();
@@ -192,6 +194,8 @@
 
       ctx.globalAlpha = opacity;
       ctx.globalCompositeOperation = (blendMode === 'lighter' ? 'lighter' : (blendMode === 'source-over' ? 'source-over' : 'screen'));
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(glowCanvas, x, y, w, h);
 
       ctx.restore();

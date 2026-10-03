@@ -1,0 +1,104 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Effect thumbnail renderer</title>
+<body style="background:#222;color:#fff;font:12px sans-serif">
+<div id="log">rendering...</div>
+<script src="/js/effects.js"></script>
+<script src="/scripts/effect-thumbs/presets.js"></script>
+<script>
+/*
+ * Renders every effect in PRESETS one-by-one onto a 128x128 canvas using the real FishEffects pipeline
+ * (filter -> renderLayer -> applyPostEffects), saves assets/effects/thumbs/<id>.png, then builds
+ * category collage backgrounds assets/effects/categories/<cat>.png and a review sheet in scratch/.
+ */
+const S = 128;
+const save = (path, canvas) => new Promise(res => canvas.toBlob(b => fetch('/save?path=' + path, { method: 'POST', body: b }).then(res), 'image/png'));
+const loadImg = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; });
+const loadScript = src => new Promise(r => { const s = document.createElement('script'); s.src = src; s.onload = s.onerror = r; document.body.appendChild(s); });
+const mk = (w = S, h = S) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+
+function dim(c) { const x = c.getContext('2d'); x.fillStyle = 'rgba(0,0,0,' + CATEGORY_DIM + ')'; x.fillRect(0, 0, c.width, c.height); }
+function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+async function buildSource(p, imgs, cat) {
+  const c = mk(), x = c.getContext('2d');
+  if (p.src === 'solid' || (typeof p.src === 'string' && p.src[0] === '#')) {
+    x.fillStyle = (typeof p.src === 'string' && p.src[0] === '#') ? p.src : '#0c1220';
+    x.fillRect(0, 0, S, S);
+    return c;
+  }
+  const im = imgs[PHOTO_BY_CAT[cat] || STOCK_IDS[0]];
+  if (p.inset) {
+    const m = p.inset === true ? 20 : p.inset;
+    x.save(); rr(x, m, m, S - 2 * m, S - 2 * m, 12); x.clip(); x.drawImage(im, 0, 0, S, S); x.restore();
+  } else x.drawImage(im, 0, 0, S, S);
+  return c;
+}
+
+async function renderOne(id, p, imgs) {
+  const cat = (CAT_OVERRIDE[id] || (FishEffects.registry.get(id) || {}).category || 'lightning').toLowerCase();
+  const src = await buildSource(p, imgs, cat);
+  const out = mk(), ctx = out.getContext('2d');
+  const fx = FishEffects.registry.createInstance(id);
+  Object.assign(fx, p.params || {});
+  const layer = Object.assign({ id: 'L', effects: [fx], _currentSec: p.sec || 0 }, p.layer || {});
+  window._currentRenderSec = p.sec || 0;
+  const b = { x: 0, y: 0, w: S, h: S };
+  ctx.save();
+  FishEffects.applyToContext(ctx, layer);
+  FishEffects.renderLayer(ctx, src, layer, b, p.sec || 0);
+  ctx.restore();
+  FishEffects.applyPostEffects(ctx, src, layer, b);
+  // composite over dark backdrop so transparent results (inset shapes) look right in the gallery
+  const fin = mk(), fx2 = fin.getContext('2d');
+  fx2.fillStyle = p.bg || '#161b26'; fx2.fillRect(0, 0, S, S);
+  fx2.drawImage(out, 0, 0);
+  return fin;
+}
+
+(async () => {
+  const log = document.getElementById('log');
+  const m = await (await fetch('/effects/manifest.json')).json();
+  for (const e of (Array.isArray(m) ? m : m.effects)) await loadScript('/effects/' + e.file);
+  const imgs = {};
+  for (const id of STOCK_IDS) imgs[id] = await loadImg('/assets/stock/stock-' + id + '.jpg');
+
+  const results = {};
+  const errs = [];
+  for (const id of Object.keys(PRESETS)) {
+    try {
+      const c = await renderOne(id, PRESETS[id], imgs);
+      results[id] = c;
+      await save('assets/effects/thumbs/' + id + '.png', c);
+    } catch (e) { errs.push(id + ': ' + e.message); }
+  }
+
+  // review sheet
+  const ids = Object.keys(results), cols = 10, rows = Math.ceil(ids.length / cols);
+  const sh = mk(cols * S, rows * (S + 14)), sx = sh.getContext('2d');
+  sx.fillStyle = '#222'; sx.fillRect(0, 0, sh.width, sh.height); sx.font = '10px sans-serif';
+  ids.forEach((id, k) => { const cx = (k % cols) * S, cy = Math.floor(k / cols) * (S + 14); sx.drawImage(results[id], cx, cy); sx.fillStyle = '#fff'; sx.fillText(id, cx + 3, cy + S + 10); });
+  await save('scratch/thumbs-sheet.png', sh);
+
+  // category collages: tile the category's rendered thumbs (2x2 mosaic, 128px)
+  const cats = {};
+  FishEffects.registry.getAll().forEach(d => { if (results[d.id]) (cats[(CAT_OVERRIDE[d.id] || d.category).toLowerCase()] ||= []).push(d.id); });
+  for (const cat of Object.keys(cats)) {
+    const list = cats[cat].slice();
+    const c = mk(), x = c.getContext('2d'), n = list.length >= 5 ? 3 : 2, t = S / n;
+    for (let k = 0; k < n * n; k++) {
+      x.drawImage(results[list[k % list.length]], 0, 0, S, S, (k % n) * t, Math.floor(k / n) * t, t, t);
+    }
+    dim(c);
+    await save('assets/effects/categories/' + cat.replace(/\s+/g, '-') + '.png', c);
+  }
+  for (const cat of Object.keys(PHOTO_COLLAGES)) {
+    const c = mk(); c.getContext('2d').drawImage(imgs[PHOTO_COLLAGES[cat]], 0, 0, S, S);
+    dim(c);
+    await save('assets/effects/categories/' + cat + '.png', c);
+  }
+  log.textContent = 'done ' + ids.length + ' thumbs; cats: ' + Object.keys(cats).join(',') + '; errors: ' + errs.join(' | ');
+  document.title = 'DONE';
+  await fetch('/save?path=scratch/render-log.txt', { method: 'POST', body: log.textContent });
+})();
+</script>

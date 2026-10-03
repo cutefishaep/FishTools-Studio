@@ -70,8 +70,11 @@ let syncEffects = null;
 try {
   syncVersion = require('./scripts/sync-version.js').syncVersion;
 } catch (_) {}
+let scanEffectsLive = null;
 try {
-  syncEffects = require('./scripts/sync-effects.js').syncEffects;
+  const effectsMod = require('./scripts/sync-effects.js');
+  syncEffects = effectsMod.syncEffects;
+  scanEffectsLive = effectsMod.scanEffects;
 } catch (_) {}
 
 // Initial sync of effects manifest and loader
@@ -212,15 +215,24 @@ function handleRequest(req, res) {
     return;
   }
 
-  // Effects discovery manifest endpoint
+  // Effects discovery endpoint: live scan of effects/*.js (cached per file mtime),
+  // so a newly dropped effect plugin is picked up on the next page load with no sync step.
   if (pathname === '/api/effects') {
-    const manifestPath = path.join(ROOT, 'effects', 'manifest.json');
-    if (fs.existsSync(manifestPath)) {
+    let payload = null;
+    try {
+      if (scanEffectsLive) payload = JSON.stringify(scanEffectsLive());
+    } catch (_) {}
+    if (!payload) {
+      const manifestPath = path.join(ROOT, 'effects', 'manifest.json');
+      if (fs.existsSync(manifestPath)) payload = fs.readFileSync(manifestPath, 'utf8');
+    }
+    if (payload) {
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
         'Access-Control-Allow-Origin': '*'
       });
-      res.end(fs.readFileSync(manifestPath, 'utf8'));
+      res.end(payload);
       return;
     }
   }

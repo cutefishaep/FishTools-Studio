@@ -1201,6 +1201,11 @@
             curLayers.forEach(l => {
               if (targetIds.has(String(l.id))) {
                 l.motionBlur = nextState;
+                if (l.type === 'text') {
+                  l._textDirty = true;
+                  if (l._textBufferCanvas) l._textBufferCanvas._lastRenderKey = null;
+                  if (l._textMbCanvas) l._textMbCanvas._lastRenderKey = null;
+                }
                 if (typeof window.invalidatePreviewCacheForLayer === 'function') {
                   window.invalidatePreviewCacheForLayer(l);
                 }
@@ -1222,6 +1227,10 @@
 
             const topHeaderMb = document.getElementById('btn-layer-header-motion-blur');
             if (topHeaderMb) topHeaderMb.classList.toggle('is-active', nextState);
+
+            if (typeof window.syncTextFormatControls === 'function' && target && target.type === 'text') {
+              window.syncTextFormatControls(target.textProps);
+            }
 
             if (nextState && window.currentProjectState) {
               window.currentProjectState.motionBlur = window.currentProjectState.motionBlur || { shutterAngle: 180, shutterPhase: 0, samples: 16 };

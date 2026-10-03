@@ -199,26 +199,35 @@
           }
         } catch (_) {}
 
-        // 1 Single Quad (4 vertices, 2 triangles, 0 subdivision)
-        // Unit coordinates centered at origin: [-0.5, 0.5]
-        const positions = new Float32Array([
-          -0.5, -0.5,
-           0.5, -0.5,
-           0.5,  0.5,
-          -0.5,  0.5
-        ]);
-
-        const texCoords = new Float32Array([
-          0.0, 0.0,
-          1.0, 0.0,
-          1.0, 1.0,
-          0.0, 1.0
-        ]);
-
-        const indices = new Uint16Array([
-          0, 1, 2,
-          0, 2, 3
-        ]);
+        // Tessellated unit quad (N x N grid) centered at origin: [-0.5, 0.5].
+        // Subdivision is required because the vertex shader applies non-linear lens distortion
+        // per vertex; a bare 4-vertex quad would crease along its diagonal (warped text middle).
+        const N = 10;
+        const positions = new Float32Array((N + 1) * (N + 1) * 2);
+        const texCoords = new Float32Array((N + 1) * (N + 1) * 2);
+        const indices = new Uint16Array(N * N * 6);
+        let pi = 0;
+        for (let gy = 0; gy <= N; gy++) {
+          for (let gx = 0; gx <= N; gx++) {
+            positions[pi] = gx / N - 0.5;
+            positions[pi + 1] = gy / N - 0.5;
+            texCoords[pi] = gx / N;
+            texCoords[pi + 1] = gy / N;
+            pi += 2;
+          }
+        }
+        let ii = 0;
+        for (let gy = 0; gy < N; gy++) {
+          for (let gx = 0; gx < N; gx++) {
+            const i0 = gy * (N + 1) + gx;
+            const i1 = i0 + 1;
+            const i3 = i0 + (N + 1);
+            const i2 = i3 + 1;
+            indices[ii++] = i0; indices[ii++] = i1; indices[ii++] = i2;
+            indices[ii++] = i0; indices[ii++] = i2; indices[ii++] = i3;
+          }
+        }
+        this.quadIndexCount = indices.length;
 
         const posBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
@@ -367,8 +376,17 @@
 
       const nw = (el.naturalWidth || el.videoWidth || el.width || Math.abs(bounds.w) || 500);
       const nh = (el.naturalHeight || el.videoHeight || el.height || Math.abs(bounds.h) || 500);
-      const w = Math.max(1, Math.round(nw));
-      const h = Math.max(1, Math.round(nh));
+      let w = Math.max(1, Math.round(nw));
+      let h = Math.max(1, Math.round(nh));
+      if (activeFx.some(f => f.type === 'particle-engine')) {
+        const bw = Math.abs(bounds.absW || bounds.w || 0);
+        const bh = Math.abs(bounds.absH || bounds.h || 0);
+        if (bw >= 1 && bh >= 1) {
+          const k = Math.min(1, 2048 / Math.max(bw, bh));
+          w = Math.max(1, Math.round(bw * k));
+          h = Math.max(1, Math.round(bh * k));
+        }
+      }
 
       let padX = 0;
       let padY = 0;
@@ -408,7 +426,7 @@
             : ((typeof window !== 'undefined' && typeof window.currentPlaybackSec === 'number')
               ? window.currentPlaybackSec
               : 0)));
-      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: padX, y: padY, w, h }, curSec);
+      window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: padX, y: padY, w, h, bufferScale: (bounds && bounds.bufferScale) || 1 }, curSec);
       return { el: this._fxCanvas, padX, padY, origW: w, origH: h };
     }
 
@@ -1130,7 +1148,7 @@
                   ? window.currentPlaybackSec
                   : 0)));
           if (window.FishEffects && typeof window.FishEffects.renderLayer === 'function') {
-            window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH }, curSec);
+            window.FishEffects.renderLayer(ctx, el, layer, { x: drawX, y: drawY, w: absW, h: absH, bufferScale: bounds.bufferScale || bufferScale || 1 }, curSec);
           } else {
             ctx.drawImage(el, drawX, drawY, absW, absH);
           }
@@ -1316,7 +1334,7 @@
             if (tileMVP[15] + maxRadiusW <= 0.001) continue;
 
             gl.uniformMatrix4fv(this.locations.matrix, false, tileMVP);
-            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+            gl.drawElements(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0);
           }
         }
       } else {
@@ -1324,7 +1342,7 @@
         gl.disableVertexAttribArray(this.locations.color);
         gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
         gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        gl.drawElements(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0);
       }
     }
 
@@ -1362,7 +1380,7 @@
       gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
-      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0);
 
       if (depth < 0.5) return;
 
@@ -1574,7 +1592,7 @@
       gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
-      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0);
 
       if (depth < 0.5) return;
 
@@ -2418,7 +2436,7 @@
           gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
           gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
           gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
-          gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+          gl.drawElements(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0);
         }
       });
       gl.depthMask(true);
@@ -2507,7 +2525,7 @@
       gl.uniform2f(this.rgbLocations.delta, dx / w, -dy / h);
       gl.uniform1f(this.rgbLocations.opacity, 1.0);
 
-      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0);
 
       try {
         ctx.drawImage(this.glCanvas, 0, 0, w, h, x, y, w, h);

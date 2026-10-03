@@ -129,8 +129,13 @@ function syncHtmlChangelogFeed(filePath, changelogInfo) {
   const feedMatch = content.match(/<div class="welcome-changelog-feed">(\r?\n)/);
   if (feedMatch) {
     const insertIdx = feedMatch.index + feedMatch[0].length;
-    content = content.slice(0, insertIdx) + blockHtml + '\n' + content.slice(insertIdx);
-    fs.writeFileSync(filePath, content, 'utf8');
+    const newContent = content.slice(0, insertIdx) + blockHtml + '\n' + content.slice(insertIdx);
+    if (newContent.length < content.length * 0.95 || !newContent.includes('</html>')) {
+      throw new Error(`[SyncVersion] Integrity check failed for changelog feed in ${filePath}`);
+    }
+    const tmpPath = filePath + '.tmp.' + Date.now() + Math.random().toString(36).substring(2, 6);
+    fs.writeFileSync(tmpPath, newContent, 'utf8');
+    fs.renameSync(tmpPath, filePath);
   }
 }
 
@@ -197,6 +202,7 @@ function syncVersion(specifiedVersion) {
     if (!fs.existsSync(fullPath)) continue;
 
     let content = fs.readFileSync(fullPath, 'utf8');
+    const origLen = content.length;
 
     // Update #studio-version-badge
     content = content.replace(/(<span[^>]*id="studio-version-badge"[^>]*>)([^<]*)(<\/span>)/g, `$1${targetVersion}$3`);
@@ -212,7 +218,15 @@ function syncVersion(specifiedVersion) {
     // Update script cachebusters (?v=0.x.x)
     content = content.replace(/(\?v=)[0-9]+\.[0-9]+\.[0-9]+[^"'\s]*/g, `$1${targetVersion}`);
 
-    fs.writeFileSync(fullPath, content, 'utf8');
+    // Strict integrity guard: abort if content shrank unexpectedly or lost closing tags
+    if (content.length < origLen * 0.90 || !content.includes('</html>')) {
+      throw new Error(`[SyncVersion] Integrity check failed for ${relPath}: size shrank unexpectedly from ${origLen} to ${content.length}`);
+    }
+
+    // Atomic write via temp file
+    const tmpPath = fullPath + '.tmp.' + Date.now() + Math.random().toString(36).substring(2, 6);
+    fs.writeFileSync(tmpPath, content, 'utf8');
+    fs.renameSync(tmpPath, fullPath);
 
     // If changelog info matches this version, sync changelog feed
     if (changelogInfo && changelogInfo.version === targetVersion) {

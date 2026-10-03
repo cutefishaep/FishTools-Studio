@@ -102,10 +102,19 @@ function syncEffects() {
     const fullPath = path.join(ROOT, relPath);
     if (!fs.existsSync(fullPath)) return;
     try {
-      let content = fs.readFileSync(fullPath, 'utf8');
-      if (effectsBlockRegex.test(content)) {
-        content = content.replace(effectsBlockRegex, effectScriptsBlock + '\n');
-        fs.writeFileSync(fullPath, content, 'utf8');
+      const origContent = fs.readFileSync(fullPath, 'utf8');
+      if (effectsBlockRegex.test(origContent)) {
+        const newContent = origContent.replace(effectsBlockRegex, effectScriptsBlock + '\n');
+
+        // Strict integrity guard: abort if content shrank unexpectedly or lost closing tags
+        if (newContent.length < origContent.length * 0.90 || !newContent.includes('</html>')) {
+          throw new Error(`Integrity check failed: content size shrank from ${origContent.length} to ${newContent.length}`);
+        }
+
+        // Atomic write via temp file to avoid buffer corruption
+        const tmpPath = fullPath + '.tmp.' + Date.now() + Math.random().toString(36).substring(2, 6);
+        fs.writeFileSync(tmpPath, newContent, 'utf8');
+        fs.renameSync(tmpPath, fullPath);
         console.log(`[SyncEffects] Synchronized ${files.length} effect scripts in ${relPath}`);
       }
     } catch (err) {

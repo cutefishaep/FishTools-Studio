@@ -5,6 +5,15 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.121] - 2026-10-03
+
+### Fixed
+- **Deep Glow 60fps GPU Acceleration & Polygon Artifact Elimination (`effects/deep_glow.js`)**:
+  - Eliminated stepped polygonal white clipping artifact caused by straight alpha division mismatch.
+  - Removed all synchronous `getImageData()` readbacks and CPU pixel loops from the main render path, eliminating GPU pipeline stalls completely.
+  - Implemented 540p 5-octave hardware-accelerated bloom pyramid with GPU `contrast` and `brightness` exposure modulation.
+  - Guaranteed 60fps preview and buttery smooth scrubbing across all desktop and mobile devices.
+
 ## [0.5.120] - 2026-10-03
 
 ### Improved

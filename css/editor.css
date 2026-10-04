@@ -2221,7 +2221,7 @@ body.has-active-drawer .timeline-layers-viewport {
   stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.82;
+  opacity: 0;
   transition: opacity 0.12s ease, stroke 0.12s ease, stroke-width 0.12s ease;
 }
 
@@ -2234,29 +2234,35 @@ body.has-active-drawer .timeline-layers-viewport {
 
 .timeline-link-dot {
   fill: var(--color-primary);
-  transition: fill 0.12s ease;
+  opacity: 0;
+  transition: fill 0.12s ease, opacity 0.12s ease;
 }
 
 .timeline-link-group.is-selected .timeline-link-dot {
   fill: var(--color-primary-hover);
+  opacity: 1;
 }
 
 .timeline-link-junction {
   fill: var(--color-primary);
-  transition: fill 0.12s ease;
+  opacity: 0;
+  transition: fill 0.12s ease, opacity 0.12s ease;
 }
 
 .timeline-link-group.is-selected .timeline-link-junction {
   fill: var(--color-primary-hover);
+  opacity: 1;
 }
 
 .timeline-link-arrow {
   fill: var(--color-primary);
-  transition: fill 0.12s ease;
+  opacity: 0;
+  transition: fill 0.12s ease, opacity 0.12s ease;
 }
 
 .timeline-link-group.is-selected .timeline-link-arrow {
   fill: var(--color-primary-hover);
+  opacity: 1;
 }
 
 /* ==========================================================================

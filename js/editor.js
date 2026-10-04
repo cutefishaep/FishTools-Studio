@@ -20327,11 +20327,15 @@
           });
 
           // 2. Mobile & Touch: Long-Press (500ms)
+          // Touch holds must not start a native HTML5 drag: draggable tiles
+          // fire pointercancel on touch-hold, which would kill the timer and
+          // the popover would never appear. Re-enabled on release.
           tile.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return; // Only primary button
+            if (e.pointerType === 'mouse' && e.button !== 0) return; // Primary button only (touch/stylus always pass)
             startX = e.clientX;
             startY = e.clientY;
 
+            if (e.pointerType === 'touch' && 'draggable' in tile) tile.draggable = false;
             if (longPressTimer) clearTimeout(longPressTimer);
             longPressTimer = setTimeout(() => {
               tile._suppressClick = true;
@@ -20356,6 +20360,7 @@
               clearTimeout(longPressTimer);
               longPressTimer = null;
             }
+            if ('draggable' in tile) tile.draggable = true;
           };
           tile.addEventListener('pointerup', cancelLongPress);
           tile.addEventListener('pointercancel', cancelLongPress);
@@ -33999,6 +34004,10 @@
           const json = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/share', true);
+            const shareToken = localStorage.getItem('oft_share_token');
+            if (shareToken) {
+              xhr.setRequestHeader('x-share-token', shareToken);
+            }
             xhr.timeout = 20000; // 20 seconds timeout prevents hanging
 
             xhr.upload.onprogress = (e) => {
@@ -34085,6 +34094,12 @@
               if (window.FishDatabase && typeof window.FishDatabase.exportProjectToOFTS === 'function') {
                 await window.FishDatabase.exportProjectToOFTS(currentProjectState.id);
               }
+            }
+          } else if (errMsg && errMsg.includes('Token tidak ada')) {
+            if (typeof showEditorToast === 'function') {
+              showEditorToast('Token tidak ada, cek .env mu');
+            } else {
+              alert('Token tidak ada, cek .env mu');
             }
           } else {
             alert('Failed to generate project link: ' + errMsg);

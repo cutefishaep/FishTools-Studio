@@ -38,6 +38,22 @@ function arrayBufferToBase64(buffer) {
 
 export async function onRequestPost(context) {
   try {
+    // 0. Authorization check: if SHARE_SECRET_TOKEN is set, enforce token
+    const expectedToken = (context.env && context.env.SHARE_SECRET_TOKEN) || '';
+    if (expectedToken) {
+      const authHeader = context.request.headers.get('authorization') || '';
+      const reqToken = context.request.headers.get('x-share-token') || authHeader.replace(/^Bearer\s+/i, '').trim();
+      if (!reqToken || reqToken !== expectedToken) {
+        return new Response(JSON.stringify({ success: false, error: 'Token tidak ada, cek .env mu' }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     const clientIp = context.request.headers.get('CF-Connecting-IP') || 'anonymous';
     const kv = context.env.PROJECTS_KV;
 

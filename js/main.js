@@ -1210,14 +1210,24 @@ async function openShareProjectLinkModal(projectId, projectName) {
     fd.append('size', window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : (zipBlob.size / (1024 * 1024)).toFixed(1) + ' MB');
     fd.append('thumbnail', compressedThumb);
 
+    const shareToken = localStorage.getItem('oft_share_token') || '';
+    const headers = {};
+    if (shareToken) headers['x-share-token'] = shareToken;
+
     const res = await fetch('/api/share', {
       method: 'POST',
+      headers,
       body: fd
     });
 
-    const json = await res.json();
+    let json = {};
+    try {
+      json = await res.json();
+    } catch (_) {}
+
     if (!res.ok || !json.success || !json.shareUrl) {
-      alert('Share upload failed: ' + (json.error || 'Server error'));
+      const errMsg = json.error || (res.status === 401 ? 'Token tidak ada, cek .env mu' : 'Share upload failed');
+      showDashboardToast(errMsg);
       return;
     }
 

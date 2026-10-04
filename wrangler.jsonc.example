@@ -1,0 +1,21 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "fishtools-studio",
+	"main": "_worker.js",
+	"compatibility_date": "2026-09-15",
+	"keep_vars": true,
+	"assets": {
+		"directory": ".",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"kv_namespaces": [
+		{
+			"binding": "PROJECTS_KV",
+			"id": "YOUR_KV_NAMESPACE_ID",
+			"remote": true
+		}
+	]
+}

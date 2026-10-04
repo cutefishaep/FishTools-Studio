@@ -11,16 +11,28 @@
     "bump": "node scripts/sync-version.js",
     "version:sync": "node scripts/sync-version.js",
     "sync:effects": "node scripts/sync-effects.js",
+    "prepare:wrangler": "node scripts/prepare-wrangler.js",
+    "deploy": "node scripts/prepare-wrangler.js && npx wrangler deploy",
     "serve": "npx serve .",
-    "test": "node scratch/test_suite.js",
-    "tauri": "npx @tauri-apps/cli",
-    "desktop:dev": "node scripts/build-native-dist.js && npx @tauri-apps/cli dev --config native/src-tauri/tauri.conf.json",
-    "desktop:build": "node scripts/build-native-dist.js && npx @tauri-apps/cli build --config native/src-tauri/tauri.conf.json"
+    "test": "node scripts/test-suite.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cutefishaep/FishTools-Studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cutefishaep/FishTools-Studio/issues"
+  },
+  "homepage": "https://github.com/cutefishaep/FishTools-Studio#readme",
   "keywords": [
+    "motion-graphics",
+    "video-editor",
+    "webcodecs",
     "openfishtools",
-    "studio",
-    "marine"
+    "nle",
+    "animation",
+    "canvas",
+    "keyframing"
   ],
   "author": "FishTool Studio Team",
   "license": "MIT",

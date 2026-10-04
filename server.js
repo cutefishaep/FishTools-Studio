@@ -84,6 +84,14 @@ if (typeof syncEffects === 'function') {
   } catch (_) {}
 }
 
+// Auto-sync wrangler.jsonc from .env if template exists
+try {
+  const wranglerMod = require('./scripts/prepare-wrangler.js');
+  if (typeof wranglerMod.syncWranglerConfig === 'function') {
+    wranglerMod.syncWranglerConfig();
+  }
+} catch (_) {}
+
 // File watcher for local dev auto-reload
 if (!process.env.VERCEL) {
   let debounceTimer = null;
@@ -330,6 +338,21 @@ function handleRequest(req, res) {
   if (req.method === 'POST' && pathname === '/api/share') {
     (async () => {
       try {
+        // 0. Authorization check: if SHARE_SECRET_TOKEN is set, enforce token
+        const expectedToken = process.env.SHARE_SECRET_TOKEN;
+        if (expectedToken) {
+          const reqToken = req.headers['x-share-token'] ||
+            (req.headers['authorization'] ? req.headers['authorization'].replace(/^Bearer\s+/i, '').trim() : '');
+          if (!reqToken || reqToken !== expectedToken) {
+            res.writeHead(401, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ success: false, error: 'Token tidak ada, cek .env mu' }));
+            return;
+          }
+        }
+
         const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '127.0.0.1';
         if (!checkShareRateLimit(clientIp)) {
           res.writeHead(429, {

@@ -926,7 +926,7 @@ body.is-exporting .template-scrubber-wrap {
   .editor-preview {
     flex: 1;
     min-height: 60px;
-    background-color: var(--bg-canvas);
+    background-color: var(--bg-preview);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -943,7 +943,7 @@ body.is-exporting .template-scrubber-wrap {
 
   .editor-controller {
     height: 48px;
-    background-color: var(--bg-panel);
+    background-color: var(--bg-timeline);
     border-top-left-radius: 28px;
     border-top-right-radius: 0;
     display: flex;
@@ -956,7 +956,7 @@ body.is-exporting .template-scrubber-wrap {
 
   /* Timeline Mobile: Flexible, adaptive split - never overflows */
   .editor-timeline-wrapper {
-    background-color: var(--bg-panel);
+    background-color: var(--bg-timeline);
     width: 100%;
     height: calc(100% - var(--mobile-preview-height, 48%));
     min-height: 140px;
@@ -972,7 +972,7 @@ body.is-exporting .template-scrubber-wrap {
     height: 100%;
     flex: 1;
     min-height: 0;
-    background-color: var(--bg-panel-hover);
+    background-color: var(--bg-timeline);
     border-top-right-radius: 36px;
     border-top-left-radius: 0;
     display: flex;
@@ -986,7 +986,7 @@ body.is-exporting .template-scrubber-wrap {
     flex: 1;
     min-height: 0;
     width: 100%;
-    background-color: var(--bg-panel-hover);
+    background-color: var(--bg-timeline);
     overflow-y: auto;
     overflow-x: clip !important;
     position: relative;
@@ -1097,7 +1097,7 @@ body.is-exporting .template-scrubber-wrap {
 
   .editor-preview {
     flex: 1;
-    background-color: var(--bg-canvas);
+    background-color: var(--bg-preview);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1108,7 +1108,7 @@ body.is-exporting .template-scrubber-wrap {
   /* Controller Tablet/Desktop: Sleek & Compact (46px) */
   .editor-controller {
     height: 46px;
-    background-color: var(--bg-panel);
+    background-color: var(--bg-timeline);
     border-top-right-radius: 26px;
     border-top-left-radius: 0;
     display: flex;
@@ -1132,7 +1132,7 @@ body.is-exporting .template-scrubber-wrap {
   .editor-timeline {
     width: 100%;
     height: 100%;
-    background-color: var(--bg-panel-hover);
+    background-color: var(--bg-timeline);
     border-top-left-radius: 48px;
     border-top-right-radius: 0;
     display: flex;
@@ -1376,7 +1376,7 @@ body.is-exporting .template-scrubber-wrap {
 .timeline-header-ruler {
   width: 100%;
   height: 40px;
-  background-color: var(--bg-panel-hover);
+  background-color: var(--bg-timeline);
   display: flex;
   align-items: center;
   position: relative;
@@ -1522,7 +1522,7 @@ body.is-exporting .template-scrubber-wrap {
   flex: 1;
   min-height: 0;
   width: 100%;
-  background-color: var(--bg-panel-hover);
+  background-color: var(--bg-timeline);
   overflow-y: auto;
   overflow-x: clip !important;
   overscroll-behavior-x: none !important;

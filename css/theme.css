@@ -60,6 +60,8 @@
   --bg-panel-active: #151a0f;           /* Panel Active Background */
   --bg-panel-inner: #151a0f;            /* Inner Item Background */
   --bg-panel-inner-hover: #26301c;      /* Inner Item Hover (Distinct from #1d2415 panel) */
+  --bg-timeline: #10150b;               /* Timeline Surface (darker than controller panel) */
+  --bg-preview: #060905;                /* Preview Well (near-black, darkest surface) */
   
   /* --- Badge & Tag Colors --- */
   --badge-prealpha-bg: #2a3321;         /* Muted Matcha Olive Pill */
@@ -136,6 +138,8 @@
   --bg-panel-active: #08232f;
   --bg-panel-inner: #092836;
   --bg-panel-inner-hover: #144f69;
+  --bg-timeline: #071e28;
+  --bg-preview: #030a10;
 
   /* Badges */
   --badge-prealpha-bg: #092836;
@@ -204,6 +208,8 @@
   --bg-panel-active: #291a07;
   --bg-panel-inner: #2f1e08;
   --bg-panel-inner-hover: #54360e;
+  --bg-timeline: #1e1305;
+  --bg-preview: #0d0802;
 
   /* Badges */
   --badge-prealpha-bg: #2f1e08;

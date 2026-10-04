@@ -20,3 +20,8 @@ Auto-Clarity: plain prose for security warnings, irreversible actions, step orde
 Boundaries: code, comments, commits, PRs, docs written normal.
 Floor: code, commands, paths, numbers and error strings verbatim; never drop not/never/no/only.
 <!-- caveman-end -->
+
+# OpenCode Guidelines for FishTools Studio
+
+Refer directly to `AGENTS.md` for full system architecture, UI design standards, error investigation protocols, and testing mandates.
+All agent edits must pass `npm test` before concluding.

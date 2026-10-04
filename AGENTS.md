@@ -21,60 +21,84 @@ Boundaries: code, comments, commits, PRs, docs written normal.
 Floor: code, commands, paths, numbers and error strings verbatim; never drop not/never/no/only.
 <!-- caveman-end -->
 
-## UI Design Rules (Strict Performance & Aesthetics)
+# FishTools Studio AI Agent Guidelines
+
+## 1. System Architecture & Component Map
+- `desktop.html` & `js/desktop.js`: Desktop NLE interface with After Effects-style track headers, docked panels, timeline tracks, and graph editor.
+- `editor.html` & `js/editor.js`: Responsive & mobile NLE interface, canvas layer compositor, layer inspector, keyframe markers, and transform controls.
+- `index.html` & `js/main.js`: Project manager & launcher. Handles IndexedDB local projects, cloud shares, template picker, and QR modals.
+- `js/fishtool-engine.js`: Core 2D/3D matrix transformation pipeline, multi-layer canvas rendering, camera projections, and composition nesting.
+- `js/motion-blur-engine.js`: Sub-frame motion blur computation engine with multi-sample accumulation.
+- `js/text-engine.js`: High-precision Canvas text layout, typography metrics, and text transform directives.
+- `js/FishExport-Enggine.js`: Video export engine integrating WebCodecs and MP4-muxer for client-side rendering.
+- `effects/`: Standalone modular effect plugins registered directly via `FishEffectsRegistry.register({...})`.
+- `server.js`: Zero-dependency local development server with SSE live reload and optional Cloudflare tunnel.
+- `scripts/prepare-wrangler.js`: Synchronizes `wrangler.jsonc` from `wrangler.jsonc.example` using `.env`.
+- `version.json`: Single source of truth for repository version.
+
+## 2. Error Investigation & Diagnostic Protocol (MANDATORY)
+When debugging errors, unexpected behavior, or UI bugs:
+1. **Access Localhost**: Start the local dev server (`node server.js` or `npm start`) and navigate to `http://localhost:3000` (or `/desktop.html`, `/editor.html`, `/index.html`).
+2. **Inspect Browser & Page**: Access the rendered page, inspect DOM structure, and check DevTools console logs.
+3. **Capture Screenshots**: Take visual screenshots of the interface to verify layout alignment, theme contrast, and rendering glitches.
+4. **Diagnostic Tooling (Read-Only)**: Use Node.js and Python **strictly for read-only diagnostics** (e.g. running AST scope audits, parsing logs, analyzing test matrices).
+
+## 3. Strict File Manipulation Tooling (NO SCRIPT-BASED EDITS)
+- **STRICTLY FORBIDDEN**: Using Python scripts, Node.js scripts, `sed`, `awk`, `echo >`, `cat << 'EOF'`, or shell redirection to edit or generate code files.
+- **MANDATORY**: All file creations and code modifications MUST strictly use the agent's native tool calls (`replace_file_content` or `write_to_file`).
+
+## 4. UI Design Rules (Strict Flat & Performance Aesthetics)
 - **NO Heavy Effects**: Banned `backdrop-filter: blur()`, `filter: blur()`, `box-shadow`, `drop-shadow()`, `text-shadow`.
 - **NO Gradients**: Only flat solid colors from `css/theme.css` tokens.
 - **NO Outlines / Unnecessary Borders**: `outline: none;` globally. Clean borderless surfaces.
 - **Pure Flat & Fast**: High performance, crisp vector lines, 100% Cal Sans typography.
 
-## Pop-up & Drawer Navigation Rules
-- **Modular Architecture**: All popups/drawers must use the universal `.modal-backdrop` & `.modal-card` system from `css/modal.css` and `js/modal.js`.
+## 5. Pop-up & Drawer Navigation Rules
+- **Modular Architecture**: All popups/drawers must use universal `.modal-backdrop` & `.modal-card` from `css/modal.css` and `js/modal.js`.
 - **Responsive Movement**:
-  - **Mobile (<= 600px)**: Slide in from BOTTOM to TOP (`transform: translateY(100%)` -> `translateY(0)`). Full width bottom sheet (`width: 100%`) with top rounded corners (`border-radius: 28px 28px 0 0`) for thumb reachability.
+  - **Mobile (<= 600px)**: Slide in from BOTTOM to TOP (`transform: translateY(100%)` -> `translateY(0)`). Full width bottom sheet (`width: 100%`) with top rounded corners (`border-radius: 28px 28px 0 0`).
   - **Tablet & Desktop (>= 601px)**: Center scale-in (`transform: scale(0.92)` -> `scale(1)`).
-- **Close Triggers**:
-  - Clicking empty backdrop outside the card closes the popup.
-  - No explicit back button required inside simple forms.
-- **Native Back Button / Popstate Support**:
-  - Opening any overlay/modal must push an internal history state (`history.pushState({ modalOpen: true }, '')`) without changing the visible URL address bar.
-  - Pressing browser back, mouse previous button, or Android back gesture must trigger `popstate` to close the modal instead of navigating away.
+- **Close Triggers**: Clicking backdrop outside card closes the popup.
+- **Native Back Button / Popstate Support**: Opening any modal pushes `history.pushState({ modalOpen: true }, '')`. Browser back closes modal without navigating away.
 
-## Strict Color Token Enforcement (`css/theme.css`) - MANDATORY
-- **100% Theme Token Binding**: All colors across every HTML, CSS, and SVG/JS file MUST strictly use CSS custom properties from `css/theme.css` (e.g. `var(--bg-canvas)`, `var(--bg-dashboard)`, `var(--bg-panel)`, `var(--bg-panel-hover)`, `var(--bg-panel-inner)`, `var(--color-primary)`, `var(--color-primary-hover)`, `var(--color-accent)`, `var(--text-primary)`, `var(--text-secondary)`, `var(--text-muted)`, etc.).
-- **NO Hardcoded Colors**: Direct color literals (hex `#...`, `rgb()`, `rgba()`, `hsl()`) outside `css/theme.css` are STRICTLY FORBIDDEN in layout and component code (except for specific user swatch choice values or `currentColor`).
-- **Seamless Theme Switching**: Every UI element, border, surface, container, and text element must respond synchronously when `data-theme` changes.
+## 6. Strict Color Token Enforcement (`css/theme.css`) - MANDATORY
+- **100% Theme Token Binding**: All colors MUST use CSS custom properties from `css/theme.css` (e.g. `var(--bg-canvas)`, `var(--bg-panel)`, `var(--color-primary)`, `var(--text-primary)`, `var(--text-secondary)`).
+- **NO Hardcoded Colors**: Direct color literals (hex `#...`, `rgb()`, `rgba()`, `hsl()`) outside `css/theme.css` are STRICTLY FORBIDDEN in component code.
+- **Seamless Theme Switching**: Every UI element must respond synchronously when `data-theme` changes.
 
-## Interactive Contrast & Hover State Rules (High Contrast Guaranteed)
-- **Simultaneous Foreground Adaptation**: When an element changes its background/surface on `:hover`, `:focus`, `:active`, or `.is-selected` to a color similar to its inner content (text, icons, badges), the inner content color MUST simultaneously adapt (e.g. Invert text/icon from `var(--color-primary)` to `var(--bg-canvas)` when background becomes solid primary green) to guarantee sharp visibility and prevent content camouflage.
-- **Zero Invisibility / Contrast Loss**: Text and vector icons must NEVER blend into their background under any state. Foreground and background must maintain high contrast across all states.
+## 7. Interactive Contrast & Hover State Rules
+- **Simultaneous Foreground Adaptation**: When an element changes background on `:hover`, `:focus`, `:active`, or `.is-selected`, the inner content color MUST adapt to preserve contrast (e.g. invert text/icon from `var(--color-primary)` to `var(--bg-canvas)` when background becomes solid primary green).
+- **Zero Invisibility**: Foreground and background must maintain high contrast across all states.
 
-## Modular Component & Element Architecture (Strict Reusability)
-- **Strict Modularity**: Every new UI element or interactive component (modals, dropzones, dropdowns, aspect frames, swatches, controls, splitter handles) MUST be built as a decoupled, standalone modular unit.
-- **Universal Reusability**: Components must use standalone class abstractions (e.g. `.modal-dropzone`, `.custom-dropdown`, `.modal-aspect-grid`, `.timeline-split-handle`) so developers can easily summon, copy-paste, and compose them anywhere across pages (`index.html`, `editor.html`, `desktop.html`) without reinventing styles.
-- **NO Demo File**: `demo.html` is permanently removed. Never recreate `demo.html` or write demo showcases.
+## 8. Modular Component Architecture
+- **Strict Modularity**: Every new component MUST be built as a decoupled, standalone unit (`.modal-dropzone`, `.custom-dropdown`, `.timeline-split-handle`).
+- **NO Demo File**: `demo.html` is permanently removed. Never recreate `demo.html`.
 
-## Editor Layout & Splitter Handle Rules
-- **Vertical Pill Splitter Handle**: On Tablet & Desktop (`>= 601px`), the timeline boundary features an interactive vertical pill-shaped drag handle (`.timeline-split-handle`) allowing horizontal resize (widening/narrowing) of the left pane vs right timeline pane.
-- **Horizontal Preview Splitter Handle (Mobile)**: On Mobile (`<= 600px`), an interactive horizontal pill-shaped drag handle (`.preview-split-handle`) is placed directly below the preview area (`editor-preview`) allowing vertical resize (enlarging/shrinking) of the preview vs timeline.
-- **Fluid & Constrained Dragging**: Split resize must use standard Pointer Events (`pointerdown`, `pointermove`, `pointerup`) with clamped ranges (20% to 80% on desktop; 22% to 78% on mobile) to prevent layout collapse.
+## 9. Splitter Handle Rules
+- **Desktop (>= 601px)**: Pill splitter handle (`.timeline-split-handle`) for horizontal left/right resize (clamped 20% to 80%).
+- **Mobile (<= 600px)**: Pill splitter handle (`.preview-split-handle`) for vertical preview/timeline resize (clamped 22% to 78%).
 
-## Vector Icon Assets & Creation Rules
-- **Automatic SVG Generation**: When a requested UI component requires an icon and no matching asset exists in `assets/`, the agent MUST immediately generate a crisp, dedicated vector SVG file in `assets/<name>.svg`.
-- **Theme Color Token Binding**: All created SVG icons must strictly use `fill="currentColor"` (or `stroke="currentColor"`), clean geometric paths, viewBox `0 0 24 24`, and NO hardcoded color literals, ensuring full dynamic color response via CSS theme tokens.
+## 10. Vector Icon Assets Rules
+- **Automatic SVG Generation**: When a component needs an icon and none exists in `assets/`, generate a crisp vector SVG in `assets/<name>.svg`.
+- **Theme Color Token Binding**: SVGs must use `fill="currentColor"` (or `stroke="currentColor"`), viewBox `0 0 24 24`, clean geometric paths, and zero hardcoded colors.
 
-## Strict UI Scoping & Premature Mechanism Ban (MANDATORY)
-- **NO Premature Logic / Workflows**: When the user requests adding a button, icon, control, or UI component (e.g., "tambah tombol +"), the agent MUST strictly implement ONLY the visual layout, HTML structure, CSS styling, and hover/press states.
-- **Explicit Request Required for Actions**: NEVER invent, assume, or attach unrequested business logic, operational mechanisms, or data mutations (e.g., do NOT auto-create layer additions, deletions, or data side-effects) unless the user explicitly commands what the button must execute.
+## 11. Strict UI Scoping & Premature Mechanism Ban
+- **NO Premature Workflows**: When user requests UI components (e.g. button, icon, tab), implement ONLY visual layout, CSS styling, and hover/press states.
+- **Explicit Request Required**: Never invent, assume, or attach unrequested business logic or mutations unless explicitly commanded.
 
-## Modular JS Effects Architecture (`effects/`) - MANDATORY
-- **Pure Modular JS Plugin Files**: All layer effects MUST be defined as standalone `.js` files inside the `effects/` directory (e.g. `effects/<id>.js`). No `.xml` files needed.
-- **Direct Registry Pattern**: Effects register directly via `FishEffectsRegistry.register({...})` with their own `id`, `name`, `category`, `params`, and rendering logic (`filter`, `render`, or `renderPost`).
-- **Unified Parameter & Keyframe Binding**: Every parameter defined in `params` automatically wires to the Effects Rack UI (scrubbers, badges, labels) and timeline keyframing under the standard `${effectInstanceId}:${paramId}` identifier.
+## 12. Modular JS Effects Architecture (`effects/`)
+- **Plugin Architecture**: Layer effects are standalone `.js` files in `effects/<id>.js`.
+- **Registry Pattern**: Effects register via `FishEffectsRegistry.register({...})`.
+- **Manifest Synchronization**: Run `npm run sync:effects` after adding or editing effects.
 
-## Unified Versioning & Single Source of Truth (SSOT) - MANDATORY
-- **Single Source of Truth (`version.json`)**: Version is strictly defined in `version.json`. NEVER manually hunt-and-peck across 10 different files to bump a version.
-- **Automated Synchronization**: Run `npm run bump <version>` or edit `version.json` (auto-synced by `server.js` or `npm run bump`). This automatically updates `package.json`, HTML badges, cache busters, and synchronizes the changelog feed from `CHANGELOG.md` across `index.html`, `editor.html`, and `demo.html`.
-- **NO Hardcoded Fallback Versions**: Hardcoded version strings in JS code (e.g. `if (!raw) return '0.5.12'`, `syncWelcomeVersionTags('0.5.12')`, or `console.log('v0.5.12')`) are STRICTLY BANNED. Code must dynamically read from `version.json`, `window.OFT_VERSION`, or the DOM, and degrade cleanly without hardcoded version literals.
-## File Manipulation Tooling (MANDATORY)
-- **Always Use Dedicated Tools**: File creation and edits MUST strictly use `replace_file_content` or `write_to_file`.
-- **NO Shell File Manipulation**: NEVER use `cat << 'EOF'`, `sed`, `awk`, `echo >`, Python scratch scripts, or terminal redirection to edit or write files. Always use the built-in tool calls.
+## 13. Unified Versioning & SSOT
+- **Single Source of Truth**: Version is strictly defined in `version.json`.
+- **Automated Synchronization**: Run `npm run bump <version>` to synchronize `package.json`, HTML badges, and cache busters.
+- **NO Hardcoded Fallback Versions**: Never write fallback version literals in JavaScript.
+
+## 14. Mandatory Quality & Test Verification
+- **Run Tests Before Turn Completion**: Before completing any task, execute:
+  ```bash
+  npm test
+  ```
+- All files must pass syntax verification, AST scope audit (0 undeclared references), synchronizers check, and HTML structure integrity.

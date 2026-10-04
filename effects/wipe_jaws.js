@@ -10,12 +10,14 @@
     id: 'wipe_jaws',
     name: 'Wipe Jaws',
     category: 'Wipe',
-    icon: 'assets/FXWipeJaws.svg',
+    icon: 'assets/FXWipeJaws.webp',
     description: 'Jaws wipe transition with interlocking zigzag teeth',
     params: [
-      { id: 'completion', label: 'Transition Completion', type: 'number', min: 0, max: 100, default: 0, unit: '%', step: 1 },
+            { id: 'completion', label: 'Transition Completion', type: 'number', min: 0, max: 100, default: 0, unit: '%', step: 1 },
       { id: 'angle', label: 'Wipe Angle', type: 'number', min: -360, max: 360, default: 0, unit: '°', step: 1 },
-      { id: 'teeth', label: 'Teeth Count', type: 'number', min: 2, max: 100, default: 10, unit: '', step: 1 }
+      { id: 'teeth', label: 'Teeth Count', type: 'number', min: 2, max: 100, default: 10, unit: '', step: 1 },
+      { id: 'sharpness', label: 'Sharpness', type: 'number', min: 0, max: 500, default: 100, unit: '%', step: 1 },
+      { id: 'reverse', label: 'Reverse Direction', type: 'boolean', default: false }
     ],
     render(ctx, el, layer, bounds, fx, currentSec) {
       if (!ctx || !el) return;
@@ -37,16 +39,22 @@
 
       const completionRaw = Number(currentFx.completion !== undefined ? currentFx.completion : (currentFx.params && currentFx.params.completion !== undefined ? currentFx.params.completion : 0));
       const completion = Math.max(0, Math.min(100, isNaN(completionRaw) ? 0 : completionRaw));
-      const angle = Number(currentFx.angle !== undefined ? currentFx.angle : (currentFx.params && currentFx.params.angle !== undefined ? currentFx.params.angle : 0));
+            const angle = Number(currentFx.angle !== undefined ? currentFx.angle : (currentFx.params && currentFx.params.angle !== undefined ? currentFx.params.angle : 0));
       const teeth = Math.max(2, Number(currentFx.teeth !== undefined ? currentFx.teeth : (currentFx.params && currentFx.params.teeth !== undefined ? currentFx.params.teeth : 10)));
+      const sharpness = Number(currentFx.sharpness !== undefined ? currentFx.sharpness : (currentFx.params && currentFx.params.sharpness !== undefined ? currentFx.params.sharpness : 100));
+      const reverseRaw = currentFx.reverse !== undefined ? currentFx.reverse : (currentFx.params && currentFx.params.reverse !== undefined ? currentFx.params.reverse : false);
+      const reverse = (reverseRaw === true || reverseRaw === 'true' || reverseRaw === '1' || reverseRaw === 1);
+      
+      // Wipe transitions from 0% (visible) to 100% (hidden).
+      // So at 0%, nothing is hidden (p=0). At 100%, everything is hidden (p=1).
+      const p = (completion / 100);
 
-      if (completion <= 0) {
+      if (p <= 0) {
         try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
         return;
       }
-
-      if (completion >= 100) {
-        return;
+      if (p >= 1) {
+        return; // Fully hidden
       }
 
       if (!_scratchCanvas) {
@@ -75,48 +83,82 @@
       const maxDist = diag / 2;
       
       // Each tooth is a triangle. The teeth are on the edge of the jaws.
-      const teethWidth = diag / teeth; // width of one tooth along the edge
-      const teethHeight = teethWidth; // depth of the teeth
-
-      // Calculate how far the jaws have moved in.
-      // When comp = 0, distance from center is maxDist + teethHeight.
-      // When comp = 100, distance from center is -teethHeight (fully overlapped).
-      const p = completion / 100;
-      const startDist = maxDist;
-      const endDist = -teethHeight;
-      const currentDist = startDist - p * (startDist - endDist);
-
+      
+      const teethWidth = diag / teeth;
+      const teethHeight = teethWidth * (sharpness / 100);
+      
       _scratchCtx.fillStyle = 'black';
-
-      // Draw Top Jaw
-      _scratchCtx.beginPath();
-      _scratchCtx.moveTo(-diag/2, -diag);
-      _scratchCtx.lineTo(diag/2, -diag);
-      _scratchCtx.lineTo(diag/2, -currentDist);
       
-      for (let i = 0; i < teeth; i++) {
-        const xRight = diag/2 - i * teethWidth;
-        const xLeft = diag/2 - (i+1) * teethWidth;
-        const xMid = (xRight + xLeft) / 2;
-        _scratchCtx.lineTo(xMid, -currentDist + teethHeight);
-        _scratchCtx.lineTo(xLeft, -currentDist);
+      if (!reverse) {
+        // Normal: jaws come from edges towards center, hiding edges first.
+        const startDist = maxDist;
+        const endDist = -teethHeight;
+        const currentDist = startDist - p * (startDist - endDist);
+  
+        // Top Jaw
+        _scratchCtx.beginPath();
+        _scratchCtx.moveTo(-diag/2, -diag);
+        _scratchCtx.lineTo(diag/2, -diag);
+        _scratchCtx.lineTo(diag/2, -currentDist);
+        for (let i = 0; i < teeth; i++) {
+          const xRight = diag/2 - i * teethWidth;
+          const xLeft = diag/2 - (i+1) * teethWidth;
+          const xMid = (xRight + xLeft) / 2;
+          _scratchCtx.lineTo(xMid, -currentDist + teethHeight);
+          _scratchCtx.lineTo(xLeft, -currentDist);
+        }
+        _scratchCtx.fill();
+  
+        // Bottom Jaw
+        _scratchCtx.beginPath();
+        _scratchCtx.moveTo(-diag/2, diag);
+        _scratchCtx.lineTo(diag/2, diag);
+        _scratchCtx.lineTo(diag/2, currentDist);
+        for (let i = 0; i < teeth; i++) {
+          const xRight = diag/2 - i * teethWidth;
+          const xLeft = diag/2 - (i+1) * teethWidth;
+          const xMid = (xRight + xLeft) / 2;
+          _scratchCtx.lineTo(xMid, currentDist - teethHeight);
+          _scratchCtx.lineTo(xLeft, currentDist);
+        }
+        _scratchCtx.fill();
+      } else {
+        // Reverse: jaws start at center and move outwards, hiding center first.
+        const startDist = 0;
+        const endDist = maxDist + teethHeight;
+        const currentDist = startDist + p * (endDist - startDist);
+        
+        // Hide the middle by drawing a single shape that connects the two jaws.
+        _scratchCtx.beginPath();
+        
+        // Start from left side of top jaw
+        _scratchCtx.moveTo(-diag/2, -currentDist);
+        
+        // Draw top jaw teeth going right
+        for (let i = teeth - 1; i >= 0; i--) {
+          const xLeft = diag/2 - (i+1) * teethWidth;
+          const xRight = diag/2 - i * teethWidth;
+          const xMid = (xRight + xLeft) / 2;
+          _scratchCtx.lineTo(xMid, -currentDist - teethHeight);
+          _scratchCtx.lineTo(xRight, -currentDist);
+        }
+        
+        // Go down to bottom jaw right side
+        _scratchCtx.lineTo(diag/2, currentDist);
+        
+        // Draw bottom jaw teeth going left
+        for (let i = 0; i < teeth; i++) {
+          const xRight = diag/2 - i * teethWidth;
+          const xLeft = diag/2 - (i+1) * teethWidth;
+          const xMid = (xRight + xLeft) / 2;
+          _scratchCtx.lineTo(xMid, currentDist + teethHeight);
+          _scratchCtx.lineTo(xLeft, currentDist);
+        }
+        
+        // Close polygon (back to left side of top jaw)
+        _scratchCtx.closePath();
+        _scratchCtx.fill();
       }
-      _scratchCtx.fill();
-
-      // Draw Bottom Jaw
-      _scratchCtx.beginPath();
-      _scratchCtx.moveTo(-diag/2, diag);
-      _scratchCtx.lineTo(diag/2, diag);
-      _scratchCtx.lineTo(diag/2, currentDist);
-      
-      for (let i = 0; i < teeth; i++) {
-        const xRight = diag/2 - i * teethWidth;
-        const xLeft = diag/2 - (i+1) * teethWidth;
-        const xMid = (xRight + xLeft) / 2;
-        _scratchCtx.lineTo(xMid, currentDist - teethHeight);
-        _scratchCtx.lineTo(xLeft, currentDist);
-      }
-      _scratchCtx.fill();
 
       _scratchCtx.restore();
       _scratchCtx.globalCompositeOperation = 'source-over';

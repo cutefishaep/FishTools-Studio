@@ -11205,9 +11205,19 @@
     function addNullLayer(autoLink = false, options = {}) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
-      const currentSec = isTargetSec ? Math.max(0, options.targetSec) : (Math.abs(window.timelinePanX || 0) / pps);
-      const defaultDur = currentProjectState.defaultDuration || 5;
+      
+      let currentSec = Math.abs(window.timelinePanX || 0) / pps;
+      if (options && typeof options.startSec === 'number' && isFinite(options.startSec)) {
+        currentSec = Math.max(0, options.startSec);
+      } else if (options && typeof options.targetSec === 'number' && isFinite(options.targetSec)) {
+        currentSec = Math.max(0, options.targetSec);
+      }
+      
+      let defaultDur = currentProjectState.defaultDuration || 5;
+      if (options && typeof options.durationSec === 'number' && isFinite(options.durationSec)) {
+        defaultDur = Math.max(0.1, options.durationSec);
+      }
+
       const widthPx = Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
 
@@ -12377,9 +12387,19 @@
     function addShapeLayer(shapeType = 'rectangle', options = {}) {
       currentProjectState.layers = currentProjectState.layers || [];
       const pps = window.currentPixelsPerSecond || 80;
-      const isTargetSec = options && typeof options.targetSec === 'number' && isFinite(options.targetSec);
-      const currentSec = isTargetSec ? Math.max(0, options.targetSec) : (Math.abs(window.timelinePanX || 0) / pps);
-      const defaultDur = currentProjectState.defaultDuration || 5;
+      
+      let currentSec = Math.abs(window.timelinePanX || 0) / pps;
+      if (options && typeof options.startSec === 'number' && isFinite(options.startSec)) {
+        currentSec = Math.max(0, options.startSec);
+      } else if (options && typeof options.targetSec === 'number' && isFinite(options.targetSec)) {
+        currentSec = Math.max(0, options.targetSec);
+      }
+      
+      let defaultDur = currentProjectState.defaultDuration || 5;
+      if (options && typeof options.durationSec === 'number' && isFinite(options.durationSec)) {
+        defaultDur = Math.max(0.1, options.durationSec);
+      }
+
       const widthPx = Math.max(80, Math.round(defaultDur * pps));
       const startPx = Math.round(currentSec * pps);
 

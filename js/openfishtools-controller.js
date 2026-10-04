@@ -2892,9 +2892,11 @@
         return applyToolboxMirror(args[0]);
 
       // Toolbox - Create
-      case 'SHA':
-        if (typeof window.addShapeLayer === 'function') return window.addShapeLayer('rectangle');
+      case 'SHA': {
+        const timing = getSelectedLayerTiming();
+        if (typeof window.addShapeLayer === 'function') return window.addShapeLayer('rectangle', { durationSec: timing.durationSec, startSec: timing.startSec });
         break;
+      }
       case 'SOL': {
         const timing = getSelectedLayerTiming();
         const isBlack = args[0] === true;
@@ -2906,9 +2908,11 @@
         }
         break;
       }
-      case 'NUL':
-        if (typeof window.addNullLayer === 'function') return window.addNullLayer(args[0] === true);
+      case 'NUL': {
+        const timing = getSelectedLayerTiming();
+        if (typeof window.addNullLayer === 'function') return window.addNullLayer(args[0] === true, { durationSec: timing.durationSec, startSec: timing.startSec });
         break;
+      }
       case 'CAM': {
         const timing = getSelectedLayerTiming();
         if (typeof window.addCameraLayer === 'function') return window.addCameraLayer(timing.durationSec, timing.startSec);

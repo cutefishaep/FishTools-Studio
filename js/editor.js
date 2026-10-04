@@ -4360,8 +4360,8 @@
               return; // Scale controlled by expression
             }
             if (selectedLayer.type === 'camera') {
-              syncLayerWithEffectiveProps(selectedLayer);
               window.isTransformInteracting = true;
+              syncLayerWithEffectiveProps(selectedLayer);
 
               activeOp = 'scale';
               activeHandleType = hitH.type;
@@ -4381,8 +4381,8 @@
               return;
             }
 
-            syncLayerWithEffectiveProps(selectedLayer);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(selectedLayer);
 
             activeOp = 'scale';
             activeHandleType = hitH.type;
@@ -4468,8 +4468,8 @@
             if (selectedLayer.expressions && (selectedLayer.expressions.move || (isMoveAnchor && selectedLayer.expressions.anchor))) {
               return; // Position/Anchor controlled by expression
             }
-            syncLayerWithEffectiveProps(selectedLayer);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(selectedLayer);
 
             activeOp = isMoveAnchor ? 'moveAnchor' : 'move';
             activeHandleType = isMoveAnchor ? 'anchor' : 'move';
@@ -4516,8 +4516,8 @@
             if (typeof window.selectTimelineLayer === 'function') {
               window.selectTimelineLayer(l.id);
             }
-            syncLayerWithEffectiveProps(l);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(l);
 
             activeOp = 'move';
             activeHandleType = 'move';
@@ -4552,8 +4552,8 @@
 
         // D. If Camera layer is selected and user clicked/dragged on canvas: Start Moving Camera!
         if (selectedLayer && selectedLayer.type === 'camera') {
-          syncLayerWithEffectiveProps(selectedLayer);
           window.isTransformInteracting = true;
+          syncLayerWithEffectiveProps(selectedLayer);
 
           activeOp = 'move';
           activeHandleType = 'move';
@@ -8666,8 +8666,8 @@
           bW = info.baseW;
           bH = info.baseH;
 
-          syncLayerWithEffectiveProps(targetL);
           window.isTransformInteracting = true;
+          syncLayerWithEffectiveProps(targetL);
           invalidatePreviewCacheForLayer(targetL);
 
           isMoving = true;
@@ -8932,8 +8932,8 @@
           targetL = info.layer;
           if (targetL && targetL.expressions && (targetL.expressions.rotate || targetL.expressions.rotation || targetL.expressions.rotZ)) return;
 
-          syncLayerWithEffectiveProps(targetL);
           window.isTransformInteracting = true;
+          syncLayerWithEffectiveProps(targetL);
           invalidatePreviewCacheForLayer(targetL);
 
           const rect = rotateDial.getBoundingClientRect();
@@ -9705,8 +9705,8 @@
 
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (layer) {
-            syncLayerWithEffectiveProps(layer);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(layer);
             invalidatePreviewCacheForLayer(layer);
           }
 
@@ -9964,8 +9964,8 @@
 
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (layer) {
-            syncLayerWithEffectiveProps(layer);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(layer);
             invalidatePreviewCacheForLayer(layer);
           }
 
@@ -10688,8 +10688,8 @@
 
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (layer) {
-            syncLayerWithEffectiveProps(layer);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(layer);
             invalidatePreviewCacheForLayer(layer);
           }
 
@@ -10853,8 +10853,8 @@
 
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           if (layer) {
-            syncLayerWithEffectiveProps(layer);
             window.isTransformInteracting = true;
+            syncLayerWithEffectiveProps(layer);
             invalidatePreviewCacheForLayer(layer);
           }
 

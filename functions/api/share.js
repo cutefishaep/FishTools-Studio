@@ -116,13 +116,27 @@ export async function onRequestPost(context) {
       }
     }
 
-    // 5. Forward project file and optional HD thumbnail to Catbox API
-    const safeBaseName = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) || 'Project';
-    const safeFilename = safeBaseName + '.ofts';
+    // 5. Generate collision-resistant secure ID first; files are named after it
+    let id = generateSecureShortId();
+    if (kv) {
+      let attempts = 0;
+      while (attempts < 5) {
+        const existing = await kv.get(id);
+        if (!existing) break;
+        id = generateSecureShortId();
+        attempts++;
+      }
+    }
+
+    // 6. Forward project file and optional HD thumbnail to Catbox API
+    const safeBaseName = id;
+    const safeFilename = id + '.ofts';
     const fileBuffer = await file.arrayBuffer();
 
+    const catboxUserhash = (context.env && context.env.CATBOX_USERHASH) || '';
     const catboxForm = new FormData();
     catboxForm.append('reqtype', 'fileupload');
+    if (catboxUserhash) catboxForm.append('userhash', catboxUserhash);
     catboxForm.append('fileToUpload', new Blob([fileBuffer], { type: 'application/octet-stream' }), safeFilename);
 
     let catboxUrl = '';
@@ -135,7 +149,8 @@ export async function onRequestPost(context) {
         try {
           const tForm = new FormData();
           tForm.append('reqtype', 'fileupload');
-          const safeThumbName = `${safeBaseName}_thumb.jpg`;
+          if (catboxUserhash) tForm.append('userhash', catboxUserhash);
+          const safeThumbName = `${id}.jpg`;
           const tBuf = await thumbnailFile.arrayBuffer();
           tForm.append('fileToUpload', new Blob([tBuf], { type: 'image/jpeg' }), safeThumbName);
           const tRes = await fetch('https://catbox.moe/user/api.php', {
@@ -146,7 +161,7 @@ export async function onRequestPost(context) {
             },
             signal: AbortSignal.timeout(12000)
           });
-          if (tRes && tRes.ok) {
+          if (tRes) {
             const txt = (await tRes.text()).trim();
             if (txt.startsWith('https://files.catbox.moe/')) return txt;
           }
@@ -167,7 +182,7 @@ export async function onRequestPost(context) {
               },
               signal: AbortSignal.timeout(15000)
             });
-            if (catboxRes && catboxRes.ok) {
+            if (catboxRes) {
               const text = (await catboxRes.text()).trim();
               if (text.startsWith('https://files.catbox.moe/')) {
                 catboxUrl = text;
@@ -180,57 +195,12 @@ export async function onRequestPost(context) {
       await Promise.all(uploadTasks);
     } catch (_) {}
 
-    // Fallback: If Catbox blocks or returns 412/520, store project package directly in KV if <= 10MB
+    // Catbox-only storage: no project data or images are stored on Cloudflare.
     if (!catboxUrl) {
-      if (kv && file.size <= 10 * 1024 * 1024) {
-        const base64Data = arrayBufferToBase64(fileBuffer);
-        const fallbackId = generateSecureShortId();
-        const fallbackRecord = {
-          id: fallbackId,
-          name: sanitizedName,
-          specs: sanitizedSpecs,
-          size: sanitizedSize,
-          aspectRatio: sanitizedAspect,
-          thumbnail: thumbUrl || sanitizedThumbnail,
-          dataBase64: base64Data,
-          fileUrl: `${new URL(context.request.url).origin}/api/project?id=${fallbackId}&download=1`,
-          createdAt: Date.now()
-        };
-        await kv.put(fallbackId, JSON.stringify(fallbackRecord));
-        const origin = new URL(context.request.url).origin;
-        return new Response(JSON.stringify({
-          success: true,
-          id: fallbackId,
-          shareUrl: `${origin}/${fallbackId}`,
-          catboxUrl: fallbackRecord.fileUrl,
-          record: fallbackRecord
-        }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'X-Content-Type-Options': 'nosniff'
-          }
-        });
-      }
-
-      const status = catboxRes ? catboxRes.status : 502;
-      return new Response(JSON.stringify({ error: `Storage provider error (${status}). Please try again later.` }), {
+      return new Response(JSON.stringify({ error: 'Storage provider error (502). Please try again later.' }), {
         status: 502,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
-    }
-
-    // 6. Generate collision-resistant secure ID
-    let id = generateSecureShortId();
-    if (kv) {
-      let attempts = 0;
-      while (attempts < 5) {
-        const existing = await kv.get(id);
-        if (!existing) break;
-        id = generateSecureShortId();
-        attempts++;
-      }
     }
 
     // 7. Store purely minimal metadata in KV
@@ -240,7 +210,7 @@ export async function onRequestPost(context) {
       specs: sanitizedSpecs,
       size: sanitizedSize,
       aspectRatio: sanitizedAspect,
-      thumbnail: thumbUrl || sanitizedThumbnail,
+      thumbnail: thumbUrl,
       fileUrl: catboxUrl,
       createdAt: Date.now()
     };

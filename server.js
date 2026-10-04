@@ -431,6 +431,7 @@ function handleRequest(req, res) {
         try {
           const catboxForm = new FormData();
           catboxForm.append('reqtype', 'fileupload');
+          if (process.env.CATBOX_USERHASH) catboxForm.append('userhash', process.env.CATBOX_USERHASH);
           catboxForm.append('fileToUpload', file, safeName);
 
           const uploadTasks = [
@@ -456,6 +457,7 @@ function handleRequest(req, res) {
               try {
                 const tForm = new FormData();
                 tForm.append('reqtype', 'fileupload');
+                if (process.env.CATBOX_USERHASH) tForm.append('userhash', process.env.CATBOX_USERHASH);
                 tForm.append('fileToUpload', thumbnailFile, `${sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')}_thumb.jpg`);
                 const tRes = await fetch('https://catbox.moe/user/api.php', {
                   method: 'POST',

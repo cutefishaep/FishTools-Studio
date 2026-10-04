@@ -760,10 +760,7 @@
       const easedProg = applyEasing(prog);
 
       // Intact state: render base image directly if no progress and no motion blur
-      if (prog <= 0.001 && !shutterTimes) {
-        try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
-        return;
-      }
+      /* if (prog <= 0.001 && !shutterTimes) { ... bypass removed for true 3D perspective ... } */
 
       const rawForce = Math.max(0, fx.force !== undefined ? Number(fx.force) : 162);
       const force = rawForce * unitScale;
@@ -806,10 +803,7 @@
             sampleTimes.push(ts);
             sampleProgs.push(applyEasing(progAt(ts)));
           }
-        } else if (prog <= 0.001 && camTravel < 0.5) {
-          try { ctx.drawImage(el, x, y, w, h); } catch (_) {}
-          return;
-        }
+        } /* else if (prog <= 0.001 && camTravel < 0.5) { bypass removed } */
       }
 
       // NATIVE WEBGL 3D PIPELINE

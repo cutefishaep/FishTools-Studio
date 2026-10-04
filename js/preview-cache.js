@@ -191,8 +191,8 @@
       const totalProjectFrames = Math.round(totalDur * this.fps);
       const isMobile = (typeof window !== 'undefined' && (window.innerWidth <= 600 || ('ontouchstart' in window && window.innerWidth <= 900)));
       const devMem = (typeof navigator !== 'undefined' && navigator.deviceMemory) ? navigator.deviceMemory : 4;
-      const memCap = isMobile ? 180 : (devMem <= 2 ? 150 : (devMem <= 4 ? 300 : (this.maxFrames || 600)));
-      const effectiveMax = Math.min(memCap, Math.max(60, totalProjectFrames + 60));
+      const memCap = isMobile ? 600 : (devMem <= 4 ? 900 : (this.maxFrames || 2000));
+      const effectiveMax = Math.max(memCap, totalProjectFrames + 60);
       if (pool.size <= effectiveMax) return;
 
       const pps = (typeof window !== 'undefined' && window.currentPixelsPerSecond) ? window.currentPixelsPerSecond : 80;

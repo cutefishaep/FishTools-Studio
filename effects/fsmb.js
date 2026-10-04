@@ -492,16 +492,43 @@
 
       const fSamples = 10;
 
-      // Fixed 1/N lighter accumulation — correct for sparse-coverage pixels.
-      // (Previously used progressive 1/(i+1) source-over which left leading-edge at full opacity.)
-      actx.globalAlpha = 1.0 / fSamples;
-      actx.globalCompositeOperation = 'lighter';
+      // Running mean (incremental average) in two steps per sample: 'destination-in'
+      // scales the old mean by i/(i+1), 'lighter' adds the new sample at 1/(i+1).
+      // Transparent pixels dilute the mean (symmetric trails); a plain source-over
+      // would no-op on them and leave one-sided blur. Buffer stays near full
+      // brightness, so no 8-bit hue shift like fixed 1/N 'lighter' sums.
+      actx.globalCompositeOperation = 'source-over';
+      actx.globalAlpha = 1;
 
       for (let i = 0; i < fSamples; i++) {
         const t = -0.5 + (i + 0.5) / fSamples;
         const offX = dxPx * t;
         const offY = dyPx * t;
         const rot = rotRad * t;
+
+        if (i === 0) {
+          actx.save();
+          actx.globalAlpha = 1;
+          if (rot !== 0) {
+            const cx = w * vel.anchorX;
+            const cy = h * vel.anchorY;
+            actx.translate(cx + offX, cy + offY);
+            actx.rotate(rot);
+            actx.drawImage(el, -cx, -cy, w, h);
+          } else {
+            actx.drawImage(el, offX, offY, w, h);
+          }
+          actx.restore();
+          continue;
+        }
+
+        const wgt = 1 / (i + 1);
+        actx.globalCompositeOperation = 'destination-in';
+        actx.globalAlpha = 1 - wgt;
+        actx.fillStyle = '#000';
+        actx.fillRect(0, 0, w, h);
+        actx.globalCompositeOperation = 'lighter';
+        actx.globalAlpha = wgt;
 
         actx.save();
         if (rot !== 0) {
@@ -514,6 +541,7 @@
           actx.drawImage(el, offX, offY, w, h);
         }
         actx.restore();
+        actx.globalAlpha = 1;
       }
 
       // Reset composite state before drawing to destination

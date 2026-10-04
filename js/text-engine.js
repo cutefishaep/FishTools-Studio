@@ -823,10 +823,12 @@
       }; // end drawFrame
 
       // ── AE-style per-glyph motion blur ─────────────────────────────────────────
-      // Every glyph is sampled across the shutter interval and averaged ('lighter' +
-      // 1/N alpha on premultiplied canvas = true average). Sample count is adaptive to
-      // the fastest glyph's travel (≈1.5px spacing) so the smear is continuous, never
-      // stepped ghost copies. Layer-transform blur stays in FishMotionBlurEngine.
+      // Every glyph is sampled across the shutter interval and averaged via running
+      // mean (two-step: 'destination-in' scales old mean by i/(i+1), 'lighter' adds
+      // new sample at 1/(i+1)). Transparent pixels dilute the mean, so trails stay
+      // symmetric; buffer stays near full brightness, so no 8-bit hue shift.
+      // Sample count is adaptive to the fastest glyph's travel so the smear is
+      // continuous, never stepped ghost copies. Layer-transform blur stays in FishMotionBlurEngine.
       const mbEng = (typeof window !== 'undefined') ? window.FishMotionBlurEngine : null;
       const mbOn = !isSubSample && !isStaticKey && mbEng && (typeof mbEng.isEffectBlurActive === 'function' ? mbEng.isEffectBlurActive(layer) : (typeof mbEng.isLayerActive === 'function' && mbEng.isLayerActive(layer)));
       let drewBlur = false;
@@ -868,8 +870,8 @@
             const sctx = FishTextEngine._mbScratchCtx;
             if (sc.width !== reqW || sc.height !== reqH) { sc.width = reqW; sc.height = reqH; }
             ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.globalAlpha = 1 / n;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1;
             for (let si = 0; si < n; si++) {
               const ts = t0 + ((si + 0.5) / n) * exposure;
               sctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -877,7 +879,21 @@
               sctx.save();
               drawFrame(sctx, ts, true);
               sctx.restore();
-              ctx.drawImage(sc, 0, 0);
+              if (si === 0) {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1;
+                ctx.drawImage(sc, 0, 0);
+              } else {
+                const wgt = 1 / (si + 1);
+                ctx.globalCompositeOperation = 'destination-in';
+                ctx.globalAlpha = 1 - wgt;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, reqW, reqH);
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = wgt;
+                ctx.drawImage(sc, 0, 0);
+                ctx.globalAlpha = 1;
+              }
             }
             ctx.restore();
             drewBlur = true;

@@ -101,6 +101,15 @@
       const frontX = Math.round(x + (totalShiftX < 0 ? absShiftX : 0));
       const frontY = Math.round(y + (totalShiftY < 0 ? absShiftY : 0));
 
+      let tempCanvas = null;
+      let tempCtx = null;
+      if (isSolidMode || shading > 0) {
+        tempCanvas = document.createElement('canvas');
+        tempCanvas.width = frontW;
+        tempCanvas.height = frontH;
+        tempCtx = tempCanvas.getContext('2d');
+      }
+
       ctx.save();
 
       // Render extruded slices from back to front
@@ -112,13 +121,23 @@
         ctx.save();
         try {
           if (isSolidMode) {
-            ctx.fillStyle = hexToRgba(faceColor, faceOpacity * (1.0 - t * shading * 0.5));
-            ctx.fillRect(offX, offY, frontW, frontH);
+            tempCtx.clearRect(0, 0, frontW, frontH);
+            tempCtx.drawImage(el, 0, 0, frontW, frontH);
+            tempCtx.globalCompositeOperation = 'source-in';
+            tempCtx.fillStyle = hexToRgba(faceColor, faceOpacity * (1.0 - t * shading * 0.5));
+            tempCtx.fillRect(0, 0, frontW, frontH);
+            tempCtx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(tempCanvas, offX, offY, frontW, frontH);
           } else {
             ctx.drawImage(el, offX, offY, frontW, frontH);
             if (shading > 0) {
-              ctx.fillStyle = `rgba(0, 0, 0, ${t * shading * 0.6})`;
-              ctx.fillRect(offX, offY, frontW, frontH);
+              tempCtx.clearRect(0, 0, frontW, frontH);
+              tempCtx.drawImage(el, 0, 0, frontW, frontH);
+              tempCtx.globalCompositeOperation = 'source-in';
+              tempCtx.fillStyle = `rgba(0, 0, 0, ${t * shading * 0.6})`;
+              tempCtx.fillRect(0, 0, frontW, frontH);
+              tempCtx.globalCompositeOperation = 'source-over';
+              ctx.drawImage(tempCanvas, offX, offY, frontW, frontH);
             }
           }
         } catch (_) {}
@@ -129,23 +148,6 @@
       try {
         ctx.drawImage(el, frontX, frontY, frontW, frontH);
       } catch (_) {}
-
-      // Outer connecting edges
-      if (edgeOpacity > 0) {
-        ctx.strokeStyle = hexToRgba(edgeColor, edgeOpacity);
-        ctx.lineWidth = 1;
-        ctx.strokeRect(frontX, frontY, frontW, frontH);
-
-        const backX = Math.round(frontX + totalShiftX);
-        const backY = Math.round(frontY + totalShiftY);
-
-        ctx.beginPath();
-        ctx.moveTo(frontX, frontY); ctx.lineTo(backX, backY);
-        ctx.moveTo(frontX + frontW, frontY); ctx.lineTo(backX + frontW, backY);
-        ctx.moveTo(frontX + frontW, frontY + frontH); ctx.lineTo(backX + frontW, backY + frontH);
-        ctx.moveTo(frontX, frontY + frontH); ctx.lineTo(backX, frontY + frontH + (backY - frontY));
-        ctx.stroke();
-      }
 
       ctx.restore();
     }

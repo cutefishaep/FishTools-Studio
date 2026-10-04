@@ -5,6 +5,27 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.131] - 2026-10-04
+
+### Fixed
+- **Motion Blur Hue Breakup on Trails (`js/motion-blur-engine.js`, `js/text-engine.js`, `js/fishtool-engine.js`, `effects/fsmb.js`, `effects/shatter.js`)**:
+  - Replaced fixed `1/N` additive accumulation (`lighter` + `ONE,ONE`) with an incremental running mean, so the 8-bit buffer stays near full brightness and per-sample rounding no longer shifts hues (e.g. value 100 rendered as 128 at 64 samples).
+  - Larger sample counts, wider shutter angles, and longer trails no longer degrade color; static layers were already clean via the stationary bypass.
+  - `planSamples` quality-tier caps (`maxSamples`/`spacing` for draft/mobile/preview/export) are now actually enforced instead of ignored.
+- **One-Sided Motion Blur Trails (`js/motion-blur-engine.js`, `js/text-engine.js`, `js/fishtool-engine.js`, `effects/fsmb.js`)**:
+  - Transparent sample pixels now dilute the running mean via a two-step blend (`destination-in` scale + `lighter` add) on Canvas2D, and via a new `u_noDiscard` shader flag on WebGL, so leading and trailing edges blur symmetrically instead of only the leading edge.
+- **3D Layer Penetration Lost Under Motion Blur (`js/fishtool-engine.js`, `js/editor.js`)**:
+  - Added shared-depth scene motion blur (`render3DSceneMotionBlur`): consecutive plain-3D layers render together per shutter sample into an FBO with one depth buffer, then average — 3D intersection survives motion blur exactly like the static batch pass.
+  - Single-layer 3D blur now keeps depth testing with a per-sample depth clear, fixing mesh self-occlusion during blur.
+  - New `isBatchable3D` single source of truth for depth-batch membership, shared by `renderScene` and both composition loops; collapsed precomp children and effect layers keep the legacy paths verbatim.
+- **True-Shape 3D Extrude for Text & Shapes (`js/fishtool-engine.js`)**:
+  - `extrude_3d` hardware mesh now extrudes the layer's real alpha silhouette (marching squares contour walls + textured back cap) instead of a bounding box — text extrudes as text, a triangle extrudes as a triangle (holes included); opaque rectangles keep the cheap exact box path.
+  - Contour wall UVs shift ~1.5px inside the shape so sides sample opaque interior texels instead of rendering semi-transparent.
+- **Effects Gallery Sticky Chip Gap (`css/effects-rack.css`)**:
+  - Removed the body's top padding so the sticky category chip bar parks flush at the scrollport top — scrolled thumbnails no longer peek through a see-through lane above the chips.
+- **Project Background Colors & Custom Picker (`index.html`, `editor.html`, `desktop.html`, `css/modal.css`, `js/main.js`, `js/editor.js`)**:
+  - Removed Matcha Canvas and Matcha Green, added White; the last tile is now a Custom tile opening the universal `FishColorPicker` popover above the modal (palette, spectrum wheel, eyedropper), with stored custom hex reflected back on reopen.
+
 ## [0.5.121] - 2026-10-03
 
 ### Fixed

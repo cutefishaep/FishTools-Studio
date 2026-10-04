@@ -628,7 +628,12 @@
       if (renderEffects.length === 1) {
         const fx = renderEffects[0];
         const def = FishEffectsRegistry.get(fx.type);
-        def.render(ctx, el, layer, normBounds, fx, effectiveSec);
+        try {
+          def.render(ctx, el, layer, normBounds, fx, effectiveSec);
+        } catch (err) {
+          console.warn('[FishEffects] Render error on ' + fx.type + ':', err);
+          try { ctx.drawImage(el, bx, by, bw, bh); } catch (_) {}
+        }
         return;
       }
 
@@ -667,7 +672,12 @@
           buf.ctx.clearRect(0, 0, pipeW, pipeH);
         }
 
-        def.render(targetCtx, currentSource, layer, targetBounds, fx, effectiveSec);
+        try {
+          def.render(targetCtx, currentSource, layer, targetBounds, fx, effectiveSec);
+        } catch (err) {
+          console.warn('[FishEffects] Multi-pipeline render error on ' + fx.type + ':', err);
+          try { targetCtx.drawImage(currentSource, targetBounds.x, targetBounds.y, targetBounds.w, targetBounds.h); } catch (_) {}
+        }
 
         if (!isLast) {
           currentSource = buf.canvas;

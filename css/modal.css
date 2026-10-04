@@ -684,6 +684,28 @@
   background-repeat: repeat;
 }
 
+/* Custom color swatch: flat tile with "+" mark wrapping a native color input */
+.modal-color-swatch.swatch-custom {
+  background-color: var(--bg-panel-inner);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.modal-color-swatch.swatch-custom span {
+  font-family: var(--font-brand);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.modal-color-swatch.swatch-custom.is-picked span {
+  display: none;
+}
+
 .modal-color-swatch:hover {
   transform: scale(1.1);
 }

@@ -910,22 +910,12 @@ window.FishToolsBridge = (function () {
       return applyTimeRemapVelocity();
     }
 
-    // --- Beat Effects: Disabled S_Shake ---
-    if (toolName === 'SHKE') {
-      return JSON.stringify({
-        error: true,
-        tool: 'S_Shake',
-        type: 'warn',
-        message: 'S_Shake is temporarily disabled.'
-      });
-    }
-
     // --- Beat Effects: Current ---
     if (toolName === 'GHST' || toolName === 'WARP' || toolName === 'FISHEYE' || toolName === 'MIDWAVE' || toolName === 'HUESPIN' || toolName === 'EXPO' || toolName === 'FLASH' || toolName === 'LENS' ||
         toolName === 'PRESET_WARP1' || toolName === 'WARP1' ||
         toolName === 'PRESET_WARP2' || toolName === 'WARP2' ||
         toolName === 'PRESET_WARP3' || toolName === 'WARP3' ||
-        toolName === 'OSCILLATE' || toolName === 'SWING' ||
+        toolName === 'OSCILLATE' || toolName === 'SHAKY' || toolName === 'SWING' ||
         toolName === 'Y_BEAT' || toolName === 'Y_FLIP' || toolName === 'X_BEAT' || toolName === 'X_FLIP' ||
         toolName === 'SCALE_BEAT' || toolName === 'SCALE_OVERLAP' ||
         (typeof toolName === 'string' && (toolName === 'PANNING' || toolName.indexOf('PANNING_') === 0))) {
@@ -1208,18 +1198,6 @@ window.FishToolsAdapter = (function () {
       if (aeEl) aeEl.textContent = 'Web App';
       const osEl = doc.getElementById('info-os');
       if (osEl) osEl.textContent = 'Browser';
-
-      // 6. Disable S_Shake button (no replacement effect yet)
-      const shakeBtn = doc.querySelector('.tool-btn[data-tool="SHKE"]');
-      if (shakeBtn) {
-        shakeBtn.setAttribute('disabled', 'disabled');
-        shakeBtn.setAttribute('aria-disabled', 'true');
-        shakeBtn.setAttribute('title', 'S_Shake is temporarily disabled (replacement in development)');
-        shakeBtn.style.setProperty('opacity', '0.35', 'important');
-        shakeBtn.style.setProperty('pointer-events', 'none', 'important');
-        shakeBtn.style.setProperty('filter', 'grayscale(1)', 'important');
-        shakeBtn.style.setProperty('cursor', 'not-allowed', 'important');
-      }
 
       // Configure LENS button: left click = Fast Box Blur, right click = Lens Blur
       const lensBtn = doc.querySelector('.tool-btn[data-tool="LENS"]');
@@ -1822,14 +1800,6 @@ window.FishToolsAdapter = (function () {
         .tool-btn--active span,
         .tool-btn--active div > span {
           color: #000000 !important;
-        }
-        .tool-btn[data-tool="SHKE"],
-        .tool-btn[data-tool="SHKE"]:hover,
-        .tool-btn[data-tool="SHKE"]:active {
-          opacity: 0.35 !important;
-          pointer-events: none !important;
-          filter: grayscale(1) !important;
-          cursor: not-allowed !important;
         }
         .anchor-cell {
           border-color: var(--border, #2a3321) !important;

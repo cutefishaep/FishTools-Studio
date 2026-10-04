@@ -26,12 +26,12 @@
     const selId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size === 1 ? Array.from(window.selectedLayerIds)[0] : null);
     const selLayer = layers.find(l => l.id === selId);
     if (!selLayer) {
-      const msg = 'Please select a video layer first.';
+      const msg = 'Please select a video or precompose layer first.';
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: 'Freeze Frame', type: 'warn', message: msg });
     }
-    if (selLayer.type !== 'video') {
-      const msg = 'Freeze Frame is only supported on video layers!';
+    if (selLayer.type !== 'video' && selLayer.type !== 'precomp') {
+      const msg = 'Freeze Frame is only supported on video and precompose layers!';
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: 'Freeze Frame', type: 'warn', message: msg });
     }
@@ -204,9 +204,9 @@
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
     const selId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size === 1 ? Array.from(window.selectedLayerIds)[0] : null);
     const selLayer = layers.find(l => l.id === selId);
-    if (!selLayer) return JSON.stringify({ error: true, tool: 'Twixtor', type: 'warn', message: 'Please select a video layer first.' });
-    if (selLayer.type !== 'video') {
-      const msg = 'Twixtor velocity is only supported on video layers!';
+    if (!selLayer) return JSON.stringify({ error: true, tool: 'Twixtor', type: 'warn', message: 'Please select a video or precompose layer first.' });
+    if (selLayer.type !== 'video' && selLayer.type !== 'precomp') {
+      const msg = 'Twixtor velocity is only supported on video and precompose layers!';
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: 'Twixtor', type: 'warn', message: msg });
     }
@@ -292,9 +292,9 @@
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
     const selId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size === 1 ? Array.from(window.selectedLayerIds)[0] : null);
     const selLayer = layers.find(l => l.id === selId);
-    if (!selLayer) return JSON.stringify({ error: true, tool: 'Time Remap', type: 'warn', message: 'Please select a video layer first.' });
-    if (selLayer.type !== 'video') {
-      const msg = 'Time Remap is only supported on video layers!';
+    if (!selLayer) return JSON.stringify({ error: true, tool: 'Time Remap', type: 'warn', message: 'Please select a video or precompose layer first.' });
+    if (selLayer.type !== 'video' && selLayer.type !== 'precomp') {
+      const msg = 'Time Remap is only supported on video and precompose layers!';
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: 'Time Remap', type: 'warn', message: msg });
     }
@@ -1156,17 +1156,47 @@
       disabled: false,
       hue: 360
     };
-    adjHue.effects = [hueFx];
+
+    const warpWw1 = {
+      id: uid('fx_wave_warp_1'),
+      type: 'wave-warp',
+      name: 'Wave Warp',
+      isExpanded: true,
+      disabled: false,
+      waveType: 'smooth-noise',
+      waveHeight: 0,
+      waveWidth: 10,
+      direction: 90,
+      speed: 10,
+      phase: 273,
+      tile: 1
+    };
+
+    adjHue.effects = [hueFx, warpWw1];
 
     const hueEase = [0, 1, 0.58, 1];
+    const warpT2 = Number((curSec + hueDur / 2).toFixed(4));
+
     adjHue.keyframes = {
       [`${hueFx.id}:hue`]: [
         { time: hueT1, value: { hue: 0 }, easing: [...hueEase] },
         { time: hueT2, value: { hue: 360 }, easing: [...hueEase] }
+      ],
+      [`${warpWw1.id}:waveHeight`]: [
+        { time: hueT1, value: { waveHeight: 0 }, easing: [0, 0, 1, 0] },
+        { time: warpT2, value: { waveHeight: 20 }, easing: [0, 1, 0, 1] },
+        { time: hueT2, value: { waveHeight: 0 }, easing: [0, 0, 0.2, 1] }
+      ],
+      [`${warpWw1.id}:speed`]: [
+        { time: hueT1, value: { speed: -10 }, easing: [0, 0, 1, 0] },
+        { time: warpT2, value: { speed: 10 }, easing: [0, 1, 0, 1] },
+        { time: hueT2, value: { speed: -10 }, easing: [0, 0, 0.2, 1] }
       ]
     };
     adjHue.defaultEasing = {
-      [`${hueFx.id}:hue`]: [0, 0, 1, 1]
+      [`${hueFx.id}:hue`]: [0, 0, 1, 1],
+      [`${warpWw1.id}:waveHeight`]: [0, 0, 1, 1],
+      [`${warpWw1.id}:speed`]: [0, 0, 1, 1]
     };
     adjHue._defaultEasing = adjHue.defaultEasing;
     createdLayers.push(adjHue);
@@ -2109,6 +2139,7 @@
     // Map toolName to AE OpenFishTools Null Name
     let nullName = 'Null';
     if (toolName === 'OSCILLATE') nullName = 'OSCILLATE';
+    else if (toolName === 'SHAKY') nullName = 'SHAKY';
     else if (toolName === 'Y_BEAT') nullName = 'Y BEAT';
     else if (toolName === 'Y_FLIP') nullName = 'Y FLIP';
     else if (toolName === 'X_BEAT') nullName = 'X BEAT';
@@ -2247,6 +2278,59 @@
         '    }else{',
         '        value;',
         '    }',
+        '}'
+      ].join('\n');
+    } else if (toolName === 'SHAKY') {
+      activeProp = 'move';
+      nullLayer.effects.push(createSlider('Freq', 5, 0.1, 20, 0.1, ' Hz'));
+      nullLayer.effects.push(createSlider('X Amp', 50, 0, 500, 1, ' px'));
+      nullLayer.effects.push(createSlider('Y Amp', 50, 0, 500, 1, ' px'));
+      nullLayer.effects.push(createSlider('Rot Amp', 15, 0, 180, 1, ' deg'));
+      nullLayer.effects.push(createSlider('Decay', 3.0, 0, 20, 0.1, ''));
+      nullLayer.effects.push(createSlider('Attack', 40, 0, 100, 1, ''));
+
+      const shakeExpr = [
+        'freq = effect("Freq")("ADBE Slider Control-0001");',
+        'decay = effect("Decay")("ADBE Slider Control-0001");',
+        'attack = effect("Attack")("ADBE Slider Control-0001");',
+        'm = (index + 1 <= thisComp.numLayers && thisComp.layer(index + 1).marker.numKeys > 0) ? thisComp.layer(index + 1).marker : thisComp.marker;',
+        'if (time < inPoint || time > outPoint || !m || m.numKeys === 0){',
+        '    value;',
+        '}else{',
+        '    n = 0;',
+        '    if (m.numKeys > 0){',
+        '        n = m.nearestKey(time).index;',
+        '        if (m.key(n).time > time) n--;',
+        '    }',
+        '    if (n > 0){',
+        '        markerTime = m.key(n).time;',
+        '        if (markerTime >= inPoint && markerTime <= outPoint){',
+        '            t = time - markerTime;',
+        '            env = (attack > 0) ? (1 - Math.exp(-t * attack)) : 1;',
+        '            mult = env / Math.exp(t * decay);'
+      ];
+
+      nullLayer.expressions.move = [
+        ...shakeExpr,
+        '            ampX = effect("X Amp")("ADBE Slider Control-0001");',
+        '            ampY = effect("Y Amp")("ADBE Slider Control-0001");',
+        '            wg = wiggle(freq, 1);',
+        '            nX = (wg[0] - value[0]) * ampX * mult;',
+        '            nY = (wg[1] - value[1]) * ampY * mult;',
+        '            value + [nX, nY];',
+        '        }else{ value; }',
+        '    }else{ value; }',
+        '}'
+      ].join('\n');
+
+      nullLayer.expressions.rotate = [
+        ...shakeExpr,
+        '            ampRot = effect("Rot Amp")("ADBE Slider Control-0001");',
+        '            wg = wiggle(freq, 1);',
+        '            nR = (wg - value) * ampRot * mult;',
+        '            value + nR;',
+        '        }else{ value; }',
+        '    }else{ value; }',
         '}'
       ].join('\n');
 
@@ -2787,6 +2871,7 @@
 
       // Null Rigs (matching After Effects OpenFishTools)
       case 'OSCILLATE':
+      case 'SHAKY':
       case 'SWING':
       case 'Y_BEAT':
       case 'Y_FLIP':

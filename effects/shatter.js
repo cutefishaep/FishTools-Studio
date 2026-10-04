@@ -471,7 +471,7 @@
     }
   }
 
-  // ── GPU motion-blur accumulation resources (FBO sample target + additive composite) ──
+  // ── GPU motion-blur accumulation resources (FBO sample target + running-mean composite) ──
   let _accFbo = null, _accTex = null, _accDepth = null, _accProg = null, _accQuad = null;
   let _accPosLoc = -1, _accTexLoc = null, _accW = 0, _accH = 0, _accFailed = false;
 
@@ -892,10 +892,12 @@
               return;
             }
 
-            // ── GPU shutter accumulation (AE-style) ──
-            // Each sample: full depth-correct pass into an FBO, then added to the screen
-            // buffer at weight 1/N (CONSTANT_ALPHA blend). Everything stays on the GPU;
-            // only ONE readback (drawImage) happens at the end → light on CPU/mobile.
+            // ── GPU shutter accumulation (AE-style running mean) ──
+            // Each sample: full depth-correct pass into an FBO, then blended over the
+            // running mean at w = 1/(si+1) via (CONSTANT_ALPHA, ONE_MINUS_CONSTANT_ALPHA).
+            // Buffer stays near full brightness so 8-bit rounding never shifts hues
+            // (old fixed 1/N additive sum quantized each sample to a few LSBs).
+            // Everything stays on the GPU; only ONE readback happens at the end.
             for (let si = 0; si < nS; si++) {
               const subCam = computeShatterCamera(w, h, sampleTimes[si], fx, layer, unitScale);
               gl.bindFramebuffer(gl.FRAMEBUFFER, _accFbo);
@@ -924,8 +926,12 @@
               gl.activeTexture(gl.TEXTURE1);
               gl.bindTexture(gl.TEXTURE_2D, _accTex);
               gl.uniform1i(_accTexLoc, 1);
-              gl.blendColor(0, 0, 0, 1 / nS);
-              gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE);
+              if (si === 0) {
+                gl.blendFunc(gl.ONE, gl.ZERO);
+              } else {
+                gl.blendColor(0, 0, 0, 1 / (si + 1));
+                gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
+              }
               gl.drawArrays(gl.TRIANGLES, 0, 6);
             }
             gl.activeTexture(gl.TEXTURE0);

@@ -2919,11 +2919,13 @@
               <label class="modal-label">BACKGROUND COLOR</label>
               <div class="modal-color-swatches" id="options-bgcolor">
                 <button type="button" class="modal-color-swatch swatch-transparent is-selected" data-val="transparent" title="Transparan"></button>
-                <button type="button" class="modal-color-swatch" style="background-color: #0d1109;" data-val="#0d1109" title="Matcha Canvas"></button>
-                <button type="button" class="modal-color-swatch" style="background-color: #98ce7b;" data-val="#98ce7b" title="Matcha Green"></button>
+                <button type="button" class="modal-color-swatch" style="background-color: #ffffff;" data-val="#ffffff" title="Putih"></button>
                 <button type="button" class="modal-color-swatch" style="background-color: #000000;" data-val="#000000" title="Hitam"></button>
                 <button type="button" class="modal-color-swatch" style="background-color: #00ff00;" data-val="#00ff00" title="Hijau"></button>
                 <button type="button" class="modal-color-swatch" style="background-color: #0047bb;" data-val="#0047bb" title="Biru"></button>
+                <button type="button" class="modal-color-swatch swatch-custom" data-val="#ffffff" title="Custom">
+                  <span aria-hidden="true">+</span>
+                </button>
               </div>
             </div>
           </div>
@@ -4098,7 +4100,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.128</span>
+          <span class="welcome-badge">v0.5.131</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -4134,11 +4136,61 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.131 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.131</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 4, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Motion Blur Hue Breakup on Trails (`js/motion-blur-engine.js`, `js/text-engine.js`, `js/fishtool-engine.js`, `effects/fsmb.js`, `effects/shatter.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">One-Sided Motion Blur Trails (`js/motion-blur-engine.js`, `js/text-engine.js`, `js/fishtool-engine.js`, `effects/fsmb.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">3D Layer Penetration Lost Under Motion Blur (`js/fishtool-engine.js`, `js/editor.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">True-Shape 3D Extrude for Text &amp; Shapes (`js/fishtool-engine.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Effects Gallery Sticky Chip Gap (`css/effects-rack.css`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Project Background Colors &amp; Custom Picker (`index.html`, `editor.html`, `desktop.html`, `css/modal.css`, `js/main.js`, `js/editor.js`)</span>
+                  <span class="changelog-item-desc"></span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.119 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.119</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 3, 2026</span>
               </div>
               <div class="welcome-changelog-item">

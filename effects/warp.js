@@ -429,8 +429,8 @@
     const srcW = el.naturalWidth || el.videoWidth || el.width || w;
     const srcH = el.naturalHeight || el.videoHeight || el.height || h;
 
-    const gridX = 20;
-    const gridY = 20;
+    const gridX = 6;
+    const gridY = 6;
 
     // Compute deformed vertex mesh
     const pts = [];

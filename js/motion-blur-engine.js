@@ -4,7 +4,8 @@
  * 
  * Features:
  * - Exact photographic sub-frame multi-sampling across shutter angle & shutter phase
- * - AE-accurate equal-weight averaging: each sample drawn at alpha 1/N into accumulation buffer
+ * - AE-accurate equal-weight averaging via running mean (incremental 1/(i+1) blend):
+ *   buffer stays near full brightness so 8-bit rounding never shifts hues
  * - Zero-overhead stationary layer bypass (detects static layers and falls back to 1 pass)
  * - Per-composition settings support (Root and Precomps can have unique Shutter Angle/Phase/Samples)
  * - Full support for 2D/3D Transforms, Scaling, Rotation, Anchor Point, Skew, Effects & Opacity
@@ -248,7 +249,7 @@
       const cfg = config || this.getConfig();
       const frameDur = 1 / Math.max(1, fps);
       const exposureTime = (cfg.shutterAngle / 360) * frameDur;
-      const tStart = currentSec + (cfg.shutterPhase / 360) * frameDur;
+      const tStart = currentSec - (exposureTime / 2) + (cfg.shutterPhase / 360) * frameDur;
       const tEnd = tStart + exposureTime;
 
       const localT0 = tStart - clipStart;
@@ -299,7 +300,7 @@
       const exposureTime = (cfg.shutterAngle / 360) * frameDur;
       if (exposureTime <= 0.0001) return false;
 
-      const tStart = currentSec + (cfg.shutterPhase / 360) * frameDur;
+      const tStart = currentSec - (exposureTime / 2) + (cfg.shutterPhase / 360) * frameDur;
       const tEnd = tStart + exposureTime;
 
       // For collapsed precomp children: check both child keyframes AND parent layer keyframes
@@ -610,7 +611,9 @@
       const fxInfo = this._effectTravelPx(layer, bufferScale, camLayer, tStart, exposureTime);
 
       if (!engine || typeof engine.getBounds !== 'function' || typeof getEff !== 'function' || layer._isCollapsedPrecompChild) {
-        return { n: maxN, rect: null, travel: fxInfo.travel };
+        const cfg = this.getConfig(compState);
+        const fixedN = Math.max(2, cfg.samples || 16);
+        return { n: Math.max(minN, Math.min(64, maxN, fixedN)), rect: null, travel: fxInfo.travel };
       }
 
       let travel = 0;
@@ -647,7 +650,14 @@
 
       const cfg = this.getConfig(compState);
       const fixedN = Math.max(2, cfg.samples || 16);
-      const n = fixedN;
+
+      // Adaptive sampling: 1 sample per `spacing` physical pixels of travel to prevent
+      // discrete ghosting. `spacing` comes from the quality tier (draft/mobile/preview/export).
+      const adaptiveN = travel > 0 ? Math.ceil(travel / (spacing * (bufferScale || 1))) : fixedN;
+
+      // User Samples setting is the baseline; adaptive grows past it on long trails.
+      // Clamped by the quality-tier cap (draft/mobile/preview/export) and hard max 64.
+      const n = Math.max(minN, Math.min(64, maxN, Math.max(fixedN, adaptiveN)));
 
       let rect = null;
       if (isFinite(minX) && isFinite(maxX) && isFinite(minY) && isFinite(maxY)) {
@@ -679,16 +689,8 @@
       const plan = this.planSamples(layer, bufferScale, camera, tStart, exposureTime, compState);
       const samples = plan.n;
 
-      // Dirty rect: only clear/blit the region the layer sweeps through (big win on 1080p/mobile)
+      // Dirty rect: disabled due to coordinate space mismatch with viewport transform
       let rx = 0, ry = 0, rw = targetW, rh = targetH;
-      if (plan.rect) {
-        const x0 = Math.max(0, Math.floor(plan.rect.x));
-        const y0 = Math.max(0, Math.floor(plan.rect.y));
-        const x1 = Math.min(targetW, Math.ceil(plan.rect.x + plan.rect.w));
-        const y1 = Math.min(targetH, Math.ceil(plan.rect.y + plan.rect.h));
-        if (x1 <= x0 || y1 <= y0) return; // fully off-screen during the whole shutter
-        if ((x1 - x0) * (y1 - y0) < targetW * targetH * 0.7) { rx = x0; ry = y0; rw = x1 - x0; rh = y1 - y0; }
-      }
 
       if (!this._accumCanvas) this._accumCanvas = document.createElement('canvas');
       if (this._accumCanvas.width !== targetW || this._accumCanvas.height !== targetH) {
@@ -714,9 +716,16 @@
       sctx.globalCompositeOperation = 'source-over';
       sctx.globalAlpha = 1;
 
-      // AE-Accurate Motion Blur Accumulation — Premultiplied Additive, equal weights 1/N:
-      actx.globalCompositeOperation = 'lighter';
-      actx.globalAlpha = 1 / samples;
+      // AE-Accurate Motion Blur Accumulation — running mean (incremental average).
+      // Sample 0 is copied at full strength; sample i>0 blends at weight 1/(i+1)
+      // over the previous mean via two steps: 'destination-in' scales the old mean
+      // by i/(i+1), then 'lighter' adds the new sample at 1/(i+1). The two-step form
+      // matters: transparent sample pixels must DILUTE the mean (sparse coverage),
+      // but a plain source-over treats transparent src as no-op — that biased early
+      // samples and left one-sided trails (blur only on the leading edge). Buffer
+      // stays near full brightness, so no 8-bit hue shift like fixed 1/N sums.
+      actx.globalCompositeOperation = 'source-over';
+      actx.globalAlpha = 1;
 
       const camLayer = (camera && camera.type === 'camera')
         ? camera
@@ -741,7 +750,21 @@
           } finally {
             sctx.restore();
           }
-          actx.drawImage(this._sampleCanvas, rx, ry, rw, rh, rx, ry, rw, rh);
+          actx.globalAlpha = 1;
+          if (i === 0) {
+            actx.globalCompositeOperation = 'source-over';
+            actx.drawImage(this._sampleCanvas, rx, ry, rw, rh, rx, ry, rw, rh);
+          } else {
+            const w = 1 / (i + 1);
+            actx.globalCompositeOperation = 'destination-in';
+            actx.globalAlpha = 1 - w;
+            actx.fillStyle = '#000';
+            actx.fillRect(rx, ry, rw, rh);
+            actx.globalCompositeOperation = 'lighter';
+            actx.globalAlpha = w;
+            actx.drawImage(this._sampleCanvas, rx, ry, rw, rh, rx, ry, rw, rh);
+            actx.globalAlpha = 1;
+          }
         }
       } finally {
         this.endSubSample();
@@ -763,7 +786,7 @@
       const fps = (typeof window.getProjectFps === 'function') ? window.getProjectFps() : 60;
       const frameDur = 1 / Math.max(1, fps);
       const exposureTime = (config.shutterAngle / 360) * frameDur;
-      const tStart = currentSec + (config.shutterPhase / 360) * frameDur;
+      const tStart = currentSec - (exposureTime / 2) + (config.shutterPhase / 360) * frameDur;
       return {
         config,
         fps,

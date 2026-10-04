@@ -6,7 +6,7 @@
  * and enables PWA standalone install experience.
  */
 
-const CACHE_NAME = 'oft-studio-v0.5.128';
+const CACHE_NAME = 'oft-studio-v0.5.131';
 
 const CORE_ASSETS = [
   './',

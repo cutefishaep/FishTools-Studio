@@ -35,7 +35,7 @@
       this.pendingRequests = new Map();
       this.streams = new Map(); // mediaId -> { ready: boolean, width: number, height: number, duration: number, isSeekingWorker: boolean, pendingSeekTime: number }
       this.frameCache = new Map(); // cacheKey -> { bitmap: ImageBitmap, lastUsed: number }
-      this.maxCacheSize = 50; // Smooth scrubbing cache (~30MB GPU RAM, safely within mobile limits)
+      this.maxCacheSize = 180; // Expanded for smoother full-timeline video scrubbing
 
       if (this.isSupported) {
         this._initWorker();

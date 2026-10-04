@@ -888,6 +888,15 @@ async function openProjectSettingsModal(projectId) {
     bgRow.querySelectorAll('.modal-color-swatch').forEach(s => {
       s.classList.toggle('is-selected', s.dataset.val === bgVal);
     });
+    // Stored custom color: reflect it on the custom swatch when no preset matches
+    if (!bgRow.querySelector('.modal-color-swatch.is-selected') && /^#[0-9a-f]{6}$/i.test(bgVal || '')) {
+      const custom = bgRow.querySelector('.swatch-custom');
+      if (custom) {
+        custom.dataset.val = bgVal;
+        custom.style.backgroundColor = bgVal;
+        custom.classList.add('is-selected', 'is-picked');
+      }
+    }
   }
 
   if (window.Modal) {
@@ -1407,6 +1416,31 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!swatch) return;
       row.querySelectorAll('.modal-color-swatch').forEach(s => s.classList.remove('is-selected'));
       swatch.classList.add('is-selected');
+    });
+    // Custom background swatch: universal FishColorPicker popover (above the modal)
+    row.addEventListener('click', (e) => {
+      const custom = e.target.closest('.swatch-custom');
+      if (!custom || !window.FishColorPicker || typeof window.FishColorPicker.open !== 'function') return;
+      const apply = (hex) => {
+        if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return;
+        custom.dataset.val = hex;
+        custom.style.backgroundColor = hex;
+        custom.classList.add('is-picked');
+        row.querySelectorAll('.modal-color-swatch').forEach(s => s.classList.remove('is-selected'));
+        custom.classList.add('is-selected');
+      };
+      window.FishColorPicker.open({
+        anchor: custom,
+        color: (/^#[0-9a-f]{6}$/i.test(custom.dataset.val || '') ? custom.dataset.val : '#ffffff'),
+        onChange: (hex) => apply(hex),
+        onCommit: (hex) => apply(hex),
+        onClose: () => {
+          const pop = document.getElementById('popover-color-picker');
+          if (pop) pop.style.zIndex = '';
+        }
+      });
+      const pop = document.getElementById('popover-color-picker');
+      if (pop) pop.style.zIndex = '10002';
     });
   });
 

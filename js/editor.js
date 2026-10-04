@@ -329,6 +329,28 @@
         this.updateUI();
       },
 
+      _safeClone(obj) {
+        if (!obj) return obj;
+        try {
+          const seen = new WeakSet();
+          return JSON.parse(JSON.stringify(obj, (k, v) => {
+            if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') return undefined;
+            if (v !== null && typeof v === 'object') {
+              if (typeof Element !== 'undefined' && v instanceof Element) return undefined;
+              if (typeof Node !== 'undefined' && v instanceof Node) return undefined;
+              if (typeof Window !== 'undefined' && v instanceof Window) return undefined;
+              if (seen.has(v)) return undefined;
+              seen.add(v);
+            }
+            if (typeof v === 'function') return undefined;
+            return v;
+          }));
+        } catch (e) {
+          console.warn('[UndoRedo] Clone failed:', e);
+          return Array.isArray(obj) ? [] : {}; 
+        }
+      },
+
       _cloneLayersForSnapshot(layers, visited = new Set()) {
         if (!layers || !layers.length) return [];
         return layers.map(l => {
@@ -340,87 +362,102 @@
             if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') continue;
             c[k] = l[k];
           }
-          if (l.keyframes) c.keyframes = JSON.parse(JSON.stringify(l.keyframes));
-          if (l.expressions) c.expressions = JSON.parse(JSON.stringify(l.expressions));
-          if (l.defaultEasing) c.defaultEasing = JSON.parse(JSON.stringify(l.defaultEasing));
-          if (l._defaultEasing) c._defaultEasing = JSON.parse(JSON.stringify(l._defaultEasing));
-          if (l.effects) c.effects = JSON.parse(JSON.stringify(l.effects));
-          if (l.shapeProps) c.shapeProps = JSON.parse(JSON.stringify(l.shapeProps));
-          if (l.parentBind) c.parentBind = JSON.parse(JSON.stringify(l.parentBind));
+          if (l.keyframes) c.keyframes = this._safeClone(l.keyframes);
+          if (l.expressions) c.expressions = this._safeClone(l.expressions);
+          if (l.defaultEasing) c.defaultEasing = this._safeClone(l.defaultEasing);
+          if (l._defaultEasing) c._defaultEasing = this._safeClone(l._defaultEasing);
+          if (l.effects) c.effects = this._safeClone(l.effects);
+          if (l.shapeProps) c.shapeProps = this._safeClone(l.shapeProps);
+          if (l.parentBind) c.parentBind = this._safeClone(l.parentBind);
           if (Array.isArray(l.layers)) c.layers = this._cloneLayersForSnapshot(l.layers, visited);
           return c;
         }).filter(Boolean);
       },
 
       _computeFingerprint(layers, beatmarks, markerNames = {}) {
-        const lSig = (layers || []).map(l => {
-          let kfCount = 0;
-          let kfSig = '';
-          if (l.keyframes) {
-            for (const p in l.keyframes) {
-              if (Array.isArray(l.keyframes[p])) {
-                kfCount += l.keyframes[p].length;
-                kfSig += p + ':' + l.keyframes[p].map(k => `${k.time}:${JSON.stringify(k.value)}:${(k.easing || []).join(',')}`).join('|') + ';';
+        try {
+          const lSig = (layers || []).map(l => {
+            let kfCount = 0;
+            let kfSig = '';
+            if (l.keyframes) {
+              for (const p in l.keyframes) {
+                if (Array.isArray(l.keyframes[p])) {
+                  kfCount += l.keyframes[p].length;
+                  kfSig += p + ':' + l.keyframes[p].map(k => {
+                    let vStr = '';
+                    try { vStr = JSON.stringify(k.value); } catch(_) { vStr = 'err'; }
+                    return `${k.time}:${vStr}:${(k.easing || []).join(',')}`;
+                  }).join('|') + ';';
+                }
               }
             }
-          }
-          const exprSig = (l.expressions && typeof l.expressions === 'object') ? JSON.stringify(l.expressions) : '';
-          let defEasSig = '';
-          const defEas = l.defaultEasing || l._defaultEasing;
-          if (defEas) {
-            for (const dp in defEas) {
-              if (Array.isArray(defEas[dp])) defEasSig += dp + ':' + defEas[dp].join(',') + ';';
+            let exprSig = '';
+            try { exprSig = (l.expressions && typeof l.expressions === 'object') ? JSON.stringify(l.expressions) : ''; } catch(_) {}
+            let defEasSig = '';
+            const defEas = l.defaultEasing || l._defaultEasing;
+            if (defEas) {
+              for (const dp in defEas) {
+                if (Array.isArray(defEas[dp])) defEasSig += dp + ':' + defEas[dp].join(',') + ';';
+              }
             }
-          }
-          const fxSig = (l.effects || []).map(f => {
-            let s = f.id || f.type || '';
-            for (const k in f) {
-              if (!k.startsWith('_') && typeof f[k] !== 'function') s += ',' + k + ':' + f[k];
+            const fxSig = (l.effects || []).map(f => {
+              let s = f.id || f.type || '';
+              for (const k in f) {
+                if (!k.startsWith('_') && typeof f[k] !== 'function') s += ',' + k + ':' + f[k];
+              }
+              return s;
+            }).join(';');
+            let childSig = '';
+            if (Array.isArray(l.layers)) {
+              childSig = this._computeFingerprint(l.layers, [], {});
             }
-            return s;
+            return `${l.id}:${l.name || ''}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.posZ || 0}:${l.anchorX || 0}:${l.anchorY || 0}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.rotZ || 0}:${l.skew || 0}:${l.opacity}:${l.volume !== undefined ? l.volume : 1}:${l.hidden ? 1 : 0}:${l.locked ? 1 : 0}:${l.blendMode || ''}:${l.parentId || ''}:${l.scaleLinked !== false ? 1 : 0}:${l.motionBlur ? 1 : 0}:${l.is3D ? 1 : 0}:${l.collapseTransformations ? 1 : 0}:${kfCount}:${kfSig}:${fxSig}:${exprSig}:${defEasSig}:${childSig}`;
           }).join(';');
-          let childSig = '';
-          if (Array.isArray(l.layers)) {
-            childSig = this._computeFingerprint(l.layers, [], {});
-          }
-          return `${l.id}:${l.name || ''}:${l.startSec}:${l.durationSec}:${l.posX}:${l.posY}:${l.posZ || 0}:${l.anchorX || 0}:${l.anchorY || 0}:${l.scaleW}:${l.scaleH}:${l.rotation}:${l.rotZ || 0}:${l.skew || 0}:${l.opacity}:${l.volume !== undefined ? l.volume : 1}:${l.hidden ? 1 : 0}:${l.locked ? 1 : 0}:${l.blendMode || ''}:${l.parentId || ''}:${l.scaleLinked !== false ? 1 : 0}:${l.motionBlur ? 1 : 0}:${l.is3D ? 1 : 0}:${l.collapseTransformations ? 1 : 0}:${kfCount}:${kfSig}:${fxSig}:${exprSig}:${defEasSig}:${childSig}`;
-        }).join(';');
-        const bSig = (beatmarks || []).join(',');
-        const mSig = (markerNames && typeof markerNames === 'object' && Object.keys(markerNames).length > 0) ? JSON.stringify(markerNames) : '';
-        return `${lSig}|${bSig}|${mSig}`;
+          const bSig = (beatmarks || []).join(',');
+          let mSig = '';
+          try { mSig = (markerNames && typeof markerNames === 'object' && Object.keys(markerNames).length > 0) ? JSON.stringify(markerNames) : ''; } catch(_) {}
+          return `${lSig}|${bSig}|${mSig}`;
+        } catch (e) {
+          console.warn('[UndoRedo] Fingerprint error:', e);
+          return Date.now().toString(); // Fallback fingerprint
+        }
       },
 
       recordSnapshot() {
-        if (this.isApplying) return;
-        const beatmarksCopy = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
-        const markerNamesCopy = (currentProjectState.markerNames && typeof currentProjectState.markerNames === 'object') ? { ...currentProjectState.markerNames } : {};
-        const fingerprint = this._computeFingerprint(currentProjectState.layers || [], beatmarksCopy, markerNamesCopy);
+        try {
+          if (this.isApplying) return;
+          const beatmarksCopy = Array.isArray(currentProjectState.beatmarks) ? [...currentProjectState.beatmarks] : [];
+          const markerNamesCopy = (currentProjectState.markerNames && typeof currentProjectState.markerNames === 'object') ? { ...currentProjectState.markerNames } : {};
+          const fingerprint = this._computeFingerprint(currentProjectState.layers || [], beatmarksCopy, markerNamesCopy);
 
-        // Avoid duplicate consecutive states
-        if (this.index >= 0 && this.index < this.stack.length) {
-          if (this.stack[this.index].fingerprint === fingerprint) {
-            return;
+          // Avoid duplicate consecutive states
+          if (this.index >= 0 && this.index < this.stack.length) {
+            if (this.stack[this.index].fingerprint === fingerprint) {
+              return;
+            }
           }
+
+          const layersCopy = this._cloneLayersForSnapshot(currentProjectState.layers || []);
+
+          // Cut off redo branch
+          this.stack = this.stack.slice(0, this.index + 1);
+
+          this.stack.push({
+            layers: layersCopy,
+            beatmarks: beatmarksCopy,
+            markerNames: markerNamesCopy,
+            fingerprint
+          });
+
+          // Enforce max undo limit (dropping oldest)
+          if (this.stack.length > this.maxSteps + 1) {
+            this.stack.shift();
+          }
+          this.index = this.stack.length - 1;
+          this.updateUI();
+        } catch (err) {
+          console.warn('[UndoRedo] recordSnapshot failed:', err);
         }
-
-        const layersCopy = this._cloneLayersForSnapshot(currentProjectState.layers || []);
-
-        // Cut off redo branch
-        this.stack = this.stack.slice(0, this.index + 1);
-
-        this.stack.push({
-          layers: layersCopy,
-          beatmarks: beatmarksCopy,
-          markerNames: markerNamesCopy,
-          fingerprint
-        });
-
-        // Enforce max undo limit (dropping oldest)
-        if (this.stack.length > this.maxSteps + 1) {
-          this.stack.shift();
-        }
-        this.index = this.stack.length - 1;
-        this.updateUI();
       },
 
       canUndo() {
@@ -449,7 +486,7 @@
         if (!snapshot) return;
         this.isApplying = true;
         try {
-          currentProjectState.layers = JSON.parse(JSON.stringify(snapshot.layers || []));
+          currentProjectState.layers = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(snapshot.layers || []) : (Array.isArray(snapshot.layers || []) ? [] : {}));
           if (Array.isArray(snapshot.beatmarks)) {
             currentProjectState.beatmarks = [...snapshot.beatmarks];
           }
@@ -841,7 +878,7 @@
               fps: String(currentProjectState.fps || 60),
               defaultDuration: currentProjectState.defaultDuration || 5,
               bgColor: currentProjectState.bgColor || 'transparent',
-              motionBlur: currentProjectState.motionBlur ? JSON.parse(JSON.stringify(currentProjectState.motionBlur)) : undefined,
+              motionBlur: currentProjectState.motionBlur ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(currentProjectState.motionBlur) : (Array.isArray(currentProjectState.motionBlur) ? [] : {})) : undefined,
               layers: []
             };
             currentProjectState.id = prj.id;
@@ -874,7 +911,7 @@
                 name: l.name,
                 type: l.type,
                 parentId: l.parentId || null,
-                parentBind: l.parentBind ? JSON.parse(JSON.stringify(l.parentBind)) : undefined,
+                parentBind: l.parentBind ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.parentBind) : (Array.isArray(l.parentBind) ? [] : {})) : undefined,
                 startPx: l.startPx,
                 startSec: l.startSec,
                 durationSec: l.durationSec,
@@ -909,7 +946,7 @@
                 brightness: l.brightness !== undefined ? l.brightness : 0,
                 contrast: l.contrast !== undefined ? l.contrast : 0,
                 effectsDisabled: !!l.effectsDisabled,
-                effects: Array.isArray(l.effects) ? JSON.parse(JSON.stringify(l.effects)) : undefined,
+                effects: Array.isArray(l.effects) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.effects) : (Array.isArray(l.effects) ? [] : {})) : undefined,
                 thumbUrl: '',
                 dataUrl: (l.mediaId ? '' : (l.dataUrl || '')),
                 mediaWidth: l.mediaWidth || null,
@@ -919,10 +956,10 @@
                 motionBlur: !!l.motionBlur,
                 is3D: !!l.is3D,
                 collapseTransformations: !!l.collapseTransformations,
-                keyframes: l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined,
-                expressions: (l.expressions && typeof l.expressions === 'object' && Object.keys(l.expressions).length > 0) ? JSON.parse(JSON.stringify(l.expressions)) : undefined,
-                defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
-                _defaultEasing: (l.defaultEasing || l._defaultEasing) ? JSON.parse(JSON.stringify(l.defaultEasing || l._defaultEasing)) : undefined,
+                keyframes: l.keyframes ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.keyframes) : (Array.isArray(l.keyframes) ? [] : {})) : undefined,
+                expressions: (l.expressions && typeof l.expressions === 'object' && Object.keys(l.expressions).length > 0) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.expressions) : (Array.isArray(l.expressions) ? [] : {})) : undefined,
+                defaultEasing: (l.defaultEasing || l._defaultEasing) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.defaultEasing || l._defaultEasing) : (Array.isArray(l.defaultEasing || l._defaultEasing) ? [] : {})) : undefined,
+                _defaultEasing: (l.defaultEasing || l._defaultEasing) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.defaultEasing || l._defaultEasing) : (Array.isArray(l.defaultEasing || l._defaultEasing) ? [] : {})) : undefined,
                 // Recursively serialize precompose child layers to prevent DataCloneError and strip temporary canvas buffers
                 layers: Array.isArray(l.layers) ? l.layers.map(serializeLayer).filter(Boolean) : undefined,
                 // Fill & Replaced Media properties
@@ -932,7 +969,7 @@
                 fillGradAngle: l.fillGradAngle !== undefined ? l.fillGradAngle : undefined,
                 fillGradColor1: l.fillGradColor1 || undefined,
                 fillGradColor2: l.fillGradColor2 || undefined,
-                fillGradStops: Array.isArray(l.fillGradStops) ? JSON.parse(JSON.stringify(l.fillGradStops)) : undefined,
+                fillGradStops: Array.isArray(l.fillGradStops) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.fillGradStops) : (Array.isArray(l.fillGradStops) ? [] : {})) : undefined,
                 fillMediaId: l.fillMediaId || undefined,
                 fillMediaName: l.fillMediaName || undefined,
                 fillMediaUrl: l.fillMediaUrl || undefined,
@@ -941,9 +978,9 @@
                 transformScaleY: (typeof l.transformScaleY === 'number' && !isNaN(l.transformScaleY)) ? l.transformScaleY : 1.0,
                 // Shape specific settings
                 shapeType: l.shapeType || undefined,
-                shapeProps: l.shapeProps ? JSON.parse(JSON.stringify(l.shapeProps)) : undefined,
+                shapeProps: l.shapeProps ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.shapeProps) : (Array.isArray(l.shapeProps) ? [] : {})) : undefined,
                 // Text specific settings
-                textProps: l.textProps ? JSON.parse(JSON.stringify(l.textProps)) : undefined,
+                textProps: l.textProps ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.textProps) : (Array.isArray(l.textProps) ? [] : {})) : undefined,
                 strokeColor: l.strokeColor || undefined,
                 strokeWidth: l.strokeWidth !== undefined ? l.strokeWidth : undefined,
                 // Camera specific settings
@@ -962,7 +999,7 @@
                 isOverlapNull: l.isOverlapNull ? true : undefined,
                 // Audio & Volume settings
                 volume: l.volume !== undefined ? l.volume : 1.0,
-                audioEffects: Array.isArray(l.audioEffects) ? JSON.parse(JSON.stringify(l.audioEffects)) : undefined,
+                audioEffects: Array.isArray(l.audioEffects) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.audioEffects) : (Array.isArray(l.audioEffects) ? [] : {})) : undefined,
                 // Speed & Video Interpolation settings
                 speed: l.speed !== undefined ? l.speed : 1.0,
                 speedInterpolation: l.speedInterpolation || 'none',
@@ -977,10 +1014,10 @@
               currentProjectState.duration = prj.duration;
             }
             if (currentProjectState.motionBlur) {
-              prj.motionBlur = JSON.parse(JSON.stringify(currentProjectState.motionBlur));
+              prj.motionBlur = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(currentProjectState.motionBlur) : (Array.isArray(currentProjectState.motionBlur) ? [] : {}));
             }
             if (currentProjectState.customEasingPresets) {
-              prj.customEasingPresets = JSON.parse(JSON.stringify(currentProjectState.customEasingPresets));
+              prj.customEasingPresets = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(currentProjectState.customEasingPresets) : (Array.isArray(currentProjectState.customEasingPresets) ? [] : {}));
             }
             prj.isTemplate = !!currentProjectState.isTemplate;
 
@@ -1059,7 +1096,7 @@
         const snapshot = {
           projectId: currentProjectState.id,
           timestamp: Date.now(),
-          layers: JSON.parse(JSON.stringify(layers))
+          layers: (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layers) : (Array.isArray(layers) ? [] : {}))
         };
         localStorage.setItem(_EMERGENCY_KEY, JSON.stringify(snapshot));
         const activeProj = {
@@ -2307,26 +2344,10 @@
       const pps = window.currentPixelsPerSecond || 80;
       const childLayers = precompLayer.layers || [];
 
-      // Check if any child layer has dynamic time-variance
-      const hasChildMotion = childLayers.some(c => {
-        if (!c || c.hidden) return false;
-        if (c.type === 'video') return true;
-        if (c.keyframes && Object.keys(c.keyframes).length > 0) return true;
-        if (Array.isArray(c.effects) && c.effects.some(f => f && !f.disabled && (f.type === 'shake' || f.type === 'oscillate' || f.type === 'swing' || f.type === 'wave-warp'))) return true;
-        if (c.type === 'text') {
-          const tp = c.textProps || {};
-          const animIn = tp.animIn || tp.animation;
-          const animOut = tp.animOut;
-          if (animIn && animIn !== 'none') return true;
-          if (animOut && animOut !== 'none') return true;
-        }
-        if (c.type === 'precomp') return true;
-        return false;
-      });
-
-      const frameKey = hasChildMotion ? `${Math.round(innerSec * fps)}_${pw}_${ph}` : `static_${pw}_${ph}`;
+      // Frame key strictly bound to playhead time within precomp (at project FPS resolution)
+      const frameKey = `${Math.round(innerSec * fps)}_${pw}_${ph}`;
       if (!precompLayer._dirty && targetCanvas._lastRenderKey === frameKey && targetCanvas.width === pw && targetCanvas.height === ph) {
-        return; // Fast-path: precomp content already rendered!
+        return; // Fast-path: precomp content already rendered for this exact frame!
       }
 
       if (targetCanvas.width !== pw || targetCanvas.height !== ph) {
@@ -2392,7 +2413,11 @@
               if (child.blendMode && child.blendMode !== 'normal') {
                 pctx.globalCompositeOperation = resolveBlendMode(child.blendMode);
               }
-              window.FishEffects.renderLayer(pctx, snap, animChild, { x: 0, y: 0, w: pw, h: ph }, innerSec);
+              try {
+                window.FishEffects.renderLayer(pctx, snap, animChild, { x: 0, y: 0, w: pw, h: ph }, innerSec);
+              } catch (e) {
+                console.warn('[Precomp Adjustment] Effect render error:', e);
+              }
               pctx.restore();
             } else if (window.FishEffects && typeof window.FishEffects.applyToContext === 'function') {
               window.FishEffects.applyToContext(pctx, animChild);
@@ -2906,12 +2931,42 @@
               staticBatch = [];
             };
 
+            // Shared-depth 3D runs: consecutive plain-3D layers accumulate here and
+            // render together — one depth pass when static, one scene motion-blur
+            // pass when any member moves — so 3D penetration survives motion blur.
+            // Runs without blur (or when the scene pass is unavailable) fall back
+            // to the legacy staticBatch path verbatim.
+            let pending3DRun = [];
+            const flush3DRun = () => {
+              if (pending3DRun.length === 0) return;
+              const anyBlur = pending3DRun.some(m => m.blur);
+              let handled = false;
+              if (anyBlur && engine && typeof engine.render3DSceneMotionBlur === 'function') {
+                handled = engine.render3DSceneMotionBlur(ctx, pending3DRun, compositionBufferScale, camEff, currentSec, compState);
+              }
+              if (!handled) {
+                pending3DRun.forEach(m => { staticBatch.push(m.item); });
+                flushStaticBatch();
+              }
+              pending3DRun = [];
+            };
+
             layersToRender.forEach(item => {
               const rawLayer = item.layer;
               const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState, activeCamera) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
+              const bounds = engine ? engine.getBounds(item.animLayer || rawLayer, compositionBufferScale, camEff) : null;
+              // Plain-3D run member (static or blurred): shared depth pass.
+              // Collapsed precomp children keep the legacy path (they need
+              // per-sample world-transform evaluation in the 2D blur callback).
+              if (engine && typeof engine.isBatchable3D === 'function' &&
+                  engine.isBatchable3D(item.animLayer || rawLayer, bounds) &&
+                  !rawLayer._isCollapsedPrecompChild) {
+                pending3DRun.push({ item, bounds, blur: !!isMbActive });
+                return;
+              }
+              flushStaticBatch();
+              flush3DRun();
               if (isMbActive) {
-                flushStaticBatch();
-                const bounds = engine ? engine.getBounds(item.animLayer || rawLayer, compositionBufferScale, camEff) : null;
                 const hasMoveFx = mbEngine && ((typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer)) || (typeof mbEngine.needsSampledPath === 'function' && mbEngine.needsSampledPath(rawLayer)));
                 const hasSelfBlur = mbEngine && Array.isArray(rawLayer.effects) && rawLayer.effects.some(f => {
                   if (!f || f.disabled) return false;
@@ -2921,7 +2976,7 @@
                 });
                 if (hasSelfBlur) {
                   engine.renderLayer(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec);
-                } else if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
+                } else if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx && bounds && bounds.is3D) {
                   engine.render3DMotionBlur(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec, compState);
                 } else {
                   mbEngine.renderLayerWithMotionBlur(
@@ -2960,7 +3015,8 @@
                           return;
                         }
                       }
-                      const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
+                      const srcLayer = subLayer._rawLayer || subLayer;
+                      const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(srcLayer, subSec) : srcLayer;
                       const subAnimLayer = Object.assign({}, subLayer, subEff);
                       subAnimLayer._currentSec = subSec;
                       if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
@@ -2975,6 +3031,7 @@
               }
             });
             flushStaticBatch();
+            flush3DRun();
             layersToRender.length = 0;
           }
 
@@ -3797,13 +3854,13 @@
               layer._canvasBounds = engine.getBounds(animLayer, bufferScale, camEff, w, h);
 
               // 2. Expand render quad for padded canvas so texture renders 1:1 without squish or stretch
-              let renderAnimLayer = animLayer;
+              let renderAnimLayer = Object.assign({}, animLayer, { _rawLayer: layer });
               if (isText && layer._textPadY > 0 && el && el.width && el.height) {
                 const natW = layer._textNaturalW || (el.width - 2 * layer._textPadX);
                 const natH = layer._textNaturalH || (el.height - 2 * layer._textPadY);
                 const padRatioW = el.width / Math.max(1, natW);
                 const padRatioH = el.height / Math.max(1, natH);
-                renderAnimLayer = Object.assign({}, animLayer, {
+                renderAnimLayer = Object.assign(renderAnimLayer, {
                   scaleW: animLayer.scaleW * padRatioW,
                   scaleH: animLayer.scaleH * padRatioH
                 });
@@ -3983,12 +4040,42 @@
             staticBatch = [];
           };
 
+          // Shared-depth 3D runs: consecutive plain-3D layers accumulate here and
+          // render together — one depth pass when static, one scene motion-blur
+          // pass when any member moves — so 3D penetration survives motion blur.
+          // Runs without blur (or when the scene pass is unavailable) fall back
+          // to the legacy staticBatch path verbatim.
+          let pending3DRun = [];
+          const flush3DRun = () => {
+            if (pending3DRun.length === 0) return;
+            const anyBlur = pending3DRun.some(m => m.blur);
+            let handled = false;
+            if (anyBlur && engine && typeof engine.render3DSceneMotionBlur === 'function') {
+              handled = engine.render3DSceneMotionBlur(ctx, pending3DRun, compositionBufferScale, camEff, currentSec, compState);
+            }
+            if (!handled) {
+              pending3DRun.forEach(m => { staticBatch.push(m.item); });
+              flushStaticBatch();
+            }
+            pending3DRun = [];
+          };
+
           layersToRender.forEach(item => {
             const rawLayer = item.layer;
             const isMbActive = mbEngine && mbEngine.isLayerActive(rawLayer, compState, activeCamera) && mbEngine.hasMotion(rawLayer, currentSec, null, (typeof getProjectFps === 'function' ? getProjectFps() : 60), (compState && compState.layers) || (currentProjectState && currentProjectState.layers) || [], activeCamera);
+            const bounds = engine ? engine.getBounds(item.animLayer || rawLayer, compositionBufferScale, camEff) : null;
+            // Plain-3D run member (static or blurred): shared depth pass.
+            // Collapsed precomp children keep the legacy path (they need
+            // per-sample world-transform evaluation in the 2D blur callback).
+            if (engine && typeof engine.isBatchable3D === 'function' &&
+                engine.isBatchable3D(item.animLayer || rawLayer, bounds) &&
+                !rawLayer._isCollapsedPrecompChild) {
+              pending3DRun.push({ item, bounds, blur: !!isMbActive });
+              return;
+            }
+            flushStaticBatch();
+            flush3DRun();
             if (isMbActive) {
-              flushStaticBatch();
-              const bounds = engine ? engine.getBounds(item.animLayer || rawLayer, compositionBufferScale, camEff) : null;
               const hasMoveFx = mbEngine && ((typeof mbEngine.hasMovementEffect === 'function' && mbEngine.hasMovementEffect(rawLayer)) || (typeof mbEngine.needsSampledPath === 'function' && mbEngine.needsSampledPath(rawLayer)));
               const hasSelfBlur = mbEngine && Array.isArray(rawLayer.effects) && rawLayer.effects.some(f => {
                 if (!f || f.disabled) return false;
@@ -3998,7 +4085,7 @@
               });
               if (hasSelfBlur) {
                 engine.renderLayer(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec);
-              } else if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx) {
+              } else if (engine && item.el && typeof engine.render3DMotionBlur === 'function' && !rawLayer._isCollapsedPrecompChild && !hasMoveFx && bounds && bounds.is3D) {
                 engine.render3DMotionBlur(ctx, item.el, item.animLayer || rawLayer, compositionBufferScale, camEff, currentSec, compState);
               } else {
                 mbEngine.renderLayerWithMotionBlur(
@@ -4038,7 +4125,8 @@
                         return;
                       }
                     }
-                    const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(subLayer, subSec) : subLayer;
+                    const srcLayer = subLayer._rawLayer || subLayer;
+                    const subEff = (typeof getLayerEffectivePropsAtTime === 'function') ? getLayerEffectivePropsAtTime(srcLayer, subSec) : srcLayer;
                     const subAnimLayer = Object.assign({}, subLayer, subEff);
                     subAnimLayer._currentSec = subSec;
                     if (Array.isArray(subEff.effects)) subAnimLayer.effects = subEff.effects;
@@ -4053,6 +4141,7 @@
             }
           });
           flushStaticBatch();
+          flush3DRun();
         }
 
         if (activeCamera && camEff && !engineActive) {
@@ -10651,6 +10740,31 @@
         });
       }
 
+      // Universal Reset Button (Speed + Time Remap)
+      const btnUniversalReset = document.getElementById('btn-speed-universal-reset');
+      if (btnUniversalReset) {
+        btnUniversalReset.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer) return;
+          
+          if (layer.keyframes) {
+            delete layer.keyframes.speed;
+            delete layer.keyframes.timeRemap;
+          }
+          layer.speed = 1.0;
+          
+          syncSpeedControllerValues();
+          updateSpeedKeyframeBtnState();
+          if (typeof updateTimelineKeyframeMarkersHighlight === 'function') updateTimelineKeyframeMarkersHighlight();
+          if (typeof renderTimelineLayers === 'function') renderTimelineLayers();
+          invalidatePreviewCacheForLayer(layer);
+          if (typeof redrawComposition === 'function') redrawComposition('speed-reset-all');
+          if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
+          if (typeof showEffectsRackToast === 'function') showEffectsRackToast('Speed & Time Remap Reset');
+        });
+      }
+
       // 4. Speed Slider Drag Interaction
       const sliderContainer = document.getElementById('speed-slider-container');
       const sliderFill = document.getElementById('speed-slider-fill');
@@ -11248,7 +11362,16 @@
         opacity: 1.0
       };
 
-      currentProjectState.layers.unshift(newLayer);
+      if (window.selectedLayerId) {
+        const selIdx = currentProjectState.layers.findIndex(l => l.id === window.selectedLayerId);
+        if (selIdx >= 0) {
+          currentProjectState.layers.splice(selIdx, 0, newLayer);
+        } else {
+          currentProjectState.layers.unshift(newLayer);
+        }
+      } else {
+        currentProjectState.layers.unshift(newLayer);
+      }
 
       if (autoLink && (window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size > 0))) {
         const idSet = new Set();
@@ -14369,8 +14492,19 @@
       return 'none';
     }
 
-    async function applyFlexibleMediaReplacement(targetL, item) {
-      if (!targetL || !item) return;
+    async function applyFlexibleMediaReplacement(targetLayerInput, item) {
+      if (!targetLayerInput || !item) return;
+
+      let targetL = targetLayerInput;
+      // If the user tries to replace a precomp layer from the outside, drill down and replace its inner media content instead
+      if (targetL.type === 'precomp' && Array.isArray(targetL.layers) && targetL.layers.length > 0) {
+        const innerMediaLayer = targetL.layers.find(l => l.type === 'image' || l.type === 'video' || l.fillType === 'media');
+        if (innerMediaLayer) {
+          targetL = innerMediaLayer;
+        } else {
+          targetL = targetL.layers[0];
+        }
+      }
 
       targetL.fillType = 'media';
       targetL.fillMediaId = item.id;
@@ -14418,7 +14552,7 @@
         targetL.sourceOffsetSec = 0;
 
         if (newType === 'precomp') {
-          targetL.layers = Array.isArray(item.layers) ? JSON.parse(JSON.stringify(item.layers)) : (targetL.layers || []);
+          targetL.layers = Array.isArray(item.layers) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(item.layers) : (Array.isArray(item.layers) ? [] : {})) : (targetL.layers || []);
           targetL.thumbUrl = item.thumbUrl || '';
           targetL.dataUrl = item.dataUrl || '';
           delete targetL._precompBufferCanvas;
@@ -14566,7 +14700,12 @@
         btnEditGroup.style.display = (targetL.type === 'precomp') ? 'inline-flex' : 'none';
       }
 
-      if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(targetL);
+      if (typeof invalidatePreviewCacheForLayer === 'function') {
+        invalidatePreviewCacheForLayer(targetL);
+        if (targetLayerInput && targetLayerInput.id !== targetL.id) {
+          invalidatePreviewCacheForLayer(targetLayerInput);
+        }
+      }
       if (typeof saveCurrentProjectLayers === 'function') await saveCurrentProjectLayers(true);
       if (window.FishDatabase && currentProjectState && currentProjectState.id) {
         try { await window.FishDatabase.saveProject(currentProjectState); } catch (_) {}
@@ -15393,7 +15532,7 @@
     }
 
     function duplicateEffect(fx, layer) {
-      const cloneFx = JSON.parse(JSON.stringify(fx));
+      const cloneFx = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(fx) : (Array.isArray(fx) ? [] : {}));
       cloneFx.id = 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
       cloneFx.isExpanded = true;
       cloneFx.disabled = !!fx.disabled;
@@ -15410,7 +15549,7 @@
           const fallbackKey = (fx === layer.effects[0]) ? p : null;
           const kfs = layer.keyframes[srcKey] || (fallbackKey ? layer.keyframes[fallbackKey] : null);
           if (kfs && kfs.length > 0) {
-            layer.keyframes[`${cloneFx.id}:${p}`] = JSON.parse(JSON.stringify(kfs));
+            layer.keyframes[`${cloneFx.id}:${p}`] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(kfs) : (Array.isArray(kfs) ? [] : {}));
           }
         });
       }
@@ -16098,7 +16237,7 @@
                 duplicateEffect(fx, layer);
               } else if (action === 'copy') {
                 try {
-                  window._copiedEffect = JSON.parse(JSON.stringify(fx));
+                  window._copiedEffect = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(fx) : (Array.isArray(fx) ? [] : {}));
                 } catch (_) {}
                 showEffectsRackToast('Effect copied');
               } else if (action === 'delete') {
@@ -16757,16 +16896,16 @@
             showEffectsRackToast('No effects to copy');
             return;
           }
-          const clonedEffects = JSON.parse(JSON.stringify(effects));
+          const clonedEffects = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(effects) : (Array.isArray(effects) ? [] : {}));
           const keyframesData = {};
           if (layer.keyframes) {
             effects.forEach(fx => {
               getEffectParamIds(fx).forEach(p => {
                 const k = `${fx.id}:${p}`;
                 if (layer.keyframes[k]) {
-                  keyframesData[k] = JSON.parse(JSON.stringify(layer.keyframes[k]));
+                  keyframesData[k] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.keyframes[k]) : (Array.isArray(layer.keyframes[k]) ? [] : {}));
                 } else if (fx === layer.effects[0] && !['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap'].includes(p) && layer.keyframes[p]) {
-                  keyframesData[k] = JSON.parse(JSON.stringify(layer.keyframes[p]));
+                  keyframesData[k] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.keyframes[p]) : (Array.isArray(layer.keyframes[p]) ? [] : {}));
                 }
               });
             });
@@ -16843,7 +16982,7 @@
 
           dataToPaste.effects.forEach(fx => {
             const oldId = fx.id;
-            const newFx = JSON.parse(JSON.stringify(fx));
+            const newFx = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(fx) : (Array.isArray(fx) ? [] : {}));
             newFx.id = 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
             newFx.name = fx.name; // Keep name exact
             layer.effects.push(newFx);
@@ -16853,9 +16992,9 @@
               getEffectParamIds(fx).forEach(p => {
                 const oldK = `${oldId}:${p}`;
                 if (dataToPaste.keyframes[oldK]) {
-                  layer.keyframes[`${newFx.id}:${p}`] = JSON.parse(JSON.stringify(dataToPaste.keyframes[oldK]));
+                  layer.keyframes[`${newFx.id}:${p}`] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(dataToPaste.keyframes[oldK]) : (Array.isArray(dataToPaste.keyframes[oldK]) ? [] : {}));
                 } else if (dataToPaste.keyframes[p]) {
-                  layer.keyframes[`${newFx.id}:${p}`] = JSON.parse(JSON.stringify(dataToPaste.keyframes[p]));
+                  layer.keyframes[`${newFx.id}:${p}`] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(dataToPaste.keyframes[p]) : (Array.isArray(dataToPaste.keyframes[p]) ? [] : {}));
                 }
               });
             }
@@ -17364,14 +17503,14 @@
           const nameInput = document.getElementById('input-preset-name');
           const presetName = (nameInput && nameInput.value.trim()) || 'Custom Preset';
 
-          const clonedEffects = JSON.parse(JSON.stringify(effects));
+          const clonedEffects = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(effects) : (Array.isArray(effects) ? [] : {}));
           const keyframesData = {};
           if (layer.keyframes) {
             clonedEffects.forEach(fx => {
               getEffectParamIds(fx).forEach(p => {
                 const k = `${fx.id}:${p}`;
                 if (layer.keyframes[k]) {
-                  keyframesData[k] = JSON.parse(JSON.stringify(layer.keyframes[k]));
+                  keyframesData[k] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.keyframes[k]) : (Array.isArray(layer.keyframes[k]) ? [] : {}));
                 }
               });
             });
@@ -17505,7 +17644,7 @@
 
         preset.effects.forEach(fx => {
           const oldId = fx.id;
-          const newFx = JSON.parse(JSON.stringify(fx));
+          const newFx = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(fx) : (Array.isArray(fx) ? [] : {}));
           newFx.id = 'fx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
           newFx.name = fx.name;
           layer.effects.push(newFx);
@@ -17515,7 +17654,7 @@
             getEffectParamIds(fx).forEach(p => {
               const oldK = `${oldId}:${p}`;
               if (preset.keyframes[oldK]) {
-                layer.keyframes[`${newFx.id}:${p}`] = JSON.parse(JSON.stringify(preset.keyframes[oldK]));
+                layer.keyframes[`${newFx.id}:${p}`] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(preset.keyframes[oldK]) : (Array.isArray(preset.keyframes[oldK]) ? [] : {}));
               }
             });
           }
@@ -17663,10 +17802,7 @@
           const elemName = (nameInput && nameInput.value.trim()) || layer.name || 'Untitled Element';
 
           // Clean clone layer without runtime references
-          const clonedData = JSON.parse(JSON.stringify(layer, (k, v) => {
-            if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') return undefined;
-            return v;
-          }));
+          const clonedData = (window.UndoRedoManager && window.UndoRedoManager._safeClone) ? window.UndoRedoManager._safeClone(layer) : layer;
           delete clonedData._shapeBufferCanvas;
           delete clonedData._precompBufferCanvas;
           delete clonedData._fillBufferCanvas;
@@ -17788,7 +17924,7 @@
         const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
         const playheadSec = Number((Math.abs(currentPanX) / pps).toFixed(3));
 
-        const base = JSON.parse(JSON.stringify(element.layerData));
+        const base = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(element.layerData) : (Array.isArray(element.layerData) ? [] : {}));
         const newLayerId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         const durationSec = base.durationSec || (base.widthPx ? (base.widthPx / pps) : 4);
 
@@ -17807,7 +17943,7 @@
 
           oldEffects.forEach(fx => {
             const oldFxId = fx.id;
-            const newFx = JSON.parse(JSON.stringify(fx));
+            const newFx = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(fx) : (Array.isArray(fx) ? [] : {}));
             newFx.id = 'fx_' + (fx.type || 'fx') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             base.effects.push(newFx);
 
@@ -17815,7 +17951,7 @@
               getEffectParamIds(fx).forEach(p => {
                 const oldK = `${oldFxId}:${p}`;
                 if (base.keyframes[oldK]) {
-                  kfMap[`${newFx.id}:${p}`] = JSON.parse(JSON.stringify(base.keyframes[oldK]));
+                  kfMap[`${newFx.id}:${p}`] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(base.keyframes[oldK]) : (Array.isArray(base.keyframes[oldK]) ? [] : {}));
                   delete base.keyframes[oldK];
                 }
               });
@@ -18325,6 +18461,16 @@
       modal.querySelectorAll('.modal-color-swatch').forEach(s => {
         s.classList.toggle('is-selected', s.dataset.val === targetState.bgColor);
       });
+      // Stored custom color: reflect it on the custom swatch when no preset matches
+      if (!modal.querySelector('.modal-color-swatches .modal-color-swatch.is-selected') &&
+          /^#[0-9a-f]{6}$/i.test(targetState.bgColor || '')) {
+        const custom = modal.querySelector('.modal-color-swatches .swatch-custom');
+        if (custom) {
+          custom.dataset.val = targetState.bgColor;
+          custom.style.backgroundColor = targetState.bgColor;
+          custom.classList.add('is-selected', 'is-picked');
+        }
+      }
 
       // 9. Reset category accordion default collapsed states (Motion Blur unexpanded by default)
       const catCanvas = document.getElementById('cat-settings-canvas');
@@ -18525,7 +18671,7 @@
               proj.defaultDuration = selectedDur;
               proj.bgColor = selectedBg;
               if (currentProjectState.motionBlur) {
-                proj.motionBlur = JSON.parse(JSON.stringify(currentProjectState.motionBlur));
+                proj.motionBlur = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(currentProjectState.motionBlur) : (Array.isArray(currentProjectState.motionBlur) ? [] : {}));
               }
               return window.FishDatabase.saveProject(proj);
             } else {
@@ -18758,9 +18904,9 @@
           } else if (layer[k] && typeof layer[k] === 'object' && !Array.isArray(layer[k]) &&
                      !(layer[k] instanceof HTMLElement) &&
                      !(layer[k] instanceof HTMLCanvasElement)) {
-            try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = String(layer[k]); }
+            try { clone[k] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer[k]) : (Array.isArray(layer[k]) ? [] : {})); } catch (_) { clone[k] = String(layer[k]); }
           } else if (Array.isArray(layer[k])) {
-            try { clone[k] = JSON.parse(JSON.stringify(layer[k])); } catch (_) { clone[k] = '[array]'; }
+            try { clone[k] = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer[k]) : (Array.isArray(layer[k]) ? [] : {})); } catch (_) { clone[k] = '[array]'; }
           } else {
             clone[k] = layer[k];
           }
@@ -19007,7 +19153,7 @@
       const loadedPps = (currentProject && typeof currentProject.pixelsPerSecond === 'number' && currentProject.pixelsPerSecond > 0) ? currentProject.pixelsPerSecond : 80;
       currentProjectState.pixelsPerSecond = loadedPps;
       if (currentProject && currentProject.motionBlur) {
-        currentProjectState.motionBlur = JSON.parse(JSON.stringify(currentProject.motionBlur));
+        currentProjectState.motionBlur = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(currentProject.motionBlur) : (Array.isArray(currentProject.motionBlur) ? [] : {}));
       } else {
         const storedGlobalMb = localStorage.getItem('oft_global_motion_blur') === 'true';
         if (!currentProjectState.motionBlur) {
@@ -19096,7 +19242,7 @@
             fps: currentProjectState.fps,
             defaultDuration: currentProjectState.defaultDuration,
             bgColor: currentProjectState.bgColor,
-            motionBlur: currentProjectState.motionBlur ? JSON.parse(JSON.stringify(currentProjectState.motionBlur)) : undefined
+            motionBlur: currentProjectState.motionBlur ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(currentProjectState.motionBlur) : (Array.isArray(currentProjectState.motionBlur) ? [] : {})) : undefined
           });
           if (created && created.id) {
             currentProjectState.id = created.id;
@@ -19330,7 +19476,7 @@
                 }
                 if (l.type === 'precomp' && m && Array.isArray(m.layers)) {
                   if (!Array.isArray(l.layers) || l.layers.length === 0) {
-                    l.layers = JSON.parse(JSON.stringify(m.layers));
+                    l.layers = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(m.layers) : (Array.isArray(m.layers) ? [] : {}));
                   }
                   if (l.collapseTransformations === undefined && m.collapseTransformations !== undefined) {
                     l.collapseTransformations = !!m.collapseTransformations;
@@ -21202,6 +21348,31 @@
           if (!swatch) return;
           row.querySelectorAll('.modal-color-swatch').forEach(s => s.classList.remove('is-selected'));
           swatch.classList.add('is-selected');
+        });
+        // Custom background swatch: universal FishColorPicker popover (above the modal)
+        row.addEventListener('click', (e) => {
+          const custom = e.target.closest('.swatch-custom');
+          if (!custom || !window.FishColorPicker || typeof window.FishColorPicker.open !== 'function') return;
+          const apply = (hex) => {
+            if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return;
+            custom.dataset.val = hex;
+            custom.style.backgroundColor = hex;
+            custom.classList.add('is-picked');
+            row.querySelectorAll('.modal-color-swatch').forEach(s => s.classList.remove('is-selected'));
+            custom.classList.add('is-selected');
+          };
+          window.FishColorPicker.open({
+            anchor: custom,
+            color: (/^#[0-9a-f]{6}$/i.test(custom.dataset.val || '') ? custom.dataset.val : '#ffffff'),
+            onChange: (hex) => apply(hex),
+            onCommit: (hex) => apply(hex),
+            onClose: () => {
+              const pop = document.getElementById('popover-color-picker');
+              if (pop) pop.style.zIndex = '';
+            }
+          });
+          const pop = document.getElementById('popover-color-picker');
+          if (pop) pop.style.zIndex = '10002';
         });
       });
 
@@ -24692,14 +24863,14 @@
             let val = null;
             let easing = null;
             if (it.kf) {
-              val = it.kf.value !== undefined ? JSON.parse(JSON.stringify(it.kf.value)) : null;
+              val = it.kf.value !== undefined ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(it.kf.value) : (Array.isArray(it.kf.value) ? [] : {})) : null;
               easing = it.kf.easing ? [...it.kf.easing] : null;
             } else {
               const lyr = it.layer || (currentProjectState.layers || []).find(l => l.id === it.layerId);
               if (lyr && lyr.keyframes && lyr.keyframes[it.prop]) {
                 const found = lyr.keyframes[it.prop].find(k => Math.abs(k.time - it.time) < 0.002);
                 if (found) {
-                  val = found.value !== undefined ? JSON.parse(JSON.stringify(found.value)) : null;
+                  val = found.value !== undefined ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(found.value) : (Array.isArray(found.value) ? [] : {})) : null;
                   easing = found.easing ? [...found.easing] : null;
                 }
               }
@@ -24769,7 +24940,7 @@
 
           const newKf = {
             time: pasteTime,
-            value: item.value !== null ? JSON.parse(JSON.stringify(item.value)) : (typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(targetLayer, itemProp) : null),
+            value: item.value !== null ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(item.value) : (Array.isArray(item.value) ? [] : {})) : (typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(targetLayer, itemProp) : null),
             easing: item.easing ? [...item.easing] : [0.0, 0.0, 1.0, 1.0]
           };
           targetLayer.keyframes[itemProp].push(newKf);
@@ -24979,7 +25150,7 @@
 
         const copied = currentProjectState.layers
           .filter(l => ids.includes(l.id))
-          .map(l => JSON.parse(JSON.stringify(l)));
+          .map(l => (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l) : (Array.isArray(l) ? [] : {})));
 
         if (copied.length > 0) {
           window.internalLayerClipboard = copied;
@@ -25022,7 +25193,7 @@
           const newId = idMap.get(l.id);
 
           // Deep clone keyframes & shift all times by deltaSec so animation aligns with pasted layer
-          let clonedKeyframes = l.keyframes ? JSON.parse(JSON.stringify(l.keyframes)) : undefined;
+          let clonedKeyframes = l.keyframes ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.keyframes) : (Array.isArray(l.keyframes) ? [] : {})) : undefined;
           if (clonedKeyframes && Math.abs(deltaSec) > 0.0001) {
             Object.keys(clonedKeyframes).forEach(prop => {
               if (Array.isArray(clonedKeyframes[prop])) {
@@ -25038,7 +25209,7 @@
           // Deep clone 100% of all effects and remap their keyframes
           let clonedEffects = undefined;
           if (Array.isArray(l.effects)) {
-            clonedEffects = JSON.parse(JSON.stringify(l.effects));
+            clonedEffects = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.effects) : (Array.isArray(l.effects) ? [] : {}));
             clonedEffects.forEach(fx => {
               const oldId = fx.id;
               const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + Math.floor(Math.random() * 1000);
@@ -25055,7 +25226,7 @@
             });
           }
 
-          let clonedAudioEffects = Array.isArray(l.audioEffects) ? JSON.parse(JSON.stringify(l.audioEffects)) : undefined;
+          let clonedAudioEffects = Array.isArray(l.audioEffects) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.audioEffects) : (Array.isArray(l.audioEffects) ? [] : {})) : undefined;
           if (clonedAudioEffects) {
             clonedAudioEffects.forEach(fx => {
               fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -25065,13 +25236,13 @@
           // Remap parentId if parent layer is also part of the copied set
           const newParentId = (l.parentId && idMap.has(l.parentId)) ? idMap.get(l.parentId) : (l.parentId || null);
 
-          const clonedLayer = Object.assign({}, JSON.parse(JSON.stringify(l)), {
+          const clonedLayer = Object.assign({}, (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l) : (Array.isArray(l) ? [] : {})), {
             id: newId,
             name: l.name ? (l.name + ' (Copy)') : 'Layer (Copy)',
             startSec: newStartSec,
             startPx: newStartPx,
             parentId: newParentId,
-            parentBind: l.parentBind ? JSON.parse(JSON.stringify(l.parentBind)) : undefined,
+            parentBind: l.parentBind ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(l.parentBind) : (Array.isArray(l.parentBind) ? [] : {})) : undefined,
             effects: clonedEffects,
             audioEffects: clonedAudioEffects,
             keyframes: clonedKeyframes
@@ -25159,10 +25330,10 @@
           if (!orig) return;
           const newId = idMap.get(id);
 
-          let clonedKeyframes = orig.keyframes ? JSON.parse(JSON.stringify(orig.keyframes)) : undefined;
+          let clonedKeyframes = orig.keyframes ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(orig.keyframes) : (Array.isArray(orig.keyframes) ? [] : {})) : undefined;
           let clonedEffects = undefined;
           if (Array.isArray(orig.effects)) {
-            clonedEffects = JSON.parse(JSON.stringify(orig.effects));
+            clonedEffects = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(orig.effects) : (Array.isArray(orig.effects) ? [] : {}));
             clonedEffects.forEach(fx => {
               const oldId = fx.id;
               const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + Math.floor(Math.random() * 1000);
@@ -25179,7 +25350,7 @@
             });
           }
 
-          let clonedAudioEffects = Array.isArray(orig.audioEffects) ? JSON.parse(JSON.stringify(orig.audioEffects)) : undefined;
+          let clonedAudioEffects = Array.isArray(orig.audioEffects) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(orig.audioEffects) : (Array.isArray(orig.audioEffects) ? [] : {})) : undefined;
           if (clonedAudioEffects) {
             clonedAudioEffects.forEach(fx => {
               fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -25188,7 +25359,7 @@
 
           const newParentId = (orig.parentId && idMap.has(orig.parentId)) ? idMap.get(orig.parentId) : (orig.parentId || null);
 
-          const cloned = Object.assign({}, JSON.parse(JSON.stringify(orig)), {
+          const cloned = Object.assign({}, (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(orig) : (Array.isArray(orig) ? [] : {})), {
             id: newId,
             name: orig.name ? (orig.name + ' (Copy)') : 'Layer (Copy)',
             startSec: orig.startSec !== undefined ? orig.startSec : ((orig.startPx || 0) / (window.currentPixelsPerSecond || 80)),
@@ -25196,7 +25367,7 @@
             durationSec: orig.durationSec !== undefined ? orig.durationSec : ((orig.widthPx || 320) / (window.currentPixelsPerSecond || 80)),
             widthPx: orig.widthPx || 320,
             parentId: newParentId,
-            parentBind: orig.parentBind ? JSON.parse(JSON.stringify(orig.parentBind)) : undefined,
+            parentBind: orig.parentBind ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(orig.parentBind) : (Array.isArray(orig.parentBind) ? [] : {})) : undefined,
             effects: clonedEffects,
             audioEffects: clonedAudioEffects,
             keyframes: clonedKeyframes
@@ -25522,7 +25693,7 @@
           duration: durationSec,
           width: compW,
           height: compH,
-          layers: JSON.parse(JSON.stringify(clonedChildren))
+          layers: (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(clonedChildren) : (Array.isArray(clonedChildren) ? [] : {}))
         };
 
         if (window.FishDatabase && typeof window.FishDatabase.saveMedia === 'function' && currentProjectState.id) {
@@ -25847,7 +26018,7 @@
         // Deep clone internal layers with new IDs
         let clonedChildren = [];
         if (Array.isArray(targetPrecompLayer.layers)) {
-          clonedChildren = JSON.parse(JSON.stringify(targetPrecompLayer.layers));
+          clonedChildren = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(targetPrecompLayer.layers) : (Array.isArray(targetPrecompLayer.layers) ? [] : {}));
           clonedChildren.forEach(child => {
             child.id = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
           });
@@ -25863,7 +26034,7 @@
           duration: targetPrecompLayer.durationSec || 5,
           width: targetPrecompLayer.scaleW || 1920,
           height: targetPrecompLayer.scaleH || 1080,
-          layers: JSON.parse(JSON.stringify(clonedChildren))
+          layers: (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(clonedChildren) : (Array.isArray(clonedChildren) ? [] : {}))
         };
 
         if (window.FishDatabase && typeof window.FishDatabase.saveMedia === 'function' && currentProjectState.id) {
@@ -25878,7 +26049,7 @@
 
         // 2. Clone timeline layer and insert right above targetPrecompLayer
         const duplicatedLayer = {
-          ...JSON.parse(JSON.stringify(targetPrecompLayer)),
+          ...(window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(targetPrecompLayer) : (Array.isArray(targetPrecompLayer) ? [] : {})),
           id: newPrecompId,
           mediaId: newMediaId,
           name: compName,
@@ -26659,6 +26830,35 @@
 
                 const relPx = ev.clientX - clipRect.left;
                 let targetRelSec = relPx / pps;
+                let absTime = clipStartSec + targetRelSec;
+
+                if (window.isTimelineSnapEnabled !== false) {
+                  const curP = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : (window.currentSec || 0);
+                  let snapped = false;
+                  if (Math.abs(absTime - curP) * pps < 6) {
+                    absTime = curP;
+                    snapped = true;
+                  }
+                  if (!snapped) {
+                    const snapTargets = [];
+                    if (window.currentProjectState) {
+                      if (window.currentProjectState.beatmarks) snapTargets.push(...window.currentProjectState.beatmarks);
+                      (window.currentProjectState.layers || []).forEach(l => {
+                        if (l.markers) snapTargets.push(...l.markers.map(m => typeof m === 'number' ? m : m.time));
+                        if (l.keyframes) Object.values(l.keyframes).forEach(kList => {
+                          if (Array.isArray(kList)) snapTargets.push(...kList.map(k => k.time));
+                        });
+                      });
+                    }
+                    for (let t of snapTargets) {
+                      if (Math.abs(absTime - t) * pps < 6) {
+                        absTime = t;
+                        break;
+                      }
+                    }
+                  }
+                  targetRelSec = absTime - clipStartSec;
+                }
 
                 // Snap to frame
                 targetRelSec = Math.round(targetRelSec * fps) / fps;
@@ -27590,16 +27790,30 @@
                   const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
                   let rawLeaderTime = Math.max(0, kfInitialTime + dx / pps);
 
-                  const curP = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : (window.currentSec || 0);
-                  if (Math.abs(rawLeaderTime - curP) * pps < 6) {
-                    rawLeaderTime = curP;
-                  }
-
-                  const beatmarks = (window.currentProjectState && window.currentProjectState.beatmarks) || [];
-                  for (let b of beatmarks) {
-                    if (Math.abs(rawLeaderTime - b) * pps < 6) {
-                      rawLeaderTime = b;
-                      break;
+                  if (window.isTimelineSnapEnabled !== false) {
+                    const curP = (typeof window.getCurrentPlayheadTime === 'function') ? window.getCurrentPlayheadTime() : (window.currentSec || 0);
+                    let snapped = false;
+                    if (Math.abs(rawLeaderTime - curP) * pps < 6) {
+                      rawLeaderTime = curP;
+                      snapped = true;
+                    }
+                    if (!snapped) {
+                      const snapTargets = [];
+                      if (window.currentProjectState) {
+                        if (window.currentProjectState.beatmarks) snapTargets.push(...window.currentProjectState.beatmarks);
+                        (window.currentProjectState.layers || []).forEach(l => {
+                          if (l.markers) snapTargets.push(...l.markers.map(m => typeof m === 'number' ? m : m.time));
+                          if (l.keyframes) Object.values(l.keyframes).forEach(kList => {
+                            if (Array.isArray(kList)) snapTargets.push(...kList.map(k => k.time));
+                          });
+                        });
+                      }
+                      for (let t of snapTargets) {
+                        if (Math.abs(rawLeaderTime - t) * pps < 6) {
+                          rawLeaderTime = t;
+                          break;
+                        }
+                      }
                     }
                   }
 
@@ -28359,7 +28573,7 @@
               const initialSlideStartSec = layer.startSec !== undefined ? layer.startSec : (initialStartPx / pixelsPerSecond);
               const initialSlideDurSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pixelsPerSecond);
               const initialSlideEndSec = initialSlideStartSec + initialSlideDurSec;
-              const initialLayerKeyframes = layer.keyframes ? JSON.parse(JSON.stringify(layer.keyframes)) : null;
+              const initialLayerKeyframes = layer.keyframes ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.keyframes) : (Array.isArray(layer.keyframes) ? [] : {})) : null;
               isHoldActive = false;
               isDraggingLayer = false;
               hasSlid = false;
@@ -28388,7 +28602,7 @@
                     initialEndSec: sInitSec + sDurSec,
                     durationSec: sDurSec,
                     clipEl: sClipEl,
-                    initialKeyframes: l.keyframes ? JSON.parse(JSON.stringify(layer.keyframes)) : null
+                    initialKeyframes: l.keyframes ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.keyframes) : (Array.isArray(layer.keyframes) ? [] : {})) : null
                   };
                 });
               }
@@ -29326,7 +29540,7 @@
         const layers = currentProjectState.layers || [];
         if (layers.length === 0) return;
 
-        const linkedLayers = layers.filter(l => l.parentId);
+        const linkedLayers = layers.filter(l => l.parentId && (l.id === window.selectedLayerId || l.parentId === window.selectedLayerId));
         if (linkedLayers.length === 0) return;
 
         const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond === 'number' ? pixelsPerSecond : 80);
@@ -29601,7 +29815,7 @@
             blendMode: 'normal',
             is3D: !!item.is3D,
             collapseTransformations: item.collapseTransformations !== undefined ? !!item.collapseTransformations : false,
-            layers: Array.isArray(item.layers) ? JSON.parse(JSON.stringify(item.layers)) : []
+            layers: Array.isArray(item.layers) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(item.layers) : (Array.isArray(item.layers) ? [] : {})) : []
           };
           currentProjectState.layers.unshift(newPrecompLayer);
           selectTimelineLayer(newPrecompLayer.id);
@@ -30253,7 +30467,7 @@
         const fxIdMap = new Map();
         let clonedEffects = [];
         if (Array.isArray(layer.effects)) {
-          clonedEffects = JSON.parse(JSON.stringify(layer.effects));
+          clonedEffects = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.effects) : (Array.isArray(layer.effects) ? [] : {}));
           clonedEffects.forEach(fx => {
             const oldFxId = fx.id;
             const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -30265,7 +30479,7 @@
         // Deep clone audio effects with fresh unique IDs
         let clonedAudioEffects = [];
         if (Array.isArray(layer.audioEffects)) {
-          clonedAudioEffects = JSON.parse(JSON.stringify(layer.audioEffects));
+          clonedAudioEffects = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.audioEffects) : (Array.isArray(layer.audioEffects) ? [] : {}));
           clonedAudioEffects.forEach(afx => {
             afx.id = 'afx_' + (afx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
           });
@@ -30296,10 +30510,10 @@
 
             list.forEach(kf => {
               if (kf.time <= currentSec) {
-                leftList.push(JSON.parse(JSON.stringify(kf)));
+                leftList.push((window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(kf) : (Array.isArray(kf) ? [] : {})));
               }
               if (kf.time >= currentSec) {
-                rightList.push(JSON.parse(JSON.stringify(kf)));
+                rightList.push((window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(kf) : (Array.isArray(kf) ? [] : {})));
               }
             });
 
@@ -30338,14 +30552,14 @@
                 if (!hasExactLeft) {
                   leftList.push({
                     time: Number(currentSec.toFixed(3)),
-                    value: JSON.parse(JSON.stringify(boundaryVal)),
+                    value: (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(boundaryVal) : (Array.isArray(boundaryVal) ? [] : {})),
                     easing: [...boundaryEasing]
                   });
                 }
                 if (!hasExactRight) {
                   rightList.push({
                     time: Number(currentSec.toFixed(3)),
-                    value: JSON.parse(JSON.stringify(boundaryVal)),
+                    value: (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(boundaryVal) : (Array.isArray(boundaryVal) ? [] : {})),
                     easing: [...boundaryEasing]
                   });
                 }
@@ -30364,10 +30578,10 @@
         }
 
         // Deep-clone nested style and binding objects
-        const clonedTextStyle = layer.textStyle ? JSON.parse(JSON.stringify(layer.textStyle)) : undefined;
-        const clonedShapeProps = layer.shapeProps ? JSON.parse(JSON.stringify(layer.shapeProps)) : undefined;
-        const clonedParentBind = layer.parentBind ? JSON.parse(JSON.stringify(layer.parentBind)) : undefined;
-        const clonedMask = layer.mask ? JSON.parse(JSON.stringify(layer.mask)) : undefined;
+        const clonedTextStyle = layer.textStyle ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.textStyle) : (Array.isArray(layer.textStyle) ? [] : {})) : undefined;
+        const clonedShapeProps = layer.shapeProps ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.shapeProps) : (Array.isArray(layer.shapeProps) ? [] : {})) : undefined;
+        const clonedParentBind = layer.parentBind ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.parentBind) : (Array.isArray(layer.parentBind) ? [] : {})) : undefined;
+        const clonedMask = layer.mask ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.mask) : (Array.isArray(layer.mask) ? [] : {})) : undefined;
 
         // Sample instantaneous effective transform properties at cut time
         const effProps = (typeof getLayerEffectivePropsAtTime === 'function')
@@ -30396,12 +30610,12 @@
         const effAnchorZ = effProps.anchorZ !== undefined ? effProps.anchorZ : (layer.anchorZ || 0);
 
         // Ensure left piece (layer) has completely independent state
-        layer.effects = Array.isArray(layer.effects) ? JSON.parse(JSON.stringify(layer.effects)) : [];
-        layer.audioEffects = Array.isArray(layer.audioEffects) ? JSON.parse(JSON.stringify(layer.audioEffects)) : [];
+        layer.effects = Array.isArray(layer.effects) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.effects) : (Array.isArray(layer.effects) ? [] : {})) : [];
+        layer.audioEffects = Array.isArray(layer.audioEffects) ? (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.audioEffects) : (Array.isArray(layer.audioEffects) ? [] : {})) : [];
         layer.keyframes = leftKeyframes;
         layer._userResized = true;
-        if (layer.textStyle) layer.textStyle = JSON.parse(JSON.stringify(layer.textStyle));
-        if (layer.shapeProps) layer.shapeProps = JSON.parse(JSON.stringify(layer.shapeProps));
+        if (layer.textStyle) layer.textStyle = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.textStyle) : (Array.isArray(layer.textStyle) ? [] : {}));
+        if (layer.shapeProps) layer.shapeProps = (window.UndoRedoManager && window.UndoRedoManager._safeClone ? window.UndoRedoManager._safeClone(layer.shapeProps) : (Array.isArray(layer.shapeProps) ? [] : {}));
 
         // Potongan kanan (setelah playhead)
         const newLayer = {

@@ -62,15 +62,19 @@
     varying vec4 v_color;
     uniform sampler2D u_texture;
     uniform float u_opacity;
+    uniform float u_noDiscard;
     uniform int u_mode;
 
     void main() {
       if (u_mode == 1) {
-        if (v_color.a <= 0.003) discard;
+        if (u_noDiscard < 0.5 && v_color.a <= 0.003) discard;
         gl_FragColor = v_color * u_opacity;
       } else {
         vec4 col = texture2D(u_texture, v_texCoord);
-        if (col.a <= 0.003) discard;
+        // During motion-blur accumulation transparent texels must emit (0,0,0,0)
+        // instead of discard, so the running-mean blend dilutes the mean and
+        // trails stay symmetric (discard would freeze early-sample coverage).
+        if (u_noDiscard < 0.5 && col.a <= 0.003) discard;
         vec4 tint = (v_color.a > 0.001 && (v_color.r > 0.001 || v_color.g > 0.001 || v_color.b > 0.001)) ? v_color : vec4(1.0, 1.0, 1.0, 1.0);
         gl_FragColor = col * tint * u_opacity;
       }
@@ -115,6 +119,23 @@
       this.textureCache = new WeakMap();
       this.currentTexture = null;
       this.isReady = false;
+
+      // Silhouette contour cache for true-shape extrusion (WeakMap<sourceEl, entry>)
+      this._extrudeContourCache = new WeakMap();
+      this._extrudeScratch = null;
+      this._extrudeScratchCtx = null;
+
+      // Shared-depth 3D scene motion blur: per-sample FBO + passthrough blit program
+      this._sceneFbo = null;
+      this._sceneFboTex = null;
+      this._sceneFboDepth = null;
+      this._sceneBlitProg = null;
+      this._sceneBlitPosLoc = -1;
+      this._sceneBlitTexLoc = null;
+      this._sceneBlitQuad = null;
+      this._sceneFboW = 0;
+      this._sceneFboH = 0;
+      this._sceneGLFailed = false;
 
       this._initGL();
     }
@@ -175,6 +196,7 @@
           matrix: gl.getUniformLocation(prog, 'u_matrix'),
           texture: gl.getUniformLocation(prog, 'u_texture'),
           opacity: gl.getUniformLocation(prog, 'u_opacity'),
+          noDiscard: gl.getUniformLocation(prog, 'u_noDiscard'),
           mode: gl.getUniformLocation(prog, 'u_mode'),
           lensDistort: gl.getUniformLocation(prog, 'u_lensDistort')
         };
@@ -257,6 +279,7 @@
 
         gl.useProgram(this.program);
         gl.uniform1i(this.locations.mode, 0);
+        if (this.locations.noDiscard) gl.uniform1f(this.locations.noDiscard, 0);
         gl.disableVertexAttribArray(this.locations.color);
         gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
 
@@ -1265,7 +1288,7 @@
         gl.depthFunc(gl.LEQUAL);
         gl.depthMask(true);
         if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, bounds, normLayerOp, layer);
-        else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, bounds, normLayerOp, layer);
+        else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, bounds, normLayerOp, layer, sourceEl);
         else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, bounds, normLayerOp, layer);
         else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, bounds, normLayerOp, layer);
         gl.disable(gl.DEPTH_TEST);
@@ -1563,7 +1586,273 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
     }
 
-    _draw3DExtrudeMesh(gl, mvp, extrudeFx, bounds, layerOpacity, layer = null) {
+    /* ── True-shape silhouette extrusion (text / triangle / image cutouts) ────
+     * Marching squares on the source alpha (≤176px readout) yields contour
+     * segments in unit-quad space; side walls are built along the REAL outline
+     * instead of the bounding box, so text extrudes as text and a triangle
+     * extrudes as a triangle. Fully opaque rectangles (video, solids) keep the
+     * cheap exact box walls ('box'); fully transparent ⇒ 'empty'.
+     * Cached per source content-version (static images compute once). */
+    _extractExtrudeContour(srcEl) {
+      if (!srcEl || typeof document === 'undefined') return { kind: 'box', segs: null };
+      const ew = Math.round(srcEl.naturalWidth || srcEl.videoWidth || srcEl.width || 0);
+      const eh = Math.round(srcEl.naturalHeight || srcEl.videoHeight || srcEl.height || 0);
+      if (ew < 2 || eh < 2) return { kind: 'box', segs: null };
+      const ver = (srcEl._contentVersion !== undefined && srcEl._contentVersion !== null)
+        ? srcEl._contentVersion
+        : ((srcEl.tagName === 'IMG') ? ('img:' + (srcEl.src || '')) : -1);
+      const MAXD = 256;
+      const k = Math.min(1, MAXD / Math.max(ew, eh));
+      const W = Math.max(8, Math.round(ew * k));
+      const H = Math.max(8, Math.round(eh * k));
+      const cached = this._extrudeContourCache.get(srcEl);
+      if (cached && cached.ver === ver && cached.W === W && cached.H === H) return cached.res;
+      let res = { kind: 'box', segs: null };
+      try {
+        if (!this._extrudeScratch) {
+          this._extrudeScratch = document.createElement('canvas');
+          this._extrudeScratchCtx = this._extrudeScratch.getContext('2d', { willReadFrequently: true });
+        }
+        const sc = this._extrudeScratch;
+        const sx = this._extrudeScratchCtx;
+        if (!sx) return res;
+        if (sc.width !== W || sc.height !== H) { sc.width = W; sc.height = H; }
+        sx.setTransform(1, 0, 0, 1, 0, 0);
+        sx.globalCompositeOperation = 'source-over';
+        sx.globalAlpha = 1;
+        sx.clearRect(0, 0, W, H);
+        sx.drawImage(srcEl, 0, 0, W, H);
+        const px = sx.getImageData(0, 0, W, H).data;
+        let opaque = 0, clear = 0;
+        const total = W * H;
+        for (let i = 3; i < px.length; i += 4) {
+          const a = px[i];
+          if (a > 250) opaque++;
+          else if (a < 8) clear++;
+        }
+        if (clear === total) res = { kind: 'empty', segs: null };
+        else if (opaque === total) res = { kind: 'box', segs: null };
+        else {
+          const segs = this._marchingSquaresAlpha(px, W, H);
+          if (segs && segs.length >= 24) {
+            // Inward-shifted UVs: the contour sits on ~50% alpha texels, which
+            // would render ghostly semi-transparent walls. Sampling ~1.5px
+            // inside the shape grabs fully opaque interior texels instead.
+            res = { kind: 'contour', segs, uvs: this._inwardContourUvs(px, W, H, segs) };
+          } else {
+            res = { kind: 'box', segs: null };
+          }
+        }
+      } catch (_) { res = { kind: 'box', segs: null }; }
+      try { this._extrudeContourCache.set(srcEl, { ver, W, H, res }); } catch (_) {}
+      return res;
+    }
+
+    /* Marching squares on alpha channel → flat [x1,y1,x2,y2 …] segments in
+     * unit-quad space ([-0.5, 0.5], y down like texture v). Holes (O, A, …)
+     * emerge automatically since every cell is independent. Pure function. */
+    _marchingSquaresAlpha(px, W, H) {
+      const T = 128;
+      const segs = [];
+      const at = (x, y) => {
+        if (x < 0 || y < 0 || x >= W || y >= H) return 0;
+        return px[((y * W) + x) * 4 + 3];
+      };
+      const mix = (v0, v1) => {
+        if (v1 === v0) return 0.5;
+        const t = (T - v0) / (v1 - v0);
+        return t < 0 ? 0 : (t > 1 ? 1 : t);
+      };
+      // pixel-corner (ix,iy) integer grid 0..W,0..H → unit space (matches uv-0.5)
+      const UX = ix => (ix / W) - 0.5;
+      const UY = iy => (iy / H) - 0.5;
+      const emit = (ax, ay, bx, by) => {
+        const x1 = UX(ax), y1 = UY(ay), x2 = UX(bx), y2 = UY(by);
+        const dx = x2 - x1, dy = y2 - y1;
+        if (dx * dx + dy * dy < 1e-12) return;
+        segs.push(x1, y1, x2, y2);
+      };
+      for (let y = 0; y < H - 1; y++) {
+        for (let x = 0; x < W - 1; x++) {
+          const a = at(x, y), b = at(x + 1, y), c = at(x + 1, y + 1), d = at(x, y + 1);
+          let idx = 0;
+          if (a > T) idx |= 8;
+          if (b > T) idx |= 4;
+          if (c > T) idx |= 2;
+          if (d > T) idx |= 1;
+          if (idx === 0 || idx === 15) continue;
+          // crossing points on the four cell edges (pixel-corner coords)
+          const top = [x + mix(a, b), y];
+          const right = [x + 1, y + mix(b, c)];
+          const bot = [x + mix(d, c), y + 1];
+          const left = [x, y + mix(a, d)];
+          const S = (p, q) => emit(p[0], p[1], q[0], q[1]);
+          switch (idx) {
+            case 1: case 14: S(left, bot); break;
+            case 2: case 13: S(bot, right); break;
+            case 3: case 12: S(left, right); break;
+            case 4: case 11: S(top, right); break;
+            case 5: S(left, top); S(right, bot); break;
+            case 6: case 9: S(top, bot); break;
+            case 7: case 8: S(left, top); break;
+            case 10: S(top, right); S(left, bot); break;
+          }
+        }
+      }
+      return segs;
+    }
+
+    /* Inward-shifted sample UVs for contour walls (flat [u1,v1,u2,v2 …],
+     * parallel to segs). Probes both sides of each segment in the alpha grid
+     * and shifts ~1.5px toward the more opaque side, so walls sample solid
+     * interior texels instead of the ~50% edge texels. Pure function. */
+    _inwardContourUvs(data, W, H, segs) {
+      const at = (x, y) => {
+        x = x < 0 ? 0 : (x > W - 1 ? W - 1 : Math.round(x));
+        y = y < 0 ? 0 : (y > H - 1 ? H - 1 : Math.round(y));
+        return data[((y * W) + x) * 4 + 3];
+      };
+      const out = new Float32Array(segs.length);
+      for (let i = 0; i + 3 < segs.length; i += 4) {
+        // unit space → pixel-corner coords (exact inverse of UX/UY mapping)
+        const ax = (segs[i] + 0.5) * W, ay = (segs[i + 1] + 0.5) * H;
+        const bx = (segs[i + 2] + 0.5) * W, by = (segs[i + 3] + 0.5) * H;
+        let dx = bx - ax, dy = by - ay;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len; dy /= len;
+        const nx = dy, ny = -dx;
+        const mx = (ax + bx) / 2, my = (ay + by) / 2;
+        const aPlus = at(mx + nx * 1.5, my + ny * 1.5);
+        const aMinus = at(mx - nx * 1.5, my - ny * 1.5);
+        const s = (aPlus >= aMinus) ? 1 : -1;
+        const ox = (nx * s * 1.5) / W, oy = (ny * s * 1.5) / H;
+        const cl = v => v < 0 ? 0 : (v > 1 ? 1 : v);
+        out[i] = cl((ax / W) + ox); out[i + 1] = cl((ay / H) + oy);
+        out[i + 2] = cl((bx / W) + ox); out[i + 3] = cl((by / H) + oy);
+      }
+      return out;
+    }
+
+    /* Contour side walls + back cap arrays. Front edge verts carry colFront,
+     * back edge verts colBack (depth cue). uvSegs (optional, same layout as
+     * segs) overrides geometric UVs for inward-shifted opaque sampling. Pure. */
+    _buildExtrudeWallArrays(segs, uvSegs, depth, colFront, colBack) {
+      const total = Math.floor(segs.length / 4);
+      if (total < 1) return null;
+      const MAXS = 4096;
+      const stride = total > MAXS ? Math.ceil(total / MAXS) : 1;
+      const order = [];
+      for (let s = 0; s < total; s += stride) order.push(s);
+      const S = order.length;
+      const positions = new Float32Array(S * 18);
+      const colors = new Float32Array(S * 24);
+      const uvs = new Float32Array(S * 12);
+      const edges = new Float32Array(S * 12);
+      const pushC = (arr, o, col) => { arr[o] = col[0]; arr[o + 1] = col[1]; arr[o + 2] = col[2]; arr[o + 3] = col[3]; };
+      let p = 0, c = 0, t = 0, e = 0;
+      for (let k = 0; k < S; k++) {
+        const s = order[k] * 4;
+        const ax = segs[s], ay = segs[s + 1], bx = segs[s + 2], by = segs[s + 3];
+        // Af, Bf, Bb | Af, Bb, Ab
+        positions[p++] = ax; positions[p++] = ay; positions[p++] = 0;
+        positions[p++] = bx; positions[p++] = by; positions[p++] = 0;
+        positions[p++] = bx; positions[p++] = by; positions[p++] = -depth;
+        positions[p++] = ax; positions[p++] = ay; positions[p++] = 0;
+        positions[p++] = bx; positions[p++] = by; positions[p++] = -depth;
+        positions[p++] = ax; positions[p++] = ay; positions[p++] = -depth;
+        pushC(colors, c, colFront); c += 4;
+        pushC(colors, c, colFront); c += 4;
+        pushC(colors, c, colBack); c += 4;
+        pushC(colors, c, colFront); c += 4;
+        pushC(colors, c, colBack); c += 4;
+        pushC(colors, c, colBack); c += 4;
+        // Inward-shifted UVs when available (opaque interior sampling);
+        // otherwise geometric UVs (exact contour location).
+        const hasUv = uvSegs && uvSegs.length >= s + 4;
+        const u1 = hasUv ? uvSegs[s] : ax + 0.5;
+        const v1 = hasUv ? uvSegs[s + 1] : ay + 0.5;
+        const u2 = hasUv ? uvSegs[s + 2] : bx + 0.5;
+        const v2 = hasUv ? uvSegs[s + 3] : by + 0.5;
+        uvs[t++] = u1; uvs[t++] = v1;
+        uvs[t++] = u2; uvs[t++] = v2;
+        uvs[t++] = u2; uvs[t++] = v2;
+        uvs[t++] = u1; uvs[t++] = v1;
+        uvs[t++] = u2; uvs[t++] = v2;
+        uvs[t++] = u1; uvs[t++] = v1;
+        edges[e++] = ax; edges[e++] = ay; edges[e++] = 0;
+        edges[e++] = bx; edges[e++] = by; edges[e++] = 0;
+        edges[e++] = ax; edges[e++] = ay; edges[e++] = -depth;
+        edges[e++] = bx; edges[e++] = by; edges[e++] = -depth;
+      }
+      return { positions, colors, uvs, edges, count: S * 6, edgeCount: S * 4 };
+    }
+
+    /* Draw silhouette walls + textured back cap + contour edge lines. */
+    _drawExtrudeContourSolid(gl, segs, uvSegs, depth, opts) {
+      const built = this._buildExtrudeWallArrays(segs, uvSegs, depth, opts.colFront, opts.colBack);
+      if (!built) return;
+      gl.uniform1i(this.locations.mode, opts.solid ? 1 : 0);
+      gl.enableVertexAttribArray(this.locations.position);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+      gl.bufferData(gl.ARRAY_BUFFER, built.positions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.texCoord);
+      gl.bufferData(gl.ARRAY_BUFFER, built.uvs, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(this.locations.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.color);
+      gl.bufferData(gl.ARRAY_BUFFER, built.colors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(this.locations.color, 4, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, built.count);
+
+      // Back cap (textured silhouette at z = -depth, same uv as front)
+      const bp = new Float32Array([
+        -0.5, -0.5, -depth,   0.5, -0.5, -depth,   0.5, 0.5, -depth,
+        -0.5, -0.5, -depth,   0.5,  0.5, -depth,  -0.5, 0.5, -depth
+      ]);
+      const buv = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);
+      const bc = new Float32Array(24);
+      for (let i = 0; i < 6; i++) {
+        bc[i * 4] = opts.colBack[0]; bc[i * 4 + 1] = opts.colBack[1];
+        bc[i * 4 + 2] = opts.colBack[2]; bc[i * 4 + 3] = opts.colBack[3];
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+      gl.bufferData(gl.ARRAY_BUFFER, bp, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.texCoord);
+      gl.bufferData(gl.ARRAY_BUFFER, buv, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.color);
+      gl.bufferData(gl.ARRAY_BUFFER, bc, gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      if (opts.edgeOpacity > 0) {
+        const cE = opts.edgeRgb;
+        gl.uniform1i(this.locations.mode, 1);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.disableVertexAttribArray(this.locations.texCoord);
+        gl.vertexAttrib4f(this.locations.color, cE.r / 255, cE.g / 255, cE.b / 255, opts.edgeOpacity);
+        gl.vertexAttrib2f(this.locations.texCoord, 0.0, 0.0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.meshBuffers.position);
+        gl.bufferData(gl.ARRAY_BUFFER, built.edges, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(this.locations.position, 3, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.LINES, 0, built.edgeCount);
+      }
+    }
+
+    /* Restore standard 2D quad attrib state after a mesh draw. */
+    _restoreMeshQuadState(gl) {
+      gl.uniform1i(this.locations.mode, 0);
+      gl.disableVertexAttribArray(this.locations.color);
+      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+      gl.enableVertexAttribArray(this.locations.texCoord);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+    }
+
+    _draw3DExtrudeMesh(gl, mvp, extrudeFx, bounds, layerOpacity, layer = null, srcEl = null) {
       const defaultDepth = bounds && (bounds.w || bounds.h)
         ? Math.round(Math.min(bounds.w || 300, bounds.h || 300))
         : 300;
@@ -1625,6 +1914,27 @@
       const cLeft = makeCol(mulLeft);
       const cBot = makeCol(mulBot);
       const cBack = makeCol(mulBack);
+
+      // True-shape branch: text / triangle / cutout layers extrude their own
+      // alpha outline (silhouette walls); opaque rectangles fall through to the
+      // box walls below. Empty layers draw nothing but restore GL state.
+      const contour = this._extractExtrudeContour(srcEl);
+      const contourSegs = (contour && contour.kind === 'contour' && contour.segs) ? contour.segs : null;
+      if (contourSegs && contourSegs.length >= 24) {
+        this._drawExtrudeContourSolid(gl, contourSegs, contour.uvs, depth, {
+          solid: isSolidMode,
+          colFront: makeCol(1.0),
+          colBack: makeCol(Math.max(0.1, 1.0 - shading * 0.45)),
+          edgeRgb: hexToRgb(edgeColor),
+          edgeOpacity
+        });
+        this._restoreMeshQuadState(gl);
+        return;
+      }
+      if (contour && contour.kind === 'empty') {
+        this._restoreMeshQuadState(gl);
+        return;
+      }
 
       const solidPositions = new Float32Array([
         // Back Face (z = -depth)
@@ -1739,15 +2049,7 @@
       }
 
       // Restore standard 2D quad state for subsequent renders
-      gl.uniform1i(this.locations.mode, 0);
-      gl.disableVertexAttribArray(this.locations.color);
-      gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
-      gl.enableVertexAttribArray(this.locations.texCoord);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
-      gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
-      gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+      this._restoreMeshQuadState(gl);
     }
 
     _draw3DPyramidMesh(gl, mvp, pyramidFx, bounds, layerOpacity, layer = null) {
@@ -2129,8 +2431,11 @@
 
     /**
      * Hardware WebGL Motion Blur for 3D Layers
-     * Accumulates multi-sample motion blur directly in WebGL framebuffer via additive blending,
-     * reducing 8 round-trip 2D canvas copies + 8 shadow blurs down to 1 single draw call per sample and 1 single blit!
+     * Accumulates multi-sample motion blur directly in WebGL framebuffer via running
+     * mean (sample i blends at 1/(i+1) over the previous mean), then 1 single blit!
+     * Running mean keeps the buffer near full brightness: the old ONE,ONE additive
+     * sum with per-sample opacity 1/N quantized each sample to a few LSBs of the
+     * 8-bit framebuffer, whose rounding error shifted hues on trails.
      */
     render3DMotionBlur(ctx, el, layer, bufferScale = 1, camera = null, currentSec = null, compState = null) {
       if (!ctx || !el || !this._hasValidDimensions(el)) return;
@@ -2169,8 +2474,7 @@
         ? mbEngine.planSamples(animLayer, bufferScale, camera, tStart, exposureTime, compState)
         : { n: 16 };
       const cfgSamples = (mbEngine && typeof mbEngine.getConfig === 'function') ? mbEngine.getConfig(compState).samples : 16;
-      const samples = Math.max(2, cfgSamples || 16);
-      const weight = 1 / samples;
+      const samples = Math.max(2, plan.n || cfgSamples || 16);
 
       const targetCanvas = ctx.canvas;
       const vw = targetCanvas ? targetCanvas.width : (bounds.cx * 2 || 1920);
@@ -2188,11 +2492,11 @@
 
       // Dynamic Bounding Box & Scissor Clamping: restrict rendering & clearing to moving layer AABB
       const cropRect = plan && plan.rect;
-      const hasCrop = !!(cropRect && cropRect.w > 0 && cropRect.h > 0 && (cropRect.w < vw || cropRect.h < vh));
-      const cropX = hasCrop ? Math.max(0, Math.floor(cropRect.x)) : 0;
-      const cropY = hasCrop ? Math.max(0, Math.floor(cropRect.y)) : 0;
-      const cropW = hasCrop ? Math.min(vw - cropX, Math.ceil(cropRect.w)) : vw;
-      const cropH = hasCrop ? Math.min(vh - cropY, Math.ceil(cropRect.h)) : vh;
+      const hasCrop = false; // Disabled: cropRect is in composition space but used in screen space, causing offsets
+      const cropX = 0;
+      const cropY = 0;
+      const cropW = vw;
+      const cropH = vh;
 
       gl.viewport(0, 0, vw, vh);
       if (hasCrop) {
@@ -2233,10 +2537,19 @@
       gl.uniform1i(this.locations.texture, 0);
       if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(bounds.is3D ? camera : null));
 
-      gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.CULL_FACE);
       gl.enable(gl.BLEND);
-      gl.blendFunc(gl.ONE, gl.ONE); // Premultiplied additive accumulation
+      // Running mean: sample 0 copies at full strength (ONE, ZERO); sample i blends
+      // at w = 1/(i+1) via (CONSTANT_ALPHA, ONE_MINUS_CONSTANT_ALPHA) with the
+      // shader emitting the sample at FULL layer opacity. out = S*w + D*(1-w).
+      // Depth test stays ON with a per-sample depth clear: mesh faces self-occlude
+      // correctly inside every sample while samples still average independently.
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.depthMask(true);
+      // u_noDiscard=1 during the loop: transparent texels emit (0,0,0,0) instead of
+      // discard, so empty samples dilute the mean and trails stay symmetric.
+      if (this.locations.noDiscard) gl.uniform1f(this.locations.noDiscard, 1);
 
       const tileFx = Array.isArray(layer.effects)
         ? layer.effects.find(f => f.type === 'tile' && !f.disabled)
@@ -2269,16 +2582,24 @@
           ? window.getLayerEffectivePropsAtTime(camLayer, subSec, null, pool)
           : camera;
 
+        const srcLayer = layer._rawLayer || layer;
         const subEff = (typeof window.getLayerEffectivePropsAtTime === 'function')
-          ? window.getLayerEffectivePropsAtTime(layer, subSec, null, pool)
+          ? window.getLayerEffectivePropsAtTime(srcLayer, subSec, null, pool)
           : null;
-        const subAnimLayer = subEff
-          ? Object.assign({}, layer, subEff, { is3D: !!(layer.is3D || bounds.is3D) })
-          : Object.assign({}, animLayer, { is3D: !!(layer.is3D || bounds.is3D) });
+        let subAnimLayer = subEff
+          ? Object.assign({}, layer, subEff, { is3D: !!(srcLayer.is3D || bounds.is3D) })
+          : Object.assign({}, animLayer, { is3D: !!(srcLayer.is3D || bounds.is3D) });
         subAnimLayer._currentSec = subSec;
+        if (subAnimLayer.type === 'text' && window.FishMotionBlurEngine && typeof window.FishMotionBlurEngine.compensateTextPad === 'function') {
+          subAnimLayer = window.FishMotionBlurEngine.compensateTextPad(layer, sourceEl, subAnimLayer);
+        }
 
         const subBounds = this.getBounds(subAnimLayer, bufferScale, subCamera);
         if (subBounds.isBehindCamera) continue;
+
+        // Fresh depth for every sample: self-occlusion inside the sample,
+        // no occlusion leaking across samples of the blur average.
+        gl.clear(gl.DEPTH_BUFFER_BIT);
 
         // The scene camera only transforms 3D layers. A 2D layer must keep identical placement with
         // blur on/off (effects like shatter/particles apply the camera inside their own texture).
@@ -2299,19 +2620,33 @@
 
         const rawOp = (subAnimLayer.opacity !== undefined && subAnimLayer.opacity !== null) ? Number(subAnimLayer.opacity) : 1.0;
         const normOp = (rawOp > 1.0) ? Math.max(0, Math.min(1, rawOp / 100)) : Math.max(0, Math.min(1, rawOp));
-        const sampleOp = normOp * weight;
-        gl.uniform1f(this.locations.opacity, sampleOp);
+        gl.depthMask(normOp >= 0.999);
+        if (drawnSamples === 0) {
+          gl.blendFunc(gl.ONE, gl.ZERO);
+          gl.uniform1f(this.locations.opacity, normOp);
+        } else {
+          const w = 1 / (drawnSamples + 1);
+          gl.blendColor(0, 0, 0, w);
+          gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
+          gl.uniform1f(this.locations.opacity, normOp);
+        }
 
         if (boxFx || extrudeFx || pyramidFx || sphereFx) {
-          if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, subBounds, sampleOp, subAnimLayer);
-          else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, subBounds, sampleOp, subAnimLayer);
-          else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, subBounds, sampleOp, subAnimLayer);
-          else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, subBounds, sampleOp, subAnimLayer);
+          if (boxFx) this._draw3DBoxMesh(gl, mvp, boxFx, subBounds, normOp, subAnimLayer);
+          else if (extrudeFx) this._draw3DExtrudeMesh(gl, mvp, extrudeFx, subBounds, normOp, subAnimLayer, sourceEl);
+          else if (pyramidFx) this._draw3DPyramidMesh(gl, mvp, pyramidFx, subBounds, normOp, subAnimLayer);
+          else if (sphereFx) this._draw3DSphereMesh(gl, mvp, sphereFx, subBounds, normOp, subAnimLayer);
         } else {
           this._drawQuadOrTile(gl, mvp, tileFx, vw, vh, subBounds);
         }
         drawnSamples++;
       }
+
+      // Restore normal premultiplied compositing for single-pass draws
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      if (this.locations.noDiscard) gl.uniform1f(this.locations.noDiscard, 0);
 
       if (hasCrop) {
         gl.disable(gl.SCISSOR_TEST);
@@ -2324,8 +2659,257 @@
     }
 
     /**
+     * Per-sample FBO + passthrough blit program for shared-depth scene blur.
+     * Each shutter sample renders into the FBO (normal blend + depth), then the
+     * FBO is blended over the running mean in the default framebuffer.
+     * WebGL1-core only (RGBA texture + depth renderbuffer). Returns false when
+     * unavailable so callers can fall back to legacy per-layer passes.
+     */
+    _ensureSceneBlurGL(vw, vh) {
+      const gl = this.gl;
+      if (!gl || this._sceneGLFailed) return false;
+      try {
+        if (!this._sceneBlitProg) {
+          const vs = this._compileShader(gl.VERTEX_SHADER,
+            'attribute vec2 a_p; varying vec2 v_uv; void main(){ v_uv = a_p * 0.5 + 0.5; gl_Position = vec4(a_p, 0.0, 1.0); }');
+          const fs = this._compileShader(gl.FRAGMENT_SHADER,
+            'precision mediump float; varying vec2 v_uv; uniform sampler2D u_t; void main(){ gl_FragColor = texture2D(u_t, v_uv); }');
+          const pr = gl.createProgram();
+          gl.attachShader(pr, vs);
+          gl.attachShader(pr, fs);
+          gl.linkProgram(pr);
+          if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) {
+            this._sceneGLFailed = true;
+            return false;
+          }
+          this._sceneBlitProg = pr;
+          this._sceneBlitPosLoc = gl.getAttribLocation(pr, 'a_p');
+          this._sceneBlitTexLoc = gl.getUniformLocation(pr, 'u_t');
+          this._sceneBlitQuad = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, this._sceneBlitQuad);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+          this._sceneFbo = gl.createFramebuffer();
+          this._sceneFboTex = gl.createTexture();
+          this._sceneFboDepth = gl.createRenderbuffer();
+        }
+        if (this._sceneFboW !== vw || this._sceneFboH !== vh) {
+          gl.bindTexture(gl.TEXTURE_2D, this._sceneFboTex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vw, vh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.bindRenderbuffer(gl.RENDERBUFFER, this._sceneFboDepth);
+          gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, vw, vh);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this._sceneFbo);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this._sceneFboTex, 0);
+          gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this._sceneFboDepth);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          this._sceneFboW = vw;
+          this._sceneFboH = vh;
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._sceneFbo);
+        const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        if (!ok) { this._sceneGLFailed = true; return false; }
+        return true;
+      } catch (_) {
+        this._sceneGLFailed = true;
+        return false;
+      }
+    }
+
+    /**
+     * Shared-depth 3D scene motion blur for one consecutive run of plain 3D layers.
+     * Every shutter sample draws ALL run members into the FBO with normal blending
+     * and a shared depth buffer (true 3D penetration, like the static batch pass),
+     * then the sample is blended over the running mean. Static members naturally
+     * average to themselves. Returns true when handled (even when nothing was
+     * visible), false when the caller should use legacy per-layer passes.
+     * run: Array<{ item:{el,layer,animLayer}, bounds, blur:boolean }>
+     */
+    render3DSceneMotionBlur(ctx, run, bufferScale = 1, camera = null, currentSec = null, compState = null) {
+      if (!ctx || !run || run.length === 0 || !this.isReady) return false;
+      const gl = this.gl;
+      if (!gl) return false;
+
+      const pool = (compState && Array.isArray(compState.layers) && compState.layers)
+        || ((typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) ? window.currentProjectState.layers : null);
+      const evalSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : 0;
+
+      const mbEngine = window.FishMotionBlurEngine;
+      const shutter = mbEngine && typeof mbEngine.getShutter === 'function'
+        ? mbEngine.getShutter(compState, evalSec)
+        : { exposureTime: 0, tStart: evalSec };
+      const exposureTime = shutter.exposureTime;
+      const tStart = shutter.tStart;
+      if (!(exposureTime > 0.0001)) return false;
+
+      // Sample count: worst case over the moving members (static ones need none).
+      let samples = 0;
+      for (const m of run) {
+        if (!m.blur) continue;
+        const planeff = m.item.animLayer || m.item.layer;
+        const n = (mbEngine && typeof mbEngine.planSamples === 'function')
+          ? (mbEngine.planSamples(planeff, bufferScale, camera, tStart, exposureTime, compState).n || 0)
+          : 0;
+        if (n > samples) samples = n;
+      }
+      if (!(samples >= 2)) {
+        const cfg = (mbEngine && typeof mbEngine.getConfig === 'function') ? mbEngine.getConfig(compState).samples : 16;
+        samples = Math.max(2, cfg || 16);
+      }
+
+      const targetCanvas = ctx.canvas;
+      const vw = targetCanvas ? targetCanvas.width : 1920;
+      const vh = targetCanvas ? targetCanvas.height : 1080;
+      if (vw <= 0 || vh <= 0) return false;
+      if (this.glCanvas.width !== vw || this.glCanvas.height !== vh) {
+        this.glCanvas.width = vw;
+        this.glCanvas.height = vh;
+      }
+      if (!this._ensureSceneBlurGL(vw, vh)) return false;
+
+      const camLayer = (camera && camera._rawCamera)
+        || (camera && camera.type === 'camera' ? camera : null)
+        || (pool && pool.find(l => l && l.type === 'camera' && !l.hidden))
+        || null;
+      const getEff = (typeof window !== 'undefined') ? window.getLayerEffectivePropsAtTime : null;
+
+      // Accumulation buffer: default framebuffer, cleared once.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, vw, vh);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.disable(gl.CULL_FACE);
+      gl.enable(gl.BLEND);
+      if (this.locations.noDiscard) {
+        gl.useProgram(this.program);
+        gl.uniform1f(this.locations.noDiscard, 1);
+      }
+
+      let completed = 0;
+      for (let s = 0; s < samples; s++) {
+        const subSec = tStart + ((s + 0.5) / samples) * exposureTime;
+        const subCamera = (camLayer && typeof getEff === 'function')
+          ? getEff(camLayer, subSec, null, pool)
+          : camera;
+
+        // One full scene sample into the FBO: normal blend + shared depth.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._sceneFbo);
+        gl.viewport(0, 0, vw, vh);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        gl.depthMask(true);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.useProgram(this.program);
+        gl.uniform1i(this.locations.mode, 0);
+        gl.disableVertexAttribArray(this.locations.color);
+        gl.vertexAttrib4f(this.locations.color, 1.0, 1.0, 1.0, 1.0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+        gl.enableVertexAttribArray(this.locations.position);
+        gl.vertexAttribPointer(this.locations.position, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+        gl.enableVertexAttribArray(this.locations.texCoord);
+        gl.vertexAttribPointer(this.locations.texCoord, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index);
+
+        let drawn = 0;
+        for (let mi = 0; mi < run.length; mi++) {
+          const m = run[mi];
+          const srcEl = m.item.el;
+          if (!srcEl || !this._hasValidDimensions(srcEl)) continue;
+          const srcLayer = (m.item.layer && m.item.layer._rawLayer) || m.item.layer;
+          const subEff = (typeof getEff === 'function' && srcLayer)
+            ? getEff(srcLayer, subSec, null, pool)
+            : null;
+          let subAnimLayer = subEff
+            ? Object.assign({}, m.item.layer, subEff)
+            : Object.assign({}, (m.item.animLayer || m.item.layer));
+          subAnimLayer._currentSec = subSec;
+          if (subAnimLayer.type === 'text' && window.FishMotionBlurEngine && typeof window.FishMotionBlurEngine.compensateTextPad === 'function') {
+            subAnimLayer = window.FishMotionBlurEngine.compensateTextPad(m.item.layer, srcEl, subAnimLayer);
+          }
+          const subBounds = this.getBounds(subAnimLayer, bufferScale, subCamera);
+          if (subBounds.isBehindCamera || ((subBounds.aabbW < 1.0 && subBounds.w < 1.0) || (subBounds.aabbH < 1.0 && subBounds.h < 1.0))) continue;
+          const mvpCamera = subBounds.is3D ? subCamera : null;
+          const mvp = this._computeMVP(subBounds, vw, vh, mi * 0.00002, mvpCamera);
+          if (!mvp) continue;
+          const tex = this._getOrCreateTexture(srcEl);
+          if (!tex) continue;
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.uniform1i(this.locations.texture, 0);
+          const rawOp = (subAnimLayer.opacity !== undefined && subAnimLayer.opacity !== null) ? Number(subAnimLayer.opacity) : 1.0;
+          const normOp = (rawOp > 1.0) ? Math.max(0, Math.min(1, rawOp / 100)) : Math.max(0, Math.min(1, rawOp));
+          gl.uniform1f(this.locations.opacity, normOp);
+          gl.depthMask(normOp >= 0.999);
+          if (this.locations.lensDistort) gl.uniform1f(this.locations.lensDistort, this._getLensDistort(mvpCamera));
+          gl.uniformMatrix4fv(this.locations.matrix, false, mvp);
+          this._drawQuadOrTile(gl, mvp, null, vw, vh, subBounds);
+          drawn++;
+        }
+        if (!drawn) continue;
+
+        // Blend this sample over the running mean in the default framebuffer.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, vw, vh);
+        gl.disable(gl.DEPTH_TEST);
+        gl.useProgram(this._sceneBlitProg);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this._sceneBlitQuad);
+        gl.enableVertexAttribArray(this._sceneBlitPosLoc);
+        gl.vertexAttribPointer(this._sceneBlitPosLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this._sceneFboTex);
+        gl.uniform1i(this._sceneBlitTexLoc, 0);
+        if (completed === 0) {
+          gl.blendFunc(gl.ONE, gl.ZERO);
+        } else {
+          gl.blendColor(0, 0, 0, 1 / (completed + 1));
+          gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
+        }
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        completed++;
+      }
+
+      // Restore standard state for subsequent draws
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.useProgram(this.program);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      if (this.locations.noDiscard) gl.uniform1f(this.locations.noDiscard, 0);
+
+      // Members are effect-free by construction: plain blit (no shadow/split/post).
+      if (completed > 0) {
+        try { ctx.drawImage(this.glCanvas, 0, 0); } catch (_) { return false; }
+      }
+      return true;
+    }
+
+    /**
+     * Batch membership rule for the shared 3D depth pass (single source of truth).
+     * A layer joins a depth-shared run iff it is 3D with normal blending, no
+     * effects/filters and no depth-of-field — mirrors AE's "2D breaks 3D space".
+     * js/editor.js uses the same rule to group motion-blur scene passes.
+     */
+    isBatchable3D(layer, bounds) {
+      if (!layer || !bounds || !bounds.is3D) return false;
+      if (layer.blendMode && layer.blendMode !== 'normal') return false;
+      if (Array.isArray(layer.effects) && layer.effects.some(f => f && !f.disabled)) return false;
+      if (window.FishEffects && typeof window.FishEffects.buildFilter === 'function' && window.FishEffects.buildFilter(layer) !== '') return false;
+      if (layer._dofBlur && layer._dofBlur > 0.5) return false;
+      return true;
+    }
+
+    /**
      * Render a composition sequence with hardware Z-buffer penetration for 3D intersecting layers.
      * Batches consecutive 3D layers into a single WebGL depth pass (reducing drawImage overhead for mobile).
+     * NOTE: batch membership rule lives in isBatchable3D (single source of truth,
+     * shared with the motion-blur scene pass in js/editor.js).
      * @param {CanvasRenderingContext2D} ctx - Target 2D canvas context
      * @param {Array<{ el: HTMLElement, layer: Object, animLayer?: Object }>} renderList - Layers to draw
      * @param {number} bufferScale - Scale factor relative to composition base size
@@ -2362,18 +2946,13 @@
       renderList.forEach((item, idx) => {
         const layer = item.animLayer || item.layer;
         const b = this.getBounds(layer, bufferScale, camera);
-        const isLayer3D = !!b.is3D;
-        const hasCustomBlend = layer.blendMode && layer.blendMode !== 'normal';
-        const hasEffects = (Array.isArray(layer.effects) && layer.effects.some(f => !f.disabled)) ||
-          (window.FishEffects && typeof window.FishEffects.buildFilter === 'function' && window.FishEffects.buildFilter(layer) !== '');
-        const hasDofBlur = isLayer3D && layer._dofBlur && layer._dofBlur > 0.5;
 
         // In After Effects, 2D layers break 3D space:
         // Flush any preceding 3D layers in the depth buffer, composite the 2D layer, then resume 3D batching
-        if (!isLayer3D || hasCustomBlend || hasEffects || hasDofBlur) {
+        if (!this.isBatchable3D(layer, b)) {
           flushBatch();
           const lSec = (typeof currentSec === 'number' && !isNaN(currentSec)) ? currentSec : ((layer && layer._currentSec !== undefined) ? layer._currentSec : null);
-          this.renderLayer(ctx, item.el, layer, bufferScale, isLayer3D ? camera : null, lSec);
+          this.renderLayer(ctx, item.el, layer, bufferScale, b.is3D ? camera : null, lSec);
         } else {
           currentBatch.push({ ...item, batchIndex: idx });
         }
@@ -2454,7 +3033,7 @@
         const sFx = Array.isArray(layer.effects) ? layer.effects.find(f => f && !f.disabled && f.type === 'sphere_3d') : null;
 
         if (bFx) this._draw3DBoxMesh(gl, mvp, bFx, bounds, layerOpacity, layer);
-        else if (eFx) this._draw3DExtrudeMesh(gl, mvp, eFx, bounds, layerOpacity, layer);
+        else if (eFx) this._draw3DExtrudeMesh(gl, mvp, eFx, bounds, layerOpacity, layer, el);
         else if (pFx) this._draw3DPyramidMesh(gl, mvp, pFx, bounds, layerOpacity, layer);
         else if (sFx) this._draw3DSphereMesh(gl, mvp, sFx, bounds, layerOpacity, layer);
         else {

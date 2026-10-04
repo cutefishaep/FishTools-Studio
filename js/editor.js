@@ -25309,18 +25309,32 @@
         const durationSec = Math.max(0.1, maxEndSec - minStartSec);
 
         function cleanLayerForClone(layer) {
-          const copy = JSON.parse(JSON.stringify(layer, (k, v) => {
-            if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') return undefined;
-            return v;
-          }));
-          delete copy._shapeBufferCanvas;
-          delete copy._precompBufferCanvas;
-          delete copy._fillBufferCanvas;
-          delete copy._fillMediaImg;
-          delete copy._alphaHitCanvas;
-          delete copy._alphaHitCtx;
-          delete copy._canvasBounds;
-          return copy;
+          try {
+            const seen = new WeakSet();
+            const copy = JSON.parse(JSON.stringify(layer, (k, v) => {
+              if (typeof k === 'string' && k.startsWith('_') && k !== '_userResized' && k !== '_defaultEasing') return undefined;
+              if (v !== null && typeof v === 'object') {
+                if (typeof Element !== 'undefined' && v instanceof Element) return undefined;
+                if (typeof Node !== 'undefined' && v instanceof Node) return undefined;
+                if (typeof Window !== 'undefined' && v instanceof Window) return undefined;
+                if (seen.has(v)) return undefined;
+                seen.add(v);
+              }
+              if (typeof v === 'function') return undefined;
+              return v;
+            }));
+            delete copy._shapeBufferCanvas;
+            delete copy._precompBufferCanvas;
+            delete copy._fillBufferCanvas;
+            delete copy._fillMediaImg;
+            delete copy._alphaHitCanvas;
+            delete copy._alphaHitCtx;
+            delete copy._canvasBounds;
+            return copy;
+          } catch (e) {
+            console.error('[Precompose] Clone error:', e);
+            return Object.assign({}, layer); // Fallback to shallow copy to prevent fatal freeze
+          }
         }
 
         // 2. Clone child layers and normalize time/keyframes relative to minStartSec

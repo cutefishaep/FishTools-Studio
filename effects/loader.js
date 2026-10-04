@@ -9,7 +9,7 @@
  *
  * Add a new effect by dropping effects/<id>.js that calls FishEffectsRegistry.register({...}).
  * The embedded fallback list is generated - DO NOT EDIT DIRECTLY.
- * Fallback effect files: 61
+ * Fallback effect files: 62
  */
 (function () {
   'use strict';
@@ -75,7 +75,8 @@
   "unsharp_mask.js",
   "vignette.js",
   "warp.js",
-  "wave_warp.js"
+  "wave_warp.js",
+  "wipe_jaws.js"
 ];
 
   if (typeof window === 'undefined' || typeof document === 'undefined') {

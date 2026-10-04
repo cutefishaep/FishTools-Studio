@@ -220,7 +220,7 @@
     "file": "linear_wipe.js",
     "id": "linear_wipe",
     "name": "Linear Wipe",
-    "category": "wipe",
+    "category": "Wipe",
     "icon": "assets/FXPH.svg"
   },
   {
@@ -425,5 +425,12 @@
     "name": "Wave Warp",
     "category": "warp",
     "icon": "assets/FXPH.svg"
+  },
+  {
+    "file": "wipe_jaws.js",
+    "id": "wipe_jaws",
+    "name": "Wipe Jaws",
+    "category": "Wipe",
+    "icon": "assets/FXWipeJaws.svg"
   }
 ]

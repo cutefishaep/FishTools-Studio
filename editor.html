@@ -2828,25 +2828,56 @@
                     <span class="aspect-ratio-text">21:9</span>
                   </div>
                 </button>
+                <button type="button" class="aspect-ratio-frame" data-val="Custom" title="Custom Resolution">
+                  <div class="aspect-frame-box ratio-1-1">
+                    <svg class="aspect-ratio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                  </div>
+                </button>
               </div>
             </div>
 
             <!-- 2. Resolution Dropdown Row -->
             <div class="modal-form-row" id="row-settings-resolution">
               <label class="modal-label">Resolution</label>
-              <div class="custom-dropdown" id="dropdown-resolution" data-value="1080p">
-                <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
-                  <span class="custom-dropdown-label">1080p</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
+              <div class="resolution-ctrl-wrap" id="container-resolution">
+                <div class="custom-dropdown" id="dropdown-resolution" data-value="1080p">
+                  <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
+                    <span class="custom-dropdown-label">1080p</span>
+                    <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 10l5 5 5-5z"/>
+                    </svg>
+                  </button>
+                  <div class="custom-dropdown-menu" role="listbox">
+                    <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
+                    <div class="custom-dropdown-item" role="option" data-val="2K">2K</div>
+                    <div class="custom-dropdown-item is-selected" role="option" data-val="1080p">1080p</div>
+                    <div class="custom-dropdown-item" role="option" data-val="720p">720p</div>
+                    <div class="custom-dropdown-item" role="option" data-val="480p">480p</div>
+                  </div>
+                </div>
+                <div class="custom-res-liquid-wrap custom-resolution-inputs is-locked" id="custom-resolution-inputs" style="display: none;">
+                  <svg class="liquid-res-svg" viewBox="0 0 166 38" aria-hidden="true">
+                    <rect class="liquid-box-left" x="0" y="0" width="62" height="38" rx="10"/>
+                    <rect class="liquid-box-right" x="104" y="0" width="62" height="38" rx="10"/>
+                    <circle class="liquid-center-circle" cx="83" cy="19" r="14"/>
+                    <path class="liquid-waist" d="M 52,0 C 66,0 72,5 83,5 C 94,5 100,0 114,0 L 114,38 C 100,38 94,33 83,33 C 72,33 66,38 52,38 Z"/>
                   </svg>
-                </button>
-                <div class="custom-dropdown-menu" role="listbox">
-                  <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
-                  <div class="custom-dropdown-item" role="option" data-val="2K">2K</div>
-                  <div class="custom-dropdown-item is-selected" role="option" data-val="1080p">1080p</div>
-                  <div class="custom-dropdown-item" role="option" data-val="720p">720p</div>
-                  <div class="custom-dropdown-item" role="option" data-val="480p">480p</div>
+                  <input type="number" id="custom-res-w" class="custom-res-box" placeholder="W" value="1920" aria-label="Width">
+                  <button type="button" id="btn-link-res" class="custom-res-link-btn is-locked" title="Lock Aspect Ratio" aria-label="Lock aspect ratio">
+                    <svg class="res-link-icon res-link-icon-linked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                    <svg class="res-link-icon res-link-icon-unlinked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
+                      <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
+                      <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
+                    </svg>
+                  </button>
+                  <input type="number" id="custom-res-h" class="custom-res-box" placeholder="H" value="1080" aria-label="Height">
                 </div>
               </div>
             </div>
@@ -2854,22 +2885,9 @@
             <!-- 3. FPS Dropdown Row -->
             <div class="modal-form-row" id="row-settings-fps">
               <label class="modal-label">FPS</label>
-              <div class="custom-dropdown" id="dropdown-fps" data-value="60">
-                <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Frame Rate">
-                  <span class="custom-dropdown-label">60 FPS</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
-                </button>
-                <div class="custom-dropdown-menu" role="listbox">
-                  <div class="custom-dropdown-item" role="option" data-val="120">120 FPS</div>
-                  <div class="custom-dropdown-item is-selected" role="option" data-val="60">60 FPS</div>
-                  <div class="custom-dropdown-item" role="option" data-val="50">50 FPS</div>
-                  <div class="custom-dropdown-item" role="option" data-val="45">45 FPS</div>
-                  <div class="custom-dropdown-item" role="option" data-val="30">30 FPS</div>
-                  <div class="custom-dropdown-item" role="option" data-val="25">25 FPS</div>
-                  <div class="custom-dropdown-item" role="option" data-val="16">16 FPS</div>
-                </div>
+              <div class="modal-fps-ctrl">
+                <input type="number" id="input-fps" class="modal-fps-input" min="1" max="240" value="60" aria-label="Frame Rate">
+                <span class="modal-fps-unit">FPS</span>
               </div>
             </div>
 
@@ -3232,7 +3250,7 @@
     <div class="export-fs-body" id="export-fs-body">
 
       <!-- 1. Export Video -->
-      <div class="export-option-card is-selected" data-export-type="video" role="radio" aria-checked="true" tabindex="0">
+      <div class="export-option-card" data-export-type="video" role="radio" aria-checked="false" tabindex="0">
         <div class="export-option-radio">
           <div class="export-option-radio-dot"></div>
         </div>
@@ -3305,9 +3323,9 @@
 
     <!-- Footer: Next -->
     <div class="export-fs-footer">
-      <button type="button" class="export-fs-next-btn" id="export-fs-next-btn">
+      <button type="button" class="export-fs-next-btn" id="export-fs-next-btn" disabled>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
-        <span id="export-fs-next-label">Export Video</span>
+        <span id="export-fs-next-label">Render</span>
       </button>
     </div>
 
@@ -3326,25 +3344,96 @@
       <span class="export-settings-title">Video Settings</span>
     </div>
     <div class="export-settings-body">
-      <!-- Resolution -->
-      <div class="export-setting-group">
-        <span class="export-setting-label">Resolution</span>
-        <select class="export-setting-select" id="export-video-resolution">
-          <option value="480p">480p</option>
-          <option value="720p">720p HD</option>
-          <option value="1080p" selected>1080p Full HD</option>
-          <option value="2K">2K</option>
-          <option value="4K">4K Ultra HD</option>
-        </select>
+      <!-- 1. Aspect Ratio (Visual Frames) -->
+      <div class="modal-form-group">
+        <label class="modal-label">ASPECT RATIO</label>
+        <div class="modal-aspect-grid" id="export-video-aspect-grid">
+          <button type="button" class="aspect-ratio-frame is-selected" data-val="16:9" title="16:9 Landscape">
+            <div class="aspect-frame-box ratio-16-9">
+              <span class="aspect-ratio-text">16:9</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="9:16" title="9:16 Portrait">
+            <div class="aspect-frame-box ratio-9-16">
+              <span class="aspect-ratio-text">9:16</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="1:1" title="1:1 Square">
+            <div class="aspect-frame-box ratio-1-1">
+              <span class="aspect-ratio-text">1:1</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="4:3" title="4:3 Standard">
+            <div class="aspect-frame-box ratio-4-3">
+              <span class="aspect-ratio-text">4:3</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="21:9" title="21:9 Ultrawide">
+            <div class="aspect-frame-box ratio-21-9">
+              <span class="aspect-ratio-text">21:9</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="Custom" title="Custom Resolution">
+            <div class="aspect-frame-box ratio-1-1">
+              <svg class="aspect-ratio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>
+          </button>
+        </div>
       </div>
-      <!-- FPS -->
-      <div class="export-setting-group">
-        <span class="export-setting-label">Frame Rate (FPS)</span>
-        <select class="export-setting-select" id="export-video-fps">
-          <option value="24">24 fps</option>
-          <option value="30">30 fps</option>
-          <option value="60" selected>60 fps</option>
-        </select>
+
+      <!-- 2. Resolution Dropdown Row -->
+      <div class="modal-form-row" id="row-export-video-resolution">
+        <label class="modal-label">Resolution</label>
+        <div class="resolution-ctrl-wrap" id="container-export-video-resolution">
+          <div class="custom-dropdown" id="dropdown-export-video-resolution" data-value="1080p">
+            <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
+              <span class="custom-dropdown-label">1080p</span>
+              <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div class="custom-dropdown-menu" role="listbox">
+              <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
+              <div class="custom-dropdown-item" role="option" data-val="2K">2K</div>
+              <div class="custom-dropdown-item is-selected" role="option" data-val="1080p">1080p</div>
+              <div class="custom-dropdown-item" role="option" data-val="720p">720p</div>
+              <div class="custom-dropdown-item" role="option" data-val="480p">480p</div>
+            </div>
+          </div>
+          <div class="custom-res-liquid-wrap custom-resolution-inputs is-locked" id="export-video-custom-res-wrap" style="display: none;">
+            <svg class="liquid-res-svg" viewBox="0 0 166 38" aria-hidden="true">
+              <rect class="liquid-box-left" x="0" y="0" width="62" height="38" rx="10"/>
+              <rect class="liquid-box-right" x="104" y="0" width="62" height="38" rx="10"/>
+              <circle class="liquid-center-circle" cx="83" cy="19" r="14"/>
+              <path class="liquid-waist" d="M 52,0 C 66,0 72,5 83,5 C 94,5 100,0 114,0 L 114,38 C 100,38 94,33 83,33 C 72,33 66,38 52,38 Z"/>
+            </svg>
+            <input type="number" id="export-video-custom-res-w" class="custom-res-box" placeholder="W" value="1920" aria-label="Width">
+            <button type="button" id="export-video-btn-link-res" class="custom-res-link-btn is-locked" title="Lock Aspect Ratio" aria-label="Lock aspect ratio">
+              <svg class="res-link-icon res-link-icon-linked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <svg class="res-link-icon res-link-icon-unlinked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
+                <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
+                <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
+              </svg>
+            </button>
+            <input type="number" id="export-video-custom-res-h" class="custom-res-box" placeholder="H" value="1080" aria-label="Height">
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. FPS Dropdown Row -->
+      <div class="modal-form-row" id="row-export-video-fps">
+        <label class="modal-label">FPS</label>
+        <div class="modal-fps-ctrl">
+          <input type="number" id="export-video-fps" class="modal-fps-input" min="1" max="240" value="60" aria-label="Frame Rate">
+          <span class="modal-fps-unit">FPS</span>
+        </div>
       </div>
       <!-- Bitrate -->
       <div class="export-setting-group">
@@ -3387,25 +3476,96 @@
       <span class="export-settings-title">Image Sequence Settings</span>
     </div>
     <div class="export-settings-body">
-      <!-- Resolution -->
-      <div class="export-setting-group">
-        <span class="export-setting-label">Resolution</span>
-        <select class="export-setting-select" id="export-seq-resolution">
-          <option value="480p">480p</option>
-          <option value="720p">720p HD</option>
-          <option value="1080p" selected>1080p Full HD</option>
-          <option value="2K">2K</option>
-          <option value="4K">4K Ultra HD</option>
-        </select>
+      <!-- 1. Aspect Ratio (Visual Frames) -->
+      <div class="modal-form-group">
+        <label class="modal-label">ASPECT RATIO</label>
+        <div class="modal-aspect-grid" id="export-seq-aspect-grid">
+          <button type="button" class="aspect-ratio-frame is-selected" data-val="16:9" title="16:9 Landscape">
+            <div class="aspect-frame-box ratio-16-9">
+              <span class="aspect-ratio-text">16:9</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="9:16" title="9:16 Portrait">
+            <div class="aspect-frame-box ratio-9-16">
+              <span class="aspect-ratio-text">9:16</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="1:1" title="1:1 Square">
+            <div class="aspect-frame-box ratio-1-1">
+              <span class="aspect-ratio-text">1:1</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="4:3" title="4:3 Standard">
+            <div class="aspect-frame-box ratio-4-3">
+              <span class="aspect-ratio-text">4:3</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="21:9" title="21:9 Ultrawide">
+            <div class="aspect-frame-box ratio-21-9">
+              <span class="aspect-ratio-text">21:9</span>
+            </div>
+          </button>
+          <button type="button" class="aspect-ratio-frame" data-val="Custom" title="Custom Resolution">
+            <div class="aspect-frame-box ratio-1-1">
+              <svg class="aspect-ratio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>
+          </button>
+        </div>
       </div>
-      <!-- FPS -->
-      <div class="export-setting-group">
-        <span class="export-setting-label">Frame Rate (FPS)</span>
-        <select class="export-setting-select" id="export-seq-fps">
-          <option value="24">24 fps</option>
-          <option value="30">30 fps</option>
-          <option value="60" selected>60 fps</option>
-        </select>
+
+      <!-- 2. Resolution Dropdown Row -->
+      <div class="modal-form-row" id="row-export-seq-resolution">
+        <label class="modal-label">Resolution</label>
+        <div class="resolution-ctrl-wrap" id="container-export-seq-resolution">
+          <div class="custom-dropdown" id="dropdown-export-seq-resolution" data-value="1080p">
+            <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
+              <span class="custom-dropdown-label">1080p</span>
+              <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div class="custom-dropdown-menu" role="listbox">
+              <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
+              <div class="custom-dropdown-item" role="option" data-val="2K">2K</div>
+              <div class="custom-dropdown-item is-selected" role="option" data-val="1080p">1080p</div>
+              <div class="custom-dropdown-item" role="option" data-val="720p">720p</div>
+              <div class="custom-dropdown-item" role="option" data-val="480p">480p</div>
+            </div>
+          </div>
+          <div class="custom-res-liquid-wrap custom-resolution-inputs is-locked" id="export-seq-custom-res-wrap" style="display: none;">
+            <svg class="liquid-res-svg" viewBox="0 0 166 38" aria-hidden="true">
+              <rect class="liquid-box-left" x="0" y="0" width="62" height="38" rx="10"/>
+              <rect class="liquid-box-right" x="104" y="0" width="62" height="38" rx="10"/>
+              <circle class="liquid-center-circle" cx="83" cy="19" r="14"/>
+              <path class="liquid-waist" d="M 52,0 C 66,0 72,5 83,5 C 94,5 100,0 114,0 L 114,38 C 100,38 94,33 83,33 C 72,33 66,38 52,38 Z"/>
+            </svg>
+            <input type="number" id="export-seq-custom-res-w" class="custom-res-box" placeholder="W" value="1920" aria-label="Width">
+            <button type="button" id="export-seq-btn-link-res" class="custom-res-link-btn is-locked" title="Lock Aspect Ratio" aria-label="Lock aspect ratio">
+              <svg class="res-link-icon res-link-icon-linked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <svg class="res-link-icon res-link-icon-unlinked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
+                <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
+                <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
+              </svg>
+            </button>
+            <input type="number" id="export-seq-custom-res-h" class="custom-res-box" placeholder="H" value="1080" aria-label="Height">
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. FPS Dropdown Row -->
+      <div class="modal-form-row" id="row-export-seq-fps">
+        <label class="modal-label">FPS</label>
+        <div class="modal-fps-ctrl">
+          <input type="number" id="export-seq-fps" class="modal-fps-input" min="1" max="240" value="60" aria-label="Frame Rate">
+          <span class="modal-fps-unit">FPS</span>
+        </div>
       </div>
       <!-- Format -->
       <div class="export-setting-group">

@@ -166,7 +166,22 @@
     var ps  = window.currentProjectState || {};
     var res = ps.resolution || '1080p';
     var ar  = ps.aspectRatio || '16:9';
-    var dim = (RES_MAP[res] && RES_MAP[res][ar]) || [1920, 1080];
+    var dim;
+    if (typeof window.getProjectDimensions === 'function') {
+      dim = window.getProjectDimensions(res, ar);
+    } else {
+      if (ar === 'Custom' || (typeof res === 'string' && res.includes('x'))) {
+        var parts = String(res).split('x');
+        if (parts.length === 2) {
+          var pw = parseInt(parts[0], 10);
+          var ph = parseInt(parts[1], 10);
+          if (!isNaN(pw) && !isNaN(ph)) dim = [pw, ph];
+        }
+      }
+      if (!dim) {
+        dim = (RES_MAP[res] && RES_MAP[res][ar]) || [1920, 1080];
+      }
+    }
     var w = dim[0] - (dim[0] % 2);
     var h = dim[1] - (dim[1] % 2);
     return { w: w, h: h };

@@ -74,7 +74,7 @@ window.FishDatabase = (function () {
       var safetyTimer = setTimeout(function () {
         console.warn('FishDatabase openDB timeout, falling back to localStorage');
         done(null);
-      }, 10000);
+      }, 500);
 
       try {
         var req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -341,21 +341,15 @@ window.FishDatabase = (function () {
     } catch (_) {}
 
     var db = await openDB();
-    if (db) {
+    if (db && _deletedIds.size > 0) {
       try {
         var tx = db.transaction('projects', 'readwrite');
         var store = tx.objectStore('projects');
-        var req = store.getAll();
-        req.onsuccess = function () {
-          var all = req.result || [];
-          all.forEach(function (p) {
-            if (p && p.id && (p.id.startsWith('prj-00') || _deletedIds.has(p.id) || _deletedIds.has(String(p.id).trim()))) {
-              try { store.delete(p.id); } catch (_) {}
-            }
-          });
-        };
+        _deletedIds.forEach(function (delId) {
+          try { store.delete(delId); } catch (_) {}
+        });
       } catch (e) {
-        console.warn('[DB] Failed to prune dummy/deleted projects:', e);
+        console.warn('[DB] Failed to prune deleted projects:', e);
       }
     }
   }
@@ -486,16 +480,25 @@ window.FishDatabase = (function () {
     };
   }
 
+  function getProjectsSync() {
+    var local = getLocalProjects().filter(function (p) {
+      return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
+    });
+    local.sort(function (a, b) {
+      var tA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      var tB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return tB - tA;
+    });
+    return local.map(_projectToListMeta);
+  }
+
   async function getProjects() {
     var db = await openDB();
     if (db) {
       return new Promise(function (resolve) {
         var safetyTimer = setTimeout(function () {
-          var local = getLocalProjects().filter(function (p) {
-            return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
-          });
-          resolve(local.map(_projectToListMeta));
-        }, 10000);
+          resolve(getProjectsSync());
+        }, 250);
 
         try {
           var tx = db.transaction('projects', 'readonly');
@@ -521,24 +524,15 @@ window.FishDatabase = (function () {
           };
           req.onerror = function () {
             clearTimeout(safetyTimer);
-            var local = getLocalProjects().filter(function (p) {
-              return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
-            });
-            resolve(local.map(_projectToListMeta));
+            resolve(getProjectsSync());
           };
         } catch (e) {
           clearTimeout(safetyTimer);
-          var local = getLocalProjects().filter(function (p) {
-            return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
-          });
-          resolve(local.map(_projectToListMeta));
+          resolve(getProjectsSync());
         }
       });
     }
-    var local = getLocalProjects().filter(function (p) {
-      return p && p.id && !p.id.startsWith('prj-00') && !_deletedIds.has(p.id) && !_deletedIds.has(String(p.id).trim());
-    });
-    return local.map(_projectToListMeta);
+    return getProjectsSync();
   }
 
   /**
@@ -562,13 +556,18 @@ window.FishDatabase = (function () {
       return found || null;
     }
 
+    var localFound = getLocalBackup(id);
+    if (localFound) {
+      return stripDeadBlobUrls(localFound);
+    }
+
     var db = await openDB();
     if (db) {
       return new Promise(function (resolve) {
         var safetyTimer = setTimeout(function () {
           var found = getLocalBackup(id);
           resolve(found ? stripDeadBlobUrls(found) : null);
-        }, 600);
+        }, 250);
 
         try {
           var tx = db.transaction('projects', 'readonly');
@@ -2994,6 +2993,7 @@ window.FishDatabase = (function () {
     getSyncSettings: getSyncSettings,
     saveSyncSettings: saveSyncSettings,
     getProjects: getProjects,
+    getProjectsSync: getProjectsSync,
     getProject: getProject,
     saveProject: saveProject,
     createProject: createProject,

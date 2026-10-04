@@ -205,6 +205,17 @@ async function initProjectsFetcher() {
   const panelUploaded = document.getElementById('panel-uploaded-projects');
 
   async function loadAndRender() {
+    // 1. Instant zero-latency render from synchronous mirror (0ms latency!)
+    if (window.FishDatabase && typeof window.FishDatabase.getProjectsSync === 'function') {
+      try {
+        const instant = window.FishDatabase.getProjectsSync();
+        if (Array.isArray(instant)) {
+          renderProjects(instant, listContainer, countBadge);
+        }
+      } catch (_) {}
+    }
+
+    // 2. Background revalidation from database
     let projects = [];
     if (window.FishDatabase && typeof window.FishDatabase.getProjects === 'function') {
       try {
@@ -213,7 +224,9 @@ async function initProjectsFetcher() {
         projects = [];
       }
     }
-    renderProjects(projects, listContainer, countBadge);
+    if (Array.isArray(projects) && projects.length >= 0) {
+      renderProjects(projects, listContainer, countBadge);
+    }
   }
 
   function loadAndRenderUploaded() {
@@ -840,29 +853,33 @@ async function openProjectSettingsModal(projectId) {
     });
   }
 
-  // 2. Resolution Dropdown
+    // 2. Resolution Dropdown / Custom
   const resVal = project.resolution || '1080p';
   const resDropdown = document.getElementById('settings-dropdown-resolution');
-  if (resDropdown) {
-    resDropdown.dataset.value = resVal;
-    const label = resDropdown.querySelector('.custom-dropdown-label');
-    if (label) label.textContent = resVal;
-    resDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
-      item.classList.toggle('is-selected', item.dataset.val === resVal);
-    });
+  
+  if (aspectVal === 'Custom' || resVal.includes('x')) {
+    const parts = resVal.split('x');
+    const w = document.getElementById('settings-custom-res-w');
+    const h = document.getElementById('settings-custom-res-h');
+    if (w && parts[0]) w.value = parts[0];
+    if (h && parts[1]) h.value = parts[1];
+    window.toggleResolutionUI('settings-container-resolution', 'Custom');
+  } else {
+    window.toggleResolutionUI('settings-container-resolution', aspectVal);
+    if (resDropdown) {
+      resDropdown.dataset.value = resVal;
+      const label = resDropdown.querySelector('.custom-dropdown-label');
+      if (label) label.textContent = resVal;
+      resDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+        item.classList.toggle('is-selected', item.dataset.val === resVal);
+      });
+    }
   }
 
-  // 3. FPS Dropdown
+    // 3. FPS Input
   const fpsVal = String(project.fps || '60');
-  const fpsDropdown = document.getElementById('settings-dropdown-fps');
-  if (fpsDropdown) {
-    fpsDropdown.dataset.value = fpsVal;
-    const label = fpsDropdown.querySelector('.custom-dropdown-label');
-    if (label) label.textContent = `${fpsVal} FPS`;
-    fpsDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
-      item.classList.toggle('is-selected', item.dataset.val === fpsVal);
-    });
-  }
+  const fpsInput = document.getElementById('settings-input-fps');
+  if (fpsInput) fpsInput.value = fpsVal;
 
   // 4. Background Color Swatch
   const bgVal = project.bgColor || 'transparent';
@@ -895,9 +912,16 @@ async function saveProjectSettingsAction() {
   if (!projectId || !window.FishDatabase) return;
 
   const newName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Project';
-  const selectedRatio = document.querySelector('#settings-options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
-  const selectedRes = document.getElementById('settings-dropdown-resolution')?.dataset.value || '1080p';
-  const selectedFps = document.getElementById('settings-dropdown-fps')?.dataset.value || '60';
+    const selectedRatio = document.querySelector('#settings-options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
+  let selectedRes = '1080p';
+  if (selectedRatio === 'Custom') {
+    const w = document.getElementById('settings-custom-res-w')?.value || '1920';
+    const h = document.getElementById('settings-custom-res-h')?.value || '1080';
+    selectedRes = `${w}x${h}`;
+  } else {
+    selectedRes = document.getElementById('settings-dropdown-resolution')?.dataset.value || '1080p';
+  }
+  const selectedFps = document.getElementById('settings-input-fps')?.value || '60';
   const selectedBg = document.querySelector('#settings-options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
 
   if (window.Modal) {
@@ -1258,23 +1282,33 @@ async function createNewProjectAction() {
     const nameInput = document.getElementById('project-input-name');
     const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'New_Project';
     
-    const selectedRatio = document.querySelector('#options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
-    const selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
-    const selectedFps = document.getElementById('dropdown-fps')?.dataset.value || '60';
+        const selectedRatio = document.querySelector('#options-aspect-ratio .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
+    let selectedRes = '1080p';
+    if (selectedRatio === 'Custom') {
+      const w = document.getElementById('custom-res-w')?.value || '1920';
+      const h = document.getElementById('custom-res-h')?.value || '1080';
+      selectedRes = `${w}x${h}`;
+    } else {
+      selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
+    }
+    const selectedFps = document.getElementById('input-fps')?.value || '60';
     const selectedBg = document.querySelector('#options-bgcolor .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
 
     const projectId = 'prj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
     if (window.FishDatabase && typeof window.FishDatabase.createProject === 'function') {
       try {
-        await window.FishDatabase.createProject({
-          id: projectId,
-          name: name,
-          aspectRatio: selectedRatio,
-          resolution: selectedRes,
-          fps: selectedFps,
-          bgColor: selectedBg
-        });
+        await Promise.race([
+          window.FishDatabase.createProject({
+            id: projectId,
+            name: name,
+            aspectRatio: selectedRatio,
+            resolution: selectedRes,
+            fps: selectedFps,
+            bgColor: selectedBg
+          }),
+          new Promise(function (r) { setTimeout(r, 200); })
+        ]);
       } catch (err) {
         console.warn('FishDatabase createProject error, using fallback:', err);
       }
@@ -1357,6 +1391,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!frame) return;
       grid.querySelectorAll('.aspect-ratio-frame').forEach(f => f.classList.remove('is-selected'));
       frame.classList.add('is-selected');
+
+      const isSettings = grid.id === 'settings-options-aspect-ratio';
+      const containerId = isSettings ? 'settings-container-resolution' : 'container-resolution';
+      if (typeof window.toggleResolutionUI === 'function') {
+        window.toggleResolutionUI(containerId, frame.dataset.val);
+      }
     });
   });
 
@@ -2304,3 +2344,93 @@ window.createNewProjectAction = createNewProjectAction;
 window.closeWelcomeModal = closeWelcomeModal;
 window.openDonateFromWelcome = openDonateFromWelcome;
 window.toggleQrisDisplay = toggleQrisDisplay;
+
+
+// UI Helper for Custom Resolution / Aspect Ratio Toggle
+window.toggleResolutionUI = function(containerId, aspectVal) {
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.getElementById('container-resolution') || document.getElementById('settings-container-resolution');
+    }
+    if (!container) return;
+    const dropdown = container.querySelector('.custom-dropdown');
+    const inputs = container.querySelector('#custom-resolution-inputs, #settings-custom-resolution-inputs, .custom-res-liquid-wrap, .custom-res-composite, .custom-resolution-inputs');
+    if (aspectVal === 'Custom') {
+        if (dropdown) dropdown.style.display = 'none';
+        if (inputs) inputs.style.display = 'flex';
+    } else {
+        if (dropdown) dropdown.style.display = 'block';
+        if (inputs) inputs.style.display = 'none';
+    }
+};
+
+document.addEventListener('click', e => {
+    const frame = e.target.closest('.aspect-ratio-frame');
+    if (frame) {
+        const grid = frame.closest('.modal-aspect-grid');
+        if (grid) {
+            const isSettings = grid.id === 'settings-options-aspect-ratio';
+            const containerId = isSettings ? 'settings-container-resolution' : 'container-resolution';
+            window.toggleResolutionUI(containerId, frame.dataset.val);
+        }
+    }
+}, true);
+
+// Res Lock Link Logic
+const resLocks = { new: 16/9, settings: 16/9 };
+function setupResLink(btnId, wId, hId, type) {
+    const btn = document.getElementById(btnId);
+    const w = document.getElementById(wId);
+    const h = document.getElementById(hId);
+    if (!btn || !w || !h) return;
+
+    function updateRatio() {
+        const wv = parseFloat(w.value) || 1920;
+        const hv = parseFloat(h.value) || 1080;
+        if (hv > 0) resLocks[type] = wv / hv;
+    }
+    updateRatio();
+
+    function syncLock() {
+        const wrap = btn.closest('.custom-res-liquid-wrap');
+        if (wrap) wrap.classList.toggle('is-locked', btn.classList.contains('is-locked'));
+    }
+    syncLock();
+
+    btn.addEventListener('click', () => {
+        btn.classList.toggle('is-locked');
+        syncLock();
+        if (btn.classList.contains('is-locked')) {
+            updateRatio();
+        }
+    });
+
+    w.addEventListener('input', () => {
+        if (btn.classList.contains('is-locked')) {
+            const wv = parseFloat(w.value);
+            if (!isNaN(wv) && wv > 0 && resLocks[type] > 0) {
+                h.value = Math.max(1, Math.round(wv / resLocks[type]));
+            }
+        }
+    });
+
+    h.addEventListener('input', () => {
+        if (btn.classList.contains('is-locked')) {
+            const hv = parseFloat(h.value);
+            if (!isNaN(hv) && hv > 0 && resLocks[type] > 0) {
+                w.value = Math.max(1, Math.round(hv * resLocks[type]));
+            }
+        }
+    });
+}
+
+function initAllResLinks() {
+    setupResLink('btn-link-res', 'custom-res-w', 'custom-res-h', 'new');
+    setupResLink('settings-btn-link-res', 'settings-custom-res-w', 'settings-custom-res-h', 'settings');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAllResLinks);
+} else {
+    initAllResLinks();
+}

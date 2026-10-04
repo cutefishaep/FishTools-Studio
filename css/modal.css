@@ -160,7 +160,7 @@
 /* Aspect Ratio Visual Frames Grid */
 .modal-aspect-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
   width: 100%;
 }
@@ -261,6 +261,26 @@
 
 .aspect-ratio-frame.is-selected:hover .aspect-ratio-text {
   color: var(--bg-canvas);
+}
+
+.aspect-frame-box .aspect-ratio-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+  stroke: var(--color-primary);
+  display: block;
+  transition: color 0.15s ease, stroke 0.15s ease;
+}
+
+.aspect-ratio-frame:hover .aspect-frame-box .aspect-ratio-icon {
+  color: var(--color-primary);
+  stroke: var(--color-primary);
+}
+
+.aspect-ratio-frame.is-selected .aspect-frame-box .aspect-ratio-icon,
+.aspect-ratio-frame.is-selected:hover .aspect-frame-box .aspect-ratio-icon {
+  color: var(--bg-canvas);
+  stroke: var(--bg-canvas);
 }
 
 /* Custom Dropdown for Resolution and FPS */
@@ -380,6 +400,225 @@
 .custom-dropdown-item.is-selected:hover {
   background-color: var(--color-primary-hover);
   color: var(--bg-canvas);
+}
+
+/* Resolution Liquid Connected Dual-Box Control */
+.resolution-ctrl-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.custom-res-liquid-wrap,
+.custom-res-composite {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 166px;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+/* Background Liquid SVG Base */
+.liquid-res-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 166px;
+  height: 38px;
+  color: var(--bg-canvas);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.modal-form-row .liquid-res-svg {
+  color: var(--bg-canvas);
+}
+
+.liquid-res-svg rect,
+.liquid-res-svg circle,
+.liquid-res-svg path {
+  fill: currentColor;
+}
+
+/* Organic Liquid Bridges */
+.liquid-waist {
+  transform-origin: 83px 19px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s ease;
+}
+
+/* UNLINKED STATE: Bridges disappear, center circle cleanly detaches */
+.custom-res-liquid-wrap:not(.is-locked) .liquid-waist {
+  transform: scaleX(0);
+  opacity: 0;
+}
+
+.liquid-center-circle {
+  transform-origin: 83px 19px;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.custom-res-liquid-wrap:not(.is-locked) .liquid-center-circle {
+  transform: scale(0.92);
+}
+
+.custom-res-box,
+.custom-res-val {
+  width: 62px;
+  height: 38px;
+  background: transparent;
+  color: var(--color-primary);
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+  padding: 0 4px;
+  position: relative;
+  z-index: 2;
+  transition: color 0.15s ease;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.custom-res-box::-webkit-inner-spin-button,
+.custom-res-box::-webkit-outer-spin-button,
+.custom-res-val::-webkit-inner-spin-button,
+.custom-res-val::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.custom-res-link-btn,
+.custom-res-link-node,
+.custom-res-link-toggle {
+  width: 42px;
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  z-index: 2;
+  transition: color 0.18s ease, transform 0.12s ease;
+  flex-shrink: 0;
+}
+
+.custom-res-link-btn:hover,
+.custom-res-link-node:hover,
+.custom-res-link-toggle:hover {
+  color: var(--color-primary);
+}
+
+.custom-res-link-btn:active,
+.custom-res-link-node:active,
+.custom-res-link-toggle:active {
+  transform: scale(0.92);
+}
+
+/* LINKED STATE */
+.custom-res-liquid-wrap.is-locked .custom-res-link-btn,
+.custom-res-liquid-wrap.is-locked .custom-res-link-node,
+.custom-res-liquid-wrap.is-locked .custom-res-link-toggle,
+.custom-res-link-btn.is-locked,
+.custom-res-link-node.is-locked,
+.custom-res-link-toggle.is-locked {
+  color: var(--color-primary);
+}
+
+.custom-res-link-btn .res-link-icon,
+.custom-res-link-node .res-link-icon,
+.custom-res-link-toggle .res-link-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
+  stroke: currentColor;
+}
+
+.custom-res-link-btn .res-link-icon-linked,
+.custom-res-link-node .res-link-icon-linked,
+.custom-res-link-toggle .res-link-icon-linked {
+  display: none;
+}
+
+.custom-res-link-btn .res-link-icon-unlinked,
+.custom-res-link-node .res-link-icon-unlinked,
+.custom-res-link-toggle .res-link-icon-unlinked {
+  display: block;
+}
+
+.custom-res-liquid-wrap.is-locked .res-link-icon-linked,
+.custom-res-link-btn.is-locked .res-link-icon-linked,
+.custom-res-link-node.is-locked .res-link-icon-linked,
+.custom-res-link-toggle.is-locked .res-link-icon-linked {
+  display: block;
+}
+
+.custom-res-liquid-wrap.is-locked .res-link-icon-unlinked,
+.custom-res-link-btn.is-locked .res-link-icon-unlinked,
+.custom-res-link-node.is-locked .res-link-icon-unlinked,
+.custom-res-link-toggle.is-locked .res-link-icon-unlinked {
+  display: none;
+}
+
+/* FPS Pill Control */
+.modal-fps-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 130px;
+  height: 38px;
+  padding: 0 14px;
+  background-color: var(--bg-canvas);
+  border-radius: 10px;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+
+.modal-fps-ctrl:focus-within {
+  background-color: var(--bg-panel-hover);
+}
+
+.modal-fps-input {
+  width: 52px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-primary);
+  font-family: var(--font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+  box-sizing: border-box;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.modal-fps-input::-webkit-inner-spin-button,
+.modal-fps-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.modal-fps-unit {
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Pill / Option Selector Row */
@@ -3084,11 +3323,11 @@
   justify-content: center;
   gap: 8px;
 }
-.export-fs-next-btn:hover {
+.export-fs-next-btn:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
 }
 .export-fs-next-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -3390,7 +3629,7 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 102000;
+  z-index: 1000010;
 }
 
 .editor-toast.is-visible,

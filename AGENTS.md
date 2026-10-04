@@ -50,8 +50,8 @@ Floor: code, commands, paths, numbers and error strings verbatim; never drop not
 
 ## Modular Component & Element Architecture (Strict Reusability)
 - **Strict Modularity**: Every new UI element or interactive component (modals, dropzones, dropdowns, aspect frames, swatches, controls, splitter handles) MUST be built as a decoupled, standalone modular unit.
-- **Universal Reusability**: Components must use standalone class abstractions (e.g. `.modal-dropzone`, `.custom-dropdown`, `.modal-aspect-grid`, `.timeline-split-handle`) so developers can easily summon, copy-paste, and compose them anywhere across all pages (`index.html`, `editor.html`, `demo.html`) without reinventing styles.
-- **Showcase Integration**: Any newly introduced modular element must be registered in `demo.html` with a live interactive preview and copyable boilerplate snippet.
+- **Universal Reusability**: Components must use standalone class abstractions (e.g. `.modal-dropzone`, `.custom-dropdown`, `.modal-aspect-grid`, `.timeline-split-handle`) so developers can easily summon, copy-paste, and compose them anywhere across pages (`index.html`, `editor.html`, `desktop.html`) without reinventing styles.
+- **NO Demo File**: `demo.html` is permanently removed. Never recreate `demo.html` or write demo showcases.
 
 ## Editor Layout & Splitter Handle Rules
 - **Vertical Pill Splitter Handle**: On Tablet & Desktop (`>= 601px`), the timeline boundary features an interactive vertical pill-shaped drag handle (`.timeline-split-handle`) allowing horizontal resize (widening/narrowing) of the left pane vs right timeline pane.
@@ -75,5 +75,6 @@ Floor: code, commands, paths, numbers and error strings verbatim; never drop not
 - **Single Source of Truth (`version.json`)**: Version is strictly defined in `version.json`. NEVER manually hunt-and-peck across 10 different files to bump a version.
 - **Automated Synchronization**: Run `npm run bump <version>` or edit `version.json` (auto-synced by `server.js` or `npm run bump`). This automatically updates `package.json`, HTML badges, cache busters, and synchronizes the changelog feed from `CHANGELOG.md` across `index.html`, `editor.html`, and `demo.html`.
 - **NO Hardcoded Fallback Versions**: Hardcoded version strings in JS code (e.g. `if (!raw) return '0.5.12'`, `syncWelcomeVersionTags('0.5.12')`, or `console.log('v0.5.12')`) are STRICTLY BANNED. Code must dynamically read from `version.json`, `window.OFT_VERSION`, or the DOM, and degrade cleanly without hardcoded version literals.
-
-
+## File Manipulation Tooling (MANDATORY)
+- **Always Use Dedicated Tools**: File creation and edits MUST strictly use `replace_file_content` or `write_to_file`.
+- **NO Shell File Manipulation**: NEVER use `cat << 'EOF'`, `sed`, `awk`, `echo >`, Python scratch scripts, or terminal redirection to edit or write files. Always use the built-in tool calls.

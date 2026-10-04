@@ -139,7 +139,7 @@
       const proj = window.currentProjectState || {};
       const aspect = proj.aspectRatio || '16:9';
       const res = proj.resolution || '1080p';
-      let baseDims = (window.resMap && window.resMap[res] && window.resMap[res][aspect]) || [1920, 1080];
+      let baseDims = window.getProjectDimensions(res, aspect);
       if (window.currentActivePrecomp) {
         const cw = Math.round(Math.abs(window.currentActivePrecomp.mediaWidth || window.currentActivePrecomp.scaleW || baseDims[0]));
         const ch = Math.round(Math.abs(window.currentActivePrecomp.mediaHeight || window.currentActivePrecomp.scaleH || baseDims[1]));

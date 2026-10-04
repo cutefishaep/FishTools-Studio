@@ -7,6 +7,94 @@
       '480p': { '16:9': [854, 480],   '9:16': [480, 854],   '1:1': [480, 480],   '4:3': [640, 480],   '21:9': [1120, 480] }
     };
     window.resMap = resMap;
+    window.getProjectDimensions = function(res, aspect) {
+      if (aspect === 'Custom' || (typeof res === 'string' && res.includes('x'))) {
+        const parts = String(res).split('x');
+        if (parts.length === 2) {
+          const w = parseInt(parts[0], 10);
+          const h = parseInt(parts[1], 10);
+          if (!isNaN(w) && !isNaN(h)) return [w, h];
+        }
+      }
+      return (window.resMap && window.resMap[res] && window.resMap[res][aspect]) || [1920, 1080];
+    };
+
+    window.toggleResolutionUI = function(containerId, aspectVal) {
+      let container = document.getElementById(containerId);
+      if (!container) {
+        container = document.getElementById('container-resolution') || document.getElementById('settings-container-resolution');
+      }
+      if (!container) return;
+      const dropdown = container.querySelector('.custom-dropdown');
+      const inputs = container.querySelector('#custom-resolution-inputs, #settings-custom-resolution-inputs, .custom-res-liquid-wrap, .custom-res-composite, .custom-resolution-inputs');
+      if (aspectVal === 'Custom') {
+        if (dropdown) dropdown.style.display = 'none';
+        if (inputs) inputs.style.display = 'flex';
+      } else {
+        if (dropdown) dropdown.style.display = 'block';
+        if (inputs) inputs.style.display = 'none';
+      }
+    };
+
+    const editorResLocks = { new: 16/9, settings: 16/9 };
+    function setupEditorResLink(btnId, wId, hId, type) {
+      const btn = document.getElementById(btnId);
+      const w = document.getElementById(wId);
+      const h = document.getElementById(hId);
+      if (!btn || !w || !h) return;
+
+      function updateRatio() {
+        const wv = parseFloat(w.value) || 1920;
+        const hv = parseFloat(h.value) || 1080;
+        if (hv > 0) editorResLocks[type] = wv / hv;
+      }
+      updateRatio();
+
+      function syncLock() {
+        const wrap = btn.closest('.custom-res-liquid-wrap');
+        if (wrap) wrap.classList.toggle('is-locked', btn.classList.contains('is-locked'));
+      }
+      syncLock();
+
+      if (btn._resLinkBound) return;
+      btn._resLinkBound = true;
+
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('is-locked');
+        syncLock();
+        if (btn.classList.contains('is-locked')) {
+          updateRatio();
+        }
+      });
+
+      w.addEventListener('input', () => {
+        if (btn.classList.contains('is-locked')) {
+          const wv = parseFloat(w.value);
+          if (!isNaN(wv) && wv > 0 && editorResLocks[type] > 0) {
+            h.value = Math.max(1, Math.round(wv / editorResLocks[type]));
+          }
+        }
+      });
+
+      h.addEventListener('input', () => {
+        if (btn.classList.contains('is-locked')) {
+          const hv = parseFloat(h.value);
+          if (!isNaN(hv) && hv > 0 && editorResLocks[type] > 0) {
+            w.value = Math.max(1, Math.round(hv * editorResLocks[type]));
+          }
+        }
+      });
+    }
+
+    function initEditorResLinks() {
+      setupEditorResLink('btn-link-res', 'custom-res-w', 'custom-res-h', 'new');
+      setupEditorResLink('settings-btn-link-res', 'settings-custom-res-w', 'settings-custom-res-h', 'settings');
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initEditorResLinks);
+    } else {
+      initEditorResLinks();
+    }
 
     // Active Project Configuration State
     const currentProjectState = {
@@ -1140,7 +1228,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -2534,7 +2622,7 @@
       if (bufferScale === null) {
         const aspect = (currentProjectState && currentProjectState.aspectRatio) || '16:9';
         const res = (currentProjectState && currentProjectState.resolution) || '1080p';
-        let baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        let baseDims = window.getProjectDimensions(res, aspect);
         if (currentActivePrecomp) {
           const cw = Math.round(Math.abs(currentActivePrecomp.mediaWidth || currentActivePrecomp.scaleW || baseDims[0]));
           const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || baseDims[1]));
@@ -2675,7 +2763,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      let baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      let baseDims = window.getProjectDimensions(res, aspect);
       if (currentActivePrecomp) {
         const cw = Math.round(Math.abs(currentActivePrecomp.mediaWidth || currentActivePrecomp.scaleW || baseDims[0]));
         const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || baseDims[1]));
@@ -3518,7 +3606,7 @@
                      null;
 
           const aspect = currentProjectState.aspectRatio || '16:9';
-          let baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          let baseDims = window.getProjectDimensions(res, aspect);
           if (currentActivePrecomp) {
             const cw = Math.round(Math.abs(currentActivePrecomp.mediaWidth || currentActivePrecomp.scaleW || baseDims[0]));
             const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || baseDims[1]));
@@ -4037,13 +4125,17 @@
       if (!container || !box) return;
 
       const aspectStr = currentProjectState.aspectRatio || '16:9';
+      const resStr = currentProjectState.resolution || '1080p';
       let aspect = 16 / 9;
       if (currentActivePrecomp) {
         const cw = Math.round(Math.abs(currentActivePrecomp.mediaWidth || currentActivePrecomp.scaleW || 1920));
         const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || 1080));
         aspect = (cw && ch) ? (cw / ch) : (16 / 9);
       } else {
-        if (aspectStr === '9:16') aspect = 9 / 16;
+        const baseDims = window.getProjectDimensions(resStr, aspectStr);
+        if (baseDims && baseDims[0] > 0 && baseDims[1] > 0) {
+          aspect = baseDims[0] / baseDims[1];
+        } else if (aspectStr === '9:16') aspect = 9 / 16;
         else if (aspectStr === '1:1') aspect = 1 / 1;
         else if (aspectStr === '4:3') aspect = 4 / 3;
         else if (aspectStr === '21:9') aspect = 21 / 9;
@@ -4068,7 +4160,7 @@
       if (canvas && typeof resMap !== 'undefined') {
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        let baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        let baseDims = window.getProjectDimensions(res, aspect);
         if (currentActivePrecomp) {
           const cw = Math.round(Math.abs(currentActivePrecomp.mediaWidth || currentActivePrecomp.scaleW || baseDims[0]));
           const ch = Math.round(Math.abs(currentActivePrecomp.mediaHeight || currentActivePrecomp.scaleH || baseDims[1]));
@@ -4133,7 +4225,7 @@
       currentProjectState.bgColor = bg;
 
       // Sync existing camera layers scaleW & scaleH to new project resolution & aspect ratio
-      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
       currentProjectState._baseW = baseW;
@@ -4146,12 +4238,9 @@
       });
 
       // 1. Calculate CSS aspect-ratio string & keep on-screen size stable
-      let cssRatio = '16 / 9';
-      if (aspect === '9:16') cssRatio = '9 / 16';
-      else if (aspect === '1:1') cssRatio = '1 / 1';
-      else if (aspect === '4:3') cssRatio = '4 / 3';
-      else if (aspect === '21:9') cssRatio = '21 / 9';
+      let cssRatio = `${baseW} / ${baseH}`;
       box.style.setProperty('--preview-aspect', cssRatio);
+      box.style.aspectRatio = cssRatio;
       fitPreviewCanvasBox();
 
       // 2. Set Preview Box Background
@@ -4395,7 +4484,7 @@
 
             const aspect = currentProjectState.aspectRatio || '16:9';
             const res = currentProjectState.resolution || '1080p';
-            const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+            const baseDims = window.getProjectDimensions(res, aspect);
             const baseW = baseDims[0];
             const baseH = baseDims[1];
             const bufferScale = activeCanvasEl.width / baseW;
@@ -4482,7 +4571,7 @@
 
             const aspect = currentProjectState.aspectRatio || '16:9';
             const res = currentProjectState.resolution || '1080p';
-            const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+            const baseDims = window.getProjectDimensions(res, aspect);
             const baseW = baseDims[0];
             const baseH = baseDims[1];
 
@@ -4530,7 +4619,7 @@
 
             const aspect = currentProjectState.aspectRatio || '16:9';
             const res = currentProjectState.resolution || '1080p';
-            const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+            const baseDims = window.getProjectDimensions(res, aspect);
             const baseW = baseDims[0];
             const baseH = baseDims[1];
 
@@ -4566,7 +4655,7 @@
 
           const aspect = currentProjectState.aspectRatio || '16:9';
           const res = currentProjectState.resolution || '1080p';
-          const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseDims = window.getProjectDimensions(res, aspect);
           const baseW = baseDims[0];
           const baseH = baseDims[1];
 
@@ -4754,7 +4843,7 @@
 
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const baseW = baseDims[0];
         const baseH = baseDims[1];
 
@@ -6033,7 +6122,7 @@
           const parentEff = getLayerEffectivePropsAtTime(parent, currentSec, visited, pool);
           const aspect = currentProjectState.aspectRatio || '16:9';
           const res = currentProjectState.resolution || '1080p';
-          const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseDims = window.getProjectDimensions(res, aspect);
           const baseW = (currentProjectState.width && currentProjectState.width > 0) ? currentProjectState.width : baseDims[0];
           const baseH = (currentProjectState.height && currentProjectState.height > 0) ? currentProjectState.height : baseDims[1];
 
@@ -6906,7 +6995,7 @@
       const proj = window.currentProjectState || currentProjectState || {};
       const aspect = proj.aspectRatio || '16:9';
       const res = proj.resolution || '1080p';
-      const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       return { layer, baseW: baseDims[0], baseH: baseDims[1] };
     }
 
@@ -11000,7 +11089,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -11059,7 +11148,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -11124,7 +11213,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -11196,7 +11285,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -11268,7 +11357,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -11338,7 +11427,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = (currentProjectState.width && currentProjectState.width > 0) ? currentProjectState.width : baseDims[0];
       const baseH = (currentProjectState.height && currentProjectState.height > 0) ? currentProjectState.height : baseDims[1];
 
@@ -11418,7 +11507,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -12296,7 +12385,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = baseDims[0];
       const baseH = baseDims[1];
 
@@ -12927,7 +13016,7 @@
 
       const aspect = currentProjectState.aspectRatio || '16:9';
       const res = currentProjectState.resolution || '1080p';
-      const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+      const baseDims = window.getProjectDimensions(res, aspect);
       const baseW = (currentProjectState.width && currentProjectState.width > 0) ? currentProjectState.width : baseDims[0];
       const baseH = (currentProjectState.height && currentProjectState.height > 0) ? currentProjectState.height : baseDims[1];
 
@@ -18103,26 +18192,38 @@
         f.classList.toggle('is-selected', f.dataset.val === targetState.aspectRatio);
       });
 
-      // 2. Sync Resolution Dropdown
+      // 2. Sync Resolution Dropdown / Custom Inputs
+      const resVal = String(targetState.resolution || '1080p');
       const resDropdown = document.getElementById('dropdown-resolution');
-      if (resDropdown) {
-        resDropdown.dataset.value = targetState.resolution;
-        const label = resDropdown.querySelector('.custom-dropdown-label');
-        if (label) label.textContent = targetState.resolution;
-        resDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
-          item.classList.toggle('is-selected', item.dataset.val === targetState.resolution);
-        });
+      if (targetState.aspectRatio === 'Custom' || resVal.includes('x')) {
+        const parts = resVal.split('x');
+        const w = document.getElementById('custom-res-w') || document.getElementById('settings-custom-res-w');
+        const h = document.getElementById('custom-res-h') || document.getElementById('settings-custom-res-h');
+        if (w && parts[0]) w.value = parts[0];
+        if (h && parts[1]) h.value = parts[1];
+        if (typeof window.toggleResolutionUI === 'function') {
+          window.toggleResolutionUI('container-resolution', 'Custom');
+          window.toggleResolutionUI('settings-container-resolution', 'Custom');
+        }
+      } else {
+        if (typeof window.toggleResolutionUI === 'function') {
+          window.toggleResolutionUI('container-resolution', targetState.aspectRatio);
+          window.toggleResolutionUI('settings-container-resolution', targetState.aspectRatio);
+        }
+        if (resDropdown) {
+          resDropdown.dataset.value = resVal;
+          const label = resDropdown.querySelector('.custom-dropdown-label');
+          if (label) label.textContent = resVal;
+          resDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
+            item.classList.toggle('is-selected', item.dataset.val === resVal);
+          });
+        }
       }
 
-      // 3. Sync FPS Dropdown
-      const fpsDropdown = document.getElementById('dropdown-fps');
-      if (fpsDropdown) {
-        fpsDropdown.dataset.value = String(targetState.fps);
-        const label = fpsDropdown.querySelector('.custom-dropdown-label');
-        if (label) label.textContent = `${targetState.fps} FPS`;
-        fpsDropdown.querySelectorAll('.custom-dropdown-item').forEach(item => {
-          item.classList.toggle('is-selected', item.dataset.val === String(targetState.fps));
-        });
+      // 3. Sync FPS Input
+      const fpsInput = document.getElementById('input-fps') || document.getElementById('settings-input-fps');
+      if (fpsInput) {
+        fpsInput.value = String(targetState.fps || 60);
       }
 
       // 4. Sync Default Duration Dropdown
@@ -18265,8 +18366,15 @@
       if (!modal) return;
 
       const selectedRatio = modal.querySelector('.modal-aspect-grid .aspect-ratio-frame.is-selected')?.dataset.val || '16:9';
-      const selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
-      const selectedFps = parseInt(document.getElementById('dropdown-fps')?.dataset.value || '60', 10);
+      let selectedRes = '1080p';
+      if (selectedRatio === 'Custom') {
+        const w = (document.getElementById('custom-res-w') || document.getElementById('settings-custom-res-w'))?.value || '1920';
+        const h = (document.getElementById('custom-res-h') || document.getElementById('settings-custom-res-h'))?.value || '1080';
+        selectedRes = `${w}x${h}`;
+      } else {
+        selectedRes = document.getElementById('dropdown-resolution')?.dataset.value || '1080p';
+      }
+      const selectedFps = parseInt(document.getElementById('input-fps')?.value || document.getElementById('settings-input-fps')?.value || document.getElementById('dropdown-fps')?.dataset.value || '60', 10);
       const selectedDur = parseFloat(document.getElementById('dropdown-duration')?.dataset.value || '5');
       const selectedBg = modal.querySelector('.modal-color-swatches .modal-color-swatch.is-selected')?.dataset.val || 'transparent';
       const selectedMbAngle = parseFloat(document.getElementById('dropdown-mb-shutter-angle')?.dataset.value || '180');
@@ -18284,7 +18392,7 @@
         currentActivePrecomp.motionBlur.shutterPhase = selectedMbPhase;
         currentActivePrecomp.motionBlur.samples = selectedMbSamples;
 
-        const baseDims = (resMap[selectedRes] && resMap[selectedRes][selectedRatio]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(selectedRes, selectedRatio);
         currentActivePrecomp.mediaWidth = baseDims[0];
         currentActivePrecomp.mediaHeight = baseDims[1];
         currentActivePrecomp.scaleW = baseDims[0];
@@ -21055,6 +21163,12 @@
           if (!frame) return;
           grid.querySelectorAll('.aspect-ratio-frame').forEach(f => f.classList.remove('is-selected'));
           frame.classList.add('is-selected');
+
+          const isSettings = grid.id === 'settings-options-aspect-ratio';
+          const containerId = isSettings ? 'settings-container-resolution' : 'container-resolution';
+          if (typeof window.toggleResolutionUI === 'function') {
+            window.toggleResolutionUI(containerId, frame.dataset.val);
+          }
           if (typeof updateProjectSettingsSummaries === 'function') {
             updateProjectSettingsSummaries();
           }
@@ -25155,7 +25269,7 @@
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const baseW = baseDims[0];
         const baseH = baseDims[1];
 
@@ -25467,7 +25581,7 @@
         const pps = window.currentPixelsPerSecond || pixelsPerSecond || 80;
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (typeof resMap !== 'undefined' && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const baseW = baseDims[0];
         const baseH = baseDims[1];
         const centerPosX = Math.round(baseW / 2);
@@ -25857,7 +25971,7 @@
 
         const aspect = currentProjectState?.aspectRatio || '16:9';
         const res = currentProjectState?.resolution || '1080p';
-        const baseDims = (resMap && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const baseW = baseDims[0];
         const baseH = baseDims[1];
 
@@ -29422,7 +29536,7 @@
           const startPx = Math.round(currentSec * pixelsPerSecond);
           const aspect = currentProjectState.aspectRatio || '16:9';
           const res = currentProjectState.resolution || '1080p';
-          const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseDims = window.getProjectDimensions(res, aspect);
           const baseW = baseDims[0];
           const baseH = baseDims[1];
 
@@ -30228,7 +30342,7 @@
 
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (resMap && resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const baseW = baseDims[0];
         const baseH = baseDims[1];
 
@@ -31745,7 +31859,7 @@
 
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const [baseW, baseH] = baseDims;
 
         const exportCanvas = document.createElement('canvas');
@@ -31817,7 +31931,7 @@
 
           const aspect = currentProjectState.aspectRatio || '16:9';
           const res = currentProjectState.resolution || '1080p';
-          const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseDims = window.getProjectDimensions(res, aspect);
           const [baseW, baseH] = baseDims;
 
           exportCanvas = document.createElement('canvas');
@@ -31931,7 +32045,7 @@
 
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         let baseW = baseDims[0];
         let baseH = baseDims[1];
         // Enforce even dimensions for H.264
@@ -32324,7 +32438,7 @@
         // 1. Strict Resolution & Dimensions Enforcement (100% Native 1080p/4K - Never Downscaled)
         const aspect = currentProjectState.aspectRatio || '16:9';
         const res = currentProjectState.resolution || '1080p';
-        const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+        const baseDims = window.getProjectDimensions(res, aspect);
         const [baseW, baseH] = baseDims;
         const fps = parseInt(currentProjectState.fps || 60, 10);
         const totalDur = Math.max(0.5, (typeof window.getProjectTotalDuration === 'function' ? window.getProjectTotalDuration() : (currentProjectState.defaultDuration || 5)));
@@ -32770,7 +32884,7 @@
           // 2. Offscreen Canvas Frame Rendering (10% -> 70%)
           const aspect = currentProjectState.aspectRatio || '16:9';
           const res = currentProjectState.resolution || '1080p';
-          const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseDims = window.getProjectDimensions(res, aspect);
           const [baseW, baseH] = baseDims;
 
           const exportCanvas = document.createElement('canvas');
@@ -32976,7 +33090,7 @@
       const _exportNextLabel = document.getElementById('export-fs-next-label');
       const _exportSubtitle = document.getElementById('export-fs-subtitle');
 
-      let _currentExportType = 'video'; // default selected
+      let _currentExportType = null; // unselected initially
 
       const _exportTypeLabels = {
         video:    'Export Video',
@@ -32993,33 +33107,116 @@
         history.pushState({ exportOverlay: true }, '');
         if (_exportBackdrop) _exportBackdrop.classList.add('is-active');
         _exportOverlay.classList.add('is-active');
+
+        // Default is None / unselected, but if previously chosen, preserve saved selection on reopen
+        if (!_currentExportType && currentProjectState && currentProjectState.exportType) {
+          _currentExportType = currentProjectState.exportType;
+        }
+        if (_currentExportType) {
+          _exportOverlay.querySelectorAll('.export-option-card').forEach(c => {
+            const isMatch = c.dataset.exportType === _currentExportType;
+            c.classList.toggle('is-selected', isMatch);
+            c.setAttribute('aria-checked', isMatch ? 'true' : 'false');
+          });
+          if (_exportNextBtn) _exportNextBtn.disabled = false;
+        } else {
+          _exportOverlay.querySelectorAll('.export-option-card').forEach(c => {
+            c.classList.remove('is-selected');
+            c.setAttribute('aria-checked', 'false');
+          });
+          if (_exportNextBtn) _exportNextBtn.disabled = true;
+        }
+        if (_exportNextLabel) _exportNextLabel.textContent = 'Render';
+        if (_exportSubtitle) _exportSubtitle.textContent = 'Export';
         // Sync filename in video settings panel
         const fnInput = document.getElementById('export-video-filename');
         if (fnInput && currentProjectState) fnInput.value = currentProjectState.name || 'New_Project';
-        // Sync FPS from project
-        const fpsSelect = document.getElementById('export-video-fps');
-        const seqFpsSelect = document.getElementById('export-seq-fps');
-        const projFps = String(currentProjectState && currentProjectState.fps ? currentProjectState.fps : 60);
-        if (fpsSelect) {
-          const opt = fpsSelect.querySelector(`option[value="${projFps}"]`);
-          if (opt) fpsSelect.value = projFps;
+
+        function syncExportSettingsPanel(prefix) {
+          const grid = document.getElementById(`${prefix}-aspect-grid`);
+          const dd = document.getElementById(`dropdown-${prefix}-resolution`);
+          const wrap = document.getElementById(`${prefix}-custom-res-wrap`);
+          const wInput = document.getElementById(`${prefix}-custom-res-w`);
+          const hInput = document.getElementById(`${prefix}-custom-res-h`);
+          const btnId = `${prefix}-btn-link-res`;
+          const fpsInput = document.getElementById(`${prefix}-fps`);
+
+          const projAspect = currentProjectState && currentProjectState.aspectRatio ? currentProjectState.aspectRatio : '16:9';
+          const projRes = currentProjectState && currentProjectState.resolution ? currentProjectState.resolution : '1080p';
+          const projFps = parseInt(currentProjectState && currentProjectState.fps ? currentProjectState.fps : 60, 10);
+          const isCustom = projAspect === 'Custom' || String(projRes).includes('x');
+
+          // Sync FPS input
+          if (fpsInput) fpsInput.value = String(projFps);
+
+          // Sync Aspect Ratio grid selection
+          if (grid) {
+            grid.querySelectorAll('.aspect-ratio-frame').forEach(f => {
+              f.classList.toggle('is-selected', isCustom ? f.dataset.val === 'Custom' : f.dataset.val === projAspect);
+            });
+          }
+
+          // Sync Resolution Dropdown or Custom Inputs
+          if (isCustom) {
+            if (dd) dd.style.display = 'none';
+            if (wrap) wrap.style.display = 'flex';
+            const dims = window.getProjectDimensions(projRes, projAspect);
+            if (wInput) wInput.value = dims[0];
+            if (hInput) hInput.value = dims[1];
+          } else {
+            if (dd) {
+              dd.style.display = 'block';
+              dd.dataset.value = projRes;
+              const label = dd.querySelector('.custom-dropdown-label');
+              if (label) label.textContent = projRes;
+              dd.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                item.classList.toggle('is-selected', item.dataset.val === projRes);
+              });
+            }
+            if (wrap) wrap.style.display = 'none';
+          }
+
+          // Bind aspect ratio grid clicks
+          if (grid && !grid._exportBound) {
+            grid._exportBound = true;
+            grid.addEventListener('click', (e) => {
+              const frame = e.target.closest('.aspect-ratio-frame');
+              if (!frame) return;
+              grid.querySelectorAll('.aspect-ratio-frame').forEach(f => f.classList.remove('is-selected'));
+              frame.classList.add('is-selected');
+
+              const val = frame.dataset.val;
+              if (val === 'Custom') {
+                if (dd) dd.style.display = 'none';
+                if (wrap) wrap.style.display = 'flex';
+                if (wInput && (!wInput.value || wInput.value === '1920')) {
+                  const dims = window.getProjectDimensions(currentProjectState?.resolution || '1080p', currentProjectState?.aspectRatio || '16:9');
+                  wInput.value = dims[0];
+                  if (hInput) hInput.value = dims[1];
+                }
+              } else {
+                if (dd) {
+                  dd.style.display = 'block';
+                  if (!dd.dataset.value) {
+                    dd.dataset.value = '1080p';
+                    const label = dd.querySelector('.custom-dropdown-label');
+                    if (label) label.textContent = '1080p';
+                  }
+                }
+                if (wrap) wrap.style.display = 'none';
+              }
+            });
+          }
+
+
+
+          if (typeof setupEditorResLink === 'function') {
+            setupEditorResLink(btnId, `${prefix}-custom-res-w`, `${prefix}-custom-res-h`, prefix);
+          }
         }
-        if (seqFpsSelect) {
-          const opt = seqFpsSelect.querySelector(`option[value="${projFps}"]`);
-          if (opt) seqFpsSelect.value = projFps;
-        }
-        // Sync resolution from project
-        const resSelect = document.getElementById('export-video-resolution');
-        const seqResSelect = document.getElementById('export-seq-resolution');
-        const projRes = currentProjectState && currentProjectState.resolution ? currentProjectState.resolution : '1080p';
-        if (resSelect) {
-          const opt = resSelect.querySelector(`option[value="${projRes}"]`);
-          if (opt) resSelect.value = projRes;
-        }
-        if (seqResSelect) {
-          const opt = seqResSelect.querySelector(`option[value="${projRes}"]`);
-          if (opt) seqResSelect.value = projRes;
-        }
+
+        syncExportSettingsPanel('export-video');
+        syncExportSettingsPanel('export-seq');
       }
 
       function closeExportOverlay() {
@@ -33116,33 +33313,47 @@
         }
       });
 
-      // Radio card selection
+      // Radio card selection & second-click to settings
       if (_exportOverlay) {
         _exportOverlay.querySelectorAll('.export-option-card').forEach(card => {
           card.addEventListener('click', (e) => {
-            // Don't deselect if clicking chevron
-            if (e.target.closest('.export-option-chevron[data-settings-panel]') &&
-                e.target.closest('.export-option-chevron').dataset.settingsPanel) return;
+            const isAlreadySelected = card.classList.contains('is-selected');
+            const type = card.dataset.exportType || null;
+            const chevron = card.querySelector('.export-option-chevron[data-settings-panel]');
+            const panelId = chevron ? chevron.dataset.settingsPanel : null;
 
+            if (isAlreadySelected) {
+              // Second click on already selected card -> open settings panel if available
+              if (panelId) {
+                const panel = document.getElementById(panelId);
+                if (panel) {
+                  history.pushState({ settingsPanel: panelId }, '');
+                  panel.classList.add('is-active');
+                }
+              }
+              return;
+            }
+
+            // First click: select the card
             _exportOverlay.querySelectorAll('.export-option-card').forEach(c => {
               c.classList.remove('is-selected');
               c.setAttribute('aria-checked', 'false');
             });
             card.classList.add('is-selected');
             card.setAttribute('aria-checked', 'true');
-            _currentExportType = card.dataset.exportType || 'video';
-            if (_exportNextLabel) _exportNextLabel.textContent = _exportTypeLabels[_currentExportType] || 'Export';
-            if (_exportSubtitle) _exportSubtitle.textContent = _exportTypeLabels[_currentExportType] || 'Export';
+            _currentExportType = type;
+            if (currentProjectState) currentProjectState.exportType = type;
+            if (_exportNextBtn) _exportNextBtn.disabled = false;
+            if (_exportNextLabel) _exportNextLabel.textContent = 'Render';
           });
         });
 
-        // Chevron → open settings panel
+        // Chevron click → directly opens settings panel (and ensures card is selected)
         _exportOverlay.querySelectorAll('.export-option-chevron[data-settings-panel]').forEach(chevron => {
           chevron.addEventListener('click', (e) => {
             e.stopPropagation();
             const panelId = chevron.dataset.settingsPanel;
             if (!panelId) return;
-            // Also select the card first
             const card = chevron.closest('.export-option-card');
             if (card) {
               _exportOverlay.querySelectorAll('.export-option-card').forEach(c => {
@@ -33151,9 +33362,10 @@
               });
               card.classList.add('is-selected');
               card.setAttribute('aria-checked', 'true');
-              _currentExportType = card.dataset.exportType || 'video';
-              if (_exportNextLabel) _exportNextLabel.textContent = _exportTypeLabels[_currentExportType] || 'Export';
-              if (_exportSubtitle) _exportSubtitle.textContent = _exportTypeLabels[_currentExportType] || 'Export';
+              _currentExportType = card.dataset.exportType || null;
+              if (currentProjectState) currentProjectState.exportType = _currentExportType;
+              if (_exportNextBtn) _exportNextBtn.disabled = false;
+              if (_exportNextLabel) _exportNextLabel.textContent = 'Render';
             }
             const panel = document.getElementById(panelId);
             if (panel) {
@@ -33229,13 +33441,31 @@
             }
           }
 
+          if (!_currentExportType || _exportNextBtn?.disabled) {
+            return;
+          }
+
           closeExportOverlay();
 
           switch (_currentExportType) {
             case 'video': {
               // Read settings
-              const resEl = document.getElementById('export-video-resolution');
-              const res = resEl ? resEl.value : (currentProjectState.resolution || '1080p');
+              const aspectGrid = document.getElementById('export-video-aspect-grid');
+              const selectedRatio = aspectGrid?.querySelector('.aspect-ratio-frame.is-selected')?.dataset.val || currentProjectState.aspectRatio || '16:9';
+              let res = '1080p';
+              if (selectedRatio === 'Custom') {
+                const cw = parseInt(document.getElementById('export-video-custom-res-w')?.value, 10);
+                const ch = parseInt(document.getElementById('export-video-custom-res-h')?.value, 10);
+                if (cw > 0 && ch > 0) {
+                  res = `${cw}x${ch}`;
+                } else {
+                  res = currentProjectState.resolution || '1080p';
+                }
+              } else {
+                const dd = document.getElementById('dropdown-export-video-resolution');
+                res = dd?.dataset.value || '1080p';
+              }
+
               const fpsEl = document.getElementById('export-video-fps');
               const fps = fpsEl ? parseInt(fpsEl.value, 10) : (currentProjectState.fps || 60);
               const bitrateBtn = document.querySelector('[data-video-bitrate].is-active');
@@ -33246,13 +33476,18 @@
               // Temporarily override resolution/fps on project state for this export
               const _origRes = currentProjectState.resolution;
               const _origFps = currentProjectState.fps;
+              const _origAspect = currentProjectState.aspectRatio;
               currentProjectState.resolution = res;
               currentProjectState.fps = fps;
+              currentProjectState.aspectRatio = selectedRatio;
 
-              await exportVideoMP4(preset, customName, 'mp4');
-
-              currentProjectState.resolution = _origRes;
-              currentProjectState.fps = _origFps;
+              try {
+                await exportVideoMP4(preset, customName, 'mp4');
+              } finally {
+                currentProjectState.resolution = _origRes;
+                currentProjectState.fps = _origFps;
+                currentProjectState.aspectRatio = _origAspect;
+              }
               break;
             }
 
@@ -33263,8 +33498,22 @@
 
             case 'sequence': {
               // Read sequence settings
-              const seqResEl = document.getElementById('export-seq-resolution');
-              const seqRes = seqResEl ? seqResEl.value : (currentProjectState.resolution || '1080p');
+              const seqAspectGrid = document.getElementById('export-seq-aspect-grid');
+              const seqSelectedRatio = seqAspectGrid?.querySelector('.aspect-ratio-frame.is-selected')?.dataset.val || currentProjectState.aspectRatio || '16:9';
+              let seqRes = '1080p';
+              if (seqSelectedRatio === 'Custom') {
+                const cw = parseInt(document.getElementById('export-seq-custom-res-w')?.value, 10);
+                const ch = parseInt(document.getElementById('export-seq-custom-res-h')?.value, 10);
+                if (cw > 0 && ch > 0) {
+                  seqRes = `${cw}x${ch}`;
+                } else {
+                  seqRes = currentProjectState.resolution || '1080p';
+                }
+              } else {
+                const dd = document.getElementById('dropdown-export-seq-resolution');
+                seqRes = dd?.dataset.value || '1080p';
+              }
+
               const seqFpsEl = document.getElementById('export-seq-fps');
               const seqFps = seqFpsEl ? parseInt(seqFpsEl.value, 10) : (currentProjectState.fps || 60);
               const formatBtn = document.querySelector('[data-seq-format].is-active');
@@ -33272,20 +33521,25 @@
 
               const _origRes2 = currentProjectState.resolution;
               const _origFps2 = currentProjectState.fps;
+              const _origAspect2 = currentProjectState.aspectRatio;
               currentProjectState.resolution = seqRes;
               currentProjectState.fps = seqFps;
+              currentProjectState.aspectRatio = seqSelectedRatio;
 
-              if (seqFormat === 'zip') {
-                await exportImageSequenceZIP();
-              } else if (seqFormat === 'gif') {
-                // GIF: use existing ZIP flow, fallback message for now
-                await exportImageSequenceGIF();
-              } else if (seqFormat === 'webp') {
-                await exportImageSequenceWebP();
+              try {
+                if (seqFormat === 'zip') {
+                  await exportImageSequenceZIP();
+                } else if (seqFormat === 'gif') {
+                  // GIF: use existing ZIP flow, fallback message for now
+                  await exportImageSequenceGIF();
+                } else if (seqFormat === 'webp') {
+                  await exportImageSequenceWebP();
+                }
+              } finally {
+                currentProjectState.resolution = _origRes2;
+                currentProjectState.fps = _origFps2;
+                currentProjectState.aspectRatio = _origAspect2;
               }
-
-              currentProjectState.resolution = _origRes2;
-              currentProjectState.fps = _origFps2;
               break;
             }
 
@@ -33632,7 +33886,7 @@
           const totalFrames = Math.max(1, Math.round(totalDur * fps));
           const aspect = currentProjectState.aspectRatio || '16:9';
           const res = currentProjectState.resolution || '1080p';
-          const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+          const baseDims = window.getProjectDimensions(res, aspect);
           const [baseW, baseH] = baseDims;
 
           const exportCanvas = document.createElement('canvas');

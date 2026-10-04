@@ -29,7 +29,7 @@
     const aspect = state.aspectRatio || '16:9';
     const res = state.resolution || '1080p';
     const resMap = root.resMap || {};
-    return (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+    return window.getProjectDimensions(res, aspect);
   }
 
   function getTiming(selLayer) {

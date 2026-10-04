@@ -51,7 +51,7 @@
     const aspect = (window.currentProjectState && window.currentProjectState.aspectRatio) || '16:9';
     const res = (window.currentProjectState && window.currentProjectState.resolution) || '1080p';
     const resMap = window.resMap || {};
-    const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+    const baseDims = window.getProjectDimensions(res, aspect);
     const baseW = baseDims[0];
     const baseH = baseDims[1];
 
@@ -135,7 +135,7 @@
     const aspect = (window.currentProjectState && window.currentProjectState.aspectRatio) || '16:9';
     const res = (window.currentProjectState && window.currentProjectState.resolution) || '1080p';
     const resMap = window.resMap || {};
-    const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+    const baseDims = window.getProjectDimensions(res, aspect);
     const baseW = baseDims[0];
     const baseH = baseDims[1];
 
@@ -1935,7 +1935,7 @@
     const aspect = (window.currentProjectState && window.currentProjectState.aspectRatio) || '16:9';
     const res = (window.currentProjectState && window.currentProjectState.resolution) || '1080p';
     const resMap = window.resMap || {};
-    const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+    const baseDims = window.getProjectDimensions(res, aspect);
     const baseW = baseDims[0];
     const baseH = baseDims[1];
 
@@ -2097,7 +2097,7 @@
     const aspect = (window.currentProjectState && window.currentProjectState.aspectRatio) || '16:9';
     const res = (window.currentProjectState && window.currentProjectState.resolution) || '1080p';
     const resMap = window.resMap || {};
-    const baseDims = (resMap[res] && resMap[res][aspect]) || [1920, 1080];
+    const baseDims = window.getProjectDimensions(res, aspect);
     const baseW = baseDims[0];
     const baseH = baseDims[1];
 

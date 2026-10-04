@@ -18,6 +18,9 @@ window.FishToolsBridge = (function () {
     const pState = window.currentProjectState;
     const res = (pState && (pState.resolution || (pState.settings && pState.settings.resolution))) || '1080p';
     const aspect = (pState && (pState.aspectRatio || (pState.settings && pState.settings.aspectRatio))) || '16:9';
+    if (typeof window !== 'undefined' && window.getProjectDimensions) {
+      return window.getProjectDimensions(res, aspect);
+    }
     const rMap = (typeof window !== 'undefined' && window.resMap) || {
       '4K':   { '16:9': [3840, 2160], '9:16': [2160, 3840], '1:1': [2160, 2160], '4:3': [2880, 2160], '21:9': [5120, 2160] },
       '2K':   { '16:9': [2560, 1440], '9:16': [1440, 2560], '1:1': [1440, 1440], '4:3': [1920, 1440], '21:9': [3440, 1440] },

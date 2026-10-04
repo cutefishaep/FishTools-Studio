@@ -1274,7 +1274,7 @@ body.is-exporting .template-scrubber-wrap {
 }
 
 .timeline-beatmark-pin {
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
   line-height: 0;

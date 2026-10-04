@@ -673,7 +673,7 @@
       try {
         const canvas = document.getElementById('editor-active-canvas');
         if (!canvas || !canvas.width || !canvas.height) return null;
-        const maxDim = 280;
+        const maxDim = 200;
         let thumbW = maxDim;
         let thumbH = Math.max(1, Math.round(maxDim * (canvas.height / canvas.width)));
         if (canvas.height > canvas.width) {
@@ -684,8 +684,10 @@
         off.width = thumbW;
         off.height = thumbH;
         const ctx = off.getContext('2d');
+        ctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() || 'transparent');
+        ctx.fillRect(0, 0, thumbW, thumbH);
         ctx.drawImage(canvas, 0, 0, thumbW, thumbH);
-        return off.toDataURL('image/jpeg', 0.8) || off.toDataURL('image/webp', 0.8);
+        return off.toDataURL('image/jpeg', 0.55);
       } catch (e) {
         return null;
       }
@@ -33302,7 +33304,7 @@
         });
       }
 
-      // Capture compressed thumbnail (~10-15KB) specifically for cloud storage
+      // Capture compressed thumbnail (~3-5KB) specifically for cloud storage
       function captureCompressedShareThumbnail() {
         try {
           const canvas = document.getElementById('editor-active-canvas');
@@ -33317,10 +33319,98 @@
           const off = document.createElement('canvas');
           off.width = w; off.height = h;
           const ctx = off.getContext('2d');
+          ctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() || 'transparent');
+          ctx.fillRect(0, 0, w, h);
           ctx.drawImage(canvas, 0, 0, w, h);
-          return off.toDataURL('image/jpeg', 0.6) || '';
+          return off.toDataURL('image/jpeg', 0.55) || '';
         } catch (_) {
           return '';
+        }
+      }
+
+      async function compressThumbnailForShare(thumbDataUrl, maxDim = 200, quality = 0.55) {
+        if (!thumbDataUrl || typeof thumbDataUrl !== 'string') return '';
+        if (thumbDataUrl.length < 8000 && (thumbDataUrl.startsWith('data:image/jpeg;base64,') || thumbDataUrl.startsWith('data:image/webp;base64,'))) {
+          return thumbDataUrl;
+        }
+        return new Promise((resolve) => {
+          try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              try {
+                const w = img.naturalWidth || img.width || 200;
+                const h = img.naturalHeight || img.height || 112;
+                let targetW = maxDim;
+                let targetH = Math.max(1, Math.round(maxDim * (h / w)));
+                if (h > w) {
+                  targetH = maxDim;
+                  targetW = Math.max(1, Math.round(maxDim * (w / h)));
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = targetW;
+                canvas.height = targetH;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() || 'transparent');
+                ctx.fillRect(0, 0, targetW, targetH);
+                ctx.drawImage(img, 0, 0, targetW, targetH);
+                const compressed = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressed || (thumbDataUrl.length <= 30000 ? thumbDataUrl : ''));
+              } catch (_) {
+                resolve(thumbDataUrl.length <= 30000 ? thumbDataUrl : '');
+              }
+            };
+            img.onerror = () => resolve(thumbDataUrl.length <= 30000 ? thumbDataUrl : '');
+            img.src = thumbDataUrl;
+          } catch (_) {
+            resolve('');
+          }
+        });
+      }
+      /**
+       * Captures an HD 3:4 (900x1200) portrait cropped thumbnail specifically for QR card & Catbox upload
+       */
+      function captureProjectQRThumbnailHD() {
+        try {
+          const canvas = document.getElementById('editor-active-canvas');
+          if (!canvas || !canvas.width || !canvas.height) return null;
+          const W = 900, H = 1200;
+          const off = document.createElement('canvas');
+          off.width = W;
+          off.height = H;
+          const ctx = off.getContext('2d');
+
+          ctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() || 'transparent');
+          ctx.fillRect(0, 0, W, H);
+
+          const cW = canvas.width;
+          const cH = canvas.height;
+          const scale = Math.max(W / cW, H / cH);
+          const sW = W / scale;
+          const sH = H / scale;
+          const sX = (cW - sW) / 2;
+          const sY = (cH - sH) / 2;
+
+          ctx.drawImage(canvas, sX, sY, sW, sH, 0, 0, W, H);
+          return off.toDataURL('image/jpeg', 0.85);
+        } catch (_) {
+          return null;
+        }
+      }
+      window.captureProjectQRThumbnailHD = captureProjectQRThumbnailHD;
+
+      function dataUrlToBlobHelper(dataUrl) {
+        if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
+        try {
+          const arr = dataUrl.split(',');
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) u8arr[n] = bstr.charCodeAt(n);
+          return new Blob([u8arr], { type: mime });
+        } catch (_) {
+          return null;
         }
       }
 
@@ -33344,10 +33434,15 @@
             showOFTSProgress('Sharing Project', 0, 'Packing .ofts bundle...');
           }
 
+          // Pre-capture HD 3:4 (900x1200) thumbnail for archive and Catbox
+          const hdThumbDataUrl = captureProjectQRThumbnailHD();
+          const hdThumbBlob = hdThumbDataUrl ? dataUrlToBlobHelper(hdThumbDataUrl) : null;
+
           // 1. Generate package keeping progress modal open (0% - 50%)
           const zipBlob = await window.FishDatabase.exportProjectToOFTS(currentProjectState.id, {
             skipDownload: true,
-            keepProgressOpen: true
+            keepProgressOpen: true,
+            thumbnailBlob: hdThumbBlob
           });
 
           if (!zipBlob) {
@@ -33377,12 +33472,22 @@
             updateOFTSProg(50, 'Package prepared. Connecting to cloud storage...');
           }
 
-          // 2. Compress thumbnail
-          const thumb = captureCompressedShareThumbnail() || currentProjectState.thumbnail || '';
+          // 2. Guarantee ultra-compressed fallback thumbnail (~3-5KB)
+          let thumb = captureCompressedShareThumbnail();
+          if (!thumb && currentProjectState.thumbnail) {
+            if (typeof window.compressThumbnailForShare === 'function') {
+              thumb = await window.compressThumbnailForShare(currentProjectState.thumbnail);
+            } else {
+              thumb = currentProjectState.thumbnail.slice(0, 30000);
+            }
+          }
 
           // 3. Send to API (/api/share) with live upload progress (50% - 95%)
           const fd = new FormData();
           fd.append('file', zipBlob, (currentProjectState.name || 'Project') + '.ofts');
+          if (hdThumbBlob) {
+            fd.append('thumbnailFile', hdThumbBlob, `${(currentProjectState.name || 'Project').replace(/[^a-zA-Z0-9_-]/g, '_')}_thumb.jpg`);
+          }
           fd.append('name', currentProjectState.name || 'Untitled Project');
           fd.append('specs', `${currentProjectState.resolution || '1080p'} • ${currentProjectState.fps || 60} fps`);
           fd.append('aspectRatio', currentProjectState.aspectRatio || '16:9');
@@ -33602,14 +33707,18 @@
         ctx.fillRect(0, 0, W, H);
 
         // 2. Background thumbnail (COVER aspect ratio, NEVER stretched)
-        let thumbSrc = (record && record.thumbnail) || (currentProjectState && currentProjectState.thumbnail) || null;
-        if (!thumbSrc && typeof captureProjectThumbnailPreview === 'function') {
-          try { thumbSrc = captureProjectThumbnailPreview(); } catch (_) {}
+        let thumbSrc = (record && record.thumbnail) || null;
+        if (!thumbSrc && typeof captureProjectQRThumbnailHD === 'function') {
+          try { thumbSrc = captureProjectQRThumbnailHD(); } catch (_) {}
+        }
+        if (!thumbSrc && currentProjectState && currentProjectState.thumbnail) {
+          thumbSrc = currentProjectState.thumbnail;
         }
 
-        if (thumbSrc && typeof thumbSrc === 'string' && thumbSrc.startsWith('data:')) {
+        if (thumbSrc && typeof thumbSrc === 'string') {
           try {
             const img = new Image();
+            img.crossOrigin = 'anonymous';
             await new Promise((res, rej) => {
               img.onload = res;
               img.onerror = rej;
@@ -33790,20 +33899,34 @@
           await new Promise(r => setTimeout(r, 80));
         }
 
+        const cardContainer = backdrop.querySelector('.qr-share-card');
+        const renderedImg = document.getElementById('qr-share-rendered-img');
+        if (cardContainer) cardContainer.classList.add('skeleton-loading');
+        if (renderedImg) renderedImg.classList.add('is-hidden');
+
+        history.pushState({ qrModal: true }, '');
+        backdrop.classList.add('is-active');
+
         // 2. Render pixel-perfect WYSIWYG canvas and bind directly to image preview
         try {
           const cardCanvas = await generateQRCardCanvas(_qrShareUrl, record);
           _cachedQRCardDataUrl = cardCanvas.toDataURL('image/png');
-          const renderedImg = document.getElementById('qr-share-rendered-img');
           if (renderedImg) {
             renderedImg.src = _cachedQRCardDataUrl;
+            renderedImg.onload = () => {
+              if (cardContainer) cardContainer.classList.remove('skeleton-loading');
+              renderedImg.classList.remove('is-hidden');
+            };
+            if (renderedImg.complete) {
+              if (cardContainer) cardContainer.classList.remove('skeleton-loading');
+              renderedImg.classList.remove('is-hidden');
+            }
           }
         } catch (err) {
           console.error('[FishExport:QRCard]', err);
+          if (cardContainer) cardContainer.classList.remove('skeleton-loading');
+          if (renderedImg) renderedImg.classList.remove('is-hidden');
         }
-
-        history.pushState({ qrModal: true }, '');
-        backdrop.classList.add('is-active');
       }
 
       // QR close button & backdrop outside click

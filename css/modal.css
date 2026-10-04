@@ -3306,6 +3306,30 @@
   object-fit: contain;
   display: block;
   border-radius: 23px;
+  transition: opacity 0.2s ease;
+}
+
+.qr-share-rendered-img.is-hidden {
+  opacity: 0;
+}
+
+/* Universal Flat Theme Skeleton Loader (No blur, no shadow, no gradient) */
+.skeleton-loading {
+  background-color: var(--bg-panel-inner) !important;
+  color: transparent !important;
+  position: relative;
+  overflow: hidden;
+  animation: flat-skeleton-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes flat-skeleton-pulse {
+  0%, 100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 /* Action buttons below the card */

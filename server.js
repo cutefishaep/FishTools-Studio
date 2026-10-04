@@ -404,8 +404,8 @@ function handleRequest(req, res) {
 
         let sanitizedThumbnail = '';
         const rawThumb = formData.get('thumbnail');
-        if (typeof rawThumb === 'string' && (rawThumb.startsWith('data:image/jpeg;base64,') || rawThumb.startsWith('data:image/webp;base64,') || rawThumb.startsWith('data:image/png;base64,'))) {
-          if (rawThumb.length <= 150000) sanitizedThumbnail = rawThumb;
+        if (typeof rawThumb === 'string' && (rawThumb.startsWith('data:image/jpeg;base64,') || rawThumb.startsWith('data:image/webp;base64,'))) {
+          if (rawThumb.length <= 30000) sanitizedThumbnail = rawThumb;
         }
 
         // 4. Compute next ID in local shares database
@@ -423,6 +423,9 @@ function handleRequest(req, res) {
 
         const safeName = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) + '.ofts';
         let fileUrl = '';
+        let thumbUrl = '';
+
+        const thumbnailFile = formData.get('thumbnailFile');
 
         // 5. Attempt upload to Catbox API (with 6s timeout)
         try {
@@ -430,18 +433,46 @@ function handleRequest(req, res) {
           catboxForm.append('reqtype', 'fileupload');
           catboxForm.append('fileToUpload', file, safeName);
 
-          const catboxRes = await fetch('https://catbox.moe/user/api.php', {
-            method: 'POST',
-            body: catboxForm,
-            signal: AbortSignal.timeout(6000)
-          });
+          const uploadTasks = [
+            (async () => {
+              try {
+                const catboxRes = await fetch('https://catbox.moe/user/api.php', {
+                  method: 'POST',
+                  body: catboxForm,
+                  signal: AbortSignal.timeout(6000)
+                });
+                if (catboxRes.ok) {
+                  const catboxText = (await catboxRes.text()).trim();
+                  if (catboxText.startsWith('https://files.catbox.moe/')) {
+                    fileUrl = catboxText;
+                  }
+                }
+              } catch (_) {}
+            })()
+          ];
 
-          if (catboxRes.ok) {
-            const catboxText = (await catboxRes.text()).trim();
-            if (catboxText.startsWith('https://files.catbox.moe/')) {
-              fileUrl = catboxText;
-            }
+          if (thumbnailFile && typeof thumbnailFile.arrayBuffer === 'function') {
+            uploadTasks.push((async () => {
+              try {
+                const tForm = new FormData();
+                tForm.append('reqtype', 'fileupload');
+                tForm.append('fileToUpload', thumbnailFile, `${sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')}_thumb.jpg`);
+                const tRes = await fetch('https://catbox.moe/user/api.php', {
+                  method: 'POST',
+                  body: tForm,
+                  signal: AbortSignal.timeout(6000)
+                });
+                if (tRes.ok) {
+                  const tText = (await tRes.text()).trim();
+                  if (tText.startsWith('https://files.catbox.moe/')) {
+                    thumbUrl = tText;
+                  }
+                }
+              } catch (_) {}
+            })());
           }
+
+          await Promise.all(uploadTasks);
         } catch (catboxErr) {
           console.warn('[Share] Catbox upload error/timeout:', catboxErr.message);
         }
@@ -457,6 +488,14 @@ function handleRequest(req, res) {
             fs.writeFileSync(localFilePath, Buffer.from(arrayBuf));
             fileUrl = `${origin}/storage/files/${localFileName}`;
             console.log(`[Share] Saved to local dev storage: ${fileUrl}`);
+
+            if (!thumbUrl && thumbnailFile && typeof thumbnailFile.arrayBuffer === 'function') {
+              const localThumbName = `${nextId}_thumb.jpg`;
+              const localThumbPath = path.join(filesDir, localThumbName);
+              const tBuf = await thumbnailFile.arrayBuffer();
+              fs.writeFileSync(localThumbPath, Buffer.from(tBuf));
+              thumbUrl = `${origin}/storage/files/${localThumbName}`;
+            }
           } catch (storageErr) {
             console.error('[Share] Local storage fallback failed:', storageErr);
             res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -471,7 +510,7 @@ function handleRequest(req, res) {
           specs: sanitizedSpecs,
           size: sanitizedSize,
           aspectRatio: sanitizedAspect,
-          thumbnail: sanitizedThumbnail,
+          thumbnail: thumbUrl || sanitizedThumbnail,
           fileUrl,
           createdAt: Date.now()
         };

@@ -1048,6 +1048,91 @@ async function exportProjectAction(projectId, projectName) {
 /**
  * Opens Share Project Link modal from dashboard
  */
+/**
+ * Re-compresses project thumbnail to tiny 200px JPEG (~3-5KB) to guarantee minimal KV storage
+ */
+async function compressThumbnailForShare(thumbDataUrl, maxDim = 200, quality = 0.55) {
+  if (!thumbDataUrl || typeof thumbDataUrl !== 'string') return '';
+  if (thumbDataUrl.length < 8000 && (thumbDataUrl.startsWith('data:image/jpeg;base64,') || thumbDataUrl.startsWith('data:image/webp;base64,'))) {
+    return thumbDataUrl;
+  }
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width || 200;
+          const h = img.naturalHeight || img.height || 112;
+          let targetW = maxDim;
+          let targetH = Math.max(1, Math.round(maxDim * (h / w)));
+          if (h > w) {
+            targetH = maxDim;
+            targetW = Math.max(1, Math.round(maxDim * (w / h)));
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() || 'transparent');
+          ctx.fillRect(0, 0, targetW, targetH);
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          const compressed = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressed || (thumbDataUrl.length <= 30000 ? thumbDataUrl : ''));
+        } catch (_) {
+          resolve(thumbDataUrl.length <= 30000 ? thumbDataUrl : '');
+        }
+      };
+      img.onerror = () => resolve(thumbDataUrl.length <= 30000 ? thumbDataUrl : '');
+      img.src = thumbDataUrl;
+    } catch (_) {
+      resolve('');
+    }
+  });
+}
+window.compressThumbnailForShare = compressThumbnailForShare;
+
+/**
+ * Generates an HD 3:4 (900x1200) thumbnail Blob from project thumbnail
+ */
+async function generateHDQRThumbnailBlob(thumbSrc) {
+  if (!thumbSrc || typeof thumbSrc !== 'string') return null;
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const W = 900, H = 1200;
+          const off = document.createElement('canvas');
+          off.width = W;
+          off.height = H;
+          const ctx = off.getContext('2d');
+          ctx.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() || 'transparent');
+          ctx.fillRect(0, 0, W, H);
+          const iW = img.naturalWidth || img.width;
+          const iH = img.naturalHeight || img.height;
+          const scale = Math.max(W / iW, H / iH);
+          const sW = W / scale;
+          const sH = H / scale;
+          const sX = (iW - sW) / 2;
+          const sY = (iH - sH) / 2;
+          ctx.drawImage(img, sX, sY, sW, sH, 0, 0, W, H);
+          off.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/jpeg', 0.85);
+        } catch (_) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = thumbSrc;
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
 async function openShareProjectLinkModal(projectId, projectName) {
   if (!projectId || !window.FishDatabase) return;
   const project = await window.FishDatabase.getProject(projectId);
@@ -1056,8 +1141,12 @@ async function openShareProjectLinkModal(projectId, projectName) {
   showDashboardToast('Packaging project for share link...');
 
   try {
+    // Generate HD 3:4 (900x1200) thumbnail for archive and Catbox
+    const hdThumbBlob = await generateHDQRThumbnailBlob(project.thumbnail || '');
+
     const zipBlob = await window.FishDatabase.exportProjectToOFTS(projectId, {
-      skipDownload: true
+      skipDownload: true,
+      thumbnailBlob: hdThumbBlob
     });
 
     if (!zipBlob) {
@@ -1067,20 +1156,26 @@ async function openShareProjectLinkModal(projectId, projectName) {
 
     const MAX_SHARE_SIZE = 15 * 1024 * 1024; // 15MB
     if (zipBlob.size > MAX_SHARE_SIZE) {
-      const formattedSize = window.FishDatabase.formatBytes(zipBlob.size);
+      const formattedSize = window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : (zipBlob.size / (1024 * 1024)).toFixed(1) + ' MB';
       alert(`Project size (${formattedSize}) exceeds the 15MB share limit.\n\nCloud link sharing is limited to 15MB. Please save the project directly to your local device (.ofts).`);
       return;
     }
 
     showDashboardToast('Uploading to storage...');
 
+    // Guarantee ultra-compressed fallback thumbnail (~3-5KB)
+    const compressedThumb = await compressThumbnailForShare(project.thumbnail || '');
+
     const fd = new FormData();
     fd.append('file', zipBlob, (project.name || 'Project') + '.ofts');
+    if (hdThumbBlob) {
+      fd.append('thumbnailFile', hdThumbBlob, `${(project.name || 'Project').replace(/[^a-zA-Z0-9_-]/g, '_')}_thumb.jpg`);
+    }
     fd.append('name', project.name || 'Untitled Project');
     fd.append('specs', `${project.resolution || '1080p'} • ${project.fps || 60} fps`);
     fd.append('aspectRatio', project.aspectRatio || '16:9');
-    fd.append('size', window.FishDatabase.formatBytes(zipBlob.size));
-    fd.append('thumbnail', project.thumbnail || '');
+    fd.append('size', window.FishDatabase ? window.FishDatabase.formatBytes(zipBlob.size) : (zipBlob.size / (1024 * 1024)).toFixed(1) + ' MB');
+    fd.append('thumbnail', compressedThumb);
 
     const res = await fetch('/api/share', {
       method: 'POST',
@@ -1434,16 +1529,27 @@ function showPresetConfirmModal(project) {
   if (thumbBox) {
     thumbBox.textContent = '';
     const isSafeThumb = typeof project.thumbnail === 'string' &&
-      (project.thumbnail.startsWith('data:image/jpeg;base64,') ||
-       project.thumbnail.startsWith('data:image/webp;base64,') ||
-       project.thumbnail.startsWith('data:image/png;base64,'));
+      (project.thumbnail.startsWith('data:image/') ||
+       project.thumbnail.startsWith('https://') ||
+       project.thumbnail.startsWith('http://'));
     if (isSafeThumb) {
+      thumbBox.classList.add('skeleton-loading');
       const img = document.createElement('img');
-      img.src = project.thumbnail;
+      img.crossOrigin = 'anonymous';
       img.alt = '';
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.2s ease;';
+      img.onload = () => {
+        thumbBox.classList.remove('skeleton-loading');
+        img.style.opacity = '1';
+      };
+      img.onerror = () => {
+        thumbBox.classList.remove('skeleton-loading');
+        thumbBox.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/></svg>';
+      };
+      img.src = project.thumbnail;
       thumbBox.appendChild(img);
     } else {
+      thumbBox.classList.remove('skeleton-loading');
       const ph = document.createElement('div');
       ph.className = 'project-thumb-placeholder';
       ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--color-primary);background-color:var(--bg-canvas);';
@@ -1921,9 +2027,10 @@ async function generateDashboardQRCardCanvas(shareUrl, record) {
 
   // 2. Background thumbnail (COVER aspect ratio, NEVER stretched)
   let thumbSrc = (record && record.thumbnail) || null;
-  if (thumbSrc && typeof thumbSrc === 'string' && thumbSrc.startsWith('data:')) {
+  if (thumbSrc && typeof thumbSrc === 'string') {
     try {
       const img = new Image();
+      img.crossOrigin = 'anonymous';
       await new Promise((res, rej) => {
         img.onload = res;
         img.onerror = rej;
@@ -2101,19 +2208,33 @@ async function openDashboardQRModal(record) {
     await new Promise(r => setTimeout(r, 80));
   }
 
-  try {
-    const cardCanvas = await generateDashboardQRCardCanvas(_dashboardQRShareUrl, record);
-    _dashboardCachedQRCardDataUrl = cardCanvas.toDataURL('image/png');
-    const renderedImg = document.getElementById('qr-share-rendered-img');
-    if (renderedImg) {
-      renderedImg.src = _dashboardCachedQRCardDataUrl;
-    }
-  } catch (err) {
-    console.error('[FishDashboard:QRCard]', err);
-  }
+  const cardContainer = backdrop.querySelector('.qr-share-card');
+  const renderedImg = document.getElementById('qr-share-rendered-img');
+  if (cardContainer) cardContainer.classList.add('skeleton-loading');
+  if (renderedImg) renderedImg.classList.add('is-hidden');
 
   history.pushState({ qrModal: true }, '');
   backdrop.classList.add('is-active');
+
+  try {
+    const cardCanvas = await generateDashboardQRCardCanvas(_dashboardQRShareUrl, record);
+    _dashboardCachedQRCardDataUrl = cardCanvas.toDataURL('image/png');
+    if (renderedImg) {
+      renderedImg.src = _dashboardCachedQRCardDataUrl;
+      renderedImg.onload = () => {
+        if (cardContainer) cardContainer.classList.remove('skeleton-loading');
+        renderedImg.classList.remove('is-hidden');
+      };
+      if (renderedImg.complete) {
+        if (cardContainer) cardContainer.classList.remove('skeleton-loading');
+        renderedImg.classList.remove('is-hidden');
+      }
+    }
+  } catch (err) {
+    console.error('[FishDashboard:QRCard]', err);
+    if (cardContainer) cardContainer.classList.remove('skeleton-loading');
+    if (renderedImg) renderedImg.classList.remove('is-hidden');
+  }
 }
 
 // Bind QR backdrop controls on dashboard

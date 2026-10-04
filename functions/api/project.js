@@ -56,6 +56,9 @@ export async function onRequestGet(context) {
     // Direct thumbnail serving for OpenGraph / social preview
     if (isThumb) {
       if (record.thumbnail && typeof record.thumbnail === 'string') {
+        if (record.thumbnail.startsWith('https://') || record.thumbnail.startsWith('http://')) {
+          return Response.redirect(record.thumbnail, 302);
+        }
         const match = record.thumbnail.match(/^data:(image\/[a-zA-Z0-9\+\-]+);base64,(.+)$/);
         if (match) {
           const mime = match[1];

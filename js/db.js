@@ -2338,6 +2338,14 @@ window.FishDatabase = (function () {
 
       var zip = new JSZip();
       zip.file("project.json", pkg.projectJson);
+
+      // Pack HD thumbnail into archive root
+      if (options && options.thumbnailBlob) {
+        zip.file("thumbnail.jpg", options.thumbnailBlob);
+      } else if (pkg.project && pkg.project.thumbnail && pkg.project.thumbnail.startsWith('data:image/')) {
+        var tBlob = dataUrlToBlob(pkg.project.thumbnail);
+        if (tBlob) zip.file("thumbnail.jpg", tBlob);
+      }
       if (pkg.mediaItems && pkg.mediaItems.length > 0) {
         var mediaFolder = zip.folder("media");
         var total = pkg.mediaItems.length;
@@ -2482,6 +2490,16 @@ window.FishDatabase = (function () {
     // Clean any legacy caches if present in imported project.json
     projectData.previewUrl = '';
     projectData.thumbnail = '';
+
+    // Extract offline thumbnail from archive root if present
+    var thumbFile = zip.file("thumbnail.jpg") || zip.file("thumbnail.webp") || zip.file("thumbnail.png");
+    if (thumbFile) {
+      try {
+        var thumbB64 = await thumbFile.async("base64");
+        var mime = thumbFile.name.endsWith('.webp') ? 'image/webp' : (thumbFile.name.endsWith('.png') ? 'image/png' : 'image/jpeg');
+        projectData.thumbnail = 'data:' + mime + ';base64,' + thumbB64;
+      } catch (_) {}
+    }
     delete projectData.cache;
     delete projectData.previewCache;
     delete projectData.renderedFrames;

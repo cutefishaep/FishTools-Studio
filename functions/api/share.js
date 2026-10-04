@@ -109,37 +109,75 @@ export async function onRequestPost(context) {
 
     let sanitizedThumbnail = '';
     const rawThumb = formData.get('thumbnail');
-    if (typeof rawThumb === 'string' && (rawThumb.startsWith('data:image/jpeg;base64,') || rawThumb.startsWith('data:image/webp;base64,') || rawThumb.startsWith('data:image/png;base64,'))) {
-      // Hard cap thumbnail data URL to 150KB
-      if (rawThumb.length <= 150000) {
+    if (typeof rawThumb === 'string' && (rawThumb.startsWith('data:image/jpeg;base64,') || rawThumb.startsWith('data:image/webp;base64,'))) {
+      // Hard cap thumbnail data URL to 30KB (enforces true compression: 200px JPEG/WebP @ ~3-8KB)
+      if (rawThumb.length <= 30000) {
         sanitizedThumbnail = rawThumb;
       }
     }
 
-    // 5. Forward file to Catbox API
+    // 5. Forward project file and optional HD thumbnail to Catbox API
+    const safeBaseName = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) || 'Project';
+    const safeFilename = safeBaseName + '.ofts';
+    const fileBuffer = await file.arrayBuffer();
+
     const catboxForm = new FormData();
     catboxForm.append('reqtype', 'fileupload');
-    const safeFilename = (sanitizedName.replace(/[^a-zA-Z0-9_-]/g, '_')) + '.ofts';
-    const fileBuffer = await file.arrayBuffer();
     catboxForm.append('fileToUpload', new Blob([fileBuffer], { type: 'application/octet-stream' }), safeFilename);
 
-    let catboxRes = null;
     let catboxUrl = '';
+    let thumbUrl = '';
+
+    const thumbnailFile = formData.get('thumbnailFile');
+    let thumbUploadPromise = null;
+    if (thumbnailFile && typeof thumbnailFile.arrayBuffer === 'function' && thumbnailFile.size > 0 && thumbnailFile.size <= 4 * 1024 * 1024) {
+      thumbUploadPromise = (async () => {
+        try {
+          const tForm = new FormData();
+          tForm.append('reqtype', 'fileupload');
+          const safeThumbName = `${safeBaseName}_thumb.jpg`;
+          const tBuf = await thumbnailFile.arrayBuffer();
+          tForm.append('fileToUpload', new Blob([tBuf], { type: 'image/jpeg' }), safeThumbName);
+          const tRes = await fetch('https://catbox.moe/user/api.php', {
+            method: 'POST',
+            body: tForm,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            },
+            signal: AbortSignal.timeout(12000)
+          });
+          if (tRes && tRes.ok) {
+            const txt = (await tRes.text()).trim();
+            if (txt.startsWith('https://files.catbox.moe/')) return txt;
+          }
+        } catch (_) {}
+        return '';
+      })();
+    }
+
     try {
-      catboxRes = await fetch('https://catbox.moe/user/api.php', {
-        method: 'POST',
-        body: catboxForm,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        },
-        signal: AbortSignal.timeout(15000)
-      });
-      if (catboxRes && catboxRes.ok) {
-        const text = (await catboxRes.text()).trim();
-        if (text.startsWith('https://files.catbox.moe/')) {
-          catboxUrl = text;
-        }
-      }
+      const uploadTasks = [
+        (async () => {
+          try {
+            const catboxRes = await fetch('https://catbox.moe/user/api.php', {
+              method: 'POST',
+              body: catboxForm,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+              },
+              signal: AbortSignal.timeout(15000)
+            });
+            if (catboxRes && catboxRes.ok) {
+              const text = (await catboxRes.text()).trim();
+              if (text.startsWith('https://files.catbox.moe/')) {
+                catboxUrl = text;
+              }
+            }
+          } catch (_) {}
+        })()
+      ];
+      if (thumbUploadPromise) uploadTasks.push(thumbUploadPromise.then(url => { thumbUrl = url; }));
+      await Promise.all(uploadTasks);
     } catch (_) {}
 
     // Fallback: If Catbox blocks or returns 412/520, store project package directly in KV if <= 10MB
@@ -153,7 +191,7 @@ export async function onRequestPost(context) {
           specs: sanitizedSpecs,
           size: sanitizedSize,
           aspectRatio: sanitizedAspect,
-          thumbnail: sanitizedThumbnail,
+          thumbnail: thumbUrl || sanitizedThumbnail,
           dataBase64: base64Data,
           fileUrl: `${new URL(context.request.url).origin}/api/project?id=${fallbackId}&download=1`,
           createdAt: Date.now()
@@ -202,7 +240,7 @@ export async function onRequestPost(context) {
       specs: sanitizedSpecs,
       size: sanitizedSize,
       aspectRatio: sanitizedAspect,
-      thumbnail: sanitizedThumbnail,
+      thumbnail: thumbUrl || sanitizedThumbnail,
       fileUrl: catboxUrl,
       createdAt: Date.now()
     };

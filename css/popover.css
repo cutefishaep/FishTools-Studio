@@ -578,10 +578,10 @@
 }
 
 /* ==========================================================================
-   MOBILE RESPONSIVE TOUCH SCALING (<= 600px)
+   MOBILE & TABLET RESPONSIVE TOUCH SCALING (<= 1100px or Touch Pointer)
    ========================================================================== */
-@media (max-width: 600px) {
-  /* Mobile Grid Icon Dock: Space-saving multi-column wrap layout with horizontal zoom stepper */
+@media (max-width: 1100px), (hover: none) and (pointer: coarse) {
+  /* Mobile & Tablet Grid Icon Dock: Space-saving multi-column wrap layout with horizontal zoom stepper */
   .popover-card.is-icon-dock {
     width: 154px;
     padding: 8px;

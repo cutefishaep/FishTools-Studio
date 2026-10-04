@@ -125,10 +125,10 @@
 
     const lensFactor = Math.max(0.01, camLens / 50);
     const totalZoom = Math.max(0.01, lensFactor * camZoom);
-    const D = 1000 * lensFactor;
+    const u = (unit > 0) ? unit : 1;
+    const D = 1000 * lensFactor * u;
 
     // Camera translation is authored in comp px → convert to this buffer's px.
-    const u = (unit > 0) ? unit : 1;
     camPosX *= u; camPosY *= u; camPosZ *= u;
 
     // Translation relative to camera center

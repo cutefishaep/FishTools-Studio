@@ -22584,7 +22584,27 @@
         updateTimelinePosition(targetPanX, true);
       }
 
-      function triggerEmptyTimelineContextMenu(clickX, clickY) {
+      // Track latest pointer device & button to accurately isolate physical mouse right-click from mobile touch hold
+      window.addEventListener('pointerdown', (e) => {
+        window._lastPointerDownType = e.pointerType || (e.touches ? 'touch' : 'mouse');
+        window._lastPointerDownButton = e.button;
+      }, true);
+
+      function isTrueRightClick(e) {
+        if (e && (e.pointerType === 'touch' || (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents))) {
+          return false;
+        }
+        if (window._lastPointerDownType === 'touch') {
+          return false;
+        }
+        if (typeof isDesktopLayout === 'function' && isDesktopLayout()) {
+          return true;
+        }
+        return window._lastPointerDownType === 'mouse' && window._lastPointerDownButton === 2;
+      }
+
+      function triggerEmptyTimelineContextMenu(clickX, clickY, e = null) {
+        if (!isTrueRightClick(e)) return;
         const trackRect = layersTrack ? layersTrack.getBoundingClientRect() : layersViewport.getBoundingClientRect();
         const offsetX = clickX - trackRect.left;
         const clickSec = Math.max(0, offsetX / pixelsPerSecond);
@@ -22612,7 +22632,8 @@
         }
       }
 
-      function triggerClipContextMenu(layer, clickX, clickY) {
+      function triggerClipContextMenu(layer, clickX, clickY, e = null) {
+        if (!isTrueRightClick(e)) return;
         if (!layer) return;
         const hasKeyframesSelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.length > 0;
         if (!selectedLayerIds || !selectedLayerIds.has(layer.id)) {
@@ -22956,7 +22977,7 @@
           }
           e.preventDefault();
           e.stopPropagation();
-          triggerEmptyTimelineContextMenu(e.clientX, e.clientY);
+          triggerEmptyTimelineContextMenu(e.clientX, e.clientY, e);
         });
       }
 
@@ -22968,7 +22989,7 @@
           }
           e.preventDefault();
           e.stopPropagation();
-          triggerEmptyTimelineContextMenu(e.clientX, e.clientY);
+          triggerEmptyTimelineContextMenu(e.clientX, e.clientY, e);
         });
       }
 
@@ -26601,6 +26622,7 @@
             marker.addEventListener('contextmenu', (e) => {
               e.stopPropagation();
               e.preventDefault();
+              if (!isTrueRightClick(e)) return;
 
               const isAlreadySelected = Array.isArray(window.selectedKeyframes) && window.selectedKeyframes.some(it => it.kf === kf || (it.layerId === layer.id && it.prop === prop && Math.abs(it.time - kf.time) < 0.002));
               if (!isAlreadySelected) {
@@ -28006,7 +28028,7 @@
               pillEl.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                triggerClipContextMenu(layer, e.clientX, e.clientY);
+                triggerClipContextMenu(layer, e.clientX, e.clientY, e);
               });
             }
 
@@ -28596,7 +28618,7 @@
             clipEl.addEventListener('contextmenu', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              triggerClipContextMenu(layer, e.clientX, e.clientY);
+              triggerClipContextMenu(layer, e.clientX, e.clientY, e);
             });
 
             // Handle left/right trim handles dragging (Lengthen / Shorten Layer)

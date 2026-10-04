@@ -5591,6 +5591,7 @@
 /* Playhead Top Scrubber Cap (AE-style pentagon / flag needle head on ruler) */
 .desktop-timeline-wrapper .timeline-center-needle::before {
   content: '';
+  display: none !important;
   position: absolute;
   top: 0;
   left: -5px;

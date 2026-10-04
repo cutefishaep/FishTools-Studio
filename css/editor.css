@@ -2387,8 +2387,6 @@ body.has-active-drawer .timeline-layers-viewport {
 
 .timeline-lane-reorder-slot {
   height: 44px;
-  box-sizing: border-box;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: flex-end;

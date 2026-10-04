@@ -1629,8 +1629,20 @@ body.has-active-drawer .timeline-layers-viewport {
   position: relative;
   width: 100%;
   box-sizing: border-box;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Mobile full-width divider line between layers */
+.timeline-track-lane::after {
+  content: '';
+  position: absolute;
+  left: -5000px;
+  right: -5000px;
+  bottom: -5px;
+  height: 1px;
+  background-color: var(--border-subtle);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .timeline-track-lane.is-dragging {
@@ -1647,7 +1659,6 @@ body.has-active-drawer .timeline-layers-viewport {
   user-select: none;
   -webkit-user-select: none;
   box-sizing: border-box;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -1659,7 +1670,6 @@ body.has-active-drawer .timeline-layers-viewport {
 .timeline-lane-reorder-slot {
   height: 44px;
   box-sizing: border-box;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: flex-end;

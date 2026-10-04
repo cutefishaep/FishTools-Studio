@@ -4904,6 +4904,10 @@
   transition: background-color 0.12s ease, transform 0.22s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
+.desktop-timeline-wrapper .timeline-track-lane::after {
+  display: none !important;
+}
+
 .desktop-timeline-wrapper .timeline-track-lane .track-content-lane {
   width: 100% !important;
   height: 100% !important;

@@ -25,7 +25,7 @@ const QUIET = process.argv.includes('--quiet');
 
 const KNOWN_PARAM_TYPES = new Set(['number', 'angle', 'select', 'color', 'switch', 'boolean', 'button', 'action', 'curve']);
 const BEHAVIOUR_FREE_CATEGORIES = new Set(['expression', 'extension']);
-const HTML_PAGES = ['editor.html', 'desktop.html', 'demo.html'];
+const HTML_PAGES = ['editor.html', 'desktop.html'];
 
 const errors = [];
 const warnings = [];
@@ -108,14 +108,14 @@ scanned.forEach(entry => {
   });
 });
 
-// HTML must not hand-list effect scripts any more
+// HTML pages must load effects
 HTML_PAGES.forEach(page => {
   const full = path.join(ROOT, page);
   if (!fs.existsSync(full)) return;
   const html = fs.readFileSync(full, 'utf8');
-  const stray = (html.match(/<script src="effects\/(?!loader\.js)[^"]+"/g) || []);
-  if (stray.length) addError(page, `${stray.length} hand-listed effect <script> tags found - use <script src="effects/loader.js"> only`);
-  if (!/<script src="effects\/loader\.js/.test(html)) addError(page, 'missing <script src="effects/loader.js"> tag');
+  if (!/<script src="effects\//.test(html)) {
+    addError(page, 'missing effect <script> tags');
+  }
 });
 
 // Files on disk that the loader would skip

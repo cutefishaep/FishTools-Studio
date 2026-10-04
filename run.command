@@ -15,11 +15,10 @@ if [ -d "$HOME/.nvm" ]; then
 fi
 
 clear
-echo "==================================================="
 echo "  OpenFishTools Studio (macOS)"
 echo "  Local Server  : http://localhost:3000"
+echo "  Desktop Route : http://localhost:3000/desktop"
 echo "  Editor Route  : http://localhost:3000/editor"
-echo "  Demo Route    : http://localhost:3000/demo"
 echo "==================================================="
 echo ""
 

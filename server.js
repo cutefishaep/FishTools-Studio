@@ -715,7 +715,7 @@ function handleRequest(req, res) {
     filePath = path.join(ROOT, 'index.html');
   }
 
-  // Clean URL mapping (/demo -> demo.html, /editor -> editor.html)
+  // Clean URL mapping (/desktop -> desktop.html, /editor -> editor.html)
   if (!fs.existsSync(filePath)) {
     if (fs.existsSync(filePath + '.html')) {
       filePath = filePath + '.html';
@@ -739,7 +739,7 @@ function handleRequest(req, res) {
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
     res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(`<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="font-family:sans-serif;padding:40px;background:#0d1109;color:#c0dbc0;"><h2>404 Not Found</h2><p>Cannot find <code>${pathname}</code></p><p><a href="/" style="color:#98ce7b;">Go to Home</a> | <a href="/editor" style="color:#98ce7b;">Go to Editor</a> | <a href="/demo" style="color:#98ce7b;">Go to Demo</a></p></body></html>`);
+    res.end(`<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="font-family:sans-serif;padding:40px;background:#0d1109;color:#c0dbc0;"><h2>404 Not Found</h2><p>Cannot find <code>${pathname}</code></p><p><a href="/" style="color:#98ce7b;">Go to Home</a> | <a href="/desktop" style="color:#98ce7b;">Go to Desktop</a> | <a href="/editor" style="color:#98ce7b;">Go to Editor</a></p></body></html>`);
     return;
   }
 
@@ -815,9 +815,9 @@ function startCloudflareTunnel() {
       console.log('  CLOUDFLARE PUBLIC TUNNEL ACTIVE!');
       console.log(`  Public Link: ${publicUrl}`);
       console.log('  Routes:');
-      console.log(`    - Home:   ${publicUrl}/`);
-      console.log(`    - Demo:   ${publicUrl}/demo`);
-      console.log(`    - Editor: ${publicUrl}/editor`);
+      console.log(`    - Home:    ${publicUrl}/`);
+      console.log(`    - Desktop: ${publicUrl}/desktop`);
+      console.log(`    - Editor:  ${publicUrl}/editor`);
       console.log('===================================================\n');
     }
   };
@@ -858,9 +858,9 @@ if (require.main === module) {
     console.log(`  OpenFishTools Studio - Live Server Running`);
     console.log(`  Local URL: http://localhost:${PORT}`);
     console.log(`  Routes:`);
-    console.log(`    - Home:   http://localhost:${PORT}/`);
-    console.log(`    - Demo:   http://localhost:${PORT}/demo`);
-    console.log(`    - Editor: http://localhost:${PORT}/editor`);
+    console.log(`    - Home:    http://localhost:${PORT}/`);
+    console.log(`    - Desktop: http://localhost:${PORT}/desktop`);
+    console.log(`    - Editor:  http://localhost:${PORT}/editor`);
     console.log('  Live Reload: ACTIVE (Watching file changes)');
     if (!ENABLE_TUNNEL) {
       console.log('  Tip: Jalankan dengan --tunnel untuk public link Cloudflare');

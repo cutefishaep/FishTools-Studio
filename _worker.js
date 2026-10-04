@@ -11,11 +11,13 @@ export default {
       const url = new URL(request.url);
       const pathname = url.pathname;
 
-      // Security: block direct access to .env, dotfiles, storage, server internals
+      // Security: block direct access to .env, dotfiles, storage, server internals, and build scripts
       if (
         pathname === '/.env' || pathname.startsWith('/.env') || pathname.includes('/.env') || pathname.startsWith('/.') ||
         pathname === '/storage' || pathname.startsWith('/storage') ||
-        pathname === '/server.js' || pathname === '/package.json' || pathname === '/package-lock.json' || pathname === '/wrangler.jsonc'
+        pathname === '/scripts' || pathname.startsWith('/scripts') ||
+        pathname === '/server.js' || pathname === '/package.json' || pathname === '/package-lock.json' ||
+        pathname === '/wrangler.jsonc' || pathname === '/wrangler.jsonc.example'
       ) {
         return new Response('403 Forbidden', { status: 403, headers: { 'Content-Type': 'text/plain' } });
       }
@@ -50,12 +52,12 @@ export default {
         return new Response('Assets binding not available', { status: 500 });
       }
 
-      // 4. Clean URLs: /editor -> /editor.html, /demo -> /demo.html
+      // 4. Clean URLs: /desktop -> /desktop.html, /editor -> /editor.html
+      if (pathname === '/desktop') {
+        return assets.fetch(new Request(new URL('/desktop.html', request.url), request));
+      }
       if (pathname === '/editor') {
         return assets.fetch(new Request(new URL('/editor.html', request.url), request));
-      }
-      if (pathname === '/demo') {
-        return assets.fetch(new Request(new URL('/demo.html', request.url), request));
       }
 
       // 5. Shortlink support: e.g. /1, /project-id -> /index.html with dynamic OpenGraph meta tags

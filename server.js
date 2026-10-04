@@ -208,21 +208,6 @@ function handleRequest(req, res) {
     return;
   }
 
-  // App configuration endpoint — same-origin only (Client ID is public but no need for cross-origin)
-  if (pathname === '/__config' || pathname === '/api/config') {
-    const origin = req.headers.origin || '';
-    const allowed = process.env.ALLOWED_ORIGIN || '';
-    const isSameOrigin = !origin || origin === allowed || origin.startsWith('http://localhost');
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      ...(isSameOrigin ? { 'Access-Control-Allow-Origin': origin || '*' } : {})
-    });
-    res.end(JSON.stringify({
-      googleClientId: process.env.GOOGLE_CLIENT_ID || ''
-    }));
-    return;
-  }
-
   // Effects discovery endpoint: live scan of effects/*.js (cached per file mtime),
   // so a newly dropped effect plugin is picked up on the next page load with no sync step.
   if (pathname === '/api/effects') {

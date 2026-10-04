@@ -3,7 +3,6 @@
  */
 import { onRequestPost as handleSharePost, onRequestOptions as handleShareOptions } from './functions/api/share.js';
 import { onRequestGet as handleProjectGet, onRequestOptions as handleProjectOptions } from './functions/api/project.js';
-import { onRequestGet as handleConfigGet } from './functions/__config.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -40,11 +39,6 @@ export default {
         if (request.method === 'OPTIONS') {
           return handleProjectOptions ? handleProjectOptions({ request, env }) : new Response(null, { status: 204 });
         }
-      }
-
-      // 3. API: /__config or /api/config
-      if (pathname === '/__config' || pathname === '/api/config') {
-        return handleConfigGet({ request, env, params: {}, waitUntil: ctx && ctx.waitUntil ? ctx.waitUntil.bind(ctx) : () => {} });
       }
 
       const assets = env.ASSETS || env.__STATIC_CONTENT;

@@ -90,7 +90,6 @@ Available environment variables:
 - `SHARE_SECRET_TOKEN`: Protects `/api/share` uploads from unauthorized access.
 - `CATBOX_USERHASH`: Optional Catbox user account hash for cloud hosting.
 - `CF_KV_NAMESPACE_ID`: Cloudflare KV namespace ID (synced to `wrangler.jsonc` via `npm run prepare:wrangler`).
-- `GOOGLE_CLIENT_ID`: Google OAuth Client ID for cloud project synchronization.
 
 ### Automated Testing
 Run the comprehensive test suite (syntax validation, AST scope verification, HTML integrity):
@@ -188,7 +187,6 @@ Daftar variabel lingkungan:
 - `SHARE_SECRET_TOKEN`: Melindungi endpoint `/api/share` agar hanya pengguna terotorisasi yang dapat mengunggah proyek ke database cloud.
 - `CATBOX_USERHASH`: Kunci akun Catbox opsional untuk hosting berkas cloud.
 - `CF_KV_NAMESPACE_ID`: ID namespace Cloudflare KV (disinkronkan otomatis ke `wrangler.jsonc` lewat `npm run prepare:wrangler`).
-- `GOOGLE_CLIENT_ID`: ID Klien Google OAuth untuk cadangan proyek ke Google Drive.
 
 ### Pengujian Otomatis
 Jalankan rangkaian pengujian menyeluruh (validasi sintaksis, verifikasi cakupan AST, integritas dokumen HTML):

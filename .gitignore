@@ -11,6 +11,7 @@ native/src-tauri/target/
 scratch/
 .env
 .env.*
+!.env.example
 .vercel
 vercelgate
 storage/

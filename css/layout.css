@@ -950,11 +950,23 @@ html, body {
     height: auto;
     min-height: auto;
     max-height: 48dvh;
-    padding: 24px 20px 0 20px;
+    padding: 24px 16px 0 16px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
+    gap: 10px;
+  }
+
+  .brand-wrapper {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .brand-title, .brand-subtitle {
+    font-size: clamp(22px, 5.8vw, 28px);
+    letter-spacing: -0.4px;
+    line-height: 1.05;
   }
 
   .tech-grid-container {
@@ -1000,6 +1012,7 @@ html, body {
 
   .studio-header-actions {
     gap: 6px;
+    flex-shrink: 0;
     flex-wrap: nowrap;
   }
 
@@ -1013,10 +1026,10 @@ html, body {
 }
 
 @media (max-width: 440px) {
-  .studio-top-btn:not(.studio-top-btn-install):not(.btn-info-top) span {
+  .studio-top-btn span {
     display: none;
   }
-  .studio-top-btn:not(.studio-top-btn-install):not(.btn-info-top) {
+  .studio-top-btn {
     padding: 0;
     width: 32px;
     justify-content: center;
@@ -1025,14 +1038,10 @@ html, body {
 
 @media (max-width: 380px) {
   .studio-header {
-    padding: 24px 14px 0 14px;
+    padding: 20px 12px 0 12px;
+    gap: 8px;
   }
   .studio-header-actions {
-    gap: 4px;
-  }
-  .studio-top-btn-install {
-    padding: 0 8px;
-    font-size: 11px;
     gap: 4px;
   }
 }

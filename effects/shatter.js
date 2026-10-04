@@ -125,7 +125,7 @@
 
     const lensFactor = Math.max(0.01, camLens / 50);
     const totalZoom = Math.max(0.01, lensFactor * camZoom);
-    const D = Math.max(w, h) * 1.25 * lensFactor;
+    const D = 1000 * lensFactor;
 
     // Camera translation is authored in comp px → convert to this buffer's px.
     const u = (unit > 0) ? unit : 1;
@@ -980,7 +980,7 @@
         // Apply camera rotation & translation to 3D center
         const relX = (cx - w * 0.5) + vx - camRes.camPosX;
         const relY = (cy - h * 0.5) + vy - camRes.camPosY;
-        const relZ = vz - D;
+        const relZ = vz - (camRes.camPosZ + D);
 
         const camRot = camRes.camRotMat;
         const rotX = relX * camRot[0] + relY * camRot[3] + relZ * camRot[6];

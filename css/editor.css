@@ -49,7 +49,7 @@ html, body {
   overflow: hidden;
   border: none;
   outline: none;
-  background-color: var(--bg-canvas);
+  background-color: var(--bg-preview);
   font-family: var(--font-brand);
   color: var(--text-primary);
   position: fixed;
@@ -69,7 +69,7 @@ html, body {
   overflow: hidden;
   border: none;
   outline: none;
-  background-color: var(--bg-canvas);
+  background-color: var(--bg-preview);
   box-sizing: border-box;
   padding-bottom: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -834,7 +834,7 @@ body.is-exporting .template-scrubber-wrap {
    MODULAR PREVIEW CANVAS (Screen Viewport, Canvas Element & Specs Badge)
    ========================================================================== */
 .preview-canvas-box {
-  background-color: var(--bg-canvas);
+  background-color: var(--bg-preview);
   max-width: calc(100% - 24px);
   max-height: calc(100% - 24px);
   aspect-ratio: var(--preview-aspect, 16 / 9);
@@ -908,6 +908,7 @@ body.is-exporting .template-scrubber-wrap {
     width: 100%;
     position: relative;
     overflow: hidden;
+    background-color: var(--bg-preview);
     --mobile-preview-height: 48%;
   }
 
@@ -921,6 +922,7 @@ body.is-exporting .template-scrubber-wrap {
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
+    background-color: var(--bg-preview);
   }
 
   .editor-preview {
@@ -1080,6 +1082,7 @@ body.is-exporting .template-scrubber-wrap {
     min-height: 0;
     width: 100%;
     position: relative;
+    background-color: var(--bg-preview);
     --left-pane-width: 50%;
   }
 
@@ -1093,6 +1096,7 @@ body.is-exporting .template-scrubber-wrap {
     flex-direction: column;
     flex-shrink: 0;
     position: relative;
+    background-color: var(--bg-preview);
   }
 
   .editor-preview {

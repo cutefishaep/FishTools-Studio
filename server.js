@@ -397,9 +397,9 @@ function handleRequest(req, res) {
           return;
         }
 
-        // 3. Sanitize inputs
+        // 3. Sanitize inputs (Preserves all symbols & unicode while stripping HTML tags and control chars)
         const rawName = String(formData.get('name') || 'Untitled Project').trim();
-        const sanitizedName = rawName.slice(0, 80).replace(/[^\w\s\-\.\(\)]/gi, '').trim() || 'Untitled Project';
+        const sanitizedName = rawName.slice(0, 100).replace(/[\x00-\x1F\x7F<>]/g, '').trim() || 'Untitled Project';
 
         const rawSpecs = String(formData.get('specs') || '1080p • 60 fps').trim();
         const sanitizedSpecs = rawSpecs.slice(0, 40).replace(/[^\w\s\-\•\.\(\)]/gi, '') || '1080p • 60 fps';

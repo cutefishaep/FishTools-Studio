@@ -583,7 +583,7 @@
         var inName = 'ain_' + Date.now() + '.mp4';
         var outName = 'aout_' + Date.now() + '.wav';
         ffmpeg.FS('writeFile', inName, new Uint8Array(await blob.arrayBuffer()));
-        await ffmpeg.run('-i', inName, '-vn', '-c:a', 'pcm_s16le', '-ar', '44100', '-ac', '2', outName);
+        await ffmpeg.run('-v', 'error', '-i', inName, '-vn', '-c:a', 'pcm_s16le', '-ar', '44100', '-ac', '2', outName);
         var wavBytes = ffmpeg.FS('readFile', outName);
         try { ffmpeg.FS('unlink', inName); } catch (_) {}
         try { ffmpeg.FS('unlink', outName); } catch (_) {}
@@ -1182,7 +1182,7 @@
           try { ffmpeg.FS('unlink', 'out_merged.mp4'); } catch (_) {}
           ffmpeg.FS('writeFile', 'v_temp.mp4', new Uint8Array(videoBuffer));
           ffmpeg.FS('writeFile', 'a_temp.wav', new Uint8Array(await audioResult.wavBlob.arrayBuffer()));
-          await ffmpeg.run('-i', 'v_temp.mp4', '-i', 'a_temp.wav', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-strict', '-2', '-shortest', 'out_merged.mp4');
+          await ffmpeg.run('-v', 'error', '-i', 'v_temp.mp4', '-i', 'a_temp.wav', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-strict', '-2', '-shortest', 'out_merged.mp4');
           var merged = ffmpeg.FS('readFile', 'out_merged.mp4');
           if (merged && merged.length > 0) {
             finalBlob = new Blob([merged.buffer], { type: 'video/mp4' });
@@ -1335,7 +1335,7 @@
       updateProgress(71, 'Encoding MP4...', onProgress);
       await new Promise(function(r) { setTimeout(r, 100); });
 
-      var args = ['-framerate', String(fps), '-i', 'frame_%05d.jpg'];
+      var args = ['-v', 'error', '-framerate', String(fps), '-i', 'frame_%05d.jpg'];
       if (hasAudio) args.push('-i', 'audio.wav');
 
       if (preset === 'light') {
@@ -1694,7 +1694,7 @@
           if (isH264Stream) {
             try {
               updateProgress(95, 'Packaging MP4 container (stream copy)...', onProgress);
-              await ffmpeg.run('-i', 'rec_in.webm', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', 'rec_out.mp4');
+              await ffmpeg.run('-v', 'error', '-i', 'rec_in.webm', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', 'rec_out.mp4');
               var copyBytes = ffmpeg.FS('readFile', 'rec_out.mp4');
               if (copyBytes && copyBytes.length > 0) {
                 finalBlob = new Blob([copyBytes.buffer], { type: 'video/mp4' });
@@ -1713,6 +1713,7 @@
               updateProgress(95, 'Transcoding to MP4 (H.264)...', onProgress);
               var crfVal = (preset === 'detail') ? '18' : ((preset === 'light') ? '23' : '20');
               await ffmpeg.run(
+                '-v', 'error',
                 '-i', 'rec_in.webm',
                 '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'fastdecode',
                 '-pix_fmt', 'yuv420p', '-crf', crfVal,

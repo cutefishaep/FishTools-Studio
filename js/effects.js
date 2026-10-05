@@ -640,7 +640,9 @@
       // Multi-effect pipeline: chain through offscreen buffers
       const hasExpandingFx = renderEffects.some(f => {
         const d = FishEffectsRegistry.get(f.type);
-        return (d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform' || f.type === 'tile' || f.type === 'fsmb';
+        if ((d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform' || f.type === 'tile' || f.type === 'fsmb') return true;
+        if (f.type === 'deep-glow' && (f.outLayer === 1 || f.outLayer === true || f.outLayer === '1' || f.outLayer === 'true' || f.outLayer === 'on')) return true;
+        return false;
       });
       let pipeW = bw;
       let pipeH = bh;

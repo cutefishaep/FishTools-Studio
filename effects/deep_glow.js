@@ -49,7 +49,7 @@
     name: 'Deep Glow',
     category: 'layer',
     icon: 'assets/FXPH.svg',
-    isExpanding: false, // Strictly layer-bounded: glow never spills outside layer bounds
+    isExpanding: false, // Bounded by default; expands via Out Layer switch (checked in pipeline)
     params: [
       { id: 'radius', label: 'Radius', type: 'number', min: 2, max: 400, default: 80, unit: 'px' },
       { id: 'exposure', label: 'Exposure', type: 'number', min: 10, max: 500, default: 150, unit: '%' },
@@ -60,6 +60,7 @@
       { id: 'tintStrength', label: 'Tint Amount', type: 'number', min: 0, max: 100, default: 100, unit: '%' },
       { id: 'blendMode', label: 'Blend Mode', type: 'select', options: ['screen', 'lighter', 'source-over'], default: 'screen' },
       { id: 'glowOnly', label: 'Glow Only', type: 'switch', default: false },
+      { id: 'outLayer', label: 'Out Layer', type: 'switch', default: false },
       { id: 'opacity', label: 'Opacity', type: 'number', min: 0, max: 100, default: 100, unit: '%' }
     ],
 
@@ -80,6 +81,10 @@
       const blendMode = fx.blendMode || 'screen';
       const glowOnly = !!fx.glowOnly;
       const opacity = Math.max(0, Math.min(100, fx.opacity !== undefined ? Number(fx.opacity) : 100)) / 100;
+      const outLayer = (fx.outLayer === 1 || fx.outLayer === true || fx.outLayer === '1' || fx.outLayer === 'true' || fx.outLayer === 'on');
+      const pad = outLayer ? Math.min(600, Math.ceil(radius * 1.1 + 24)) : 0;
+      const ew = w + pad * 2;
+      const eh = h + pad * 2;
 
       if (opacity <= 0.001) {
         if (!glowOnly) {
@@ -96,7 +101,7 @@
       // Octave k covers ~ 3*2^k px of full-res blur radius. Use only octaves up to ~2x radius.
       let n = 1;
       while (n < MAX_LEVELS && 3 * Math.pow(2, n - 1) < radius * 2) n++;
-      ensureLevels(w, h, n);
+      ensureLevels(ew, eh, n);
 
       // 1. Extraction at half res: threshold + saturation + hot boost in one GPU filter pass
       const p0 = P[0];
@@ -113,7 +118,15 @@
       pc.filter = f;
       pc.imageSmoothingEnabled = true;
       pc.imageSmoothingQuality = 'high';
-      try { pc.drawImage(el, 0, 0, p0.w, p0.h); } catch (_) { pc.filter = 'none'; return; }
+      if (!outLayer) {
+        try { pc.drawImage(el, 0, 0, p0.w, p0.h); } catch (_) { pc.filter = 'none'; return; }
+      } else {
+        const dw0 = Math.max(1, Math.round(w / 2));
+        const dh0 = Math.max(1, Math.round(h / 2));
+        const dx0 = Math.round((p0.w - dw0) / 2);
+        const dy0 = Math.round((p0.h - dh0) / 2);
+        try { pc.drawImage(el, dx0, dy0, dw0, dh0); } catch (_) { pc.filter = 'none'; return; }
+      }
       pc.filter = 'none';
 
       // 2. Chain downsample
@@ -179,12 +192,28 @@
         glowCtx.restore();
       }
 
-      // 4. Draw to Canvas with STRICT LAYER BOUNDARY CLIPPING
-      // Guarantees 100% that glow NEVER bleeds outside the layer boundary (including adjustment layers)
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x, y, w, h);
-      ctx.clip();
+      // 4. Draw to Canvas: strict clip in-layer, free spill when Out Layer is ON
+      if (!outLayer) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+
+        if (!glowOnly) {
+          try {
+            ctx.drawImage(el, x, y, w, h);
+          } catch (_) {}
+        }
+
+        ctx.globalAlpha = opacity;
+        ctx.globalCompositeOperation = (blendMode === 'lighter' ? 'lighter' : (blendMode === 'source-over' ? 'source-over' : 'screen'));
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(glowCanvas, x, y, w, h);
+
+        ctx.restore();
+        return;
+      }
 
       if (!glowOnly) {
         try {
@@ -192,12 +221,14 @@
         } catch (_) {}
       }
 
+      ctx.save();
       ctx.globalAlpha = opacity;
       ctx.globalCompositeOperation = (blendMode === 'lighter' ? 'lighter' : (blendMode === 'source-over' ? 'source-over' : 'screen'));
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(glowCanvas, x, y, w, h);
-
+      try {
+        ctx.drawImage(glowCanvas, x - pad, y - pad, ew, eh);
+      } catch (_) {}
       ctx.restore();
     }
   });

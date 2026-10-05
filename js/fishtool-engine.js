@@ -415,13 +415,15 @@
       let padY = 0;
       const hasExpanding = activeFx.some(f => {
         const d = (window.FishEffectsRegistry && window.FishEffectsRegistry.get) ? window.FishEffectsRegistry.get(f.type) : null;
-        return (d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform' || f.type === 'deep-glow';
+        if ((d && (d.isExpanding || d.category === 'warp')) || f.type === 'transform') return true;
+        if (f.type === 'deep-glow' && (f.outLayer === 1 || f.outLayer === true || f.outLayer === '1' || f.outLayer === 'true' || f.outLayer === 'on')) return true;
+        return false;
       });
       if (hasExpanding) {
         let maxRad = 80;
-        const dg = activeFx.find(f => f.type === 'deep-glow');
+        const dg = activeFx.find(f => f.type === 'deep-glow' && (f.outLayer === 1 || f.outLayer === true || f.outLayer === '1' || f.outLayer === 'true' || f.outLayer === 'on'));
         if (dg && dg.radius !== undefined) maxRad = Math.max(maxRad, Number(dg.radius) || 80);
-        const pad = Math.min(300, Math.round(maxRad * 1.5));
+        const pad = Math.min(600, Math.ceil(maxRad * 1.1 + 24));
         padX = pad;
         padY = pad;
       }

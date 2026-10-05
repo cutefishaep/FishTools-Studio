@@ -173,6 +173,7 @@
       return layer.effects.some(f => {
         if (!f || f.disabled) return false;
         if (f.type === 'particle-engine') return true;
+        if (f.type === 'deep-glow' && (f.outLayer === 1 || f.outLayer === true || f.outLayer === '1' || f.outLayer === 'true' || f.outLayer === 'on')) return true;
         const d = this._effectDef(f);
         return !!(d && (d.isExpanding || d.cameraDriven));
       });

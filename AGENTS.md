@@ -33,7 +33,7 @@ Floor: code, commands, paths, numbers and error strings verbatim; never drop not
 - `js/FishExport-Enggine.js`: Video export engine integrating WebCodecs and MP4-muxer for client-side rendering.
 - `effects/`: Standalone modular effect plugins registered directly via `FishEffectsRegistry.register({...})`.
 - `server.js`: Zero-dependency local development server with SSE live reload and optional Cloudflare tunnel.
-- `scripts/prepare-wrangler.js`: Synchronizes `wrangler.jsonc` from `wrangler.jsonc.example` using `.env`.
+- `scripts/prepare-wrangler.js`: Synchronizes `wrangler.jsonc` from `.env` or process environment variables.
 - `version.json`: Single source of truth for repository version.
 
 ## 2. Error Investigation & Diagnostic Protocol (MANDATORY)

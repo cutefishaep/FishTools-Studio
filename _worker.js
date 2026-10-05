@@ -21,7 +21,7 @@ export default {
         routePath === '/storage' || routePath.startsWith('/storage') ||
         routePath === '/scripts' || routePath.startsWith('/scripts') ||
         routePath === '/server.js' || routePath === '/package.json' || routePath === '/package-lock.json' ||
-        routePath === '/wrangler.jsonc' || routePath === '/wrangler.jsonc.example'
+        routePath === '/wrangler.jsonc'
       ) {
         return new Response('403 Forbidden', { status: 403, headers: { 'Content-Type': 'text/plain' } });
       }

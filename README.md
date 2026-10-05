@@ -81,15 +81,51 @@ OpenFishTools Studio is a browser-based motion graphics and video editing applic
 └── CHANGELOG.md     # Chronological release notes
 ```
 
-### Environment Configuration
-Copy the template file to configure optional cloud backups or upload keys:
-```bash
-cp .env.example .env
-```
-Available environment variables:
+### Configuration (`.env` & `wrangler.jsonc`)
+
+1. **Local Environment (`.env`)**:
+   Create a `.env` file in the root directory for optional local backend features:
+   ```env
+   # Optional local .env configuration
+   CATBOX_USERHASH=your_catbox_userhash
+   SHARE_SECRET_TOKEN=your_secret_upload_token
+   CF_KV_NAMESPACE_ID=your_kv_namespace_id
+   ```
+
+2. **Cloudflare Worker Configuration (`wrangler.jsonc`)**:
+   Generate or create `wrangler.jsonc` before deploying to Cloudflare:
+   - **Automated**: Run `npm run prepare:wrangler` (creates `wrangler.jsonc` from `.env` or system environment variables).
+   - **Manual**: Create `wrangler.jsonc` in the root directory:
+   ```json
+   {
+   	"$schema": "node_modules/wrangler/config-schema.json",
+   	"name": "fishtools-studio",
+   	"main": "_worker.js",
+   	"compatibility_date": "2026-09-15",
+   	"keep_vars": true,
+   	"assets": {
+   		"directory": ".",
+   		"binding": "ASSETS",
+   		"html_handling": "none",
+   		"run_worker_first": true
+   	},
+   	"observability": {
+   		"enabled": true
+   	},
+   	"kv_namespaces": [
+   		{
+   			"binding": "PROJECTS_KV",
+   			"id": "YOUR_KV_NAMESPACE_ID",
+   			"remote": true
+   		}
+   	]
+   }
+   ```
+
+Environment variables:
 - `SHARE_SECRET_TOKEN`: Protects `/api/share` uploads from unauthorized access.
 - `CATBOX_USERHASH`: Optional Catbox user account hash for cloud hosting.
-- `CF_KV_NAMESPACE_ID`: Cloudflare KV namespace ID (synced to `wrangler.jsonc` via `npm run prepare:wrangler`).
+- `CF_KV_NAMESPACE_ID`: Cloudflare KV namespace ID for shared projects.
 
 ### Automated Testing
 Run the comprehensive test suite (syntax validation, AST scope verification, HTML integrity):
@@ -178,15 +214,51 @@ OpenFishTools Studio adalah aplikasi grafis gerak (motion graphics) dan penyunti
 └── CHANGELOG.md     # Catatan rilis kronologis
 ```
 
-### Konfigurasi Lingkungan (Environment)
-Salin berkas template untuk mengonfigurasi penyimpanan cloud opsional atau kunci pengunggahan:
-```bash
-cp .env.example .env
-```
+### Konfigurasi Lingkungan (`.env` & `wrangler.jsonc`)
+
+1. **Lingkungan Lokal (`.env`)**:
+   Buat berkas `.env` di direktori utama untuk mengaktifkan fitur backend lokal (opsional):
+   ```env
+   # Konfigurasi opsional .env lokal
+   CATBOX_USERHASH=your_catbox_userhash
+   SHARE_SECRET_TOKEN=your_secret_upload_token
+   CF_KV_NAMESPACE_ID=your_kv_namespace_id
+   ```
+
+2. **Konfigurasi Cloudflare Worker (`wrangler.jsonc`)**:
+   Buat berkas `wrangler.jsonc` sebelum melakukan deployment ke Cloudflare:
+   - **Otomatis**: Jalankan `npm run prepare:wrangler` (menghasilkan `wrangler.jsonc` dari `.env` atau environment variable sistem).
+   - **Manual**: Buat berkas `wrangler.jsonc` di direktori utama:
+   ```json
+   {
+   	"$schema": "node_modules/wrangler/config-schema.json",
+   	"name": "fishtools-studio",
+   	"main": "_worker.js",
+   	"compatibility_date": "2026-09-15",
+   	"keep_vars": true,
+   	"assets": {
+   		"directory": ".",
+   		"binding": "ASSETS",
+   		"html_handling": "none",
+   		"run_worker_first": true
+   	},
+   	"observability": {
+   		"enabled": true
+   	},
+   	"kv_namespaces": [
+   		{
+   			"binding": "PROJECTS_KV",
+   			"id": "YOUR_KV_NAMESPACE_ID",
+   			"remote": true
+   		}
+   	]
+   }
+   ```
+
 Daftar variabel lingkungan:
 - `SHARE_SECRET_TOKEN`: Melindungi endpoint `/api/share` agar hanya pengguna terotorisasi yang dapat mengunggah proyek ke database cloud.
 - `CATBOX_USERHASH`: Kunci akun Catbox opsional untuk hosting berkas cloud.
-- `CF_KV_NAMESPACE_ID`: ID namespace Cloudflare KV (disinkronkan otomatis ke `wrangler.jsonc` lewat `npm run prepare:wrangler`).
+- `CF_KV_NAMESPACE_ID`: ID namespace Cloudflare KV untuk proyek cloud.
 
 ### Pengujian Otomatis
 Jalankan rangkaian pengujian menyeluruh (validasi sintaksis, verifikasi cakupan AST, integritas dokumen HTML):

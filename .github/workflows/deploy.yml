@@ -17,7 +17,7 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@4
 
-      - name: Generate wrangler.jsonc (gitignored, built from example + env)
+      - name: Generate wrangler.jsonc (gitignored, configured from env)
         run: node scripts/prepare-wrangler.js
         env:
           CF_KV_NAMESPACE_ID: ${{ vars.CF_KV_NAMESPACE_ID }}

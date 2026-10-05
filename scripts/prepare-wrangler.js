@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Automatically generates gitignored wrangler.jsonc from wrangler.jsonc.example and .env
- * Single source of truth: .env (CF_KV_NAMESPACE_ID)
+ * Automatically generates gitignored wrangler.jsonc from environment variables or .env
+ * Single source of truth: process.env / .env (CF_KV_NAMESPACE_ID)
  */
 
 const fs = require('fs');
@@ -9,7 +9,6 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const envPath = path.join(ROOT, '.env');
-const templatePath = path.join(ROOT, 'wrangler.jsonc.example');
 const targetPath = path.join(ROOT, 'wrangler.jsonc');
 
 function loadEnv() {
@@ -30,14 +29,34 @@ function loadEnv() {
 }
 
 function syncWranglerConfig() {
-  if (!fs.existsSync(templatePath)) return false;
   const env = loadEnv();
   const kvId = env.CF_KV_NAMESPACE_ID || process.env.CF_KV_NAMESPACE_ID || 'YOUR_KV_NAMESPACE_ID';
 
-  let content = fs.readFileSync(templatePath, 'utf8');
-  content = content.replace(/YOUR_KV_NAMESPACE_ID/g, kvId);
+  const config = {
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "fishtools-studio",
+    "main": "_worker.js",
+    "compatibility_date": "2026-09-15",
+    "keep_vars": true,
+    "assets": {
+      "directory": ".",
+      "binding": "ASSETS",
+      "html_handling": "none",
+      "run_worker_first": true
+    },
+    "observability": {
+      "enabled": true
+    },
+    "kv_namespaces": [
+      {
+        "binding": "PROJECTS_KV",
+        "id": kvId,
+        "remote": true
+      }
+    ]
+  };
 
-  fs.writeFileSync(targetPath, content, 'utf8');
+  fs.writeFileSync(targetPath, JSON.stringify(config, null, "\t") + "\n", 'utf8');
   console.log(`[Wrangler] Synchronized wrangler.jsonc with PROJECTS_KV id: ${kvId}`);
   return true;
 }

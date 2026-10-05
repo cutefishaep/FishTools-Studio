@@ -3181,12 +3181,24 @@
           }
 
           // 5. Composite back onto ctx, clipped to the adjustment layer's transformed boundary
+          // Exception: active Deep Glow with Out Layer ON is full-comp 2D (AE-style):
+          // glow must spill across the whole frame, never hard-cut at adj bounds.
+          const adjGlowOut = Array.isArray(animLayer.effects) && animLayer.effects.some(f => f && !f.disabled && f.type === 'deep-glow' &&
+            (f.outLayer === 1 || f.outLayer === true || f.outLayer === '1' || f.outLayer === 'true' || f.outLayer === 'on'));
           ctx.save();
           if (effProps.opacity !== undefined && effProps.opacity !== null) {
             ctx.globalAlpha = Math.max(0, Math.min(1, effProps.opacity));
           }
           if (layer.blendMode && layer.blendMode !== 'normal') {
             ctx.globalCompositeOperation = resolveBlendMode(layer.blendMode);
+          }
+
+          if (adjGlowOut) {
+            // Draw full-canvas processed image in identity screen space, no boundary clip
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(proc, 0, 0, w, h);
+            ctx.restore();
+            return;
           }
 
           ctx.beginPath();

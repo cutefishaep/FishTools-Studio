@@ -388,6 +388,7 @@
         f.type !== 'tile' &&
         f.type !== 'rgb-split' &&
         f.type !== 'drop-shadow' &&
+        f.type !== 'deep-glow' &&
         f.type !== 'box_3d' &&
         f.type !== 'extrude_3d' &&
         f.type !== 'pyramid_3d' &&
@@ -458,6 +459,84 @@
       const unitScale = quadCompW > 0 ? (w / quadCompW) : 1;
       window.FishEffects.renderLayer(this._fxCtx, el, fakeLayer, { x: padX, y: padY, w, h, bufferScale: bScaleFx, unitScale }, curSec);
       return { el: this._fxCanvas, padX, padY, origW: w, origH: h };
+    }
+
+    /**
+     * Deep Glow rasa adjustment untuk layer 3D langsung.
+     * Quad 3D selalu di-bake BERSIH (deep-glow dikecualikan di atas), lalu glow
+     * dihitung dari snapshot HASIL PROYEKSI (glCanvas) dalam screen-space 2D:
+     * posisi/orientasi nempel ke quad, kernel blur tetap melingkar, spill full
+     * selalu (paksaan outLayer internal).
+     * Dua koreksi di sini:
+     * 1. Snapshot = AABB + margin (bukan AABB pas): potong tepat di AABB bikin
+     *    tepi keras di konten terang → bloom palsu (makanya digeser ke ujung
+     *    canvas glow malah membesar). Potong di margin yang sudah transparan.
+     * 2. Kompensasi facing: sliver tipis bikin octave dalam piramid sub-pixel
+     *    → energi halo jauh kolaps (makanya 0 ke -90 glow mengecil). Boost
+     *    exposure 1/sqrt(facing), cap x3. Radius tidak diubah (ukuran fisik).
+     */
+    _applyDeepGlowScreenSpace(ctx, layer, bounds, currentSec = null) {
+      if (!ctx || !layer || !bounds || !Array.isArray(layer.effects)) return;
+      const dgList = layer.effects.filter(f => f && !f.disabled && f.type === 'deep-glow');
+      if (dgList.length === 0) return;
+      const reg = (typeof window !== 'undefined' && window.FishEffectsRegistry) ? window.FishEffectsRegistry : null;
+      const def = (reg && typeof reg.get === 'function') ? reg.get('deep-glow') : null;
+      if (!def || typeof def.render !== 'function') return;
+      const targetCanvas = ctx.canvas;
+      const vw = targetCanvas ? targetCanvas.width : 0;
+      const vh = targetCanvas ? targetCanvas.height : 0;
+      if (!(vw > 0 && vh > 0)) return;
+      const src = this.glCanvas;
+      if (!src || !src.width || !src.height) return;
+      let maxPad = 0;
+      for (let i = 0; i < dgList.length; i++) {
+        const r = Math.max(2, Number(dgList[i].radius) || 80);
+        if (!isNaN(r)) maxPad = Math.max(maxPad, Math.min(600, Math.ceil(r * 1.1 + 24)));
+      }
+      const ax = Math.round(bounds.x);
+      const ay = Math.round(bounds.y);
+      const aw = Math.max(1, Math.round(bounds.aabbW));
+      const ah = Math.max(1, Math.round(bounds.aabbH));
+      const snapMargin = Math.min(maxPad, 256);
+      const cx0 = Math.max(0, ax - snapMargin);
+      const cy0 = Math.max(0, ay - snapMargin);
+      const cx1 = Math.min(vw, ax + aw + snapMargin);
+      const cy1 = Math.min(vh, ay + ah + snapMargin);
+      const cw = cx1 - cx0;
+      const ch = cy1 - cy0;
+      if (cw < 1 || ch < 1) return;
+      // Facing = luas proyeksi / luas footprint tak-terotasi (<=1, kecil saat edge-on)
+      const footW = Math.max(1, Math.abs(bounds.w) || aw);
+      const footH = Math.max(1, Math.abs(bounds.h) || ah);
+      const facing = Math.max(0.02, Math.min(1, (aw * ah) / (footW * footH)));
+      const boost = Math.min(3, 1 / Math.sqrt(facing));
+      if (!this._dgSnapCanvas) {
+        this._dgSnapCanvas = document.createElement('canvas');
+        this._dgSnapCtx = this._dgSnapCanvas.getContext('2d');
+      }
+      if (this._dgSnapCanvas.width !== cw || this._dgSnapCanvas.height !== ch) {
+        this._dgSnapCanvas.width = cw;
+        this._dgSnapCanvas.height = ch;
+      }
+      const sctx = this._dgSnapCtx;
+      if (!sctx) return;
+      sctx.clearRect(0, 0, cw, ch);
+      try { sctx.drawImage(src, cx0, cy0, cw, ch, 0, 0, cw, ch); } catch (_) { return; }
+      const rawOp = (layer.opacity !== undefined && layer.opacity !== null) ? Number(layer.opacity) : 1.0;
+      const normOp = (rawOp > 1.0) ? Math.max(0, Math.min(1, rawOp / 100)) : Math.max(0, Math.min(1, rawOp));
+      if (!(normOp > 0.001)) return;
+      const sec = (typeof currentSec === 'number' && !isNaN(currentSec))
+        ? currentSec
+        : ((layer && typeof layer._currentSec === 'number') ? layer._currentSec : 0);
+      for (let i = 0; i < dgList.length; i++) {
+        const dg = dgList[i];
+        const baseNum = Number(dg.opacity);
+        const baseOp = (dg.opacity === undefined || dg.opacity === null || isNaN(baseNum)) ? 100 : Math.max(0, Math.min(100, baseNum));
+        const expNum = Number(dg.exposure);
+        const baseExp = (dg.exposure === undefined || dg.exposure === null || isNaN(expNum)) ? 150 : Math.max(10, Math.min(500, expNum));
+        const glowFx = Object.assign({}, dg, { glowOnly: true, outLayer: true, opacity: baseOp * normOp, exposure: Math.min(500, baseExp * boost) });
+        try { def.render(ctx, this._dgSnapCanvas, layer, { x: cx0, y: cy0, w: cw, h: ch }, glowFx, sec); } catch (_) {}
+      }
     }
 
     /**
@@ -1302,6 +1381,8 @@
 
       // Blit GL framebuffer onto target 2D canvas context
       this._blitGLToContext(ctx, layer, bounds, vw, vh, bufferScale);
+      // Deep Glow rasa adjustment: blur 2D dari snapshot proyeksi, spill full
+      this._applyDeepGlowScreenSpace(ctx, layer, bounds, layerSec);
     }
 
     _drawQuadOrTile(gl, mvp, tileFx, vw, vh, bounds) {
@@ -2657,6 +2738,8 @@
       // Blit accumulated result to 2D canvas context ONCE with shadow / RGB split (clipped to cropRect)
       if (drawnSamples > 0) {
         this._blitGLToContext(ctx, animLayer, bounds, vw, vh, bufferScale, hasCrop ? { x: cropX, y: cropY, w: cropW, h: cropH } : null);
+        // Deep Glow rasa adjustment: blur 2D dari snapshot proyeksi, spill full
+        this._applyDeepGlowScreenSpace(ctx, animLayer, bounds, evalSec);
       }
     }
 

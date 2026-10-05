@@ -6,7 +6,9 @@
 	"keep_vars": true,
 	"assets": {
 		"directory": ".",
-		"binding": "ASSETS"
+		"binding": "ASSETS",
+		"html_handling": "none",
+		"run_worker_first": true
 	},
 	"observability": {
 		"enabled": true

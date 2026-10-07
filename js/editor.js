@@ -6809,6 +6809,11 @@
       if (typeof window.autoFetchAndLoadEffects === 'function') {
         window.autoFetchAndLoadEffects();
       }
+      const inlineGallery = document.getElementById('layer-drawer-effects-gallery-view');
+      if (inlineGallery) {
+        switchLayerDrawerSubview('effects-gallery');
+        return;
+      }
       if (window.Drawer && typeof window.Drawer.open === 'function') {
         window.Drawer.open('drawer-effects-gallery');
       } else {
@@ -6822,6 +6827,11 @@
     window.openEffectsGalleryDrawer = openEffectsGalleryDrawer;
 
     function closeEffectsGalleryDrawer(triggerHistoryBack = true) {
+      const inlineGallery = document.getElementById('layer-drawer-effects-gallery-view');
+      if (inlineGallery && currentDrawerSubview === 'effects-gallery') {
+        switchLayerDrawerSubview('effects');
+        return;
+      }
       if (window.Drawer && typeof window.Drawer.close === 'function') {
         if (window.Drawer.activeDrawer && window.Drawer.activeDrawer.id === 'drawer-effects-gallery') {
           window.Drawer.close(triggerHistoryBack);
@@ -6839,11 +6849,12 @@
     window.closeEffectsGalleryDrawer = closeEffectsGalleryDrawer;
 
     function switchLayerDrawerSubview(subviewName) {
-      if (subviewName === 'effects-gallery') {
+      const inlineGallery = document.getElementById('layer-drawer-effects-gallery-view');
+      if (subviewName === 'effects-gallery' && !inlineGallery) {
         openEffectsGalleryDrawer();
         return;
       }
-      const validSubviews = ['main', 'transform', 'graph', 'blend', 'effects', 'camera', 'fill', 'volume', 'speed', 'shape', 'text', 'beatmark'];
+      const validSubviews = ['main', 'transform', 'graph', 'blend', 'effects', 'effects-gallery', 'camera', 'fill', 'volume', 'speed', 'shape', 'text', 'beatmark'];
       if (!validSubviews.includes(subviewName)) subviewName = 'main';
 
       // If drawer-effects-gallery is open when navigating to other subviews, close it
@@ -6878,6 +6889,7 @@
         'graph': document.getElementById('layer-drawer-graph-view'),
         'blend': document.getElementById('layer-drawer-blend-view'),
         'effects': document.getElementById('layer-drawer-effects-view'),
+        'effects-gallery': inlineGallery,
         'camera': document.getElementById('layer-drawer-camera-view'),
         'fill': document.getElementById('layer-drawer-fill-view'),
         'volume': document.getElementById('layer-drawer-volume-view'),
@@ -7018,6 +7030,19 @@
         }
         try {
           history.pushState({ drawerSubview: 'beatmark' }, '');
+        } catch (_) {}
+      } else if (subviewName === 'effects-gallery') {
+        if (typeof window.closeGalleryCategory === 'function') {
+          window.closeGalleryCategory();
+        }
+        if (typeof window.syncGalleryHomeSections === 'function') {
+          window.syncGalleryHomeSections();
+        }
+        if (typeof window.autoFetchAndLoadEffects === 'function') {
+          window.autoFetchAndLoadEffects();
+        }
+        try {
+          history.pushState({ drawerSubview: 'effects-gallery' }, '');
         } catch (_) {}
       }
 
@@ -9348,6 +9373,7 @@
         if (!moveBtn) return;
         const svgMove = moveBtn.querySelector('.svg-tool-move');
         const svgAnchor = moveBtn.querySelector('.svg-tool-anchor');
+        const labelEl = moveBtn.querySelector('.transform-tool-label');
         const promptEl = document.querySelector('#pane-transform-move .transform-swipe-prompt');
 
         moveBtn.dataset.submode = moveAnchorSubmode;
@@ -9355,12 +9381,14 @@
         if (moveAnchorSubmode === 'anchor') {
           if (svgMove) svgMove.style.display = 'none';
           if (svgAnchor) svgAnchor.style.display = '';
+          if (labelEl) labelEl.textContent = 'Anchor';
           moveBtn.title = 'Move Anchor Point - Click to toggle Move Layer';
           moveBtn.setAttribute('aria-label', 'Move Anchor');
           if (promptEl) promptEl.textContent = 'Swipe here to move anchor';
         } else {
           if (svgMove) svgMove.style.display = '';
           if (svgAnchor) svgAnchor.style.display = 'none';
+          if (labelEl) labelEl.textContent = 'Move';
           moveBtn.title = 'Move Layer (Position) - Click to toggle Move Anchor';
           moveBtn.setAttribute('aria-label', 'Move Layer');
           if (promptEl) promptEl.textContent = 'Swipe here to move layer';
@@ -10990,7 +11018,14 @@
           } else {
             closeEffectsGalleryDrawer(false);
           }
-        } else if (currentDrawerSubview === 'transform' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'camera' || currentDrawerSubview === 'fill' || currentDrawerSubview === 'volume' || currentDrawerSubview === 'speed' || currentDrawerSubview === 'shape') {
+        } else if (currentDrawerSubview === 'effects-gallery') {
+          const iv = document.getElementById('effects-items-view');
+          if (iv && iv.style.display !== 'none' && typeof window.closeGalleryCategory === 'function') {
+            window.closeGalleryCategory();
+          } else {
+            switchLayerDrawerSubview('effects');
+          }
+        } else if (currentDrawerSubview === 'transform' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'camera' || currentDrawerSubview === 'fill' || currentDrawerSubview === 'volume' || currentDrawerSubview === 'speed' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'text' || currentDrawerSubview === 'beatmark') {
           switchLayerDrawerSubview('main');
         } else if (compositionStack && compositionStack.length > 0) {
           window._precompHistoryPushed = Math.max(0, (window._precompHistoryPushed || 1) - 1);

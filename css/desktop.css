@@ -1317,6 +1317,18 @@
   background-color: var(--bg-dashboard) !important;
 }
 
+.desktop-panel-right .effects-category-grid,
+#desktop-panel-inspector .effects-category-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right .effects-items-grid,
+#desktop-panel-inspector .effects-items-grid {
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)) !important;
+  gap: 12px 6px !important;
+}
+
 /* Universal Subview Top Bar in Desktop Inspector */
 .desktop-panel-right .transform-nav-col,
 .desktop-panel-right .blend-nav-col,
@@ -1456,7 +1468,8 @@
 }
 
 /* Row 2: Tool Mode Selector Tabs (Move, Rotate, Scale, Skew) */
-.desktop-panel-right .transform-tools-col {
+.desktop-panel-right .transform-tools-col,
+#desktop-panel-inspector .transform-tools-col {
   order: 2 !important;
   width: 100% !important;
   height: 38px !important;
@@ -1465,15 +1478,19 @@
   display: grid !important;
   grid-template-columns: repeat(4, 1fr) !important;
   gap: 4px !important;
-  padding: 5px 10px !important;
+  padding: 5px 8px !important;
   background-color: var(--bg-panel-inner) !important;
   border-bottom: 1px solid var(--border-subtle) !important;
+  border-left: none !important;
   box-sizing: border-box !important;
   flex-shrink: 0 !important;
 }
 
-.desktop-panel-right .transform-tool-btn {
+.desktop-panel-right .transform-tool-btn,
+#desktop-panel-inspector .transform-tool-btn {
   width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
   height: 28px !important;
   min-height: 28px !important;
   max-height: 28px !important;
@@ -1485,9 +1502,28 @@
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  padding: 0 !important;
+  padding: 0 4px !important;
+  font-family: var(--font-brand) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
   box-sizing: border-box !important;
   transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease !important;
+  outline: none !important;
+}
+
+.desktop-panel-right .transform-tool-label,
+#desktop-panel-inspector .transform-tool-label {
+  font-family: var(--font-brand) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.2px !important;
+  color: inherit !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  pointer-events: none !important;
+  line-height: 1 !important;
+  text-align: center !important;
 }
 
 .desktop-panel-right .transform-tool-btn:hover,
@@ -1497,35 +1533,25 @@
   border-color: var(--color-primary) !important;
 }
 
-.desktop-panel-right .transform-tool-btn:hover svg,
-#desktop-panel-inspector .transform-tool-btn:hover svg {
-  stroke: var(--bg-canvas) !important;
-}
-
-.desktop-panel-right .transform-tool-btn.is-active {
+.desktop-panel-right .transform-tool-btn.is-active,
+#desktop-panel-inspector .transform-tool-btn.is-active {
   background-color: var(--color-primary) !important;
   color: var(--bg-canvas) !important;
   border-color: var(--color-primary) !important;
+  font-weight: 700 !important;
 }
 
-.desktop-panel-right .transform-tool-btn.is-active svg {
-  stroke: var(--bg-canvas) !important;
-}
-
-.desktop-panel-right .transform-tool-btn.is-active svg circle[fill="currentColor"] {
-  fill: var(--bg-canvas) !important;
+.desktop-panel-right .transform-tool-btn.is-active .transform-tool-label,
+#desktop-panel-inspector .transform-tool-btn.is-active .transform-tool-label {
+  font-weight: 700 !important;
+  color: var(--bg-canvas) !important;
 }
 
 .desktop-panel-right .transform-tool-btn svg,
-.desktop-panel-right .transform-tool-btn .fticon {
-  width: 15px !important;
-  height: 15px !important;
-  font-size: 15px !important;
-}
-
-.desktop-panel-right .transform-tool-btn:hover .fticon,
-.desktop-panel-right .transform-tool-btn.is-active .fticon {
-  color: var(--bg-canvas) !important;
+.desktop-panel-right .transform-tool-btn .fticon,
+#desktop-panel-inspector .transform-tool-btn svg,
+#desktop-panel-inspector .transform-tool-btn .fticon {
+  display: none !important;
 }
 
 /* Row 3: Full Width Interactive Work Area for Subviews */
@@ -2546,8 +2572,8 @@
 #desktop-panel-inspector .effects-card.is-expanded .effects-card-controls {
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
-  padding: 4px 6px !important;
+  gap: 8px !important;
+  padding: 8px 10px !important;
   background-color: var(--bg-panel-inner) !important;
   border-bottom-left-radius: var(--desktop-radius-sm) !important;
   border-bottom-right-radius: var(--desktop-radius-sm) !important;
@@ -2559,8 +2585,8 @@
   display: grid !important;
   grid-template-columns: minmax(80px, 34%) 1fr !important;
   align-items: center !important;
-  gap: 4px !important;
-  min-height: 20px !important;
+  gap: 8px !important;
+  min-height: 24px !important;
   box-sizing: border-box !important;
 }
 
@@ -2619,8 +2645,8 @@
   justify-content: flex-end !important;
   flex: 1 !important;
   min-width: 0 !important;
-  height: 20px !important;
-  max-height: 20px !important;
+  height: 22px !important;
+  max-height: 22px !important;
   background-color: var(--bg-canvas) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important; /* 3px: squared with subtle rounding */
@@ -2669,8 +2695,8 @@
 /* Select dropdowns and Custom Dropdowns in Controls */
 .desktop-panel-right .effects-select,
 #desktop-panel-inspector .effects-select {
-  height: 20px !important;
-  min-height: 20px !important;
+  height: 22px !important;
+  min-height: 22px !important;
   background-color: var(--bg-canvas) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;
@@ -2690,9 +2716,9 @@
   flex: 1 !important;
   width: 100% !important;
   min-width: 0 !important;
-  height: 20px !important;
-  min-height: 20px !important;
-  max-height: 20px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
@@ -2700,16 +2726,16 @@
   box-sizing: border-box !important;
 }
 
-/* Effects Dropdown Trigger: 20px pill matching .effects-param-pill surface */
+/* Effects Dropdown Trigger: 22px pill matching .effects-param-pill surface */
 .desktop-panel-right .effects-custom-dropdown .custom-dropdown-trigger,
 #desktop-panel-inspector .effects-custom-dropdown .custom-dropdown-trigger {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   width: 100% !important;
-  height: 20px !important;
-  min-height: 20px !important;
-  max-height: 20px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
   background-color: var(--bg-canvas) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;

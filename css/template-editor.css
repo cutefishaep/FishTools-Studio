@@ -86,7 +86,12 @@
 .template-nav-btn svg {
   width: 24px;
   height: 24px;
-}
+  font-size: 24px;}
+
+.template-nav-btn i.fticon {
+  width: 24px;
+  height: 24px;
+  font-size: 24px;}
 
 .template-topbar-title {
   font-size: 1.2rem;
@@ -195,7 +200,7 @@
   border: none;
   pointer-events: none;
   transition: transform 0.12s ease, color 0.12s ease;
-}
+  font-size: 68px;}
 
 .template-preview-box:hover .template-play-icon {
   transform: scale(1.15);
@@ -210,7 +215,13 @@
   width: 56px;
   height: 56px;
   fill: currentColor;
-}
+  font-size: 56px;}
+
+.template-play-icon i.fticon {
+  width: 56px;
+  height: 56px;
+  fill: currentColor;
+  font-size: 56px;}
 
 /* --- Scrubber & Timeline Section --- */
 .template-scrubber-section {
@@ -439,7 +450,12 @@
 .template-card-badge-type svg {
   width: 14px;
   height: 14px;
-}
+  font-size: 14px;}
+
+.template-card-badge-type i.fticon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;}
 
 .template-card-badge-count {
   position: absolute;
@@ -475,7 +491,7 @@
   cursor: pointer;
   z-index: 2;
   transition: background-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
-}
+  font-size: 44px;}
 
 .template-card-replace-icon:hover {
   background-color: var(--color-primary);
@@ -494,7 +510,12 @@
 .template-card-replace-icon svg {
   width: 24px;
   height: 24px;
-}
+  font-size: 24px;}
+
+.template-card-replace-icon i.fticon {
+  width: 24px;
+  height: 24px;
+  font-size: 24px;}
 
 .template-card-duration {
   position: absolute;
@@ -654,10 +675,21 @@
   .template-card-replace-icon {
     width: 44px;
     height: 44px;
-  }
+  font-size: 44px;}
 
   .template-card-replace-icon svg {
     width: 24px;
     height: 24px;
-  }
+  font-size: 24px;}
+
+  .template-card-replace-icon i.fticon {
+    width: 24px;
+    height: 24px;
+  font-size: 24px;}
+
+  .template-card-replace-icon i.fticon {
+    width: 24px;
+    height: 24px;
+  font-size: 24px;
+  font-size: 24px;}
 }

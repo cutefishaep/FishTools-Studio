@@ -1,3 +1,11 @@
+.fticon {
+  display: inline-block;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ==========================================================================
    SWITCH.CSS - Modular Segmented Switch & Pill Toggle Component
    - Flat & High Performance (No box-shadow, no blur, no gradients)
@@ -92,7 +100,7 @@
 
 /* Segment Icons */
 .segmented-switch-item svg,
-.segmented-switch-item .svg-icon {
+.segmented-switch-item .fticon {
   width: 20px;
   height: 20px;
   display: block;
@@ -100,12 +108,29 @@
   color: inherit;
   flex-shrink: 0;
   transition: color 0.15s ease, fill 0.15s ease;
-}
+  font-size: 20px;}
+
+/* Segment Icons */
+.segmented-switch-item i.fticon,
+.segmented-switch-item .fticon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+  color: inherit;
+  flex-shrink: 0;
+  transition: color 0.15s ease, fill 0.15s ease;
+  font-size: 20px;}
 
 .segmented-switch.is-compact .segmented-switch-item svg {
   width: 17px;
   height: 17px;
-}
+  font-size: 17px;}
+
+.segmented-switch.is-compact .segmented-switch-item i.fticon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;}
 
 /* Invert inner icon to canvas dark when segment is active */
 .segmented-switch-item.is-active svg,
@@ -130,7 +155,13 @@
   width: 19px;
   height: 19px;
   flex-shrink: 0;
-}
+  font-size: 19px;}
+
+.add-layer-categories-switch .segmented-switch-item i.fticon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  font-size: 19px;}
 
 .add-layer-categories-switch .category-label {
   font-family: inherit;

@@ -391,10 +391,10 @@
   border: 1.5px solid transparent;
   box-sizing: border-box;
   transition: border-color 0.12s ease;
-}
+  font-size: 32px;}
 
 .color-picker-tab-icon {
   width: 18px;
   height: 18px;
   display: block;
-}
+  font-size: 18px;}

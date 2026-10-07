@@ -102,3 +102,9 @@ When debugging errors, unexpected behavior, or UI bugs:
   npm test
   ```
 - All files must pass syntax verification, AST scope audit (0 undeclared references), synchronizers check, and HTML structure integrity.
+
+## 15. Strict Git Safety & Working Tree Protection (NO UNNOTIFIED GIT OPERATIONS)
+- **Zero Silent Git Changes**: STRICTLY FORBIDDEN to run `git checkout`, `git restore`, `git reset`, `git clean`, `git pull`, `git switch`, or any Git command that alters, overwrites, or discards local changes without explicit user consent.
+- **No Remote Git Inspections/Checkouts Without Prior Notice**: Never check remote GitHub, fetch, pull, or checkout branches without explicitly informing and getting confirmation from the user first.
+- **Absolute Preservation of Local State**: Always respect and preserve active uncommitted edits and untracked files. Never overwrite or discard user work in the working directory under any circumstance.
+

@@ -1,3 +1,11 @@
+.fticon {
+  display: inline-block;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ==========================================================================
    SEGMENTED-BUTTON.CSS - Modular Segmented Button Bar Component
    - Flat & High Performance (No box-shadow, no blur, no gradients)
@@ -63,7 +71,7 @@
 
 /* Segment Button Icons */
 .segmented-button svg,
-.segmented-button .svg-icon {
+.segmented-button .fticon {
   width: 20px;
   height: 20px;
   display: block;
@@ -72,12 +80,30 @@
   flex-shrink: 0;
   pointer-events: none;
   transition: color 0.12s ease, fill 0.12s ease;
-}
+  font-size: 20px;}
+
+/* Segment Button Icons */
+.segmented-button i.fticon,
+.segmented-button .fticon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+  color: inherit;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: color 0.12s ease, fill 0.12s ease;
+  font-size: 20px;}
 
 .segmented-button-group.is-compact .segmented-button svg {
   width: 17px;
   height: 17px;
-}
+  font-size: 17px;}
+
+.segmented-button-group.is-compact .segmented-button i.fticon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;}
 
 /* Hover & Focus States (Tanpa outline) */
 .segmented-button:hover {
@@ -105,7 +131,7 @@
 }
 
 .segmented-button:active svg,
-.segmented-button:active .svg-icon {
+.segmented-button:active .fticon {
   color: var(--bg-canvas) !important;
   fill: var(--bg-canvas) !important;
 }

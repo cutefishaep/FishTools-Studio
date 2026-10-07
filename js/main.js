@@ -357,22 +357,22 @@ async function initProjectsFetcher() {
       return [
         {
           label: 'Save as .ofts',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
+          icon: '<i class="fticon fticon-export-presets-json" aria-hidden="true"></i>',
           action: () => exportProjectAction(projectId, projectName)
         },
         {
           label: 'Share as Link',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>',
+          icon: '<i class="fticon fticon-icon-8" aria-hidden="true"></i>',
           action: () => openShareProjectLinkModal(projectId, projectName)
         },
         {
           label: 'Project Settings',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
+          icon: '<i class="fticon fticon-icon-9" aria-hidden="true"></i>',
           action: () => openProjectSettingsModal(projectId)
         },
         {
           label: 'Duplicate',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>',
+          icon: '<i class="fticon fticon-copy-link" aria-hidden="true"></i>',
           action: async () => {
             if (window.FishDatabase) {
               await window.FishDatabase.duplicateProject(projectId);
@@ -383,7 +383,7 @@ async function initProjectsFetcher() {
         { divider: true },
         {
           label: 'Remove project',
-          icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+          icon: '<i class="fticon fticon-delete-beatmark" aria-hidden="true"></i>',
           danger: true,
           action: () => openDeleteModal(projectId, projectName)
         }
@@ -435,9 +435,7 @@ function renderProjects(projects, container, countBadge) {
     container.innerHTML = `
       <div class="projects-empty">
         <div class="projects-empty-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M10 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8L10 4zM12 7.2c-1.5 0-2.8 1.3-2.8 2.8h1.4c0-.8.6-1.4 1.4-1.4s1.4.6 1.4 1.4c0 .8-.6 1.4-1.3 2-.7.6-.8 1.2-.8 2.5h1.4v-.3c0-.8.4-1.3 1.1-1.9.7-.6 1-1.3 1-2.3 0-1.5-1.3-2.8-2.8-2.8zM12 17.6a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
-          </svg>
+          <i class='fticon fticon-icon-10' aria-hidden='true'></i>
         </div>
         <span>No projects found in database</span>
       </div>
@@ -455,18 +453,14 @@ function renderProjects(projects, container, countBadge) {
       <div class="project-swipe-container" data-id="${escapeHtml(project.id)}" data-name="${escapeHtml(name)}">
         <!-- Slide RIGHT reveals Delete (Left side) -->
         <div class="project-swipe-action action-delete" aria-hidden="true" title="Slide right to delete">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-          </svg>
+          <i class='fticon fticon-delete-selected-layer' aria-hidden='true'></i>
           <span>Delete</span>
         </div>
 
         <!-- Slide LEFT reveals Export to .ofts (Right side) -->
         <div class="project-swipe-action action-export" aria-hidden="true" title="Slide left to export">
           <span>Export .ofts</span>
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-          </svg>
+          <i class='fticon fticon-slide-left-to-export' aria-hidden='true'></i>
         </div>
 
         <!-- Top Layer Project Item Card -->
@@ -476,11 +470,7 @@ function renderProjects(projects, container, countBadge) {
               <img class="project-thumb-img" src="${project.thumbnail}" alt="" loading="lazy" />
             ` : `
               <div class="project-thumb-placeholder">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
-                  <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
-                  <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
-                </svg>
+                <i class='fticon fticon-share-project-link-dialog' aria-hidden='true'></i>
               </div>
             `}
           </div>
@@ -543,9 +533,7 @@ function renderUploadedProjects(projects, container, countBadge) {
     container.innerHTML = `
       <div class="projects-empty">
         <div class="projects-empty-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-          </svg>
+          <i class='fticon fticon-icon-11' aria-hidden='true'></i>
         </div>
         <span>No uploaded projects yet</span>
         <span style="font-size:12px;color:var(--text-muted);margin-top:4px;">Projects exported as link will appear here</span>
@@ -569,11 +557,7 @@ function renderUploadedProjects(projects, container, countBadge) {
               <img class="project-thumb-img" src="${project.thumbnail}" alt="" loading="lazy" />
             ` : `
               <div class="project-thumb-placeholder">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
-                  <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
-                  <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
-                </svg>
+                <i class='fticon fticon-share-project-link-dialog' aria-hidden='true'></i>
               </div>
             `}
           </div>
@@ -590,19 +574,13 @@ function renderUploadedProjects(projects, container, countBadge) {
           <!-- Action Buttons (Copy Link, QR, Remove - Icon only) -->
           <div class="uploaded-actions">
             <button type="button" class="uploaded-btn-action btn-copy-uploaded-link" data-url="${escapeHtml(shareUrl)}" title="Copy Link" aria-label="Copy Link">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
-              </svg>
+              <i class='fticon fticon-btn-generate-project-link' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
             </button>
             <button type="button" class="uploaded-btn-action btn-view-uploaded-qr" data-id="${escapeHtml(project.id)}" title="View QR Code" aria-label="View QR Code">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M4 4h6v6H4V4zm2 2v2h2V6H6zm8-2h6v6h-6V4zm2 2v2h2V6h-2zM4 14h6v6H4v-6zm2 2v2h2v-2H6zm10-2h2v2h-2v-2zm-2 2h2v2h-2v-2zm4 0h2v2h-2v-2zm-2 2h2v2h-2v-2zm2 2h2v2h-2v-2zm-6-2h2v2h-2v-2zm0-4h2v2h-2v-2z"/>
-              </svg>
+              <i class='fticon fticon-view-qr-code' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
             </button>
             <button type="button" class="uploaded-btn-action btn-remove-uploaded" data-id="${escapeHtml(project.id)}" title="Remove" aria-label="Remove">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-              </svg>
+              <i class='fticon fticon-delete-selected-layer' style='width:15px;height:15px;font-size:15px;line-height:1;' aria-hidden='true'></i>
             </button>
           </div>
         </article>
@@ -1628,7 +1606,7 @@ function showPresetConfirmModal(project) {
       };
       img.onerror = () => {
         thumbBox.classList.remove('skeleton-loading');
-        thumbBox.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/></svg>';
+        thumbBox.innerHTML = '<i class="fticon fticon-icon-12" style="width:22px;height:22px;font-size:22px;line-height:1;" aria-hidden="true"></i>';
       };
       img.src = project.thumbnail;
       thumbBox.appendChild(img);
@@ -1637,7 +1615,7 @@ function showPresetConfirmModal(project) {
       const ph = document.createElement('div');
       ph.className = 'project-thumb-placeholder';
       ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--color-primary);background-color:var(--bg-canvas);';
-      ph.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/></svg>';
+      ph.innerHTML = '<i class="fticon fticon-icon-12" style="width:22px;height:22px;font-size:22px;line-height:1;" aria-hidden="true"></i>';
       thumbBox.appendChild(ph);
     }
   }

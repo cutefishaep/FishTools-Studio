@@ -14,6 +14,7 @@
   
   <!-- CSS: Theme (Colors & Variables, Cal Sans Font), Editor Layout, and Modular Modal / Popover / Drawer / Switch -->
   <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="fticons/fticons.css?v=1">
   <link rel="stylesheet" href="css/editor.css">
   <link rel="stylesheet" href="css/modal.css">
   <link rel="stylesheet" href="css/popover.css">
@@ -81,9 +82,7 @@
         <div class="editor-header-left">
           <!-- Back button leading to project hub -->
           <a href="index.html" class="editor-back-btn" id="editor-project-back-btn" title="Back to Projects" aria-label="Back to Projects">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-            </svg>
+            <i class='fticon fticon-back-to-projects' aria-hidden='true'></i>
           </a>
           <!-- Inline Editable Project Title Input -->
           <input type="text" class="editor-title-input" id="editor-project-name" value="" placeholder="Project Name..." autocomplete="off" spellcheck="false" aria-label="Project Name">
@@ -91,15 +90,11 @@
           <!-- Precompose Breadcrumb Elements (Shown when inside precomp) -->
           <div class="editor-precomp-breadcrumb" id="editor-precomp-breadcrumb" style="display: none;">
             <button type="button" class="editor-breadcrumb-btn" id="btn-precomp-exit" title="Exit to Main Composition" aria-label="Exit to Main Composition">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-              </svg>
+              <i class='fticon fticon-chevron-left' aria-hidden='true'></i>
               <span id="breadcrumb-project-name" class="breadcrumb-text">Project</span>
             </button>
             <span class="editor-breadcrumb-sep" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-              </svg>
+              <i class='fticon fticon-chevron-left' aria-hidden='true'></i>
             </span>
             <input type="text" class="editor-title-input editor-precomp-name-input" id="editor-precomp-name" value="Pre-comp 1" placeholder="Precompose Name..." autocomplete="off" spellcheck="false" aria-label="Precompose Name">
           </div>
@@ -108,43 +103,21 @@
         <!-- Right Header Actions (Settings & Export) -->
         <div class="editor-header-right-actions">
           <button type="button" class="editor-precomp-collapse-btn" id="btn-precomp-collapse" title="For Comp layer: Collapse Transformations; For vector layer: Continuously Rasterize" aria-label="Collapse Transformations" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-              <line x1="12" y1="2.5" x2="12" y2="5.5"/>
-              <line x1="12" y1="18.5" x2="12" y2="21.5"/>
-              <line x1="2.5" y1="12" x2="5.5" y2="12"/>
-              <line x1="18.5" y1="12" x2="21.5" y2="12"/>
-              <line x1="5.28" y1="5.28" x2="7.4" y2="7.4"/>
-              <line x1="16.6" y1="16.6" x2="18.72" y2="18.72"/>
-              <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
-              <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
-            </svg>
+            <i class='fticon fticon-collapse-transformations' aria-hidden='true'></i>
           </button>
           <button type="button" class="editor-settings-btn" id="btn-editor-desktop" title="Desktop View" aria-label="Desktop View" onclick="try{localStorage.setItem('oft_desktop_mobile_dismissed','stay');localStorage.setItem('oft_preferred_view','desktop');}catch(_){}window.location.href = 'desktop.html' + (window.location.search || '');">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-              <line x1="8" y1="21" x2="16" y2="21"/>
-              <line x1="12" y1="17" x2="12" y2="21"/>
-            </svg>
+            <i class='fticon fticon-desktop-view' aria-hidden='true'></i>
           </button>
           <button type="button" class="editor-settings-btn" id="btn-editor-template" title="Template Editor" aria-label="Template Editor" onclick="if(window.FishTemplateEditor) window.FishTemplateEditor.open()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="3" y1="9" x2="21" y2="9"/>
-              <line x1="9" y1="21" x2="9" y2="9"/>
-            </svg>
+            <i class='fticon fticon-template-editor' aria-hidden='true'></i>
           </button>
 
 
           <button type="button" class="editor-settings-btn" id="btn-editor-settings" title="Composition Settings" aria-label="Composition Settings" onclick="openProjectSettingsModal()">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-            </svg>
+            <i class='fticon fticon-composition-settings' aria-hidden='true'></i>
           </button>
           <button type="button" class="editor-export-btn" id="btn-editor-export" title="Export" aria-label="Export">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6-2.83l2.59 2.58L17 10.33l-5-5-5 5 1.41 1.42L11 9.17V17h2V9.17z"/>
-            </svg>
+            <i class='fticon fticon-export-2' aria-hidden='true'></i>
           </button>
         </div>
       </div>
@@ -154,9 +127,7 @@
         <div class="editor-header-left">
           <!-- Back button to deselect layer -->
           <button type="button" class="editor-back-btn" id="btn-layer-header-back" title="Deselect Layer" aria-label="Deselect Layer">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-            </svg>
+            <i class='fticon fticon-back-to-projects' aria-hidden='true'></i>
           </button>
           <!-- Single Select: Editable Layer Name Input -->
           <input type="text" class="editor-title-input editor-layer-name-input" id="editor-layer-name-input" placeholder="Layer Name..." autocomplete="off" spellcheck="false" aria-label="Layer Name">
@@ -164,11 +135,7 @@
           <span class="editor-layer-batch-title" id="editor-layer-batch-title" style="display: none;">1 Selected</span>
           <div class="editor-layer-batch-actions" id="editor-layer-batch-actions" style="display: none;">
             <button type="button" class="editor-layer-precomp-btn" id="btn-layer-header-precomp" title="Group Layer(s)" aria-label="Group Layer(s)">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-                <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
-                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
-              </svg>
+              <i class='fticon fticon-group-layer-s' aria-hidden='true'></i>
             </button>
             <button type="button" class="editor-layer-group-mask-btn" id="btn-layer-header-group-mask" title="Mask Group (Group and Mask)" aria-label="Mask Group (Group and Mask)">
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -184,11 +151,7 @@
               </svg>
             </button>
             <button type="button" class="editor-layer-group-exclude-btn" id="btn-layer-header-group-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
-                <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
+              <i class='fticon fticon-exclude-group-group-and-exclude' aria-hidden='true'></i>
             </button>
           </div>
         </div>
@@ -196,22 +159,10 @@
         <!-- Right Action Buttons (Precompose, Delete, Link/Parent & Layer Options) -->
         <div class="editor-header-right-actions">
           <button type="button" class="editor-layer-delete-btn" id="btn-layer-header-delete" title="Delete Selected Layer" aria-label="Delete Selected Layer">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
+            <i class='fticon fticon-delete-selected-layer' aria-hidden='true'></i>
           </button>
           <button type="button" class="editor-layer-collapse-btn" id="btn-layer-header-collapse" title="For Comp layer: Collapse Transformations; For vector layer: Continuously Rasterize" aria-label="Collapse Transformations" style="display: none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-              <line x1="12" y1="2.5" x2="12" y2="5.5"/>
-              <line x1="12" y1="18.5" x2="12" y2="21.5"/>
-              <line x1="2.5" y1="12" x2="5.5" y2="12"/>
-              <line x1="18.5" y1="12" x2="21.5" y2="12"/>
-              <line x1="5.28" y1="5.28" x2="7.4" y2="7.4"/>
-              <line x1="16.6" y1="16.6" x2="18.72" y2="18.72"/>
-              <line x1="5.28" y1="18.72" x2="7.4" y2="16.6"/>
-              <line x1="16.6" y1="7.4" x2="18.72" y2="5.28"/>
-            </svg>
+            <i class='fticon fticon-collapse-transformations' aria-hidden='true'></i>
           </button>
           <button type="button" class="editor-layer-motion-blur-btn" id="btn-layer-header-motion-blur" title="Toggle Motion Blur" aria-label="Toggle Motion Blur">
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -221,18 +172,13 @@
             </svg>
           </button>
           <button type="button" class="editor-layer-3d-btn" id="btn-layer-header-3d" title="Toggle 3D Layer" aria-label="Toggle 3D Layer">
-            <span class="svg-icon svg-icon-3d" aria-hidden="true"></span>
+            <span class="fticon fticon-badge-3d" aria-hidden="true"></span>
           </button>
           <button type="button" class="editor-layer-link-btn" id="btn-layer-header-link" data-popover-placement="bottom" title="Link / Parent Layer" aria-label="Link / Parent Layer">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-            </svg>
+            <i class='fticon fticon-link-parent-layer' aria-hidden='true'></i>
           </button>
           <button type="button" class="editor-layer-more-btn" id="btn-layer-header-more" data-popover-placement="bottom" title="Layer Options" aria-label="Layer Options">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
+            <i class='fticon fticon-layer-options' aria-hidden='true'></i>
           </button>
         </div>
       </div>
@@ -251,9 +197,7 @@
             <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
               <div class="media-dropzone-content">
                 <div class="media-dropzone-icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                  </svg>
+                  <i class='fticon fticon-track-audio' style='width:28px;height:28px;font-size:28px;line-height:1;' aria-hidden='true'></i>
                 </div>
                 <div class="media-dropzone-title">Convert to MP3</div>
                 <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
@@ -264,9 +208,7 @@
             <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
               <div class="media-dropzone-content">
                 <div class="media-dropzone-icon">
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                    <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                  </svg>
+                  <i class='fticon fticon-icon' style='width:28px;height:28px;font-size:28px;line-height:1;' aria-hidden='true'></i>
                 </div>
                 <div class="media-dropzone-title">Import Media</div>
                 <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
@@ -296,7 +238,7 @@
               <div class="matting-widget-header">
                 <span class="matting-widget-title" id="matting-widget-title">Background Processing</span>
                 <button type="button" class="matting-widget-close" id="matting-widget-close" aria-label="Close">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <i class='fticon fticon-close' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
               </div>
               <div class="matting-widget-list" id="matting-widget-list">
@@ -316,33 +258,33 @@
           <div class="ctrl-buttons-row">
             <!-- 1. Undo -->
             <button type="button" class="ctrl-btn is-disabled" id="editor-btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-              <span class="svg-icon svg-icon-undo"></span>
+              <span class="fticon fticon-undo"></span>
             </button>
 
             <!-- 2. Redo -->
             <button type="button" class="ctrl-btn is-disabled" id="editor-btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
-              <span class="svg-icon svg-icon-redo"></span>
+              <span class="fticon fticon-redo"></span>
             </button>
 
             <!-- 3. Previous -->
             <button type="button" class="ctrl-btn" id="editor-btn-prev" title="Previous Keyframe / Beatmark (B)" aria-label="Previous (B)">
-              <span class="svg-icon svg-icon-prev"></span>
+              <span class="fticon fticon-previous"></span>
             </button>
 
             <!-- 4. Play / Pause Button (Pure Vector SVG) -->
             <button type="button" class="ctrl-btn" id="editor-btn-play" title="Play (Space)" aria-label="Play (Space)">
-              <span class="svg-icon svg-icon-play icon-play"></span>
-              <span class="svg-icon svg-icon-pause icon-pause"></span>
+              <span class="fticon fticon-play icon-play"></span>
+              <span class="fticon fticon-pause icon-pause"></span>
             </button>
 
             <!-- 5. Next -->
             <button type="button" class="ctrl-btn" id="editor-btn-next" title="Next Keyframe / Beatmark (N)" aria-label="Next (N)">
-              <span class="svg-icon svg-icon-next"></span>
+              <span class="fticon fticon-next"></span>
             </button>
 
             <!-- 6. More Settings (Copy with spaced + on top-right corner) -->
             <button type="button" class="ctrl-btn" id="editor-more-settings-btn" data-popover-target="popover-editor-more-settings" title="More Settings" aria-label="More Settings">
-              <span class="svg-icon svg-icon-more"></span>
+              <span class="fticon fticon-more"></span>
             </button>
 
             <!-- 7. Fish Icon (OpenFishTools Lazy-Loaded Popover) -->
@@ -389,9 +331,7 @@
               <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
                 <div class="media-dropzone-content">
                   <div class="media-dropzone-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                    </svg>
+                    <i class='fticon fticon-track-audio' style='width:28px;height:28px;font-size:28px;line-height:1;' aria-hidden='true'></i>
                   </div>
                   <div class="media-dropzone-title">Convert to MP3</div>
                   <div class="media-dropzone-desc">Extract audio track to MP3 layer</div>
@@ -402,9 +342,7 @@
               <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
                 <div class="media-dropzone-content">
                   <div class="media-dropzone-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                    </svg>
+                    <i class='fticon fticon-icon' style='width:28px;height:28px;font-size:28px;line-height:1;' aria-hidden='true'></i>
                   </div>
                   <div class="media-dropzone-title">Import Media</div>
                   <div class="media-dropzone-desc">Add video, photo, or audio to timeline</div>
@@ -426,11 +364,7 @@
           <div class="timeline-batch-floating-bar" id="timeline-batch-floating-bar" style="display: none;" role="toolbar" aria-label="Batch Layer Actions">
             <!-- Group / Precompose Button -->
             <button type="button" class="batch-floating-btn" id="btn-batch-float-group" title="Group Layer(s)" aria-label="Group Layer(s)">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-                <polygon points="10,7.5 5.5,16.5 14.5,16.5" fill="currentColor"/>
-                <circle cx="14.5" cy="13.5" r="3.5" fill="currentColor"/>
-              </svg>
+              <i class='fticon fticon-group-layer-s' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
             </button>
 
             <!-- Mask Group Button -->
@@ -450,17 +384,13 @@
 
             <!-- Exclude Group Button -->
             <button type="button" class="batch-floating-btn" id="btn-batch-float-exclude" title="Exclude Group (Group and Exclude)" aria-label="Exclude Group (Group and Exclude)">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 1.6"/>
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M10 7.5L5.5 16.5h9L10 7.5z M14.5 10a3.5 3.5 0 1 0 0.001 7.001A3.5 3.5 0 0 0 14.5 10z" fill="currentColor"/>
-                <circle cx="14.5" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
+              <i class='fticon fticon-exclude-group-group-and-exclude' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
             </button>
           </div>
 
           <!-- 4. Floating Round Action Button (Add Track / Layer) -->
           <button type="button" class="timeline-fab-add" id="timeline-btn-add" data-drawer-target="timeline-add-drawer" title="Add Track / Layer" aria-label="Add Track or Layer">
-            <span class="svg-icon svg-icon-plus" aria-hidden="true"></span>
+            <span class="fticon fticon-plus" aria-hidden="true"></span>
           </button>
 
           <!-- 5. Modular Drawer Component (Matches Timeline Width, Adapts to Content Height) -->
@@ -476,44 +406,23 @@
                   <!-- 1. Top Horizontal Categories Switch (Modular Segmented Control) -->
                   <div class="segmented-switch is-pill add-layer-categories-switch" role="tablist" aria-label="Layer Categories">
                     <button type="button" class="segmented-switch-item is-active" role="tab" aria-selected="true" data-category="media" title="Media Layer" aria-label="Media">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <!-- Back Audio Card: Clean border with note -->
-                        <path d="M4 2h10a2 2 0 0 1 2 2v2.5h-2V4H4v11h2.5v2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
-                        <path d="M9 5v4.5c-.35-.15-.75-.25-1.2-.25-1.3 0-2.3 1-2.3 2.25s1 2.25 2.3 2.25 2.2-1 2.2-2.25V7h2V5H9z"/>
-                        <!-- Front Photo Card: Solid filled card with cutout landscape & sun -->
-                        <path fill-rule="evenodd" clip-rule="evenodd" d="M8 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V8zm4.5 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-2 7h10l-3.2-4.2-2 2.6-1.8-2.2-3 3.8z"/>
-                      </svg>
+                      <i class='fticon fticon-media-category' aria-hidden='true'></i>
                       <span class="category-label">Media</span>
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="shape" title="Shape Layer" aria-label="Shape">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                      </svg>
+                      <i class='fticon fticon-shape' aria-hidden='true'></i>
                       <span class="category-label">Shape</span>
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="control" title="Control Camera Layer" aria-label="Control">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="2" y="2" width="3" height="3" rx="0.5"/>
-                        <rect x="11.5" y="2" width="3" height="3" rx="0.5"/>
-                        <rect x="2" y="11.5" width="3" height="3" rx="0.5"/>
-                        <path d="M5 2.75h6.5v1.5H5zm-2.25 2.25h1.5v6.5h-1.5z"/>
-                        <rect x="12.25" y="5" width="1.5" height="1.8" rx="0.4"/>
-                        <rect x="5" y="12.25" width="1.8" height="1.5" rx="0.4"/>
-                        <path d="M6.5 5.5h1v3h-1zm-1 1h3v1h-3z"/>
-                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12.2 8.5h3.1l1.2 1.8H20c1.1 0 2 .9 2 2v7.2c0 1.1-.9 2-2 2H10c-1.1 0-2-.9-2-2v-7.2c0-1.1.9-2 2-2h1.2l1-1.8zm3.3 10.2a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm0-1.8a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4zm3.7-4.4a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6z"/>
-                      </svg>
+                      <i class='fticon fticon-control' aria-hidden='true'></i>
                       <span class="category-label">Control</span>
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="text" title="Text Layer" aria-label="Text">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M3 4h9.5v3H6v3.5h5.5v3H6V20H3V4zm12 3.5h3v3h2.5v2.8H18v4.2c0 .9.5 1.5 1.4 1.5.5 0 .9-.1 1.2-.2v2.7c-.7.3-1.6.4-2.4.4-2.3 0-3.2-1.3-3.2-3.4v-5.2h-2v-2.8h2v-3z"/>
-                      </svg>
+                      <i class='fticon fticon-text' aria-hidden='true'></i>
                       <span class="category-label">Text</span>
                     </button>
                     <button type="button" class="segmented-switch-item" role="tab" aria-selected="false" data-category="element" title="Element Gallery (Saved Layers)" aria-label="Element">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
-                      </svg>
+                      <i class='fticon fticon-element' aria-hidden='true'></i>
                       <span class="category-label">Element</span>
                     </button>
                   </div>
@@ -526,9 +435,7 @@
                       <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="convert-mp3">
                         <div class="media-dropzone-content">
                           <div class="media-dropzone-icon">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                            </svg>
+                            <i class='fticon fticon-track-audio' style='width:24px;height:24px;font-size:24px;line-height:1;' aria-hidden='true'></i>
                           </div>
                           <div class="media-dropzone-title">Convert to MP3</div>
                           <div class="media-dropzone-desc">Extract audio track to MP3</div>
@@ -539,9 +446,7 @@
                       <div class="media-dropzone-col media-dropzone-video" data-drop-action="import-media">
                         <div class="media-dropzone-content">
                           <div class="media-dropzone-icon">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                            </svg>
+                            <i class='fticon fticon-icon' style='width:24px;height:24px;font-size:24px;line-height:1;' aria-hidden='true'></i>
                           </div>
                           <div class="media-dropzone-title">Import Media</div>
                           <div class="media-dropzone-desc">Import video, photo, or audio to pool</div>
@@ -552,9 +457,7 @@
                     <div class="drawer-media-grid" id="drawer-media-grid">
                       <!-- Square Card with Centered + Icon for Importing Media -->
                       <button type="button" class="media-import-box" id="btn-import-media" title="Import Media (MP4, MP3, PNG, JPG)" aria-label="Import Media">
-                        <svg class="media-import-plus-icon" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                        </svg>
+                        <i class='fticon fticon-import-media media-import-plus-icon' aria-hidden='true'></i>
                       </button>
                     </div>
                   </div>
@@ -564,30 +467,19 @@
                     <div class="layer-action-btn-grid" id="add-layer-control-grid">
                       <!-- 1. Camera Layer Button -->
                       <button type="button" class="layer-action-btn" id="btn-add-camera" title="Camera Layer" aria-label="Camera">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-2c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/>
-                        </svg>
+                        <i class='fticon fticon-camera layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Camera</span>
                       </button>
 
                       <!-- 2. Null Layer Button -->
                       <button type="button" class="layer-action-btn" id="btn-add-null" title="Null Layer" aria-label="Null">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <rect x="3" y="3" width="3.5" height="3.5" rx="0.5"/>
-                          <rect x="17.5" y="3" width="3.5" height="3.5" rx="0.5"/>
-                          <rect x="3" y="17.5" width="3.5" height="3.5" rx="0.5"/>
-                          <rect x="17.5" y="17.5" width="3.5" height="3.5" rx="0.5"/>
-                          <path d="M6.5 4h11v1.5h-11zm0 14.5h11v1.5h-11zM4 6.5h1.5v11H4zm14.5 0h1.5v11h-1.5z"/>
-                          <path d="M11.25 8h1.5v3.25H16v1.5h-3.25V16h-1.5v-3.25H8v-1.5h3.25z"/>
-                        </svg>
+                        <i class='fticon fticon-null layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Null</span>
                       </button>
 
                       <!-- 3. Adjustment Layer Button -->
                       <button type="button" class="layer-action-btn" id="btn-add-adjustment" title="Adjustment Layer" aria-label="Adjustment">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8v16z"/>
-                        </svg>
+                        <i class='fticon fticon-track-adjustment layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Adjustment</span>
                       </button>
 
@@ -628,10 +520,7 @@
 
                       <!-- 6. Solid Layer Button -->
                       <button type="button" class="layer-action-btn" id="btn-add-solid" title="Solid Layer" aria-label="Solid">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
-                          <rect x="6.5" y="6.5" width="11" height="11" rx="1"/>
-                        </svg>
+                        <i class='fticon fticon-layer-solid layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Solid</span>
                       </button>
                     </div>
@@ -642,51 +531,37 @@
                     <div class="layer-action-btn-grid" id="add-layer-shape-grid">
                       <!-- 1. Rectangle Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kotak" title="Rectangle" aria-label="Rectangle">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        </svg>
+                        <i class='fticon fticon-rectangle layer-action-icon' aria-hidden='true'></i>
                       </button>
 
                       <!-- 2. Triangle Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-segitiga" title="Triangle" aria-label="Triangle">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M12 3.2L2.8 19.5c-.8 1.4.2 3.2 1.8 3.2h14.8c1.6 0 2.6-1.8 1.8-3.2L12 3.2z"/>
-                        </svg>
+                        <i class='fticon fticon-triangle layer-action-icon' aria-hidden='true'></i>
                       </button>
 
                       <!-- 3. Circle Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-lingkaran" title="Circle" aria-label="Circle">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <circle cx="12" cy="12" r="9.5"/>
-                        </svg>
+                        <i class='fticon fticon-circle layer-action-icon' aria-hidden='true'></i>
                       </button>
 
                       <!-- 4. Star Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-bintang" title="Star" aria-label="Star">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
+                        <i class='fticon fticon-shape layer-action-icon' aria-hidden='true'></i>
                       </button>
 
                       <!-- 5. Polygon Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-poligon" title="Polygon" aria-label="Polygon">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M12 2.5l8.66 5v10L12 22.5l-8.66-5v-10L12 2.5z"/>
-                        </svg>
+                        <i class='fticon fticon-polygon layer-action-icon' aria-hidden='true'></i>
                       </button>
 
                       <!-- 6. Capsule Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kapsul" title="Capsule" aria-label="Capsule">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <rect x="3" y="6" width="18" height="12" rx="6"/>
-                        </svg>
+                        <i class='fticon fticon-capsule layer-action-icon' aria-hidden='true'></i>
                       </button>
 
                       <!-- 7. Heart Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-hati" title="Heart" aria-label="Heart">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                        </svg>
+                        <i class='fticon fticon-heart layer-action-icon' aria-hidden='true'></i>
                       </button>
                     </div>
                   </div>
@@ -723,101 +598,81 @@
                     <!-- ROW 1: Quick Actions & Cut Operations Bar (Speed, Cut 3-way, Volume) -->
                     <div class="layer-cut-bar-row" role="group" aria-label="Cut Operations">
                       <button type="button" class="segmented-button layer-tile-btn is-disabled" id="btn-layer-speed" title="Speed" aria-label="Speed" disabled>
-                        <span class="svg-icon svg-icon-speed" aria-hidden="true"></span>
+                        <span class="fticon fticon-speed" aria-hidden="true"></span>
                       </button>
                       <!-- Mode 1: Playhead INSIDE selected layer (Normal 3-way cut) -->
                       <div class="segmented-button-group layer-cut-group" id="layer-cut-group-normal" role="group" aria-label="Cut Options">
                         <button type="button" class="segmented-button" id="btn-cut-left" title="Cut Left — trim start of layer to playhead" aria-label="Cut Left">
-                          <span class="svg-icon svg-icon-cut-left" aria-hidden="true"></span>
+                          <span class="fticon fticon-cut-left" aria-hidden="true"></span>
                         </button>
                         <button type="button" class="segmented-button" id="btn-cut-mid" title="Split — cut at playhead position" aria-label="Split">
-                          <span class="svg-icon svg-icon-cut-mid" aria-hidden="true"></span>
+                          <span class="fticon fticon-cut-middle" aria-hidden="true"></span>
                         </button>
                         <button type="button" class="segmented-button" id="btn-cut-right" title="Cut Right — trim end of layer to playhead" aria-label="Cut Right">
-                          <span class="svg-icon svg-icon-cut-right" aria-hidden="true"></span>
+                          <span class="fticon fticon-cut-right" aria-hidden="true"></span>
                         </button>
                       </div>
 
                       <!-- Mode 2: Playhead is AFTER selected layer (Expand Right, Move Right) -->
                       <div class="segmented-button-group layer-cut-group" id="layer-cut-group-after" role="group" aria-label="Layer Out-of-Bounds (After)" style="display: none;">
                         <button type="button" class="segmented-button" id="btn-layer-expand-right" title="Expand to current frame" aria-label="Expand to Current Frame">
-                          <span class="svg-icon svg-icon-layer-expand-right" aria-hidden="true"></span>
+                          <span class="fticon fticon-expand-right" aria-hidden="true"></span>
                         </button>
                         <button type="button" class="segmented-button" id="btn-layer-move-right" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
-                          <span class="svg-icon svg-icon-layer-move-right" aria-hidden="true"></span>
+                          <span class="fticon fticon-move-right" aria-hidden="true"></span>
                         </button>
                       </div>
 
                       <!-- Mode 3: Playhead is BEFORE selected layer (Move Left, Expand Left) -->
                       <div class="segmented-button-group layer-cut-group" id="layer-cut-group-before" role="group" aria-label="Layer Out-of-Bounds (Before)" style="display: none;">
                         <button type="button" class="segmented-button" id="btn-layer-move-left" title="Move layer to current frame" aria-label="Move Layer to Current Frame">
-                          <span class="svg-icon svg-icon-layer-move-left" aria-hidden="true"></span>
+                          <span class="fticon fticon-move-left" aria-hidden="true"></span>
                         </button>
                         <button type="button" class="segmented-button" id="btn-layer-expand-left" title="Expand to current frame" aria-label="Expand to Current Frame">
-                          <span class="svg-icon svg-icon-layer-expand-left" aria-hidden="true"></span>
+                          <span class="fticon fticon-expand-left" aria-hidden="true"></span>
                         </button>
                       </div>
                       <button type="button" class="segmented-button layer-tile-btn is-disabled" id="btn-layer-volume" title="Volume" aria-label="Volume" disabled>
-                        <span class="svg-icon svg-icon-volume-mute" aria-hidden="true"></span>
+                        <span class="fticon fticon-volume-mute" aria-hidden="true"></span>
                       </button>
                     </div>
 
                     <!-- ROW 2: Action Button Grid (auto 3-col, flexible count) -->
                     <div class="layer-action-btn-grid" id="layer-action-btn-grid">
                       <button type="button" class="layer-action-btn" id="btn-layer-edit-group" title="Edit Group / Enter Precompose" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                        </svg>
+                        <i class='fticon fticon-edit-group-enter-precompose layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Edit Group</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-edit-shape" title="Edit Shape" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6z"/>
-                        </svg>
+                        <i class='fticon fticon-edit-shape layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Edit Shape</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-edit-text" title="Edit Text" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M5 4v3h5.5v12h3V7H19V4z"/>
-                        </svg>
+                        <i class='fticon fticon-edit-text layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Text</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-transform" title="Transform Layer">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 5h-5v2h7v-7h-2v5z"/>
-                        </svg>
+                        <i class='fticon fticon-transform-layer layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Transform</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-camera-settings" title="Camera Settings" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-2c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/>
-                        </svg>
+                        <i class='fticon fticon-camera layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Camera settings</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-fill" title="Fill (Color, Media, Gradient)">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5zM16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21z"/>
-                        </svg>
+                        <i class='fticon fticon-fill-color-media-gradient layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Fill</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-blend" title="Blend &amp; Overlay">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="layer-action-icon" aria-hidden="true">
-                          <path d="M5 9.5h8M4 12h10M5 14.5h8" stroke-width="1.2" stroke-linecap="round"/>
-                          <circle cx="9" cy="12" r="6"/>
-                          <circle cx="15" cy="12" r="6"/>
-                        </svg>
+                        <i class='fticon fticon-blend-overlay layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Blend and overlay</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-effects" title="Effects">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                        </svg>
+                        <i class='fticon fticon-effects layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Effects</span>
                       </button>
                       <button type="button" class="layer-action-btn" id="btn-layer-beatmark" title="Beatmark" style="display: none;">
-                        <svg viewBox="0 0 24 24" fill="currentColor" class="layer-action-icon" aria-hidden="true">
-                          <path d="M4 3h16v8.5l-8 9-8-9V3zm3 3v4.25l5 5.62 5-5.62V6H7z"/>
-                        </svg>
+                        <i class='fticon fticon-beatmark layer-action-icon' aria-hidden='true'></i>
                         <span class="layer-action-label">Beatmark</span>
                       </button>
                     </div>
@@ -832,24 +687,16 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-transform-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-transform-keyframe" title="Add Keyframe" aria-label="Keyframe">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12l10 10 10-10L12 2zm1 6h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/></svg>
+                          <i class='fticon fticon-keyframe' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-transform-graph" title="Easing Curve Graph" aria-label="Graph">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2" fill="none"/>
-                            <path d="M5 19c6 0 8-14 14-14" fill="none"/>
-                            <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
-                            <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-graph' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-transform-expression" title="Expression" aria-label="Expression">
-                          <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/>
-                            <path d="M9.8 7.5c-.8 0-1.3.4-1.5 1.1H8v1.2h.7v3.5c0 1.4.7 2.2 2.1 2.2.6 0 1.1-.1 1.4-.3l-.3-1.2c-.3.1-.6.2-.9.2-.6 0-.9-.3-.9-1v-3.4h1.8V8.6h-1.8v-.4c0-.5.3-.7.8-.7.3 0 .6.1.8.2l.4-1.1c-.5-.2-1.1-.3-1.9-.3zm3.7 3.3l1.1 1.8 1.1-1.8h1.6l-1.9 2.7 2 2.8h-1.6l-1.2-1.9-1.2 1.9H12l2-2.8-1.9-2.7h1.4z"/>
-                          </svg>
+                          <i class='fticon fticon-expression' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -858,69 +705,74 @@
                     <main class="transform-work-area">
                       <!-- PANE 1: MOVE / POSITION -->
                       <div class="transform-pane is-active" id="pane-transform-move">
-                        <div class="transform-move-layout">
-                          <div class="transform-swipe-pad" id="pad-transform-move">
-                            <span class="pad-corner tl"></span>
-                            <span class="pad-corner tr"></span>
-                            <span class="pad-corner bl"></span>
-                            <span class="pad-corner br"></span>
-                            <header class="transform-values-header">
-                              <div class="transform-val-card is-dual">
-                                <div class="transform-val-group">
-                                  <span class="transform-val-num" id="val-pos-x">540</span>
-                                  <span class="transform-val-label" id="lbl-pos-x">X</span>
-                                </div>
-                                <div class="transform-val-group">
-                                  <span class="transform-val-num" id="val-pos-y">960</span>
-                                  <span class="transform-val-label" id="lbl-pos-y">Y</span>
-                                </div>
+                        <div class="transform-swipe-pad" id="pad-transform-move">
+                          <span class="pad-corner tl"></span>
+                          <span class="pad-corner tr"></span>
+                          <span class="pad-corner bl"></span>
+                          <span class="pad-corner br"></span>
+                          <header class="transform-values-header">
+                            <div class="transform-val-card is-dual">
+                              <div class="transform-val-group">
+                                <span class="transform-val-num" id="val-pos-x">540</span>
+                                <span class="transform-val-label" id="lbl-pos-x">X</span>
                               </div>
-                              <div class="transform-val-card">
-                                <span class="transform-val-num is-neutral" id="val-pos-z">0</span>
-                                <span class="transform-val-label" id="lbl-pos-z">Z</span>
+                              <div class="transform-val-group">
+                                <span class="transform-val-num" id="val-pos-y">960</span>
+                                <span class="transform-val-label" id="lbl-pos-y">Y</span>
                               </div>
-                            </header>
-                            <span class="transform-swipe-prompt">Swipe here to move layer</span>
-                          </div>
-                          <!-- Vertical Z-Ruler Slide next to panel switch -->
-                          <div class="transform-z-ruler-wrap">
-                            <div class="jog-wheel-container is-vertical" id="jog-pos-z" title="Slide vertically to adjust Z Position" aria-label="Z Position Ruler">
-                              <div class="jog-wheel-ticks is-vertical"></div>
-                              <div class="jog-wheel-needle is-vertical"></div>
                             </div>
-                            <span class="transform-z-label" id="lbl-z-ruler">Z</span>
+                            <div class="transform-val-card">
+                              <span class="transform-val-num is-neutral" id="val-pos-z">0</span>
+                              <span class="transform-val-label" id="lbl-pos-z">Z</span>
+                            </div>
+                          </header>
+                          <div class="transform-unified-body">
+                            <div class="transform-swipe-xy-area">
+                              <span class="transform-swipe-prompt">Swipe here to move layer</span>
+                            </div>
+                            <!-- Vertical Z-Ruler Slide next to panel switch -->
+                            <div class="transform-z-ruler-wrap">
+                              <div class="jog-wheel-container is-vertical" id="jog-pos-z" title="Slide vertically to adjust Z Position" aria-label="Z Position Ruler">
+                                <div class="jog-wheel-ticks is-vertical"></div>
+                                <div class="jog-wheel-needle is-vertical"></div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <div class="transform-pane-expression-badge">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <i class='fticon fticon-z-position-ruler' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
                           <span>Expression Active</span>
                         </div>
                       </div>
 
                       <!-- PANE 2: ROTATE -->
                       <div class="transform-pane" id="pane-transform-rotate">
-                        <header class="transform-values-header">
-                          <div class="segmented-switch is-compact rotate-axis-switch" id="rotate-axis-switch" role="tablist" aria-label="Rotation Axis">
-                            <button type="button" class="segmented-switch-item" data-axis="x" role="tab" aria-selected="false">X</button>
-                            <button type="button" class="segmented-switch-item" data-axis="y" role="tab" aria-selected="false">Y</button>
-                            <button type="button" class="segmented-switch-item is-active is-selected" data-axis="z" role="tab" aria-selected="true">Z</button>
-                          </div>
-                        </header>
                         <div class="transform-rotate-body">
                           <div class="rotate-dial-wheel" id="dial-transform-rotate">
-                            <svg class="rotate-dial-svg" viewBox="0 0 200 200" aria-hidden="true">
-                              <circle class="rotate-track-bg" cx="100" cy="100" r="86" />
-                              <path class="rotate-trail-arc" id="rotate-trail-arc" d="" />
+                            <svg class="rotate-dial-svg" viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
+                              <path class="rotate-track-bg is-squircle" id="track-path-rotate" vector-effect="non-scaling-stroke" d="M 160 18 H 264 A 36 36 0 0 1 300 54 V 106 A 36 36 0 0 1 264 142 H 56 A 36 36 0 0 1 20 106 V 54 A 36 36 0 0 1 56 18 Z" />
+                              <path class="rotate-trail-arc is-squircle" id="rotate-trail-arc" vector-effect="non-scaling-stroke" d="M 160 18 H 264 A 36 36 0 0 1 300 54 V 106 A 36 36 0 0 1 264 142 H 56 A 36 36 0 0 1 20 106 V 54 A 36 36 0 0 1 56 18 Z" />
                             </svg>
                             <div class="rotate-center-badge">
                               <span class="rotate-turns-count" id="val-rotate-turns" style="display: none;">+1</span>
                               <span class="rotate-deg-val" id="val-rotate-deg">0°</span>
                             </div>
+                            <div class="segmented-switch rotate-axis-switch" id="rotate-axis-switch" role="tablist" aria-label="Rotation Axis">
+                              <button type="button" class="segmented-switch-item" data-axis="x" role="tab" aria-selected="false" title="Pitch (X-Axis)">
+                                <span>X</span>
+                              </button>
+                              <button type="button" class="segmented-switch-item" data-axis="y" role="tab" aria-selected="false" title="Yaw (Y-Axis)">
+                                <span>Y</span>
+                              </button>
+                              <button type="button" class="segmented-switch-item is-active is-selected" data-axis="z" role="tab" aria-selected="true" title="Roll (Z-Axis)">
+                                <span>Z</span>
+                              </button>
+                            </div>
                             <div class="rotate-knob" id="knob-transform-rotate"></div>
                           </div>
                         </div>
                         <div class="transform-pane-expression-badge">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <i class='fticon fticon-z-position-ruler' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
                           <span>Expression Active</span>
                         </div>
                       </div>
@@ -933,22 +785,15 @@
                             <span class="transform-val-label" id="lbl-scale-w">Width</span>
                           </div>
                           <button type="button" class="transform-link-btn" id="btn-scale-link" title="Toggle Aspect Ratio Link" aria-label="Link Aspect Ratio">
-                            <svg viewBox="0 0 24 24" class="svg-link-on" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                            </svg>
-                            <svg viewBox="0 0 24 24" class="svg-link-off" style="display: none;" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                              <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
-                              <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
-                              <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
-                            </svg>
+                            <i class='fticon fticon-link-parent-layer svg-link-on' aria-hidden='true'></i>
+                            <i class='fticon fticon-link-aspect-ratio svg-link-off' style='display: none;' aria-hidden='true'></i>
                           </button>
                           <div class="transform-val-card">
                             <span class="transform-val-num" id="val-scale-h">1920.0</span>
                             <span class="transform-val-label" id="lbl-scale-h">Height</span>
                           </div>
                           <div class="transform-val-card" id="card-scale-z" style="display: none;">
-                            <span class="transform-val-num is-neutral" id="val-scale-z">300.0</span>
+                            <span class="transform-val-num" id="val-scale-z">300.0</span>
                             <span class="transform-val-label" id="lbl-scale-z">Depth</span>
                           </div>
                         </header>
@@ -973,7 +818,7 @@
                           </div>
                         </div>
                         <div class="transform-pane-expression-badge">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <i class='fticon fticon-z-position-ruler' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
                           <span>Expression Active</span>
                         </div>
                       </div>
@@ -986,7 +831,7 @@
                             <span class="transform-val-label">X SKEW</span>
                           </div>
                           <div class="transform-val-card">
-                            <span class="transform-val-num is-neutral" id="val-skew-y">0.0°</span>
+                            <span class="transform-val-num" id="val-skew-y">0.0°</span>
                             <span class="transform-val-label">Y SKEW</span>
                           </div>
                         </header>
@@ -997,11 +842,11 @@
                           </div>
                           <div class="jog-wheel-container" id="jog-skew-y">
                             <div class="jog-wheel-ticks"></div>
-                            <div class="jog-wheel-needle is-white"></div>
+                            <div class="jog-wheel-needle"></div>
                           </div>
                         </div>
                         <div class="transform-pane-expression-badge">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h1a1 1 0 0 1 0 2H5.5v2.2a2 2 0 0 1-.6 1.4L4 11.5l.9.9a2 2 0 0 1 .6 1.4V16h1a1 1 0 0 1 0 2H5.5a1.5 1.5 0 0 1-1.5-1.5v-2.2a4 4 0 0 0-1.2-2.8 4 4 0 0 0 1.2-2.8V6.5zm16 0A1.5 1.5 0 0 0 18.5 5h-1a1 1 0 0 0 0 2h1v2.2a2 2 0 0 0 .6 1.4l.9.9-.9.9a2 2 0 0 0-.6 1.4V16h-1a1 1 0 0 0 0 2h1a1.5 1.5 0 0 0 1.5-1.5v-2.2a4 4 0 0 0 1.2-2.8 4 4 0 0 0-1.2-2.8V6.5z"/></svg>
+                          <i class='fticon fticon-z-position-ruler' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
                           <span>Expression Active</span>
                         </div>
                       </div>
@@ -1011,48 +856,18 @@
                     <nav class="transform-tools-col">
                       <button type="button" class="transform-tool-btn is-active" id="btn-tool-move-anchor" data-tool="move" data-submode="move" title="Move Layer (Position) - Click to toggle Move Anchor" aria-label="Move Layer">
                         <!-- Move Icon (4-directional arrows) -->
-                        <svg class="svg-tool-move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="12" y1="2" x2="12" y2="22"/>
-                          <line x1="2" y1="12" x2="22" y2="12"/>
-                          <polyline points="9 5 12 2 15 5" fill="none"/>
-                          <polyline points="9 19 12 22 15 19" fill="none"/>
-                          <polyline points="5 9 2 12 5 15" fill="none"/>
-                          <polyline points="19 9 22 12 19 15" fill="none"/>
-                        </svg>
+                        <i class='fticon fticon-move-layer svg-tool-move' aria-hidden='true'></i>
                         <!-- Anchor Icon (Crosshair Target) -->
-                        <svg class="svg-tool-anchor" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <circle cx="12" cy="12" r="3.5"/>
-                          <circle cx="12" cy="12" r="1" fill="currentColor"/>
-                          <line x1="12" y1="2" x2="12" y2="6"/>
-                          <line x1="12" y1="18" x2="12" y2="22"/>
-                          <line x1="2" y1="12" x2="6" y2="12"/>
-                          <line x1="18" y1="12" x2="22" y2="12"/>
-                          <polyline points="9 4.5 12 1.5 15 4.5"/>
-                          <polyline points="9 19.5 12 22.5 15 19.5"/>
-                          <polyline points="4.5 9 1.5 12 4.5 15"/>
-                          <polyline points="19.5 9 22.5 12 19.5 15"/>
-                        </svg>
+                        <i class='fticon fticon-icon-2 svg-tool-anchor' style='display: none;' aria-hidden='true'></i>
                       </button>
                       <button type="button" class="transform-tool-btn" data-tool="rotate" title="Rotate Layer" aria-label="Rotate">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <rect x="8" y="8" width="8" height="8" rx="1.5" fill="none"/>
-                          <path d="M4 12a8 8 0 0 1 12.5-6.6M17 3v3h-3" fill="none"/>
-                          <path d="M20 12a8 8 0 0 1-12.5 6.6M7 21v-3h3" fill="none"/>
-                        </svg>
+                        <i class='fticon fticon-rotate' aria-hidden='true'></i>
                       </button>
                       <button type="button" class="transform-tool-btn" data-tool="scale" title="Scale Layer" aria-label="Scale">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <rect x="3" y="13" width="8" height="8" rx="1" fill="none"/>
-                          <path d="M11 13l10-10" fill="none"/>
-                          <path d="M15 3h6v6" fill="none"/>
-                          <path d="M13 21h7a1 1 0 0 0 1-1v-7" fill="none"/>
-                        </svg>
+                        <i class='fticon fticon-scale' aria-hidden='true'></i>
                       </button>
                       <button type="button" class="transform-tool-btn" data-tool="skew" title="Skew Layer" aria-label="Skew">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M7 20h14l-4-16H3z" fill="none"/>
-                          <line x1="11" y1="4" x2="7" y2="20" stroke-dasharray="2 2"/>
-                        </svg>
+                        <i class='fticon fticon-skew' aria-hidden='true'></i>
                       </button>
                     </nav>
                   </div>
@@ -1065,27 +880,18 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-graph-back" title="Back to Transform" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-graph-reverse" title="Reverse Easing" aria-label="Reverse">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 8h12a4 4 0 0 1 4 4v1" fill="none"/>
-                            <polyline points="8 4 4 8 8 12" fill="none"/>
-                            <path d="M20 16H8a4 4 0 0 1-4-4v-1" fill="none"/>
-                            <polyline points="16 20 20 16 16 12" fill="none"/>
-                          </svg>
+                          <i class='fticon fticon-reverse' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-graph-snap" title="Snap to Grid" aria-label="Snap to Grid">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 11V4h4v7a4 4 0 0 0 8 0V4h4v7a8 8 0 0 1-16 0z"/>
-                            <line x1="4" y1="8" x2="8" y2="8"/>
-                            <line x1="16" y1="8" x2="20" y2="8"/>
-                          </svg>
+                          <i class='fticon fticon-snap-to-grid' aria-hidden='true'></i>
                         </button>
                       </div>
                       <div class="transform-nav-group-bottom">
                         <button type="button" class="transform-nav-btn" id="btn-graph-more" title="More Options" aria-label="More">
-                          <svg viewBox="0 0 24 24"><path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                          <i class='fticon fticon-more-2' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -1093,6 +899,10 @@
                     <!-- Center Work Area: Canvas Frame -->
                     <main class="graph-editor-work-area">
                       <div class="graph-canvas-frame" id="graph-canvas-frame">
+                        <div class="graph-no-keyframe-overlay" id="graph-no-keyframe-overlay">
+                          <i class="fticon fticon-keyframe" style="font-size: 20px; opacity: 0.4; margin-bottom: 6px;" aria-hidden="true"></i>
+                          <span>No keyframe</span>
+                        </div>
                         <svg class="graph-svg-layer" id="graph-svg-layer" viewBox="0 0 260 170">
                           <defs>
                             <clipPath id="graph-grid-clip">
@@ -1130,69 +940,29 @@
                     <aside class="graph-presets-col" id="graph-presets-col">
                       <!-- Preset 1: Linear -->
                       <button type="button" class="graph-preset-btn" id="btn-graph-preset-linear" data-preset="linear" title="Linear Easing" aria-label="Linear Easing">
-                        <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
-                          <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28"/>
-                          <line class="preset-thumb-curve" x1="4" y1="32" x2="32" y2="4"/>
-                          <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
-                          <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
-                        </svg>
+                        <i class='fticon fticon-linear-easing preset-thumb-svg' aria-hidden='true'></i>
                       </button>
                       <!-- Preset 2: Ease In -->
                       <button type="button" class="graph-preset-btn" id="btn-graph-preset-ease-in" data-preset="ease-in" title="Ease In" aria-label="Ease In">
-                        <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
-                          <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28"/>
-                          <line class="preset-thumb-tangent" x1="4" y1="32" x2="16" y2="32"/>
-                          <circle class="preset-thumb-handle" cx="16" cy="32" r="2"/>
-                          <path class="preset-thumb-curve" d="M 4 32 C 16 32, 32 20, 32 4"/>
-                          <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
-                          <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
-                        </svg>
+                        <i class='fticon fticon-ease-in preset-thumb-svg' aria-hidden='true'></i>
                       </button>
                       <!-- Preset 3: Ease Out -->
                       <button type="button" class="graph-preset-btn" id="btn-graph-preset-ease-out" data-preset="ease-out" title="Ease Out" aria-label="Ease Out">
-                        <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
-                          <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28"/>
-                          <line class="preset-thumb-tangent" x1="32" y1="4" x2="20" y2="4"/>
-                          <circle class="preset-thumb-handle" cx="20" cy="4" r="2"/>
-                          <path class="preset-thumb-curve" d="M 4 32 C 4 16, 20 4, 32 4"/>
-                          <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
-                          <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
-                        </svg>
+                        <i class='fticon fticon-ease-out preset-thumb-svg' aria-hidden='true'></i>
                       </button>
                       <!-- Preset 4: Ease In Out -->
                       <button type="button" class="graph-preset-btn" id="btn-graph-preset-ease-in-out" data-preset="ease-in-out" title="Ease In Out" aria-label="Ease In Out">
-                        <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
-                          <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28"/>
-                          <line class="preset-thumb-tangent" x1="4" y1="32" x2="16" y2="32"/>
-                          <circle class="preset-thumb-handle" cx="16" cy="32" r="2"/>
-                          <line class="preset-thumb-tangent" x1="32" y1="4" x2="20" y2="4"/>
-                          <circle class="preset-thumb-handle" cx="20" cy="4" r="2"/>
-                          <path class="preset-thumb-curve" d="M 4 32 C 16 32, 20 4, 32 4"/>
-                          <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
-                          <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
-                        </svg>
+                        <i class='fticon fticon-ease-in-out preset-thumb-svg' aria-hidden='true'></i>
                       </button>
                       <!-- Preset 5: Z-Graph (Overlap Punch) -->
                       <button type="button" class="graph-preset-btn" id="btn-graph-preset-z-graph" data-preset="z-graph" title="Z-Graph Easing (Overlap Punch)" aria-label="Z-Graph Easing">
-                        <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
-                          <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28"/>
-                          <line class="preset-thumb-tangent" x1="4" y1="32" x2="28" y2="32"/>
-                          <circle class="preset-thumb-handle" cx="28" cy="32" r="2"/>
-                          <line class="preset-thumb-tangent" x1="32" y1="4" x2="8" y2="4"/>
-                          <circle class="preset-thumb-handle" cx="8" cy="4" r="2"/>
-                          <path class="preset-thumb-curve" d="M 4 32 C 28 32, 8 4, 32 4"/>
-                          <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
-                          <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
-                        </svg>
+                        <i class='fticon fticon-z-graph-easing preset-thumb-svg' aria-hidden='true'></i>
                       </button>
                       <!-- Custom Saved Presets Container -->
                       <div class="graph-custom-presets-container" id="graph-custom-presets-container"></div>
                       <!-- Preset 5: Save Graph Preset (Empty Graph with +) -->
                       <button type="button" class="graph-preset-btn graph-preset-save-btn" id="btn-graph-save-preset" title="Save Graph Preset" aria-label="Save Graph Preset">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <line x1="12" y1="5" x2="12" y2="19"/>
-                          <line x1="5" y1="12" x2="19" y2="12"/>
-                        </svg>
+                        <i class='fticon fticon-save-graph-preset' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
                       </button>
                     </aside>
                   </div>
@@ -1205,18 +975,13 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-blend-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-blend-keyframe" title="Add Keyframe" aria-label="Keyframe">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12l10 10 10-10L12 2zm1 6h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/></svg>
+                          <i class='fticon fticon-keyframe' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-blend-graph" title="Easing Curve Graph" aria-label="Graph">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2" fill="none"/>
-                            <path d="M5 19c6 0 8-14 14-14" fill="none"/>
-                            <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
-                            <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-graph' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -1226,9 +991,7 @@
                       <!-- 1. Opacity Slider Row (filling from left to right) -->
                       <div class="blend-opacity-row">
                         <div class="blend-opacity-icon-box" title="Opacity">
-                          <svg class="blend-opacity-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8v16z"/>
-                          </svg>
+                          <i class='fticon fticon-track-adjustment blend-opacity-icon' aria-hidden='true'></i>
                         </div>
                         <div class="blend-slider-container" id="blend-slider-container" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-label="Opacity Slider">
                           <div class="blend-slider-track">
@@ -1259,7 +1022,7 @@
                         <div class="blend-group-card" id="blend-card-darken">
                           <button type="button" class="blend-group-header" data-accordion="darken">
                             <span class="blend-group-title">
-                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              <i class='fticon fticon-blend-card-darken blend-chevron-icon' aria-hidden='true'></i>
                               Darken
                             </span>
                             <span class="blend-group-status" style="display: none;"></span>
@@ -1275,7 +1038,7 @@
                         <div class="blend-group-card" id="blend-card-lighten">
                           <button type="button" class="blend-group-header" data-accordion="lighten">
                             <span class="blend-group-title">
-                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              <i class='fticon fticon-blend-card-darken blend-chevron-icon' aria-hidden='true'></i>
                               Lighten
                             </span>
                             <span class="blend-group-status" style="display: none;"></span>
@@ -1292,7 +1055,7 @@
                         <div class="blend-group-card" id="blend-card-contrast">
                           <button type="button" class="blend-group-header" data-accordion="contrast">
                             <span class="blend-group-title">
-                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              <i class='fticon fticon-blend-card-darken blend-chevron-icon' aria-hidden='true'></i>
                               Contrast
                             </span>
                             <span class="blend-group-status" style="display: none;"></span>
@@ -1308,7 +1071,7 @@
                         <div class="blend-group-card" id="blend-card-difference">
                           <button type="button" class="blend-group-header" data-accordion="difference">
                             <span class="blend-group-title">
-                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              <i class='fticon fticon-blend-card-darken blend-chevron-icon' aria-hidden='true'></i>
                               Difference
                             </span>
                             <span class="blend-group-status" style="display: none;"></span>
@@ -1323,7 +1086,7 @@
                         <div class="blend-group-card" id="blend-card-color">
                           <button type="button" class="blend-group-header" data-accordion="color">
                             <span class="blend-group-title">
-                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              <i class='fticon fticon-blend-card-darken blend-chevron-icon' aria-hidden='true'></i>
                               Color
                             </span>
                             <span class="blend-group-status" style="display: none;"></span>
@@ -1340,7 +1103,7 @@
                         <div class="blend-group-card" id="blend-card-mask">
                           <button type="button" class="blend-group-header" data-accordion="mask">
                             <span class="blend-group-title">
-                              <svg class="blend-chevron-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                              <i class='fticon fticon-blend-card-darken blend-chevron-icon' aria-hidden='true'></i>
                               Mask
                             </span>
                             <span class="blend-group-status" style="display: none;"></span>
@@ -1403,23 +1166,16 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-effects-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-effects-keyframe" title="Add / Remove Keyframe" aria-label="Keyframe">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12l10 10 10-10L12 2zm1 6h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/></svg>
+                          <i class='fticon fticon-keyframe' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-effects-graph" title="Easing Curve Graph" aria-label="Graph">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2" fill="none"/>
-                            <path d="M5 19c6 0 8-14 14-14" fill="none"/>
-                            <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
-                            <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-graph' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-effects-more" title="More Options" aria-label="More Options">
-                          <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                          </svg>
+                          <i class='fticon fticon-more-options' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -1430,21 +1186,15 @@
                         <span class="effects-rack-title">Effects</span>
                         <div class="effects-rack-header-right">
                           <button type="button" class="btn-effects-header-action" id="btn-effects-presets" title="Preset Gallery" aria-label="Preset Gallery">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
-                            </svg>
+                            <i class='fticon fticon-preset-gallery' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
                             <span>Presets</span>
                           </button>
                           <button type="button" class="btn-effects-header-action" id="btn-effects-save-preset" title="Save Current Effects as Preset" aria-label="Save Preset">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                              <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-                            </svg>
+                            <i class='fticon fticon-save-preset' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
                             <span>Save</span>
                           </button>
                           <button type="button" class="btn-add-effect" id="btn-add-effect" title="Add Effects" aria-label="Add Effects">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/>
-                            </svg>
+                            <i class='fticon fticon-plus' aria-hidden='true'></i>
                             <span class="btn-add-effect-label">Add Effects</span>
                           </button>
                         </div>
@@ -1454,9 +1204,7 @@
                       <main class="effects-rack-body" id="effects-rack-body">
                         <div class="effects-rack-empty" id="effects-rack-empty">
                           <div class="effects-empty-icon-wrap">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-                            </svg>
+                            <i class='fticon fticon-effects' aria-hidden='true'></i>
                           </div>
                           <h4 class="effects-empty-title">No Effects Applied</h4>
                           <p class="effects-empty-desc">Tap &ldquo;Add Effects&rdquo; to add visual filters, blurs, color grades, and distortions.</p>
@@ -1469,43 +1217,6 @@
                   </div>
                 </div>
 
-                <!-- Subview 6: Effects Gallery Category Grid -->
-                <div class="drawer-subview" id="layer-drawer-effects-gallery-view">
-                  <div class="effects-gallery-layout" id="effects-gallery">
-                    <!-- Top Header Bar with Back & Title -->
-                    <header class="effects-gallery-header">
-                      <div class="effects-gallery-header-left">
-                        <button type="button" class="effects-back-btn" id="btn-effects-gallery-back" title="Back to Effects Rack" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                        </button>
-                        <span class="effects-gallery-title">EFFECTS GALLERY</span>
-                      </div>
-                      <div class="effects-gallery-search-box">
-                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                        <input type="text" class="effects-gallery-search-input" id="effects-search-input" placeholder="Search effects..." autocomplete="off" spellcheck="false" aria-label="Search effects">
-                      </div>
-                    </header>
-
-                    <!-- Scrollable Gallery Body -->
-                    <main class="effects-gallery-body" id="effects-gallery-body">
-                      <!-- Category tiles + effect cards are generated at runtime from FishEffectsRegistry (js/editor.js). Never list effects here. -->
-                      <div class="effects-category-grid" id="effects-category-grid"></div>
-
-                      <div class="effects-items-view" id="effects-items-view" style="display: none;">
-                        <div class="effects-chip-bar" id="effects-chip-bar" role="tablist" aria-label="Effect categories"></div>
-                        <div class="effects-items-header">
-                          <span class="effects-items-category-title" id="effects-items-category-title">Effects</span>
-                          <span class="effects-items-count" id="effects-items-count"></span>
-                        </div>
-                        <div class="effects-items-grid" id="effects-items-grid"></div>
-                      </div>
-
-                      <div class="effects-gallery-no-results" id="effects-gallery-no-results">
-                        <p>No matching effects found</p>
-                      </div>
-                    </main>
-                  </div>
-                </div>
 
                 <!-- Subview 7: Camera Settings Controller UI -->
                 <div class="drawer-subview" id="layer-drawer-camera-view">
@@ -1514,18 +1225,13 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-camera-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-camera-keyframe" title="Add Keyframe" aria-label="Keyframe">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12l10 10 10-10L12 2zm1 6h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/></svg>
+                          <i class='fticon fticon-keyframe' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-camera-graph" title="Easing Curve Graph" aria-label="Graph">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2" fill="none"/>
-                            <path d="M5 19c6 0 8-14 14-14" fill="none"/>
-                            <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
-                            <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-graph' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -1603,9 +1309,7 @@
                           <div class="camera-layer-selector-wrap">
                             <button type="button" class="camera-layer-dropdown-trigger" id="btn-camera-focus-layer-dropdown" aria-haspopup="listbox" aria-expanded="false">
                               <span class="camera-layer-dropdown-label" id="label-camera-focus-layer">Select Layer...</span>
-                              <svg class="camera-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                              </svg>
+                              <i class='fticon fticon-label-camera-focus-layer camera-dropdown-chevron' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
                             </button>
                             <div class="camera-layer-dropdown-menu" id="menu-camera-focus-layer" role="listbox" style="display: none;">
                               <!-- Populated dynamically with layers -->
@@ -1659,24 +1363,16 @@
                     <!-- Top Navigation Bar: Back Button + 4 Segmented Tabs -->
                     <div class="fill-top-header">
                       <button type="button" class="fill-back-btn" id="btn-fill-back" title="Back to Layer Actions" aria-label="Back">
-                        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                        <i class='fticon fticon-back' aria-hidden='true'></i>
                       </button>
                       <div class="fill-category-bar" id="fill-category-bar" role="tablist" aria-label="Fill Category">
                         <!-- 1. No Fill -->
                         <button type="button" class="fill-tab-btn is-active" data-fill-tab="none" title="No Fill" aria-label="No Fill" role="tab" aria-selected="true">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="9"/>
-                            <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-                          </svg>
+                          <i class='fticon fticon-no-fill' aria-hidden='true'></i>
                         </button>
                         <!-- 2. Solid Color -->
                         <button type="button" class="fill-tab-btn" data-fill-tab="color" title="Color Fill" aria-label="Color Fill" role="tab" aria-selected="false">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 11L13 5L4.5 13.5C3.7 14.3 3.7 15.7 4.5 16.5L7.5 19.5C8.3 20.3 9.7 20.3 10.5 19.5L19 11Z"/>
-                            <path d="M2 22H22"/>
-                            <path d="M14 6L18 10"/>
-                            <path d="M21 21C21 21 22 19 22 17.5C22 16.12 20.88 15 19.5 15C18.12 15 17 16.12 17 17.5C17 19 18 21 18 21L21 21Z" fill="currentColor"/>
-                          </svg>
+                          <i class='fticon fticon-color-fill' aria-hidden='true'></i>
                         </button>
                         <!-- 3. Gradient -->
                         <button type="button" class="fill-tab-btn" data-fill-tab="gradient" title="Gradient Fill" aria-label="Gradient Fill" role="tab" aria-selected="false">
@@ -1684,12 +1380,7 @@
                         </button>
                         <!-- 4. Media -->
                         <button type="button" class="fill-tab-btn" data-fill-tab="media" title="Media Fill" aria-label="Media Fill" role="tab" aria-selected="false">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
-                            <line x1="2.5" y1="8.2" x2="21.5" y2="8.2" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.8 1.8"/>
-                            <line x1="2.5" y1="15.8" x2="21.5" y2="15.8" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.8 1.8"/>
-                            <polygon points="12,9.2 12.9,11.3 15.2,11.5 13.5,13 14,15.2 12,14 10,15.2 10.5,13 8.8,11.5 11.1,11.3" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-media-fill' aria-hidden='true'></i>
                         </button>
                       </div>
                     </div>
@@ -1697,10 +1388,7 @@
                     <!-- 1. No Fill Panel (Image 2) -->
                     <div class="fill-panel-view is-active" id="fill-view-none">
                       <div class="fill-none-card" id="btn-apply-no-fill" title="No Fill (Transparent)">
-                        <svg class="fill-none-watermark-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                          <circle cx="12" cy="12" r="9"/>
-                          <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-                        </svg>
+                        <i class='fticon fticon-no-fill-transparent fill-none-watermark-icon' aria-hidden='true'></i>
                       </div>
                     </div>
 
@@ -1748,21 +1436,23 @@
                                 <div class="color-picker-sv-cursor"></div>
                               </div>
 
-                              <div class="color-picker-wheel-box">
-                                <div class="color-picker-wheel-ring">
-                                  <div class="color-picker-wheel-ring-mask"></div>
-                                  <div class="color-picker-wheel-cursor"></div>
+                              <div class="color-picker-mixer-row">
+                                <div class="color-picker-wheel-box">
+                                  <div class="color-picker-wheel-ring">
+                                    <div class="color-picker-wheel-ring-mask"></div>
+                                    <div class="color-picker-wheel-cursor"></div>
+                                  </div>
+                                  <div class="color-picker-wheel-center">
+                                    <span class="color-picker-wheel-center-hex">#3D4CF5</span>
+                                    <span class="color-picker-wheel-center-pct">(100%)</span>
+                                  </div>
+                                  <div class="color-picker-wheel-arrow"></div>
                                 </div>
-                                <div class="color-picker-wheel-center">
-                                  <span class="color-picker-wheel-center-hex">#3D4CF5</span>
-                                  <span class="color-picker-wheel-center-pct">(100%)</span>
-                                </div>
-                                <div class="color-picker-wheel-arrow"></div>
-                              </div>
 
-                              <div class="color-picker-alpha-box" title="Opacity">
-                                <div class="color-picker-alpha-fill"></div>
-                                <div class="color-picker-alpha-cursor"></div>
+                                <div class="color-picker-alpha-box" title="Opacity">
+                                  <div class="color-picker-alpha-fill"></div>
+                                  <div class="color-picker-alpha-cursor"></div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1772,30 +1462,17 @@
                         <nav class="color-picker-sidebar" id="fill-color-picker-sidebar">
                           <button type="button" class="color-picker-tab-btn" data-tab="eyedropper" title="Eyedropper" aria-label="Eyedropper">
                             <span class="color-picker-tab-icon-wrap">
-                              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12.5 8.5 L16 5a2.12 2.12 0 0 1 3 3L15.5 11.5" />
-                                <path d="M10.5 6.5 L17.5 13.5" />
-                                <path d="M12.5 8.5 L6.5 14.5 C5.8 15.2 5.3 16.1 5 17.1 L4 20 L6.9 19 C7.9 18.7 8.8 18.2 9.5 17.5 L15.5 11.5" />
-                              </svg>
+                              <i class='fticon fticon-eyedropper color-picker-tab-icon' aria-hidden='true'></i>
                             </span>
                           </button>
                           <button type="button" class="color-picker-tab-btn" data-tab="spectrum" title="Color Wheel & Sliders" aria-label="Color Wheel">
                             <span class="color-picker-tab-icon-wrap">
-                              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
-                                <circle cx="15.5" cy="8.5" r="1.5" />
-                              </svg>
+                              <i class='fticon fticon-color-wheel color-picker-tab-icon' aria-hidden='true'></i>
                             </span>
                           </button>
                           <button type="button" class="color-picker-tab-btn is-active" data-tab="palette" title="Color Palette" aria-label="Color Palette">
                             <span class="color-picker-tab-icon-wrap">
-                              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
-                                <circle cx="13.5" cy="6.5" r="1" fill="currentColor" />
-                                <circle cx="17.5" cy="10.5" r="1" fill="currentColor" />
-                                <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
-                                <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
-                              </svg>
+                              <i class='fticon fticon-palette color-picker-tab-icon' aria-hidden='true'></i>
                             </span>
                           </button>
                         </nav>
@@ -1852,6 +1529,7 @@
                             </div>
                           </div>
                         </div>
+                        <p class="fill-grad-hint">Click track to add stop &bull; Long-press stop to delete</p>
                       </div>
                     </div>
 
@@ -1874,18 +1552,13 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-volume-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-volume-keyframe" title="Add Keyframe" aria-label="Keyframe">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12l10 10 10-10L12 2zm1 6h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/></svg>
+                          <i class='fticon fticon-keyframe' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-volume-graph" title="Easing Curve Graph" aria-label="Graph">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2" fill="none"/>
-                            <path d="M5 19c6 0 8-14 14-14" fill="none"/>
-                            <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
-                            <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-graph' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -1894,9 +1567,7 @@
                     <main class="volume-work-area">
                       <div class="volume-slider-row">
                         <div class="volume-icon-box" title="Volume">
-                          <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                          </svg>
+                          <i class='fticon fticon-volume-2 volume-icon' aria-hidden='true'></i>
                         </div>
                         <div class="volume-slider-container" id="volume-slider-container" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-label="Volume Slider">
                           <div class="volume-slider-track">
@@ -1911,7 +1582,7 @@
                         <div class="audio-fx-header">
                           <span class="audio-fx-title">Audio Effects</span>
                           <button type="button" class="btn-add-audio-fx" id="btn-add-audio-fx" title="Add Audio Effect">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 11h-6V5a1 1 0 0 0-2 0v6H5a1 1 0 0 0 0 2h6v6a1 1 0 0 0 2 0v-6h6a1 1 0 0 0 0-2z"/></svg>
+                            <i class='fticon fticon-add-audio-effect' style='width:13px;height:13px;font-size:13px;line-height:1;' aria-hidden='true'></i>
                             <span>Add Effect</span>
                           </button>
                         </div>
@@ -1928,18 +1599,13 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-speed-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-speed-keyframe" title="Add / Remove Speed Keyframe" aria-label="Keyframe">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2L2 12l10 10 10-10L12 2zm1 6h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/></svg>
+                          <i class='fticon fticon-keyframe' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-speed-graph" title="Speed Curve Graph" aria-label="Graph">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2" fill="none"/>
-                            <path d="M5 19c6 0 8-14 14-14" fill="none"/>
-                            <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none"/>
-                            <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none"/>
-                          </svg>
+                          <i class='fticon fticon-graph' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -1960,16 +1626,7 @@
                       <div class="speed-mode-panel" id="panel-speed-multiplier">
                         <div class="speed-slider-row">
                           <div class="speed-icon-box" title="Playback Speed">
-                            <svg class="speed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                              <path d="M5.5 17.5A8.5 8.5 0 1 1 18.5 17.5" />
-                              <line x1="12" y1="12.5" x2="12" y2="6.5" />
-                              <circle cx="12" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
-                              <line x1="3.5" y1="12" x2="5.5" y2="12" />
-                              <line x1="20.5" y1="12" x2="18.5" y2="12" />
-                              <line x1="6" y1="6.8" x2="7.4" y2="8.2" />
-                              <line x1="18" y1="6.8" x2="16.6" y2="8.2" />
-                              <line x1="12" y1="3.5" x2="12" y2="5.5" />
-                            </svg>
+                            <i class='fticon fticon-speed speed-icon' aria-hidden='true'></i>
                           </div>
                           <div class="speed-slider-container" id="speed-slider-container" role="slider" aria-valuemin="0.1" aria-valuemax="8.0" aria-valuenow="1.0" aria-label="Speed Slider">
                             <div class="speed-slider-track">
@@ -1985,10 +1642,7 @@
                       <div class="speed-mode-panel" id="panel-time-remap" style="display: none;">
                         <div class="speed-slider-row">
                           <div class="speed-icon-box" title="Source Time">
-                            <svg class="speed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                              <circle cx="12" cy="12" r="9"/>
-                              <polyline points="12 7 12 12 15 15"/>
-                            </svg>
+                            <i class='fticon fticon-source-time speed-icon' aria-hidden='true'></i>
                           </div>
                           <div class="speed-slider-container" id="timeremap-slider-container" role="slider" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" aria-label="Time Remap Slider">
                             <div class="speed-slider-track">
@@ -2042,7 +1696,7 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-shape-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -2062,15 +1716,8 @@
                           <div class="shape-control-values">
                             <span class="shape-val-badge" id="val-shape-size-x">300</span>
                             <button type="button" class="shape-link-btn is-active" id="btn-shape-size-link" title="Toggle Aspect Ratio Link" aria-label="Link Size">
-                              <svg viewBox="0 0 24 24" class="svg-link-on" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                              </svg>
-                              <svg viewBox="0 0 24 24" class="svg-link-off" style="display: none;" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
-                                <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
-                                <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
-                              </svg>
+                              <i class='fticon fticon-link-parent-layer svg-link-on' aria-hidden='true'></i>
+                              <i class='fticon fticon-link-aspect-ratio svg-link-off' style='display: none;' aria-hidden='true'></i>
                             </button>
                             <span class="shape-val-badge" id="val-shape-size-y">300</span>
                           </div>
@@ -2149,7 +1796,7 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-text-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -2186,7 +1833,7 @@
                         <div class="custom-dropdown" data-text-select="fontFamily" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Font Family" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
                             <span class="custom-dropdown-label">Cal Sans</span>
-                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                            <i class='fticon fticon-select-font-family custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 220px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item" role="option" data-val="Cal Sans, Inter, sans-serif" style="font-family: 'Cal Sans', sans-serif;">Cal Sans</div>
@@ -2211,7 +1858,7 @@
                         <div class="custom-dropdown" data-text-select="fontWeight" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Font Weight" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
                             <span class="custom-dropdown-label">Light</span>
-                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                            <i class='fticon fticon-select-font-family custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item" role="option" data-val="300">Light</div>
@@ -2489,9 +2136,7 @@
                         <div class="custom-dropdown" id="dropdown-text-anim-target" data-value="character" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select animation target" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
                             <span class="custom-dropdown-label">Character</span>
-                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M7 10l5 5 5-5z"/>
-                            </svg>
+                            <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 160px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item is-selected" role="option" data-val="character">Character</div>
@@ -2510,9 +2155,7 @@
                         <div class="custom-dropdown" id="dropdown-text-anim-in" data-value="bounce_1" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select IN Animation" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
                             <span class="custom-dropdown-label">Bounce Drop (Y Position)</span>
-                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M7 10l5 5 5-5z"/>
-                            </svg>
+                            <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item is-selected" role="option" data-val="bounce_1">Bounce Drop (Y Position)</div>
@@ -2598,9 +2241,7 @@
                         <div class="custom-dropdown" id="dropdown-text-anim-out" data-value="none" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select OUT Animation" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
                             <span class="custom-dropdown-label">None</span>
-                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M7 10l5 5 5-5z"/>
-                            </svg>
+                            <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 180px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item is-selected" role="option" data-val="none">None</div>
@@ -2690,7 +2331,7 @@
                         <div class="custom-dropdown" data-text-select="animEase" style="width: 100%;">
                           <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Ease" style="width: 100%; height: 38px; padding: 0 12px; font-size: 13px;">
                             <span class="custom-dropdown-label">Ease Out (Expo)</span>
-                            <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                            <i class='fticon fticon-select-font-family custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                           </button>
                           <div class="custom-dropdown-menu" role="listbox" style="max-height: 200px; overflow-y: auto; scrollbar-width: thin; z-index: 1050;">
                             <div class="custom-dropdown-item" role="option" data-val="ease_out">Ease Out (Expo)</div>
@@ -2715,15 +2356,13 @@
                     <aside class="transform-nav-col">
                       <div class="transform-nav-group-top">
                         <button type="button" class="transform-nav-btn" id="btn-beatmark-back" title="Back to Layer Actions" aria-label="Back">
-                          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                          <i class='fticon fticon-back' aria-hidden='true'></i>
                         </button>
                         <button type="button" class="transform-nav-btn" id="btn-beatmark-play" title="Play / Pause (Space)" aria-label="Play / Pause">
-                          <svg viewBox="0 0 24 24" fill="currentColor" id="beatmark-play-icon"><path d="M8 5v14l11-7z"/></svg>
+                          <i class='fticon fticon-play-pause' aria-hidden='true'></i>
                         </button>
-                      </div>
-                      <div class="transform-nav-group-bottom">
                         <button type="button" class="transform-nav-btn" id="btn-beatmark-delete" title="Delete Beatmark at Playhead" aria-label="Delete Beatmark">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                          <i class='fticon fticon-delete-beatmark' aria-hidden='true'></i>
                         </button>
                       </div>
                     </aside>
@@ -2746,16 +2385,20 @@
                         </div>
                       </div>
 
-                      <!-- Center: 1 Large Button to Add Beatmark -->
+                      <!-- Center: 1 Large Button to Add Beatmark flanked by Prev/Next Step Buttons -->
                       <div class="beatmark-center-action">
+                        <button type="button" class="beatmark-step-btn" id="btn-beatmark-prev" aria-label="Previous Keyframe / Beatmark" title="Previous Keyframe / Beatmark (J)">
+                          <i class='fticon fticon-previous' aria-hidden='true'></i>
+                        </button>
                         <button type="button" class="beatmark-giant-btn" id="btn-add-beatmark-giant" aria-label="Add Beatmark" title="Add Beatmark at Playhead">
                           <div class="beatmark-giant-icon-wrap">
-                            <svg viewBox="0 0 24 24" fill="currentColor" class="beatmark-giant-svg">
-                              <path d="M4 3h16v8.5l-8 9-8-9V3zm3 3v4.25l5 5.62 5-5.62V6H7z"/>
-                            </svg>
+                            <i class='fticon fticon-beatmark beatmark-giant-svg' aria-hidden='true'></i>
                           </div>
                           <span class="beatmark-giant-label">Add Beatmark</span>
                           <span class="beatmark-giant-hint">Tap on beat</span>
+                        </button>
+                        <button type="button" class="beatmark-step-btn" id="btn-beatmark-next" aria-label="Next Keyframe / Beatmark" title="Next Keyframe / Beatmark (K)">
+                          <i class='fticon fticon-next' aria-hidden='true'></i>
                         </button>
                       </div>
                     </main>
@@ -2769,6 +2412,83 @@
         </section>
       </div>
     </div>
+
+  <!-- ==========================================================================
+       DEDICATED GLOBAL EFFECTS GALLERY DRAWER
+       - Full-screen viewport drawer (can expand to cover whole screen)
+       - Default height: 50dvh (half screen)
+       ========================================================================== -->
+  <div class="drawer-container is-global" id="drawer-effects-gallery" role="dialog" aria-modal="true" aria-label="Effects Gallery" aria-hidden="true">
+    <div class="drawer-backdrop" data-drawer-close></div>
+    <div class="drawer-card is-effects-gallery">
+      <div class="drawer-drag-handle" title="Drag to Resize" aria-label="Resize Drawer">
+        <div class="drawer-drag-pill" aria-hidden="true"></div>
+      </div>
+      <div class="drawer-body">
+        <div class="effects-gallery-layout" id="effects-gallery">
+          <!-- Top Header Bar with Back & Title -->
+          <header class="effects-gallery-header">
+            <div class="effects-gallery-header-left">
+              <button type="button" class="effects-back-btn" id="btn-effects-gallery-back" title="Back to Effects Rack" aria-label="Back">
+                <i class='fticon fticon-back' aria-hidden='true'></i>
+              </button>
+              <span class="effects-gallery-title">EFFECTS GALLERY</span>
+            </div>
+            <div class="effects-gallery-search-box">
+              <i class='fticon fticon-back-2' aria-hidden='true'></i>
+              <input type="text" class="effects-gallery-search-input" id="effects-search-input" placeholder="Search effects..." autocomplete="off" spellcheck="false" aria-label="Search effects">
+            </div>
+          </header>
+
+          <!-- Scrollable Gallery Body -->
+          <main class="effects-gallery-body" id="effects-gallery-body">
+            <!-- Category tiles + effect cards are generated at runtime from FishEffectsRegistry (js/editor.js). Never list effects here. -->
+            <div class="effects-gallery-home-view" id="effects-gallery-home-view">
+              <!-- Favorite effects section (only visible when favorites exist) -->
+              <section class="effects-gallery-section" id="effects-favorites-section" style="display: none;">
+                <div class="effects-gallery-section-header">
+                  <span class="effects-gallery-section-title">Favorite effects</span>
+                  <span class="effects-gallery-section-count" id="effects-favorites-count"></span>
+                </div>
+                <div class="effects-gallery-horizontal-list" id="effects-favorites-list"></div>
+              </section>
+
+              <!-- Last Used effects section -->
+              <section class="effects-gallery-section" id="effects-last-used-section">
+                <div class="effects-gallery-section-header">
+                  <span class="effects-gallery-section-title">Last Used</span>
+                </div>
+                <div class="effects-gallery-horizontal-list" id="effects-last-used-list">
+                  <div class="effects-gallery-empty-state">No used effects</div>
+                </div>
+              </section>
+
+              <!-- Category Section -->
+              <section class="effects-gallery-section" id="effects-category-section">
+                <div class="effects-gallery-section-header">
+                  <span class="effects-gallery-section-title">Category</span>
+                </div>
+                <div class="effects-category-grid" id="effects-category-grid"></div>
+              </section>
+            </div>
+
+            <div class="effects-items-view" id="effects-items-view" style="display: none;">
+              <div class="effects-chip-bar" id="effects-chip-bar" role="tablist" aria-label="Effect categories"></div>
+              <div class="effects-items-header">
+                <span class="effects-items-category-title" id="effects-items-category-title">Effects</span>
+                <span class="effects-items-count" id="effects-items-count"></span>
+              </div>
+              <div class="effects-items-grid" id="effects-items-grid"></div>
+            </div>
+
+            <div class="effects-gallery-no-results" id="effects-gallery-no-results">
+              <p>No matching effects found</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
 
   </div>
 
@@ -2796,9 +2516,7 @@
             </div>
             <div class="settings-category-meta">
               <span class="settings-category-summary" id="summary-settings-canvas">16:9 • 1080p • 60 FPS</span>
-              <svg class="settings-category-chevron" viewBox="0 0 24 24">
-                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-              </svg>
+              <i class='fticon fticon-format-and-canvas-settings settings-category-chevron' aria-hidden='true'></i>
             </div>
           </button>
 
@@ -2834,10 +2552,7 @@
                 </button>
                 <button type="button" class="aspect-ratio-frame" data-val="Custom" title="Custom Resolution">
                   <div class="aspect-frame-box ratio-1-1">
-                    <svg class="aspect-ratio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
+                    <i class='fticon fticon-custom-resolution aspect-ratio-icon' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
                   </div>
                 </button>
               </div>
@@ -2850,9 +2565,7 @@
                 <div class="custom-dropdown" id="dropdown-resolution" data-value="1080p">
                   <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
                     <span class="custom-dropdown-label">1080p</span>
-                    <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 10l5 5 5-5z"/>
-                    </svg>
+                    <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                   </button>
                   <div class="custom-dropdown-menu" role="listbox">
                     <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
@@ -2871,15 +2584,8 @@
                   </svg>
                   <input type="number" id="custom-res-w" class="custom-res-box" placeholder="W" value="1920" aria-label="Width">
                   <button type="button" id="btn-link-res" class="custom-res-link-btn is-locked" title="Lock Aspect Ratio" aria-label="Lock aspect ratio">
-                    <svg class="res-link-icon res-link-icon-linked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
-                    <svg class="res-link-icon res-link-icon-unlinked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
-                      <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
-                      <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
-                    </svg>
+                    <i class='fticon fticon-custom-resolution res-link-icon res-link-icon-linked' aria-hidden='true'></i>
+                    <i class='fticon fticon-lock-aspect-ratio res-link-icon res-link-icon-unlinked' aria-hidden='true'></i>
                   </button>
                   <input type="number" id="custom-res-h" class="custom-res-box" placeholder="H" value="1080" aria-label="Height">
                 </div>
@@ -2901,9 +2607,7 @@
               <div class="custom-dropdown" id="dropdown-duration" data-value="5">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Default Layer Duration">
                   <span class="custom-dropdown-label">5s</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
+                  <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item" role="option" data-val="1">1s</div>
@@ -2943,9 +2647,7 @@
             </div>
             <div class="settings-category-meta">
               <span class="settings-category-summary" id="summary-settings-mb">180° • 16 Samples</span>
-              <svg class="settings-category-chevron" viewBox="0 0 24 24">
-                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-              </svg>
+              <i class='fticon fticon-format-and-canvas-settings settings-category-chevron' aria-hidden='true'></i>
             </div>
           </button>
 
@@ -2956,9 +2658,7 @@
               <div class="custom-dropdown" id="dropdown-mb-shutter-angle" data-value="180">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Shutter Angle">
                   <span class="custom-dropdown-label">180° (Default)</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
+                  <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item" role="option" data-val="0">0° (No Blur)</div>
@@ -2977,9 +2677,7 @@
               <div class="custom-dropdown" id="dropdown-mb-shutter-phase" data-value="0">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Shutter Phase">
                   <span class="custom-dropdown-label">0° (AE Default)</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
+                  <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item" role="option" data-val="-180">-180°</div>
@@ -2996,9 +2694,7 @@
               <div class="custom-dropdown" id="dropdown-mb-samples" data-value="16">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Motion Blur Samples">
                   <span class="custom-dropdown-label">16 (AE Standard)</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
+                  <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item" role="option" data-val="4">4 (Draft)</div>
@@ -3020,9 +2716,7 @@
             </div>
             <div class="settings-category-meta">
               <span class="settings-category-summary" id="summary-settings-advanced">30 Undo Steps</span>
-              <svg class="settings-category-chevron" viewBox="0 0 24 24">
-                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-              </svg>
+              <i class='fticon fticon-format-and-canvas-settings settings-category-chevron' aria-hidden='true'></i>
             </div>
           </button>
 
@@ -3033,9 +2727,7 @@
               <div class="custom-dropdown" id="dropdown-max-undo" data-value="30">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Max Undo Steps">
                   <span class="custom-dropdown-label">30 Steps</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
+                  <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item" role="option" data-val="10">10 Steps</div>
@@ -3053,9 +2745,7 @@
               <div class="custom-dropdown" id="dropdown-idle-caching" data-value="false">
                 <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Idle Caching Mode">
                   <span class="custom-dropdown-label">Disabled</span>
-                  <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z"/>
-                  </svg>
+                  <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                 </button>
                 <div class="custom-dropdown-menu" role="listbox">
                   <div class="custom-dropdown-item is-selected" role="option" data-val="false">Disabled</div>
@@ -3070,9 +2760,7 @@
       <!-- 5. Save & Export Buttons (Compact Square Icon for OFTS + Save Settings) -->
       <footer class="modal-footer modal-footer-row">
         <button type="button" class="modal-btn-square" id="btn-settings-save-ofts" onclick="exportCurrentProjectOFTSAction()" title="Save as .ofts" aria-label="Save as .ofts">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-          </svg>
+          <i class='fticon fticon-save-preset' aria-hidden='true'></i>
         </button>
         <button type="button" class="modal-btn-create" onclick="saveProjectSettingsAction()">
           <span>Save Settings</span>
@@ -3089,16 +2777,12 @@
     
     <!-- 1. Low quality preview toggle icon button (Speed / Draft Playback) -->
     <button type="button" class="popover-icon-btn" id="editor-icon-low-quality" title="Speed Draft Mode (Fast Playback)" aria-label="Toggle Speed Draft Mode">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z"/>
-      </svg>
+      <i class='fticon fticon-toggle-speed-draft-mode' aria-hidden='true'></i>
     </button>
 
     <!-- 2. Grid overlay toggle icon button (default disabled) -->
     <button type="button" class="popover-icon-btn" id="editor-icon-grid" title="Grid Overlay" aria-label="Toggle Grid Overlay">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/>
-      </svg>
+      <i class='fticon fticon-grid' aria-hidden='true'></i>
     </button>
 
     <!-- 3. Global Motion Blur toggle icon button (default disabled) -->
@@ -3113,24 +2797,17 @@
 
     <!-- 4. Copy Layer / Attributes icon button -->
     <button type="button" class="popover-icon-btn" id="editor-btn-copy-dock" title="Copy Layer / Attributes" aria-label="Copy Layer or Attributes">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-      </svg>
+      <i class='fticon fticon-copy' aria-hidden='true'></i>
     </button>
 
     <!-- 5. Paste Layer / Attributes icon button -->
     <button type="button" class="popover-icon-btn" id="editor-btn-paste-dock" title="Paste Layer / Attributes" aria-label="Paste Layer or Attributes">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/>
-      </svg>
+      <i class='fticon fticon-paste' aria-hidden='true'></i>
     </button>
 
     <!-- 6. Freeze Current Frame icon button -->
     <button type="button" class="popover-icon-btn" id="editor-btn-freeze-frame" title="Freeze Current Frame (Cut & Time Remap)" aria-label="Freeze Current Frame">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
-        <path d="M11 7h2v2.17l1.59-1.59 1.41 1.41L14.41 10.6l1.59.01V12.6h-1.59l1.59 1.59-1.41 1.41-1.59-1.59V16.2h-2v-2.19l-1.59 1.59-1.41-1.41 1.59-1.59H8v-2h1.59l-1.59-1.59 1.41-1.41 1.59 1.59V7z"/>
-      </svg>
+      <i class='fticon fticon-freeze-frame' aria-hidden='true'></i>
     </button>
 
     <!-- Separator Divider -->
@@ -3246,7 +2923,7 @@
     <!-- Header -->
     <div class="export-fs-header">
       <button type="button" class="export-fs-back-btn" id="export-fs-close-btn" title="Close" aria-label="Close Export">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <i class='fticon fticon-close-export' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
       </button>
       <span class="export-fs-title">Export</span>
       <span class="export-fs-subtitle" id="export-fs-subtitle">Select format</span>
@@ -3265,7 +2942,7 @@
           <span class="export-option-desc">MP4 video</span>
         </div>
         <button type="button" class="export-option-chevron" data-settings-panel="export-settings-video" title="Video settings" aria-label="Video settings">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+          <i class='fticon fticon-video-settings' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </div>
 
@@ -3279,7 +2956,7 @@
           <span class="export-option-desc">PNG image</span>
         </div>
         <button type="button" class="export-option-chevron" data-settings-panel="" title="" aria-label="" style="opacity:0;pointer-events:none;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+          <i class='fticon fticon-video-settings' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </div>
 
@@ -3293,7 +2970,7 @@
           <span class="export-option-desc">ZIP · GIF · WebP</span>
         </div>
         <button type="button" class="export-option-chevron" data-settings-panel="export-settings-sequence" title="Sequence settings" aria-label="Sequence settings">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+          <i class='fticon fticon-video-settings' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </div>
 
@@ -3307,7 +2984,7 @@
           <span class="export-option-desc">.ofts project file</span>
         </div>
         <button type="button" class="export-option-chevron" data-settings-panel="" title="" aria-label="" style="opacity:0;pointer-events:none;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+          <i class='fticon fticon-video-settings' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </div>
 
@@ -3321,7 +2998,7 @@
           <span class="export-option-desc">Link + QR code (max 15MB)</span>
         </div>
         <button type="button" class="export-option-chevron" data-settings-panel="" title="" aria-label="" style="opacity:0;pointer-events:none;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 6l6 6-6 6V6z"/></svg>
+          <i class='fticon fticon-video-settings' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </div>
 
@@ -3330,7 +3007,7 @@
     <!-- Footer: Next -->
     <div class="export-fs-footer">
       <button type="button" class="export-fs-next-btn" id="export-fs-next-btn" disabled>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+        <i class='fticon fticon-export-fs-next-btn' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         <span id="export-fs-next-label">Render</span>
       </button>
     </div>
@@ -3345,7 +3022,7 @@
     <div class="export-fs-inner">
     <div class="export-settings-header">
       <button type="button" class="export-fs-back-btn" data-close-settings="export-settings-video" title="Back" aria-label="Back">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <i class='fticon fticon-close-export' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
       </button>
       <span class="export-settings-title">Video Settings</span>
     </div>
@@ -3381,10 +3058,7 @@
           </button>
           <button type="button" class="aspect-ratio-frame" data-val="Custom" title="Custom Resolution">
             <div class="aspect-frame-box ratio-1-1">
-              <svg class="aspect-ratio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
+              <i class='fticon fticon-custom-resolution aspect-ratio-icon' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
             </div>
           </button>
         </div>
@@ -3397,9 +3071,7 @@
           <div class="custom-dropdown" id="dropdown-export-video-resolution" data-value="1080p">
             <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
               <span class="custom-dropdown-label">1080p</span>
-              <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 10l5 5 5-5z"/>
-              </svg>
+              <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
             </button>
             <div class="custom-dropdown-menu" role="listbox">
               <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
@@ -3418,15 +3090,8 @@
             </svg>
             <input type="number" id="export-video-custom-res-w" class="custom-res-box" placeholder="W" value="1920" aria-label="Width">
             <button type="button" id="export-video-btn-link-res" class="custom-res-link-btn is-locked" title="Lock Aspect Ratio" aria-label="Lock aspect ratio">
-              <svg class="res-link-icon res-link-icon-linked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
-              <svg class="res-link-icon res-link-icon-unlinked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
-                <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
-                <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
-              </svg>
+              <i class='fticon fticon-custom-resolution res-link-icon res-link-icon-linked' aria-hidden='true'></i>
+              <i class='fticon fticon-lock-aspect-ratio res-link-icon res-link-icon-unlinked' aria-hidden='true'></i>
             </button>
             <input type="number" id="export-video-custom-res-h" class="custom-res-box" placeholder="H" value="1080" aria-label="Height">
           </div>
@@ -3477,7 +3142,7 @@
     <div class="export-fs-inner">
     <div class="export-settings-header">
       <button type="button" class="export-fs-back-btn" data-close-settings="export-settings-sequence" title="Back" aria-label="Back">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <i class='fticon fticon-close-export' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
       </button>
       <span class="export-settings-title">Image Sequence Settings</span>
     </div>
@@ -3513,10 +3178,7 @@
           </button>
           <button type="button" class="aspect-ratio-frame" data-val="Custom" title="Custom Resolution">
             <div class="aspect-frame-box ratio-1-1">
-              <svg class="aspect-ratio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
+              <i class='fticon fticon-custom-resolution aspect-ratio-icon' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
             </div>
           </button>
         </div>
@@ -3529,9 +3191,7 @@
           <div class="custom-dropdown" id="dropdown-export-seq-resolution" data-value="1080p">
             <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Resolution">
               <span class="custom-dropdown-label">1080p</span>
-              <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 10l5 5 5-5z"/>
-              </svg>
+              <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
             </button>
             <div class="custom-dropdown-menu" role="listbox">
               <div class="custom-dropdown-item" role="option" data-val="4K">4K</div>
@@ -3550,15 +3210,8 @@
             </svg>
             <input type="number" id="export-seq-custom-res-w" class="custom-res-box" placeholder="W" value="1920" aria-label="Width">
             <button type="button" id="export-seq-btn-link-res" class="custom-res-link-btn is-locked" title="Lock Aspect Ratio" aria-label="Lock aspect ratio">
-              <svg class="res-link-icon res-link-icon-linked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
-              <svg class="res-link-icon res-link-icon-unlinked" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
-                <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
-                <line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2 2"/>
-              </svg>
+              <i class='fticon fticon-custom-resolution res-link-icon res-link-icon-linked' aria-hidden='true'></i>
+              <i class='fticon fticon-lock-aspect-ratio res-link-icon res-link-icon-unlinked' aria-hidden='true'></i>
             </button>
             <input type="number" id="export-seq-custom-res-h" class="custom-res-box" placeholder="H" value="1080" aria-label="Height">
           </div>
@@ -3601,15 +3254,15 @@
       <div class="qr-share-actions">
         <!-- Copy link -->
         <button type="button" class="qr-share-action-btn" id="qr-btn-copy" title="Copy Link">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          <i class='fticon fticon-copy-link' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
         </button>
         <!-- Download as PNG -->
         <button type="button" class="qr-share-action-btn" id="qr-btn-download" title="Download as PNG">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-14 9v2h14v-2H5z"/></svg>
+          <i class='fticon fticon-download-as-png' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
         </button>
         <!-- Close -->
         <button type="button" class="qr-share-action-btn" id="qr-btn-close" title="Close">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          <i class='fticon fticon-close-2' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
         </button>
       </div>
     </div>
@@ -3629,11 +3282,11 @@
     <div class="popover-tail" aria-hidden="true"></div>
     <div class="popover-menu-list">
       <button type="button" class="popover-menu-item" id="popover-btn-add-reverb" title="Add Reverb Effect">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        <i class='fticon fticon-add-reverb-effect' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
         <span>Reverb</span>
       </button>
       <button type="button" class="popover-menu-item" id="popover-btn-add-delay" title="Add Delay Effect">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        <i class='fticon fticon-add-delay-effect' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
         <span>Delay</span>
       </button>
     </div>
@@ -3679,11 +3332,11 @@
     <div class="popover-tail" aria-hidden="true"></div>
     <div class="popover-menu-list">
       <button type="button" class="popover-menu-item" id="btn-effects-copy-all" title="Copy Effects">
-        <span class="svg-icon svg-icon-copy" aria-hidden="true"></span>
+        <span class="fticon fticon-copy" aria-hidden="true"></span>
         <span>Copy Effects</span>
       </button>
       <button type="button" class="popover-menu-item" id="btn-effects-paste-all" title="Paste Effect">
-        <span class="svg-icon svg-icon-paste" aria-hidden="true"></span>
+        <span class="fticon fticon-paste" aria-hidden="true"></span>
         <span>Paste Effect</span>
       </button>
     </div>
@@ -3697,7 +3350,7 @@
     <div class="popover-menu-list">
       <button type="button" class="popover-menu-item" id="btn-toggle-overshoot">
         <span class="popover-checkbox" id="chk-graph-overshoot">
-          <svg viewBox="0 0 24 24" fill="currentColor" id="svg-chk-graph-overshoot" style="display: none;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <i class='fticon fticon-chk-graph-overshoot' style='display: none;font-size:16px;line-height:1;' aria-hidden='true'></i>
         </span>
         <span>Enable Overshoot</span>
       </button>
@@ -3839,30 +3492,17 @@
       <nav class="color-picker-sidebar">
         <button type="button" class="color-picker-tab-btn" data-tab="eyedropper" title="Eyedropper" aria-label="Eyedropper">
           <span class="color-picker-tab-icon-wrap">
-            <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12.5 8.5 L16 5a2.12 2.12 0 0 1 3 3L15.5 11.5" />
-              <path d="M10.5 6.5 L17.5 13.5" />
-              <path d="M12.5 8.5 L6.5 14.5 C5.8 15.2 5.3 16.1 5 17.1 L4 20 L6.9 19 C7.9 18.7 8.8 18.2 9.5 17.5 L15.5 11.5" />
-            </svg>
+            <i class='fticon fticon-eyedropper color-picker-tab-icon' aria-hidden='true'></i>
           </span>
         </button>
         <button type="button" class="color-picker-tab-btn" data-tab="spectrum" title="Color Wheel & Sliders" aria-label="Color Wheel">
           <span class="color-picker-tab-icon-wrap">
-            <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
-              <circle cx="15.5" cy="8.5" r="1.5" />
-            </svg>
+            <i class='fticon fticon-color-wheel color-picker-tab-icon' aria-hidden='true'></i>
           </span>
         </button>
         <button type="button" class="color-picker-tab-btn" data-tab="palette" title="Color Palette" aria-label="Color Palette">
           <span class="color-picker-tab-icon-wrap">
-            <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
-              <circle cx="13.5" cy="6.5" r="1" fill="currentColor" />
-              <circle cx="17.5" cy="10.5" r="1" fill="currentColor" />
-              <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
-              <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
-            </svg>
+            <i class='fticon fticon-palette color-picker-tab-icon' aria-hidden='true'></i>
           </span>
         </button>
       </nav>
@@ -3910,9 +3550,7 @@
 
       <footer class="modal-footer">
         <button type="button" class="modal-btn-create" id="btn-modal-start-export" title="Render and Export Video">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-          </svg>
+          <i class='fticon fticon-icon' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
           <span>Export Video</span>
         </button>
       </footer>
@@ -3932,11 +3570,7 @@
         <div class="project-link-preview-card" id="export-link-preview-card">
           <div class="project-link-thumb-box" id="export-link-thumb-box">
             <div class="project-thumb-placeholder">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10h14V5H5z"/>
-                <path d="M14.7 7.3a1 1 0 0 1 1.4 0l.6.6a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-.4.25l-2.2.7a.5.5 0 0 1-.6-.6l.7-2.2a1 1 0 0 1 .25-.4l4.9-4.9.7-.75.45.45z"/>
-                <path d="M2 19.5a1 1 0 0 1 1-1h18a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1z"/>
-              </svg>
+              <i class='fticon fticon-share-project-link-dialog' style='width:24px;height:24px;font-size:24px;line-height:1;' aria-hidden='true'></i>
             </div>
           </div>
           <div class="project-link-details">
@@ -3967,9 +3601,7 @@
           Close
         </button>
         <button type="button" class="modal-btn-create" id="btn-generate-project-link" style="margin: 0;">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
-          </svg>
+          <i class='fticon fticon-btn-generate-project-link' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
           <span>Share as Link</span>
         </button>
       </footer>
@@ -3983,9 +3615,7 @@
     <div class="modal-card quick-effects-card" onclick="event.stopPropagation()">
       <div class="quick-effects-header">
         <div class="quick-effects-search-wrap">
-          <svg class="quick-effects-search-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-          </svg>
+          <i class='fticon fticon-quick-effects-palette quick-effects-search-icon' aria-hidden='true'></i>
           <input type="text" class="quick-effects-input" id="quick-effects-input" placeholder="Search effects to add..." autocomplete="off" spellcheck="false" />
         </div>
         <span class="quick-effects-target-badge" id="quick-effects-target-badge">1 Layer</span>
@@ -4013,27 +3643,23 @@
         <h3 class="modal-title">Preset Gallery</h3>
         <div class="preset-gallery-header-right">
           <button type="button" class="preset-header-btn" id="btn-export-all-presets" title="Export Presets JSON">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <i class='fticon fticon-export-presets-json' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
             <span>Export</span>
           </button>
           <label class="preset-header-btn" style="cursor: pointer;" title="Import Presets JSON">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"/></svg>
+            <i class='fticon fticon-import-presets-json' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
             <span>Import</span>
             <input type="file" id="input-import-presets" accept=".json,.fishpreset" style="display: none;" />
           </label>
           <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-effect-presets')">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
+            <i class='fticon fticon-close-3' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
           </button>
         </div>
       </header>
 
       <div class="preset-gallery-filter-bar">
         <div class="preset-gallery-search-wrap">
-          <svg class="preset-search-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-          </svg>
+          <i class='fticon fticon-quick-effects-palette preset-search-icon' aria-hidden='true'></i>
           <input type="text" class="preset-search-input" id="preset-search-input" placeholder="Search presets..." autocomplete="off" />
         </div>
       </div>
@@ -4052,9 +3678,7 @@
       <header class="modal-header">
         <h3 class="modal-title">Save Effect Preset</h3>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-save-effect-preset')">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
+          <i class='fticon fticon-close-3' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </header>
       <div class="modal-form-body">
@@ -4078,9 +3702,7 @@
       <header class="modal-header">
         <h3 class="modal-title">Save as Element</h3>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close('modal-save-element')">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
+          <i class='fticon fticon-close-3' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </header>
       <div class="modal-form-body">
@@ -4107,18 +3729,14 @@
           <span class="welcome-badge">v0.5.131</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
+          <i class='fticon fticon-close-3' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </header>
 
       <div class="welcome-modal-body">
         <div class="welcome-banner">
           <div class="welcome-banner-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-            </svg>
+            <i class='fticon fticon-close-4' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
           </div>
           <div class="welcome-banner-text">
             <strong>Active Development Stage (Alpha)</strong>
@@ -4134,9 +3752,7 @@
             </div>
             <a href="CHANGELOG.md" target="_blank" rel="noopener noreferrer" class="welcome-changelog-link" title="Open CHANGELOG.md">
               <span>CHANGELOG.md</span>
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
-                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-              </svg>
+              <i class='fticon fticon-open-changelog-md' style='width:11px;height:11px;font-size:11px;line-height:1;' aria-hidden='true'></i>
             </a>
           </div>
           <div class="welcome-changelog-feed">
@@ -6065,9 +5681,7 @@
         <div class="welcome-features-list">
           <div class="welcome-feature-item">
             <div class="welcome-feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/>
-              </svg>
+              <i class='fticon fticon-icon-3' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
             </div>
             <div class="feature-text">
               <strong>Bug Reports &amp; Feedback</strong>
@@ -6075,9 +5689,7 @@
             </div>
             <a href="https://www.cutefish.my.id/#contact" target="_blank" rel="noopener noreferrer" class="welcome-link-btn" aria-label="Send Feedback">
               <span>Feedback</span>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-              </svg>
+              <i class='fticon fticon-open-changelog-md' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
             </a>
           </div>
         </div>
@@ -6090,9 +5702,7 @@
         </label>
         <div class="welcome-footer-btns">
           <button type="button" class="modal-btn-secondary" onclick="openDonateFromWelcome()">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-            </svg>
+            <i class='fticon fticon-heart' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
             <span>Donate</span>
           </button>
           <button type="button" class="modal-btn-create" onclick="closeWelcomeModal()">
@@ -6110,15 +5720,11 @@
     <div class="modal-card donate-modal-card" onclick="event.stopPropagation()">
       <header class="donate-modal-header">
         <div class="donate-header-title-box">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-          </svg>
+          <i class='fticon fticon-heart' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
           <h3 class="modal-title">Support OpenFishTools</h3>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="Modal.close()">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
+          <i class='fticon fticon-close-3' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
         </button>
       </header>
 
@@ -6130,9 +5736,7 @@
           <a href="https://saweria.co/cutefishaep" target="_blank" rel="noopener noreferrer" class="donate-card-btn">
             <div class="donate-card-left">
               <div class="donate-icon-badge">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                </svg>
+                <i class='fticon fticon-heart' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
               </div>
               <div class="donate-card-meta">
                 <span class="donate-card-name">Saweria</span>
@@ -6140,9 +5744,7 @@
               </div>
             </div>
             <div class="donate-card-arrow">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-              </svg>
+              <i class='fticon fticon-open-changelog-md' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
             </div>
           </a>
 
@@ -6150,9 +5752,7 @@
           <a href="https://www.paypal.com/paypalme/cutefishae" target="_blank" rel="noopener noreferrer" class="donate-card-btn">
             <div class="donate-card-left">
               <div class="donate-icon-badge">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M20.067 8.478c.492.315.844.825.992 1.455.438 1.867-.534 3.753-2.314 4.708-1.077.578-2.348.874-3.66.874h-1.637c-.502 0-.928.368-1.002.866l-.778 5.253a.584.584 0 0 1-.577.498H7.382c-.37 0-.64-.35-.572-.714l2.802-15.01c.074-.396.417-.687.82-.687h5.127c2.25 0 3.992.518 4.508 2.757zm-4.705 4.095c.954 0 1.706-.217 2.155-.615.44-.39.638-.973.541-1.597-.196-1.258-1.341-1.678-2.846-1.678h-2.18l-.946 5.065h1.764c.502 0 1.054-.535 1.512-1.175z"/>
-                </svg>
+                <i class='fticon fticon-icon-4' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
               </div>
               <div class="donate-card-meta">
                 <span class="donate-card-name">PayPal</span>
@@ -6160,9 +5760,7 @@
               </div>
             </div>
             <div class="donate-card-arrow">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-              </svg>
+              <i class='fticon fticon-open-changelog-md' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
             </div>
           </a>
 
@@ -6171,9 +5769,7 @@
             <button type="button" class="donate-card-btn" id="donate-qris-toggle" onclick="toggleQrisDisplay()">
               <div class="donate-card-left">
                 <div class="donate-icon-badge">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm-5 0h2v3h-2v-3zm2 5h2v3h-2v-3zm3-2h3v5h-5v-2h2v-3zm-2-3h3v2h-3v-2zM6 6h2v2H6V6zm10 0h2v2h-2V6zM6 16h2v2H6v-2z"/>
-                  </svg>
+                  <i class='fticon fticon-donate-qris-toggle' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
                 </div>
                 <div class="donate-card-meta">
                   <span class="donate-card-name">QRIS</span>
@@ -6181,9 +5777,7 @@
                 </div>
               </div>
               <div class="donate-card-arrow qris-arrow" id="qris-arrow-icon">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                  <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-                </svg>
+                <i class='fticon fticon-qris-arrow-icon' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
               </div>
             </button>
             <div class="donate-qris-expanded" id="donate-qris-content" style="display: none;">
@@ -6192,9 +5786,7 @@
               </div>
               <div class="qris-action-row">
                 <a href="https://raw.githubusercontent.com/cutefishaep/OpenFishTools/refs/heads/main/client/assets/qris.png" target="_blank" rel="noopener noreferrer" class="qris-open-btn">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                    <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                  </svg>
+                  <i class='fticon fticon-open-changelog-md' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                   <span>Open Full Image</span>
                 </a>
               </div>
@@ -6339,7 +5931,7 @@
   <script src="js/motion-blur-engine.js"></script>
 
   <script src="js/FishExport-Enggine.js?v=patch"></script>
-  <script src="js/editor.js?v=patch"></script>
+  <script src="js/editor.js?v=patch2"></script>
   <script src="js/attributes-clipboard.js"></script>
   <script src="js/openfishtools-generators3d.js?v=patch"></script>
   <script src="js/openfishtools-controller.js?v=patch"></script>

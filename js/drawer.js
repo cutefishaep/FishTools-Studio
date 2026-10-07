@@ -32,6 +32,14 @@ class DrawerManager {
         return;
       }
 
+      // Click outside card in full-screen drawer (e.g. effects-gallery backdrop)
+      if (e.target && (e.target.id === 'drawer-effects-gallery' || (e.target.id === 'timeline-layer-drawer' && e.target.getAttribute('data-subview') === 'effects-gallery'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.close();
+        return;
+      }
+
       const openTrigger = e.target.closest('[data-drawer-target]');
       if (openTrigger) {
         e.preventDefault();
@@ -85,6 +93,8 @@ class DrawerManager {
     let currentHandle = null;
     let currentCard = null;
     let currentContainer = null;
+    let currentIsFlexible = false;
+    let currentIsFixed = false;
     let maxAllowedHeight = 0;
     let minAllowedHeight = 60;
 
@@ -103,38 +113,57 @@ class DrawerManager {
       startY = e.clientY;
       startHeight = card.getBoundingClientRect().height;
 
-      // 1. Boundary: Container top boundary (mentok ke atas container)
-      const containerH = container.clientHeight || window.innerHeight;
+      // Effects Gallery is flexible and allowed to expand all the way up to topLimit (full screen)
+      const isEffectsGallery = Boolean(
+        container.id === 'drawer-effects-gallery' ||
+        card.classList.contains('is-effects-gallery')
+      );
+
+      // 1. Boundary: Container top boundary (mentok ke atas viewport untuk effects gallery di mobile, atau ke atas area timeline di tablet)
+      const isTablet = window.innerWidth >= 601;
+      const containerH = (isEffectsGallery && isTablet)
+        ? (container.clientHeight || (window.innerHeight - 44))
+        : (isEffectsGallery
+            ? (window.innerHeight || document.documentElement.clientHeight)
+            : (container.clientHeight || window.innerHeight));
       const topLimit = Math.max(80, containerH - 16);
 
-      // 2. Boundary: Full content shown limit ("jika UI mentok / sudah ke show semua")
-      const prevHeight = card.style.height;
-      const prevMaxHeight = card.style.maxHeight;
-      card.style.height = 'auto';
-      card.style.maxHeight = 'none';
-      let contentHeight = card.scrollHeight;
+      // In timeline-layer-drawer, all subviews have fixed size. Handle CANNOT be dragged upwards (prevents empty "kopong" space).
+      // Can only be dragged downwards to dismiss/close or back up to original height.
+      const isFixedSubview = (container.id === 'timeline-layer-drawer');
 
-      // If internal scrollable area exists (e.g. effects gallery/rack, blend, or media pool), include hidden scroll content
-      const scrollableBody = card.querySelector('.effects-gallery-body, .effects-rack-body, .media-pool-body, .blend-work-area');
-      if (scrollableBody) {
-        const extraScroll = scrollableBody.scrollHeight - scrollableBody.clientHeight;
-        if (extraScroll > 0) {
-          contentHeight += extraScroll;
+      currentIsFlexible = isEffectsGallery;
+      currentIsFixed = isFixedSubview;
+
+      if (isEffectsGallery) {
+        maxAllowedHeight = topLimit;
+        minAllowedHeight = Math.min(220, topLimit);
+      } else if (isFixedSubview) {
+        // Strict boundary: Never allow dragging higher than initial natural height
+        maxAllowedHeight = startHeight;
+        minAllowedHeight = 50;
+      } else {
+        // Generic drawer (e.g. timeline-add-drawer)
+        const prevHeight = card.style.height;
+        const prevMaxHeight = card.style.maxHeight;
+        card.style.height = 'auto';
+        card.style.maxHeight = 'none';
+        let contentHeight = card.scrollHeight;
+
+        const scrollableBody = card.querySelector('.media-pool-body');
+        if (scrollableBody) {
+          const extraScroll = scrollableBody.scrollHeight - scrollableBody.clientHeight;
+          if (extraScroll > 0) {
+            contentHeight += extraScroll;
+          }
         }
+
+        card.style.height = prevHeight;
+        card.style.maxHeight = prevMaxHeight;
+
+        maxAllowedHeight = Math.min(topLimit, contentHeight);
+        minAllowedHeight = 50;
       }
-
-      card.style.height = prevHeight;
-      card.style.maxHeight = prevMaxHeight;
-
-      // Graph view has vector responsive content, allow dragging all the way up to topLimit
-      const isGraphView = Boolean(card.querySelector('#layer-drawer-graph-view.is-active') || card.classList.contains('is-graph-view'));
-      if (isGraphView) {
-        contentHeight = topLimit;
-      }
-
-      // Stop expanding when all content is shown or when container top is reached
-      maxAllowedHeight = Math.min(topLimit, contentHeight);
-      minAllowedHeight = isGraphView ? Math.min(220, topLimit) : 50;
 
       handle.classList.add('is-dragging');
       card.style.transition = 'none';
@@ -168,14 +197,30 @@ class DrawerManager {
       if (currentCard) {
         currentCard.style.transition = '';
         const currentH = currentCard.getBoundingClientRect().height;
-        // If dragged down near minimum, smoothly close the drawer
-        if (currentH <= minAllowedHeight + 10) {
-          this.close();
-        } else if (currentContainer && currentContainer.id === 'timeline-layer-drawer') {
-          const mainTl = document.getElementById('main-editor-timeline');
-          if (mainTl) mainTl.style.setProperty('--timeline-drawer-height', `${Math.round(currentH)}px`);
-          if (typeof window.centerSelectedTimelineLayer === 'function') {
-            window.centerSelectedTimelineLayer(true);
+
+        if (currentIsFixed) {
+          // If dragged down by 45px or more, smoothly dismiss the drawer
+          const dismissThreshold = Math.max(minAllowedHeight + 10, startHeight - 45);
+          if (currentH <= dismissThreshold) {
+            this.close();
+          } else {
+            // Nudged slightly: snap back smoothly to fixed natural height
+            currentCard.style.transition = 'height 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
+            currentCard.style.height = '';
+            setTimeout(() => {
+              if (currentCard) currentCard.style.transition = '';
+            }, 200);
+          }
+        } else {
+          // Flexible views (Effects Gallery / Add Drawer)
+          if (currentH <= minAllowedHeight + 10) {
+            this.close();
+          } else if (currentContainer && currentContainer.id === 'timeline-layer-drawer') {
+            const mainTl = document.getElementById('main-editor-timeline');
+            if (mainTl) mainTl.style.setProperty('--timeline-drawer-height', `${Math.round(currentH)}px`);
+            if (typeof window.centerSelectedTimelineLayer === 'function') {
+              window.centerSelectedTimelineLayer(true);
+            }
           }
         }
       }
@@ -183,6 +228,8 @@ class DrawerManager {
       currentHandle = null;
       currentCard = null;
       currentContainer = null;
+      currentIsFlexible = false;
+      currentIsFixed = false;
     };
 
     document.addEventListener('pointerup', endDrag);
@@ -260,6 +307,9 @@ class DrawerManager {
     let hasRemainingActive = false;
     activeDrawers.forEach((drawer) => {
       if (drawer !== exceptEl) {
+        if (exceptEl && exceptEl.id === 'drawer-effects-gallery' && drawer.id === 'timeline-layer-drawer') {
+          return;
+        }
         drawer.classList.remove('is-active');
         drawer.setAttribute('aria-hidden', 'true');
         this.clearContent(drawer);
@@ -287,9 +337,13 @@ class DrawerManager {
       window.Popover.close(false);
     }
 
-    // If another drawer is already open, immediately close and purge it
+    // If another drawer is already open, preserve timeline-layer-drawer if opening drawer-effects-gallery
     if (this.activeDrawer && this.activeDrawer !== el) {
-      this.cleanup(el);
+      if (el.id === 'drawer-effects-gallery' && this.activeDrawer.id === 'timeline-layer-drawer') {
+        this.parentDrawer = this.activeDrawer;
+      } else {
+        this.cleanup(el);
+      }
       if (this.historyPushed) {
         window.history.replaceState({ drawerOpen: true, drawerId: el.id }, '');
       }
@@ -339,10 +393,24 @@ class DrawerManager {
 
   /**
    * Perfect Close: Closes active drawer and purges its inner content
-   * @param {boolean} triggerHistoryBack 
+   * @param {boolean|string|HTMLElement} [targetOrHistory=true]
+   * @param {boolean} [triggerHistoryBack=true]
    */
-  close(triggerHistoryBack = true) {
-    const closingDrawer = this.activeDrawer;
+  close(targetOrHistory = true, triggerHistoryBack = true) {
+    let closingDrawer = this.activeDrawer;
+    const doHistory = (typeof targetOrHistory === 'boolean') ? targetOrHistory : triggerHistoryBack;
+
+    if (typeof targetOrHistory === 'string' || (targetOrHistory && targetOrHistory.nodeType)) {
+      const specified = this.resolveElement(targetOrHistory);
+      if (specified) {
+        closingDrawer = specified;
+      }
+    }
+
+    if (!closingDrawer) {
+      closingDrawer = document.querySelector('.drawer-container.is-active');
+    }
+
     if (!closingDrawer) {
       this.cleanup(null);
       return;
@@ -355,7 +423,16 @@ class DrawerManager {
     if (closingCard) {
       closingCard.style.height = '';
     }
-    this.activeDrawer = null;
+
+    if (closingDrawer.id === 'drawer-effects-gallery' && this.parentDrawer && (this.parentDrawer.classList.contains('is-active') || this.isOpen(this.parentDrawer))) {
+      this.activeDrawer = this.parentDrawer;
+      this.parentDrawer = null;
+    } else {
+      if (this.activeDrawer === closingDrawer) {
+        this.activeDrawer = null;
+      }
+      this.parentDrawer = null;
+    }
 
     const remainingActive = document.querySelectorAll('.drawer-container.is-active');
     if (remainingActive.length === 0) {
@@ -372,12 +449,12 @@ class DrawerManager {
 
     // Clean inner content: Purge upon slide-down animation completion
     setTimeout(() => {
-      if (!this.isOpen(closingDrawer)) {
+      if (!this.isOpen(closingDrawer) && closingDrawer.id !== 'drawer-effects-gallery') {
         this.clearContent(closingDrawer);
       }
     }, 260);
 
-    if (triggerHistoryBack && this.historyPushed) {
+    if (doHistory && this.historyPushed) {
       this.historyPushed = false;
       window.history.back();
     } else {
@@ -421,7 +498,8 @@ class DrawerManager {
    */
   isOpen(target) {
     const el = this.resolveElement(target);
-    return this.activeDrawer === el;
+    if (!el) return false;
+    return el.classList.contains('is-active') || this.activeDrawer === el;
   }
 }
 

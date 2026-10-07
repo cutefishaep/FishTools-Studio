@@ -20,18 +20,44 @@
 
   isInstalled = checkIsInstalled();
 
-  // 2. Register Service Worker
+  // 2. Retired Service Worker self-cleanup (sw.js deleted from repo).
+  // Stale installed workers keep serving old app shell across reloads,
+  // so purge every registration and cache once on each load.
+  function purgeStaleServiceWorkers() {
+    try {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          (regs || []).forEach(function (reg) {
+            try { reg.unregister(); } catch (_) {}
+          });
+        }).catch(function () {});
+      }
+      if (window.caches && window.caches.keys) {
+        window.caches.keys().then(function (names) {
+          (names || []).forEach(function (name) {
+            try { window.caches.delete(name); } catch (_) {}
+          });
+        }).catch(function () {});
+      }
+    } catch (_) {}
+  }
+
+  // 3. Register Service Worker
   function registerServiceWorker() {
+    purgeStaleServiceWorkers();
     if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
       window.addEventListener('load', function () {
-        navigator.serviceWorker
-          .register('./sw.js')
-          .then(function (reg) {
-            console.log('[PWA] Service Worker registered with scope:', reg.scope);
-          })
-          .catch(function (err) {
-            console.warn('[PWA] Service Worker registration failed:', err);
-          });
+        fetch('./sw.js', { method: 'HEAD', cache: 'no-store' }).then(function (res) {
+          if (!res || !res.ok) return;
+          navigator.serviceWorker
+            .register('./sw.js')
+            .then(function (reg) {
+              console.log('[PWA] Service Worker registered with scope:', reg.scope);
+            })
+            .catch(function (err) {
+              console.warn('[PWA] Service Worker registration failed:', err);
+            });
+        }).catch(function () {});
       });
     }
   }

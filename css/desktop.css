@@ -16,8 +16,16 @@
   --desktop-btn-h: 30px;
   --desktop-btn-h-lg: 40px;
   --desktop-layer-panel-w: 240px;
-  --desktop-control-col-w: 56px;
+  --desktop-control-col-w: 72px;
   --desktop-parent-col-w: 76px;
+}
+
+.fticon {
+  display: inline-block;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* --- Global Desktop Viewport Root --- */
@@ -198,6 +206,18 @@
 }
 
 /* SVGs inside Header Action Buttons: Strict 16px */
+.desktop-header .editor-settings-btn i.fticon,
+.desktop-header .editor-precomp-collapse-btn i.fticon,
+.desktop-header .editor-layer-precomp-btn i.fticon,
+.desktop-header .editor-layer-group-mask-btn i.fticon,
+.desktop-header .editor-layer-group-exclude-btn i.fticon,
+.desktop-header .editor-layer-delete-btn i.fticon,
+.desktop-header .editor-layer-collapse-btn i.fticon,
+.desktop-header .editor-layer-motion-blur-btn i.fticon,
+.desktop-header .editor-layer-3d-btn i.fticon,
+.desktop-header .editor-layer-3d-btn .fticon,
+.desktop-header .editor-layer-link-btn i.fticon,
+.desktop-header .editor-layer-more-btn i.fticon,
 .desktop-header .editor-settings-btn svg,
 .desktop-header .editor-precomp-collapse-btn svg,
 .desktop-header .editor-layer-precomp-btn svg,
@@ -212,6 +232,7 @@
 .desktop-header .editor-layer-more-btn svg {
   width: 16px;
   height: 16px;
+  font-size: 16px;
   display: block;
   flex-shrink: 0;
 }
@@ -1192,9 +1213,11 @@
 
 .desktop-panel-right .layer-action-icon,
 .desktop-panel-right .layer-action-btn svg,
-.desktop-panel-right .layer-action-btn .svg-icon {
+.desktop-panel-right .layer-action-btn .svg-icon,
+.desktop-panel-right .layer-action-btn .fticon {
   width: 24px !important;
   height: 24px !important;
+  font-size: 24px !important;
   fill: currentColor !important;
   flex-shrink: 0;
 }
@@ -1260,6 +1283,7 @@
   overflow: hidden !important;
   box-sizing: border-box !important;
 }
+
 
 /* Effects Gallery (desktop inspector): title row + full-width search row, one flat surface,
    categories start right under the search (no stacked header/body padding band). */
@@ -1410,9 +1434,25 @@
   border-color: var(--color-primary) !important;
 }
 
-.desktop-panel-right .transform-nav-btn svg {
+.desktop-panel-right .transform-nav-btn:disabled,
+.desktop-panel-right .transform-nav-btn.is-disabled,
+#desktop-panel-inspector .transform-nav-btn:disabled,
+#desktop-panel-inspector .transform-nav-btn.is-disabled {
+  opacity: 0.35 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
+.desktop-panel-right .transform-nav-btn svg,
+.desktop-panel-right .transform-nav-btn .fticon {
   width: 14px !important;
   height: 14px !important;
+  font-size: 14px !important;
+}
+
+.desktop-panel-right .transform-nav-btn:hover .fticon,
+.desktop-panel-right .transform-nav-btn.is-active .fticon {
+  color: var(--bg-canvas) !important;
 }
 
 /* Row 2: Tool Mode Selector Tabs (Move, Rotate, Scale, Skew) */
@@ -1476,9 +1516,16 @@
   fill: var(--bg-canvas) !important;
 }
 
-.desktop-panel-right .transform-tool-btn svg {
+.desktop-panel-right .transform-tool-btn svg,
+.desktop-panel-right .transform-tool-btn .fticon {
   width: 15px !important;
   height: 15px !important;
+  font-size: 15px !important;
+}
+
+.desktop-panel-right .transform-tool-btn:hover .fticon,
+.desktop-panel-right .transform-tool-btn.is-active .fticon {
+  color: var(--bg-canvas) !important;
 }
 
 /* Row 3: Full Width Interactive Work Area for Subviews */
@@ -1660,14 +1707,14 @@
   letter-spacing: 0.5px !important;
 }
 
-/* Position Pane Move Layout: Pad + Z-Ruler */
-.desktop-panel-right .transform-move-layout {
+/* Position Pane Move Layout: Pad + Z-Ruler (Matching editor.html) */
+.desktop-panel-right #pane-transform-move {
+  display: none;
+}
+.desktop-panel-right #pane-transform-move.is-active {
+  height: 100% !important;
   display: flex !important;
-  flex-direction: row !important;
-  gap: 8px !important;
-  width: 100% !important;
-  flex: 1 !important;
-  min-height: 220px !important;
+  flex-direction: column !important;
 }
 
 .desktop-panel-right .transform-swipe-pad {
@@ -1680,8 +1727,8 @@
   position: relative !important;
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
   cursor: crosshair !important;
   box-sizing: border-box !important;
   padding: 8px !important;
@@ -1700,37 +1747,81 @@
 }
 
 .desktop-panel-right .transform-swipe-prompt {
-  position: absolute !important;
-  bottom: 14px !important;
   font-size: 11px !important;
   font-weight: 500 !important;
   color: var(--text-muted) !important;
   pointer-events: none !important;
   user-select: none !important;
+  text-align: center !important;
 }
 
-/* Z-Ruler Strip next to Position Pad */
+.desktop-panel-right .transform-unified-body {
+  display: flex !important;
+  flex: 1 !important;
+  width: 100% !important;
+  position: relative !important;
+  padding: 0 4px !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important;
+}
+
+.desktop-panel-right .transform-swipe-xy-area {
+  flex: 2 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+}
+
+/* Z-Ruler Strip: exactly like editor.html - transparent, natural vertical slider inside unified body */
 .desktop-panel-right .transform-z-ruler-wrap {
-  width: 36px !important;
-  height: 100% !important;
-  min-height: 200px !important;
-  flex-shrink: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
-  justify-content: center !important;
-  background-color: var(--bg-panel) !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: var(--desktop-radius) !important;
-  padding: 6px 0 !important;
-  box-sizing: border-box !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  user-select: none !important;
+  padding: 4px 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.desktop-panel-right #jog-pos-z {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  cursor: ns-resize !important;
+}
+
+.desktop-panel-right #jog-pos-z .jog-wheel-ticks.is-vertical {
+  width: auto !important;
+  left: 0 !important;
+  right: 0 !important;
+  background-image: linear-gradient(to bottom, var(--text-muted) 0px, var(--text-muted) 1.5px, transparent 1.5px) !important;
+  background-size: 100% 16px !important;
+  background-position-x: center !important;
+  opacity: 0.65 !important;
+}
+
+.desktop-panel-right #jog-pos-z .jog-wheel-needle.is-vertical {
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  height: 2px !important;
+  background-color: var(--color-primary) !important;
 }
 
 .desktop-panel-right .transform-z-label {
+  font-family: var(--font-brand) !important;
   font-size: 10px !important;
   font-weight: 700 !important;
-  color: var(--color-primary) !important;
-  margin-top: 4px !important;
+  color: var(--text-muted) !important;
+  margin-top: 3px !important;
 }
 
 .desktop-panel-right .transform-z-ruler-wrap.is-3d-hidden,
@@ -1738,34 +1829,22 @@
   display: none !important;
 }
 
-/* Rotation Pane */
-.desktop-panel-right #pane-transform-rotate .rotate-axis-switch {
-  width: 100% !important;
-  height: 28px !important;
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  background-color: var(--bg-panel) !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: var(--desktop-radius) !important;
-  padding: 2px !important;
-  gap: 2px !important;
+/* Rotation Pane - desktop uses is-mixed dial + X/Y jogwheels (no axis switch) */
+.desktop-panel-right #pane-transform-rotate {
+  display: none;
 }
-
-.desktop-panel-right #pane-transform-rotate .rotate-axis-switch.is-3d-hidden,
-.desktop-panel-right #pane-transform-rotate .rotate-axis-switch[style*="display: none"] {
-  display: none !important;
-}
-
-.desktop-panel-right #pane-transform-rotate .rotate-axis-switch .segmented-switch-item {
+.desktop-panel-right #pane-transform-rotate.is-active {
   height: 100% !important;
-  border-radius: var(--desktop-radius-sm) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  min-height: 0 !important;
 }
 
-.desktop-panel-right #pane-transform-rotate .rotate-axis-switch .segmented-switch-item.is-active {
-  background-color: var(--color-primary) !important;
-  color: var(--bg-canvas) !important;
+/* Desktop: collapse header retired - pill precomp tetap tampil */
+.desktop-header .editor-precomp-collapse-btn,
+.desktop-header .editor-layer-collapse-btn {
+  display: none !important;
 }
 
 .desktop-panel-right .transform-rotate-body {
@@ -1776,7 +1855,17 @@
   min-height: 200px !important;
 }
 
-/* Scale Pane */
+/* Scale Pane - Full height to bottom */
+.desktop-panel-right #pane-transform-scale {
+  display: none;
+}
+.desktop-panel-right #pane-transform-scale.is-active {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
 .desktop-panel-right #pane-transform-scale .transform-link-btn {
   width: 28px !important;
   height: 28px !important;
@@ -1796,58 +1885,163 @@
   border-color: var(--color-primary) !important;
 }
 
-/* Single Unified Scale Jog Wheel (Linked Proportional Mode) */
+.desktop-panel-right #pane-transform-scale .transform-link-btn i.fticon,
+.desktop-panel-right #pane-transform-scale .transform-link-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 14px !important;
+}
+
+/* Single Unified Scale Jog Wheel (Linked Proportional Mode) - Full height */
 .desktop-panel-right #pane-transform-scale #jog-scale-linked {
-  flex: none !important;
+  flex: 1 1 0 !important;
   width: 100% !important;
-  height: 48px !important;
-  min-height: 48px !important;
-  max-height: 48px !important;
-  border-radius: var(--desktop-radius) !important;
-  background-color: var(--bg-panel-inner) !important;
-  border: 1px solid var(--border-subtle) !important;
-  box-sizing: border-box !important;
-  margin: 4px 0 !important;
-}
-
-/* Dual Independent Jog Wheels (Unlinked Mode: Width & Height) */
-.desktop-panel-right #pane-transform-scale #jog-scale-unlinked {
-  flex: none !important;
-  width: 100% !important;
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 8px !important;
-  margin: 4px 0 !important;
-  box-sizing: border-box !important;
-}
-
-.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-container {
-  flex: none !important;
-  width: 100% !important;
-  height: 48px !important;
-  min-height: 48px !important;
-  max-height: 48px !important;
+  height: 100% !important;
+  min-height: 180px !important;
   border-radius: var(--desktop-radius) !important;
   background-color: var(--bg-panel-inner) !important;
   border: 1px solid var(--border-subtle) !important;
   box-sizing: border-box !important;
   margin: 0 !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-/* Strictly hide elements with display: none in scale pane */
+/* Unlinked Mode: 3 Vertical Jog Wheels (Width X, Height Y, Depth Z) - Full height to bottom */
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked {
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 180px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important;
+}
+
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-container.is-vertical {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: ns-resize !important;
+  overflow: hidden !important;
+}
+
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-track-viewport,
+.desktop-panel-right #pane-transform-skew .jog-wheel-track-viewport {
+  position: absolute !important;
+  inset: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-ticks.is-vertical,
+.desktop-panel-right #pane-transform-skew .jog-wheel-ticks.is-vertical {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  background-image: linear-gradient(to bottom, var(--text-secondary) 0px, var(--text-secondary) 1.5px, transparent 1.5px) !important;
+  background-size: 100% 16px !important;
+  background-position-x: center !important;
+  opacity: 0.65 !important;
+}
+
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-needle.is-vertical,
+.desktop-panel-right #pane-transform-skew .jog-wheel-needle.is-vertical {
+  position: absolute !important;
+  top: 50% !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  height: 2px !important;
+  transform: translateY(-50%) !important;
+  background-color: var(--color-primary) !important;
+  z-index: 4 !important;
+}
+
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .rotate-axis-pill,
+.desktop-panel-right #pane-transform-skew .rotate-axis-pill {
+  position: absolute !important;
+  top: 8px !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  z-index: 6 !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 4px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 2px !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
+}
+
+/* Strictly hide elements with display: none in scale pane (Z selectors carry
+   #jog-scale-unlinked ancestor to beat the flex show-rule specificity) */
 .desktop-panel-right #pane-transform-scale #jog-scale-unlinked[style*="display: none"],
 .desktop-panel-right #pane-transform-scale #jog-scale-linked[style*="display: none"],
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked #jog-scale-z.is-3d-hidden,
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked #jog-scale-z[style*="display: none"],
 .desktop-panel-right .transform-dual-rulers[style*="display: none"],
 .desktop-panel-right .jog-wheel-container[style*="display: none"] {
   display: none !important;
 }
 
-/* Skew Pane */
-.desktop-panel-right #pane-transform-skew .jog-wheel-container {
-  flex: none !important;
+/* Skew Pane - Vertical Rulers Full Height */
+.desktop-panel-right #pane-transform-skew {
+  display: none;
+}
+.desktop-panel-right #pane-transform-skew.is-active {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.desktop-panel-right #pane-transform-skew .transform-dual-rulers {
+  flex: 1 1 0 !important;
   width: 100% !important;
-  height: 38px !important;
-  border-radius: var(--desktop-radius) !important;
+  height: 100% !important;
+  min-height: 180px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important;
+}
+
+.desktop-panel-right #pane-transform-skew .jog-wheel-container.is-vertical {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: ns-resize !important;
+  overflow: hidden !important;
 }
 
 /* --- Desktop Inspector Subviews Specifics --- */
@@ -2206,8 +2400,15 @@
 
 .desktop-panel-right .effects-card-caret,
 #desktop-panel-inspector .effects-card-caret {
-  width: 8px !important;
-  height: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 10px !important;
+  height: 10px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  transform-origin: 50% 50% !important;
   fill: currentColor !important;
   transition: transform 0.12s ease !important;
 }
@@ -2306,13 +2507,8 @@
   color: var(--text-muted) !important;
 }
 
-.desktop-panel-right .effects-card:not(.is-expanded) .effects-card-delete-btn,
-#desktop-panel-inspector .effects-card:not(.is-expanded) .effects-card-delete-btn {
-  display: none !important;
-}
-
-.desktop-panel-right .effects-card.is-expanded .effects-card-delete-btn,
-#desktop-panel-inspector .effects-card.is-expanded .effects-card-delete-btn {
+.desktop-panel-right .effects-card .effects-card-delete-btn,
+#desktop-panel-inspector .effects-card .effects-card-delete-btn {
   display: inline-flex !important;
 }
 
@@ -2908,7 +3104,7 @@
 #desktop-panel-inspector .fill-panel-view.is-active {
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
+  gap: 10px !important;
 }
 
 /* ==========================================================================
@@ -2949,8 +3145,8 @@
 #desktop-panel-inspector #fill-color-picker-header {
   order: 1 !important;
   width: 100% !important;
-  height: 36px !important;
-  min-height: 36px !important;
+  height: 40px !important;
+  min-height: 40px !important;
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;
@@ -2966,9 +3162,9 @@
 
 .desktop-panel-right .color-picker-preview-dot,
 #desktop-panel-inspector .color-picker-preview-dot {
-  width: 20px !important;
-  height: 20px !important;
-  border-radius: 4px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 5px !important;
   border: 1px solid var(--border-subtle) !important;
   flex-shrink: 0 !important;
   margin: 0 !important;
@@ -3142,10 +3338,7 @@
 
 .desktop-panel-right #fill-view-color .color-picker-tab-icon,
 #desktop-panel-inspector #fill-view-color .color-picker-tab-icon {
-  width: 13px !important;
-  height: 13px !important;
-  flex-shrink: 0 !important;
-  stroke: currentColor !important;
+  display: none !important;
 }
 
 .desktop-panel-right #fill-view-color .color-picker-tab-btn.is-active svg,
@@ -3172,7 +3365,7 @@
   width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
-  flex: none !important;
+  flex: 1 !important;
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius) !important;
@@ -3208,16 +3401,16 @@
 .desktop-panel-right .color-picker-swatch-grid,
 #desktop-panel-inspector .color-picker-swatch-grid {
   display: grid !important;
-  grid-template-columns: repeat(7, minmax(0, 28px)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(24px, 1fr)) !important;
   gap: 6px !important;
   width: 100% !important;
-  max-width: 224px !important;
+  max-width: none !important;
 }
 
 .desktop-panel-right .color-picker-swatch-item,
 #desktop-panel-inspector .color-picker-swatch-item {
   width: 100% !important;
-  max-width: 28px !important;
+  max-width: none !important;
   aspect-ratio: 1 / 1 !important;
   border-radius: 4px !important;
   border: 1px solid var(--border-subtle) !important;
@@ -3229,7 +3422,7 @@
 .desktop-panel-right .color-picker-swatch-item:hover,
 #desktop-panel-inspector .color-picker-swatch-item:hover {
   transform: scale(1.12) !important;
-  border-color: #ffffff !important;
+  border-color: var(--text-primary) !important;
   z-index: 2 !important;
 }
 
@@ -3267,10 +3460,10 @@
 .desktop-panel-right .color-picker-saved-grid,
 #desktop-panel-inspector .color-picker-saved-grid {
   display: grid !important;
-  grid-template-columns: repeat(7, minmax(0, 28px)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(24px, 1fr)) !important;
   gap: 6px !important;
   width: 100% !important;
-  max-width: 224px !important;
+  max-width: none !important;
 }
 
 /* Subview B: Spectrum Mixer View */
@@ -3288,7 +3481,7 @@
 .desktop-panel-right .color-picker-sv-box,
 #desktop-panel-inspector .color-picker-sv-box {
   width: 100% !important;
-  height: 80px !important;
+  height: 120px !important;
   border-radius: 6px !important;
   border: 1px solid var(--border-subtle) !important;
   position: relative !important;
@@ -3307,12 +3500,18 @@
   width: 100% !important;
   box-sizing: border-box !important;
   padding: 2px 0 !important;
+  order: 2 !important;
+}
+
+.desktop-panel-right #fill-view-color .color-picker-sv-box,
+#desktop-panel-inspector #fill-view-color .color-picker-sv-box {
+  order: 1 !important;
 }
 
 .desktop-panel-right .color-picker-wheel-box,
 #desktop-panel-inspector .color-picker-wheel-box {
-  width: 106px !important;
-  height: 106px !important;
+  width: 120px !important;
+  height: 120px !important;
   position: relative !important;
   display: flex !important;
   align-items: center !important;
@@ -3324,7 +3523,7 @@
 .desktop-panel-right .color-picker-alpha-box,
 #desktop-panel-inspector .color-picker-alpha-box {
   width: 22px !important;
-  height: 106px !important;
+  height: 120px !important;
   border-radius: 6px !important;
   border: 1px solid var(--border-subtle) !important;
   position: relative !important;
@@ -3344,21 +3543,24 @@
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius) !important;
-  padding: 14px 12px !important;
+  padding: 10px !important;
   height: auto !important;
   min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  gap: 14px !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  gap: 10px !important;
   box-sizing: border-box !important;
+  flex: 1 !important;
 }
 
 .desktop-panel-right .fill-grad-types-bar {
   background-color: var(--bg-panel-inner) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;
-  height: 32px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   width: 100% !important;
   max-width: none !important;
   display: flex !important;
@@ -3382,10 +3584,12 @@
 
 .desktop-panel-right .fill-grad-type-btn:hover {
   background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .desktop-panel-right .fill-grad-type-btn.is-active {
   background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
 }
 
 .desktop-panel-right .fill-grad-type-btn.is-active svg rect {
@@ -3396,15 +3600,16 @@
 .desktop-panel-right .fill-grad-slider-row {
   width: 100% !important;
   max-width: none !important;
-  padding: 0 !important;
+  padding: 0 9px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 8px !important;
+  box-sizing: border-box !important;
 }
 
 .desktop-panel-right .fill-grad-track-container {
   width: 100% !important;
-  height: 24px !important;
+  height: 28px !important;
   display: flex !important;
   align-items: center !important;
 }
@@ -3420,6 +3625,11 @@
   width: 18px !important;
   height: 18px !important;
   border-radius: 4px !important;
+  border: 2px solid var(--text-primary) !important;
+}
+
+.desktop-panel-right .fill-grad-handle.is-active {
+  border-color: var(--color-primary) !important;
 }
 
 /* 3C. Media Panel (#fill-view-media) - Desktop Overhaul */
@@ -3435,106 +3645,142 @@
   background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius) !important;
-  padding: 8px !important;
+  padding: 10px !important;
   width: 100% !important;
   height: auto !important;
-  min-height: 140px !important;
-  max-height: 360px !important;
+  min-height: 0 !important;
+  max-height: none !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
+  flex: 1 !important;
 }
 
 .desktop-panel-right .fill-media-pool-grid,
 #desktop-panel-inspector .fill-media-pool-grid {
   display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  gap: 6px !important;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)) !important;
+  gap: 10px 8px !important;
   width: 100% !important;
   height: auto !important;
-  max-height: 340px !important;
+  min-height: 0 !important;
+  max-height: none !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   padding: 0 !important;
   margin: 0 !important;
   align-content: start !important;
   box-sizing: border-box !important;
+  flex: 1 !important;
 }
 
 .desktop-panel-right .fill-media-import-tile,
 #desktop-panel-inspector .fill-media-import-tile {
   width: 100% !important;
-  aspect-ratio: 1 / 1 !important;
-  border-radius: var(--desktop-radius-sm, 5px) !important;
-  border: 1.5px dashed var(--border-subtle) !important;
-  background-color: var(--bg-panel-inner) !important;
+  max-width: 132px !important;
+  border: none !important;
+  background: transparent !important;
   cursor: pointer !important;
   display: flex !important;
   flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
   gap: 4px !important;
   color: var(--text-muted) !important;
   outline: none !important;
   padding: 0 !important;
   box-sizing: border-box !important;
   font-family: var(--font-brand) !important;
-  transition: border-color 0.08s ease, color 0.08s ease, background-color 0.08s ease !important;
 }
 
 .desktop-panel-right .fill-media-import-tile:hover,
 #desktop-panel-inspector .fill-media-import-tile:hover {
-  border-color: var(--color-primary) !important;
   color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .fill-media-thumbbox,
+#desktop-panel-inspector .fill-media-thumbbox {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: var(--desktop-radius-sm, 5px) !important;
+  border: 1px solid var(--border-subtle) !important;
+  background-color: var(--bg-panel) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.08s ease, background-color 0.08s ease !important;
+}
+
+.desktop-panel-right .fill-media-import-box,
+#desktop-panel-inspector .fill-media-import-box {
+  border-style: dashed !important;
+  background-color: var(--bg-panel-inner) !important;
+  color: inherit !important;
+}
+
+.desktop-panel-right .fill-media-import-tile:hover .fill-media-import-box,
+#desktop-panel-inspector .fill-media-import-tile:hover .fill-media-import-box {
+  border-color: var(--color-primary) !important;
   background-color: var(--bg-panel-hover) !important;
 }
 
-.desktop-panel-right .fill-media-import-tile svg,
-#desktop-panel-inspector .fill-media-import-tile svg {
-  width: 20px !important;
-  height: 20px !important;
-  stroke: currentColor !important;
-}
-
-.desktop-panel-right .fill-media-import-tile span,
-#desktop-panel-inspector .fill-media-import-tile span {
+.desktop-panel-right .fill-media-name,
+#desktop-panel-inspector .fill-media-name {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
   font-size: 10px !important;
   font-weight: 600 !important;
-  color: inherit !important;
-  line-height: 1 !important;
+  line-height: 1.3 !important;
+  color: var(--text-secondary) !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
 }
 
 .desktop-panel-right .fill-media-tile,
 #desktop-panel-inspector .fill-media-tile {
   position: relative !important;
   width: 100% !important;
-  aspect-ratio: 1 / 1 !important;
-  border-radius: var(--desktop-radius-sm, 5px) !important;
-  border: 1.5px solid var(--border-subtle) !important;
-  overflow: visible !important;
+  max-width: 132px !important;
+  border: none !important;
+  background: transparent !important;
   cursor: pointer !important;
-  background-color: var(--bg-panel-inner) !important;
   display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 4px !important;
   padding: 0 !important;
   outline: none !important;
   box-sizing: border-box !important;
-  transition: border-color 0.12s ease, transform 0.1s ease !important;
+}
+
+.desktop-panel-right .fill-media-tile:hover .fill-media-thumbbox,
+#desktop-panel-inspector .fill-media-tile:hover .fill-media-thumbbox {
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .fill-media-tile.is-active .fill-media-thumbbox,
+#desktop-panel-inspector .fill-media-tile.is-active .fill-media-thumbbox {
+  border: 2px solid var(--color-primary) !important;
 }
 
 .desktop-panel-right .fill-media-tile:hover,
 #desktop-panel-inspector .fill-media-tile:hover {
-  border-color: var(--color-primary) !important;
-  transform: scale(1.04) !important;
   z-index: 2 !important;
 }
 
-.desktop-panel-right .fill-media-tile.is-active,
-#desktop-panel-inspector .fill-media-tile.is-active {
-  border-color: var(--color-primary) !important;
-  background-color: var(--bg-panel-hover) !important;
+.desktop-panel-right .fill-media-tile.is-active .fill-media-name,
+#desktop-panel-inspector .fill-media-tile.is-active .fill-media-name {
+  color: var(--color-primary) !important;
 }
 
 .desktop-panel-right .fill-media-thumb,
@@ -3566,6 +3812,11 @@
   font-weight: 700 !important;
   font-family: var(--font-brand) !important;
   pointer-events: none !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  padding: 0 6px !important;
+  box-sizing: border-box !important;
 }
 
 .desktop-panel-right .fill-media-vid-fallback svg,
@@ -3578,15 +3829,16 @@
 .desktop-panel-right .fill-media-badge,
 #desktop-panel-inspector .fill-media-badge {
   position: absolute !important;
-  bottom: 3px !important;
-  right: 3px !important;
+  bottom: 4px !important;
+  right: 4px !important;
   font-size: 8px !important;
   font-weight: 700 !important;
-  padding: 1px 4px !important;
+  padding: 1px 5px !important;
   border-radius: 3px !important;
-  background-color: rgba(0, 0, 0, 0.75) !important;
-  color: #ffffff !important;
-  line-height: 1.1 !important;
+  background-color: var(--bg-canvas) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  line-height: 1.2 !important;
   z-index: 3 !important;
   pointer-events: none !important;
 }
@@ -3601,30 +3853,53 @@
 
 .desktop-panel-right .fill-none-card,
 #desktop-panel-inspector .fill-none-card {
-  background-color: var(--bg-panel) !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: var(--desktop-radius) !important;
-  min-height: 140px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  min-height: 200px !important;
+  flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 10px !important;
+  text-align: center !important;
+  gap: 8px !important;
+  padding: 0 !important;
+  margin: 0 !important;
   cursor: pointer !important;
-  transition: background-color 0.08s ease, border-color 0.08s ease !important;
+  color: var(--text-muted) !important;
+  transition: color 0.08s ease !important;
 }
 
 .desktop-panel-right .fill-none-card:hover,
 #desktop-panel-inspector .fill-none-card:hover {
-  background-color: var(--bg-panel-hover) !important;
-  border-color: var(--color-primary) !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .fill-none-card .fill-none-title,
+#desktop-panel-inspector .fill-none-card .fill-none-title {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: currentColor !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+.desktop-panel-right .fill-none-card .fill-none-desc,
+#desktop-panel-inspector .fill-none-card .fill-none-desc {
+  display: none !important;
 }
 
 .desktop-panel-right .fill-none-watermark-icon,
 #desktop-panel-inspector .fill-none-watermark-icon {
-  width: 44px !important;
-  height: 44px !important;
-  stroke: var(--text-muted) !important;
+  width: 32px !important;
+  height: 32px !important;
+  color: currentColor !important;
+  opacity: 0.6 !important;
 }
 
 /* 4. Desktop Sliders & Jog Rulers */
@@ -4247,10 +4522,17 @@
 
 .desktop-timeline-toolbar .ctrl-btn .svg-icon,
 .desktop-timeline-toolbar .ctrl-btn svg,
-.desktop-timeline-toolbar .ctrl-btn img {
-  width: 15px !important;
-  height: 15px !important;
+.desktop-timeline-toolbar .ctrl-btn img,
+.desktop-timeline-toolbar .ctrl-btn .fticon {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   pointer-events: none !important;
+  flex-shrink: 0 !important;
 }
 
 /* Play / Pause Toggle State: strictly one icon visible at a time */
@@ -4273,10 +4555,11 @@
 }
 
 .desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) svg,
-.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) .svg-icon {
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) .svg-icon,
+.desktop-timeline-toolbar .ctrl-btn:hover:not(:disabled):not(.is-active) .fticon {
   fill: var(--text-primary) !important;
   color: var(--text-primary) !important;
-  background-color: var(--text-primary) !important;
+  background-color: transparent !important;
 }
 
 .desktop-timeline-toolbar .ctrl-btn:active:not(:disabled) {
@@ -4292,10 +4575,11 @@
 }
 
 .desktop-timeline-toolbar .ctrl-btn.is-active svg,
-.desktop-timeline-toolbar .ctrl-btn.is-active .svg-icon {
+.desktop-timeline-toolbar .ctrl-btn.is-active .svg-icon,
+.desktop-timeline-toolbar .ctrl-btn.is-active .fticon {
   fill: var(--bg-canvas) !important;
   color: var(--bg-canvas) !important;
-  background-color: var(--bg-canvas) !important;
+  background-color: transparent !important;
 }
 
 .desktop-timeline-toolbar .ctrl-btn.is-active:hover {
@@ -4405,10 +4689,14 @@
 }
 
 .desktop-timeline-toolbar .ctrl-btn.ctrl-btn-play .svg-icon,
-.desktop-timeline-toolbar #editor-btn-play .svg-icon {
+.desktop-timeline-toolbar #editor-btn-play .svg-icon,
+.desktop-timeline-toolbar .ctrl-btn.ctrl-btn-play .fticon,
+.desktop-timeline-toolbar #editor-btn-play .fticon {
   width: 16px !important;
   height: 16px !important;
-  background-color: var(--bg-canvas) !important;
+  font-size: 16px !important;
+  color: var(--bg-canvas) !important;
+  fill: var(--bg-canvas) !important;
 }
 
 /* Cut Bar Relocated into Timeline Toolbar: Flat, 28px, zero skirt, strictly layer-state reactive */
@@ -4670,12 +4958,45 @@
 }
 
 .desktop-ruler-col-label.col-control {
-  width: var(--desktop-control-col-w, 56px);
-  text-align: center;
+  width: var(--desktop-control-col-w, 72px);
+  min-width: var(--desktop-control-col-w, 72px);
   flex-shrink: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: grid;
+  grid-template-columns: 20px 20px 20px;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.desktop-ruler-col-label.col-control-icons .col-control-icon-cell {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.desktop-ruler-col-label.col-control-icons .svg-motion-blur {
+  width: 14px;
+  height: 14px;
+  display: block;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.desktop-ruler-col-label.col-control-icons .fticon {
+  width: 14px;
+  height: 14px;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0.75;
 }
 
 .desktop-ruler-col-label.col-parent {
@@ -4978,74 +5299,56 @@
   font-weight: 600 !important;
 }
 
-/* Compact eye button: high contrast in all states */
+/* Eye button: 20x20 recessed slot container matching AE switches, centered 12px icon */
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn,
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn,
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn {
-  width: 16px !important;
-  height: 16px !important;
+  width: 20px !important;
+  height: 20px !important;
   flex-shrink: 0 !important;
-  opacity: 0.8 !important;
-  background: transparent !important;
-  border: none !important;
+  background-color: var(--bg-canvas) !important;
+  border: 1px solid var(--border-panel) !important;
+  border-radius: var(--desktop-radius-sm) !important;
   padding: 0 !important;
-  display: flex !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
   color: var(--text-primary) !important;
+  transition: color 0.08s ease, border-color 0.08s ease, background-color 0.08s ease, transform 0.05s ease !important;
 }
 
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:hover,
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn:hover,
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn:hover {
-  opacity: 1 !important;
+  background-color: var(--bg-panel-inner) !important;
+  border-color: var(--color-primary) !important;
   color: var(--color-primary) !important;
 }
 
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:active {
+  transform: scale(0.92) !important;
+}
+
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn .fticon,
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn .svg-icon,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn .svg-icon,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn .svg-icon {
-  width: 13px !important;
-  height: 13px !important;
-  background-color: var(--text-primary) !important;
-}
-
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:hover .svg-icon,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn:hover .svg-icon,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn:hover .svg-icon {
-  background-color: var(--color-primary) !important;
-}
-
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn svg,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn svg,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn svg {
-  width: 13px !important;
-  height: 13px !important;
-  fill: var(--text-primary) !important;
-}
-
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn:hover svg,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .timeline-layer-eye-btn:hover svg,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .timeline-layer-eye-btn:hover svg {
-  fill: var(--color-primary) !important;
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill .timeline-layer-eye-btn svg {
+  width: 12px !important;
+  height: 12px !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Eye off (hidden layer) contrast */
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn,
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected.is-hidden .timeline-layer-eye-btn {
-  opacity: 0.35 !important;
   color: var(--text-muted) !important;
-}
-
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn .svg-icon,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected.is-hidden .timeline-layer-eye-btn .svg-icon {
-  background-color: var(--text-muted) !important;
-}
-
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-hidden .timeline-layer-eye-btn svg,
-.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected.is-hidden .timeline-layer-eye-btn svg {
-  fill: var(--text-muted) !important;
+  opacity: 0.55 !important;
 }
 
 /* Checkbox button: on desktop hide checkbox, keep clean AE eye icon */
@@ -5115,17 +5418,33 @@
 
 /* Control Column (Switches & Options) */
 .desktop-layer-control-col {
-  width: var(--desktop-control-col-w, 56px);
-  display: flex;
-  align-items: center;
+  width: var(--desktop-control-col-w, 72px);
+  min-width: var(--desktop-control-col-w, 72px);
+  display: grid;
+  grid-template-columns: 20px 20px 20px;
+  gap: 4px;
   justify-content: center;
+  align-items: center;
   flex-shrink: 0;
   box-sizing: border-box;
-  gap: 4px;
+  padding: 0;
+}
+
+.desktop-layer-control-col .desktop-layer-mblur-btn {
+  grid-column: 1;
+}
+
+.desktop-layer-control-col .desktop-layer-collapse-btn {
+  grid-column: 2;
+}
+
+.desktop-layer-control-col .desktop-layer-3d-btn {
+  grid-column: 3;
 }
 
 /* Authentic AE Switch Slot: Explicit dark recessed square box [ ] when inactive, Crisp icon inside when toggled */
 .desktop-layer-mblur-btn,
+.desktop-layer-collapse-btn,
 .desktop-layer-3d-btn {
   width: 20px;
   height: 20px;
@@ -5133,11 +5452,12 @@
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-panel);
   border-radius: var(--desktop-radius-sm);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  margin: 0;
   box-sizing: border-box;
   color: var(--text-muted);
   outline: none;
@@ -5145,54 +5465,59 @@
 }
 
 .desktop-layer-mblur-btn:active,
+.desktop-layer-collapse-btn:active,
 .desktop-layer-3d-btn:active {
   transform: scale(0.92);
 }
 
-/* Inactive state: clearly visible dark recessed slot [ ], icon inside is hidden */
+/* Inactive state: strictly empty recessed box [ ], ZERO icon inside (normal & hover) */
 .desktop-layer-mblur-btn:not(.is-active),
+.desktop-layer-collapse-btn:not(.is-active),
 .desktop-layer-3d-btn:not(.is-active) {
   background-color: var(--bg-canvas);
   border-color: var(--border-panel);
 }
 
-.desktop-layer-mblur-btn:not(.is-active) .svg-icon,
-.desktop-layer-3d-btn:not(.is-active) .svg-icon {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.08s ease;
+.desktop-layer-mblur-btn:not(.is-active) *,
+.desktop-layer-collapse-btn:not(.is-active) *,
+.desktop-layer-3d-btn:not(.is-active) * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-/* Hover over inactive slot: subtle highlight & faint ghost icon for click feedback */
 .desktop-layer-mblur-btn:not(.is-active):hover,
+.desktop-layer-collapse-btn:not(.is-active):hover,
 .desktop-layer-3d-btn:not(.is-active):hover {
   background-color: var(--bg-panel-inner);
-  border-color: var(--color-primary);
+  border-color: var(--border-subtle);
 }
 
-.desktop-layer-mblur-btn:not(.is-active):hover .svg-icon,
-.desktop-layer-3d-btn:not(.is-active):hover .svg-icon {
-  opacity: 0.45;
-  visibility: visible;
-  color: var(--text-muted);
+.desktop-layer-mblur-btn:not(.is-active):hover *,
+.desktop-layer-collapse-btn:not(.is-active):hover *,
+.desktop-layer-3d-btn:not(.is-active):hover * {
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 /* Active state: crisp icon visible inside the slot */
 .desktop-layer-mblur-btn.is-active,
+.desktop-layer-collapse-btn.is-active,
 .desktop-layer-3d-btn.is-active {
   background-color: var(--bg-canvas);
   border-color: var(--border-panel);
   color: var(--color-primary);
 }
 
-.desktop-layer-mblur-btn.is-active .svg-icon,
-.desktop-layer-3d-btn.is-active .svg-icon {
-  opacity: 1;
-  visibility: visible;
-  color: var(--color-primary);
+.desktop-layer-mblur-btn.is-active *,
+.desktop-layer-collapse-btn.is-active *,
+.desktop-layer-3d-btn.is-active * {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .desktop-layer-mblur-btn.is-active:hover,
+.desktop-layer-collapse-btn.is-active:hover,
 .desktop-layer-3d-btn.is-active:hover {
   background-color: var(--bg-panel-inner);
   border-color: var(--color-primary-hover);
@@ -5201,16 +5526,30 @@
 
 /* High-contrast perimeter definition on selected / focused layer rows */
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .desktop-layer-mblur-btn:not(:hover),
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .desktop-layer-collapse-btn:not(:hover),
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-selected .desktop-layer-3d-btn:not(:hover),
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-mblur-btn:not(:hover),
+.desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-collapse-btn:not(:hover),
 .desktop-timeline-wrapper .timeline-layer-ctrl-pill.is-focused .desktop-layer-3d-btn:not(:hover) {
   border-color: var(--border-subtle);
 }
 
-.desktop-layer-mblur-btn .svg-icon,
-.desktop-layer-3d-btn .svg-icon {
+.desktop-layer-mblur-btn svg,
+.desktop-layer-mblur-btn .svg-motion-blur {
   width: 14px;
   height: 14px;
+  display: block;
+}
+
+.desktop-layer-collapse-btn .fticon,
+.desktop-layer-3d-btn .fticon {
+  width: 14px;
+  height: 14px;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Parent & Link Column */
@@ -6293,3 +6632,374 @@
   z-index: 60 !important;
 }
 
+
+/* ====== FULL RESTORATION OF DESKTOP ROTATE LAYOUT & CONTROLS ====== */
+
+/* Desktop: Z dial + X vertical kanan + Y horizontal bawah, full tanpa gap kosong */
+.desktop-panel-right .transform-rotate-body.is-mixed {
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  gap: 8px !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .rotate-main-row {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right .rotate-jogwheel.jog-wheel-container {
+  margin: 0 !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  overflow: hidden !important;
+}
+
+/* Z Apple Watch-style Squircle Dial - tinggi disamakan rel X */
+.desktop-panel-right #dial-transform-rotate-z,
+.desktop-panel-right .rotate-dial-wheel.is-watch-squircle {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  align-self: stretch !important;
+  height: 100% !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  cursor: grab !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  aspect-ratio: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  touch-action: none !important;
+  user-select: none !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z:active,
+.desktop-panel-right .rotate-dial-wheel.is-watch-squircle:active {
+  cursor: grabbing !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-dial-svg {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  overflow: visible !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-track-bg.is-squircle {
+  fill: none !important;
+  stroke: var(--bg-canvas) !important;
+  stroke-width: 10px !important;
+  stroke-linejoin: round !important;
+  stroke-linecap: round !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-trail-arc.is-squircle {
+  fill: none !important;
+  stroke: var(--color-primary) !important;
+  stroke-width: 10px !important;
+  stroke-linejoin: round !important;
+  stroke-linecap: round !important;
+  transition: none !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-knob {
+  position: absolute !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  background-color: var(--color-primary) !important;
+  border: 2.5px solid var(--bg-panel-inner) !important;
+  box-sizing: border-box !important;
+  pointer-events: none !important;
+  z-index: 4 !important;
+  transform: none !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-center-badge {
+  position: relative !important;
+  z-index: 3 !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  width: auto !important;
+  min-width: 54px !important;
+  max-width: 90px !important;
+  height: auto !important;
+  min-height: 38px !important;
+  max-height: 48px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-center-badge:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-center-badge .rotate-deg-val {
+  font-family: var(--font-brand) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  line-height: 1.1 !important;
+}
+
+.desktop-panel-right #dial-transform-rotate-z .rotate-center-badge .rotate-turns-count {
+  font-family: var(--font-brand) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  line-height: 1 !important;
+  margin-bottom: 2px !important;
+}
+
+/* X Vertical Jog Wheel - ramping 56px, tinggi dikunci sama dial Z */
+.desktop-panel-right #jog-rotate-x {
+  flex: 0 0 56px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  align-self: stretch !important;
+  height: 100% !important;
+  cursor: ns-resize !important;
+}
+
+/* Y Horizontal Jog Wheel - samakan tebal rel X (56px) */
+.desktop-panel-right #jog-rotate-y {
+  width: 100% !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  max-height: 56px !important;
+  flex: 0 0 56px !important;
+  cursor: ew-resize !important;
+}
+
+/* Hide 3D sliders when layer is 2D */
+.desktop-panel-right .rotate-jogwheel.is-disabled {
+  display: none !important;
+}
+
+/* Uniform Tick Lines & Color for Scale and Rotate Sliders (matching scale) */
+.desktop-panel-right #pane-transform-rotate .jog-wheel-container:not(.is-vertical) .jog-wheel-ticks,
+.desktop-panel-right #jog-rotate-y .jog-wheel-ticks {
+  background-image: linear-gradient(to right, var(--text-secondary) 0px, var(--text-secondary) 1px, transparent 1px) !important;
+  background-size: 16px 100% !important;
+  background-position-y: top !important;
+  opacity: 0.65 !important;
+}
+
+.desktop-panel-right #pane-transform-rotate .jog-wheel-container.is-vertical .jog-wheel-ticks,
+.desktop-panel-right #jog-rotate-x .jog-wheel-ticks {
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  background-image: linear-gradient(to bottom, var(--text-secondary) 0px, var(--text-secondary) 1px, transparent 1px) !important;
+  background-size: 100% 16px !important;
+  background-position-x: left !important;
+  background-position-y: top !important;
+  opacity: 0.65 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* Needles */
+.desktop-panel-right #pane-transform-rotate .jog-wheel-needle {
+  background-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right #jog-rotate-x .jog-wheel-needle.is-vertical {
+  left: 4px !important;
+  right: 4px !important;
+  width: auto !important;
+  height: 2px !important;
+}
+
+/* Vertical slider fade mask: Top & Bottom fade (atas-bawah) */
+.desktop-panel-right .jog-wheel-container.is-vertical .jog-wheel-track-viewport,
+.desktop-panel-right #jog-rotate-x .jog-wheel-track-viewport {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.25) 12px, black 32px, black calc(100% - 32px), rgba(0, 0, 0, 0.25) calc(100% - 12px), transparent 100%) !important;
+  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.25) 12px, black 32px, black calc(100% - 32px), rgba(0, 0, 0, 0.25) calc(100% - 12px), transparent 100%) !important;
+}
+
+/* Rotation rails: viewport menyisih dari badge agar ada gap tepat */
+.desktop-panel-right #jog-rotate-x .jog-wheel-track-viewport {
+  top: 30px !important;
+  bottom: 46px !important;
+  left: 5px !important;
+  right: 5px !important;
+}
+.desktop-panel-right #jog-rotate-x .jog-wheel-needle.is-vertical {
+  top: calc(50% - 8px) !important;
+}
+.desktop-panel-right #jog-rotate-y .jog-wheel-track-viewport {
+  left: 30px !important;
+  right: 48px !important;
+}
+.desktop-panel-right #jog-rotate-y .jog-wheel-needle:not(.is-vertical) {
+  left: calc(50% - 9px) !important;
+}
+
+/* Scale / skew / pos-Z: ticks tidak nempel border kiri-kanan */
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-track-viewport,
+.desktop-panel-right #pane-transform-skew .jog-wheel-track-viewport,
+.desktop-panel-right #jog-pos-z .jog-wheel-track-viewport {
+  left: 5px !important;
+  right: 5px !important;
+}
+.desktop-panel-right #pane-transform-scale #jog-scale-unlinked .jog-wheel-needle.is-vertical,
+.desktop-panel-right #pane-transform-skew .jog-wheel-needle.is-vertical {
+  left: 7px !important;
+  right: 7px !important;
+}
+
+/* Readouts & Click-to-edit values */
+.desktop-panel-right .rotate-readout,
+.desktop-panel-right .rotate-jog-val {
+  position: absolute !important;
+  z-index: 3 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 1px !important;
+  padding: 2px 5px !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 4px !important;
+  line-height: 1.15 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: background-color 0.08s ease, border-color 0.08s ease !important;
+}
+
+.desktop-panel-right .rotate-readout:hover,
+.desktop-panel-right .rotate-jog-val:hover {
+  background-color: var(--bg-panel-hover) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right #jog-rotate-x .rotate-readout {
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: 8px !important;
+  transform: translateX(-50%) !important;
+  padding: 3px 4px !important;
+  align-items: center !important;
+  min-width: 28px !important;
+  max-width: 48px !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-panel-right #jog-rotate-y .rotate-readout {
+  right: 6px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 2px 5px !important;
+  min-width: 34px !important;
+  justify-content: center !important;
+}
+
+.desktop-panel-right .rotate-readout .rotate-deg-val,
+.desktop-panel-right .rotate-jog-val {
+  font-family: var(--font-brand) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.desktop-panel-right .rotate-readout .rotate-turns-count {
+  font-family: var(--font-brand) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  margin-bottom: 0 !important;
+}
+
+/* Axis Tag Pills (X, Y, Z) */
+.desktop-panel-right .rotate-axis-pill {
+  position: absolute !important;
+  z-index: 3 !important;
+  font-family: var(--font-brand) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 4px !important;
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+  line-height: 1 !important;
+}
+
+.desktop-panel-right .rotate-axis-pill-x {
+  top: 8px !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateX(-50%) !important;
+}
+
+.desktop-panel-right .rotate-axis-pill-z {
+  top: 6px !important;
+  left: 6px !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+}
+
+.desktop-panel-right .rotate-axis-pill-y {
+  top: 50% !important;
+  left: 6px !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}

@@ -94,31 +94,34 @@
       this.pendingMediaElements.clear();
     }
 
-    _createImpulseResponse(duration = 1.5, decay = 2.0) {
-      if (!this.ctx) return null;
-      const durClamped = Math.max(0.2, Math.min(4.0, Number(duration) || 1.5));
-      const key = `${durClamped.toFixed(1)}_${decay.toFixed(1)}`;
+    _createImpulseResponse(decay = 1.5, factor = 2.0, targetCtx = null) {
+      const ctx = targetCtx || this.ctx;
+      if (!ctx) return null;
+      const decayClamped = Math.max(0.2, Math.min(4.0, Number(decay) || 1.5));
+      const expDecay = Math.max(0.5, Math.min(6.0, Number(factor) || 2.0));
+      const sampleRate = ctx.sampleRate || 44100;
+      const key = `${decayClamped.toFixed(1)}_${expDecay.toFixed(1)}_${sampleRate}`;
       if (this._impulseCache.has(key)) {
         return this._impulseCache.get(key);
       }
-      const sampleRate = this.ctx.sampleRate || 44100;
-      const length = Math.max(1, Math.floor(sampleRate * durClamped));
-      const impulse = this.ctx.createBuffer(2, length, sampleRate);
+      const length = Math.max(1, Math.floor(sampleRate * decayClamped));
+      const impulse = ctx.createBuffer(2, length, sampleRate);
       const left = impulse.getChannelData(0);
       const right = impulse.getChannelData(1);
 
       for (let i = 0; i < length; i++) {
-        const factor = Math.pow(1 - i / length, decay);
-        left[i] = (Math.random() * 2 - 1) * factor;
-        right[i] = (Math.random() * 2 - 1) * factor;
+        const f = Math.pow(1 - i / length, expDecay);
+        left[i] = (Math.random() * 2 - 1) * f;
+        right[i] = (Math.random() * 2 - 1) * f;
       }
 
       this._impulseCache.set(key, impulse);
       return impulse;
     }
 
-    _createReverbNodeGroup(fx) {
-      const ctx = this.ctx;
+    _createReverbNodeGroup(fx, targetCtx = null) {
+      const ctx = targetCtx || this.ctx;
+      if (!ctx) return null;
       const input = ctx.createGain();
       const output = ctx.createGain();
       const dryGain = ctx.createGain();
@@ -139,10 +142,10 @@
 
         if (currentDecay !== decay) {
           currentDecay = decay;
-          convolver.buffer = this._createImpulseResponse(decay, 2.0);
+          convolver.buffer = this._createImpulseResponse(decay, 2.0, ctx);
         }
 
-        const now = ctx.currentTime;
+        const now = ctx.currentTime || 0;
         dryGain.gain.cancelScheduledValues(now);
         dryGain.gain.setValueAtTime(1 - mix, now);
 
@@ -166,8 +169,9 @@
       };
     }
 
-    _createDelayNodeGroup(fx) {
-      const ctx = this.ctx;
+    _createDelayNodeGroup(fx, targetCtx = null) {
+      const ctx = targetCtx || this.ctx;
+      if (!ctx) return null;
       const input = ctx.createGain();
       const output = ctx.createGain();
       const dryGain = ctx.createGain();
@@ -188,7 +192,7 @@
         const feedback = Math.max(0, Math.min(0.85, Number(params.feedback) || 0.3));
         const mix = Math.max(0, Math.min(1, typeof params.mix === 'number' ? params.mix : 0.35));
 
-        const now = ctx.currentTime;
+        const now = ctx.currentTime || 0;
         delayNode.delayTime.cancelScheduledValues(now);
         delayNode.delayTime.setValueAtTime(time, now);
 
@@ -214,6 +218,52 @@
           try { wetGain.disconnect(); } catch (_) {}
           try { delayNode.disconnect(); } catch (_) {}
           try { feedbackNode.disconnect(); } catch (_) {}
+          try { output.disconnect(); } catch (_) {}
+        }
+      };
+    }
+
+    createEffectsChain(targetCtx, audioEffects) {
+      const ctx = targetCtx || this.ctx;
+      if (!ctx) return null;
+      const effects = Array.isArray(audioEffects) ? audioEffects.filter(fx => !fx.disabled) : [];
+      if (effects.length === 0) return null;
+
+      const input = ctx.createGain();
+      const output = ctx.createGain();
+      input.gain.setValueAtTime(1, ctx.currentTime || 0);
+      output.gain.setValueAtTime(1, ctx.currentTime || 0);
+
+      const activeFxChains = [];
+      let lastNode = input;
+
+      effects.forEach(fx => {
+        if (fx.type === 'reverb') {
+          const fxGroup = this._createReverbNodeGroup(fx, ctx);
+          if (fxGroup) {
+            lastNode.connect(fxGroup.input);
+            lastNode = fxGroup.output;
+            activeFxChains.push(fxGroup);
+          }
+        } else if (fx.type === 'delay') {
+          const fxGroup = this._createDelayNodeGroup(fx, ctx);
+          if (fxGroup) {
+            lastNode.connect(fxGroup.input);
+            lastNode = fxGroup.output;
+            activeFxChains.push(fxGroup);
+          }
+        }
+      });
+
+      lastNode.connect(output);
+
+      return {
+        input,
+        output,
+        activeFxChains,
+        disconnect: () => {
+          try { input.disconnect(); } catch (_) {}
+          activeFxChains.forEach(g => { try { g.disconnect(); } catch (_) {} });
           try { output.disconnect(); } catch (_) {}
         }
       };

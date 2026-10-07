@@ -609,6 +609,87 @@
     return null;
   }
 
+  // ── Offline Audio Effects Chain Builder ─────────────────────────────────────
+  function createOfflineAudioEffectsChain(ctx, audioEffects) {
+    if (window.FishAudioEngine && typeof window.FishAudioEngine.createEffectsChain === 'function') {
+      return window.FishAudioEngine.createEffectsChain(ctx, audioEffects);
+    }
+    var effects = Array.isArray(audioEffects) ? audioEffects.filter(function(fx) { return !fx.disabled; }) : [];
+    if (effects.length === 0) return null;
+
+    var input = ctx.createGain();
+    var output = ctx.createGain();
+    input.gain.setValueAtTime(1, ctx.currentTime || 0);
+    output.gain.setValueAtTime(1, ctx.currentTime || 0);
+    var lastNode = input;
+
+    for (var i = 0; i < effects.length; i++) {
+      var fx = effects[i];
+      if (fx.type === 'reverb') {
+        var revInput = ctx.createGain();
+        var revOutput = ctx.createGain();
+        var dryGain = ctx.createGain();
+        var wetGain = ctx.createGain();
+        var convolver = ctx.createConvolver();
+
+        var decay = Math.max(0.2, Math.min(4.0, Number(fx.decay) || 1.5));
+        var mix = Math.max(0, Math.min(1, typeof fx.mix === 'number' ? fx.mix : 0.4));
+        var sampleRate = ctx.sampleRate || 44100;
+        var length = Math.max(1, Math.floor(sampleRate * decay));
+        var impulse = ctx.createBuffer(2, length, sampleRate);
+        var left = impulse.getChannelData(0);
+        var right = impulse.getChannelData(1);
+        for (var j = 0; j < length; j++) {
+          var factor = Math.pow(1 - j / length, 2.0);
+          left[j] = (Math.random() * 2 - 1) * factor;
+          right[j] = (Math.random() * 2 - 1) * factor;
+        }
+        convolver.buffer = impulse;
+        dryGain.gain.setValueAtTime(1 - mix, ctx.currentTime || 0);
+        wetGain.gain.setValueAtTime(mix, ctx.currentTime || 0);
+
+        revInput.connect(dryGain);
+        revInput.connect(convolver);
+        convolver.connect(wetGain);
+        dryGain.connect(revOutput);
+        wetGain.connect(revOutput);
+
+        lastNode.connect(revInput);
+        lastNode = revOutput;
+      } else if (fx.type === 'delay') {
+        var delInput = ctx.createGain();
+        var delOutput = ctx.createGain();
+        var dDryGain = ctx.createGain();
+        var dWetGain = ctx.createGain();
+        var delayNode = ctx.createDelay(2.0);
+        var feedbackNode = ctx.createGain();
+
+        var dTime = Math.max(0.01, Math.min(1.5, Number(fx.time) || 0.3));
+        var dFeedback = Math.max(0, Math.min(0.85, Number(fx.feedback) || 0.3));
+        var dMix = Math.max(0, Math.min(1, typeof fx.mix === 'number' ? fx.mix : 0.35));
+
+        delayNode.delayTime.setValueAtTime(dTime, ctx.currentTime || 0);
+        feedbackNode.gain.setValueAtTime(dFeedback, ctx.currentTime || 0);
+        dDryGain.gain.setValueAtTime(1 - dMix * 0.5, ctx.currentTime || 0);
+        dWetGain.gain.setValueAtTime(dMix, ctx.currentTime || 0);
+
+        delInput.connect(dDryGain);
+        delInput.connect(delayNode);
+        delayNode.connect(dWetGain);
+        delayNode.connect(feedbackNode);
+        feedbackNode.connect(delayNode);
+        dDryGain.connect(delOutput);
+        dWetGain.connect(delOutput);
+
+        lastNode.connect(delInput);
+        lastNode = delOutput;
+      }
+    }
+
+    lastNode.connect(output);
+    return { input: input, output: output };
+  }
+
   // ── Audio Offline Mixdown ──────────────────────────────────────────────────
   async function mixAudioBuffer(totalDur) {
     var ps     = window.currentProjectState || {};
@@ -637,20 +718,53 @@
           continue;
         }
 
-        var src  = ctx.createBufferSource();
-        src.buffer = decoded;
-        var gain = ctx.createGain();
-        var vol  = item.effectiveGain !== undefined ? item.effectiveGain : 1.0;
-        gain.gain.value = isFinite(vol) ? vol : 1.0;
-        src.connect(gain);
-        gain.connect(ctx.destination);
-
         var startSec  = Math.max(0, item.rootStartSec !== undefined ? item.rootStartSec : 0);
         var offsetSec = Math.max(0, item.sourceOffsetSec !== undefined ? item.sourceOffsetSec : 0);
         var durSec    = item.rootDurSec !== undefined ? item.rootDurSec : (totalDur - startSec);
+        if (startSec >= totalDur || durSec <= 0) continue;
+        var endSec    = Math.min(totalDur, startSec + durSec);
+
+        var src  = ctx.createBufferSource();
+        src.buffer = decoded;
+        if (item.effectiveSpeed && item.effectiveSpeed > 0 && Math.abs(item.effectiveSpeed - 1.0) > 0.001) {
+          try { src.playbackRate.value = item.effectiveSpeed; } catch (_) {}
+        }
+
+        var gain = ctx.createGain();
+        var vol  = item.effectiveGain !== undefined ? item.effectiveGain : 1.0;
+        if (!isFinite(vol)) vol = 1.0;
+
+        // Route through layer audio effects (e.g. Reverb, Delay) if present
+        var fxChain = createOfflineAudioEffectsChain(ctx, layer.audioEffects);
+        if (fxChain && fxChain.input && fxChain.output) {
+          src.connect(fxChain.input);
+          fxChain.output.connect(gain);
+        } else {
+          src.connect(gain);
+        }
+        gain.connect(ctx.destination);
+
+        // Schedule hard cut at clip boundary (with 2ms micro-fade to eliminate digital pop)
+        if (startSec > 0) {
+          gain.gain.setValueAtTime(0, 0);
+          gain.gain.setValueAtTime(vol, startSec);
+        } else {
+          gain.gain.setValueAtTime(vol, 0);
+        }
+        var cutStart = Math.max(startSec, endSec - 0.002);
+        if (cutStart < endSec) {
+          gain.gain.setValueAtTime(vol, cutStart);
+          gain.gain.linearRampToValueAtTime(0, endSec);
+        } else {
+          gain.gain.setValueAtTime(0, endSec);
+        }
+
         src.start(startSec, offsetSec, durSec);
         count++;
-        logExportInfo('Audio:Mix', '✅ Mixed track ' + (i + 1) + ': "' + (layer.name || layer.id) + '" (start=' + startSec.toFixed(2) + 's, dur=' + durSec.toFixed(2) + 's, vol=' + vol.toFixed(2) + ')');
+        var fxDesc = (fxChain && Array.isArray(layer.audioEffects))
+          ? layer.audioEffects.filter(function(f) { return !f.disabled; }).map(function(f) { return f.type; }).join(',')
+          : 'none';
+        logExportInfo('Audio:Mix', '✅ Mixed track ' + (i + 1) + ': "' + (layer.name || layer.id) + '" (start=' + startSec.toFixed(2) + 's, dur=' + durSec.toFixed(2) + 's, vol=' + vol.toFixed(2) + ', fx=' + fxDesc + ')');
       } catch (err) {
         logExportWarn('Audio:Mix', 'Error mixing layer "' + (layer.name || layer.id) + '":', err);
       }

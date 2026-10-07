@@ -270,7 +270,7 @@
   stroke: var(--color-primary);
   display: block;
   transition: color 0.15s ease, stroke 0.15s ease;
-}
+  font-size: 14px;}
 
 .aspect-ratio-frame:hover .aspect-frame-box .aspect-ratio-icon {
   color: var(--color-primary);
@@ -543,7 +543,7 @@
   height: 15px;
   display: block;
   stroke: currentColor;
-}
+  font-size: 15px;}
 
 .custom-res-link-btn .res-link-icon-linked,
 .custom-res-link-node .res-link-icon-linked,
@@ -983,7 +983,7 @@
   box-sizing: border-box;
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
-}
+  font-size: 48px;}
 
 .modal-btn-square:hover {
   background-color: var(--bg-panel-hover);
@@ -1000,7 +1000,13 @@
   width: 20px;
   height: 20px;
   display: block;
-}
+  font-size: 20px;}
+
+.modal-btn-square i.fticon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  font-size: 20px;}
 
 /* ==========================================================================
    MODULAR DRAG & DROP CONTAINER (Import Project & File Ingestion)
@@ -1211,7 +1217,7 @@
   height: 18px;
   color: var(--color-primary);
   flex-shrink: 0;
-}
+  font-size: 18px;}
 
 .quick-effects-input {
   width: 100%;
@@ -1287,7 +1293,7 @@
   justify-content: center;
   color: var(--color-primary);
   flex-shrink: 0;
-}
+  font-size: 18px;}
 
 .quick-effects-item-icon svg {
   width: 100%;
@@ -1549,7 +1555,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
+  font-size: 28px;}
 
 .feature-text {
   display: flex;
@@ -1981,7 +1987,18 @@
   .welcome-banner-icon svg {
     width: 18px;
     height: 18px;
-  }
+  font-size: 18px;}
+
+  .welcome-banner-icon i.fticon {
+    width: 18px;
+    height: 18px;
+  font-size: 18px;}
+
+  .welcome-banner-icon i.fticon {
+    width: 18px;
+    height: 18px;
+  font-size: 18px;
+  font-size: 18px;}
 
   .welcome-banner-text strong {
     font-size: 13px;
@@ -2073,12 +2090,17 @@
     min-width: 28px;
     min-height: 28px;
     border-radius: 8px;
-  }
+  font-size: 28px;}
 
   .welcome-feature-icon svg {
     width: 15px;
     height: 15px;
-  }
+  font-size: 15px;}
+
+  .welcome-feature-icon i.fticon {
+    width: 15px;
+    height: 15px;
+  font-size: 15px;}
 
   .feature-text strong {
     font-size: 13px;
@@ -2601,7 +2623,7 @@
   justify-content: center;
   flex-shrink: 0;
   transition: background-color 0.15s ease, color 0.15s ease;
-}
+  font-size: 44px;}
 
 .video-import-option-meta {
   display: flex;
@@ -2672,7 +2694,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
+  font-size: 56px;}
 
 .mobile-switch-icon-wrapper svg {
   fill: currentColor;
@@ -2992,7 +3014,7 @@
   transition: background-color 0.15s ease, color 0.15s ease;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
-}
+  font-size: 32px;}
 
 .modal-icon-switch-btn.is-active,
 .modal-icon-switch-btn[aria-selected="true"] {
@@ -3717,7 +3739,13 @@
   width: 14px;
   height: 14px;
   fill: currentColor;
-}
+  font-size: 14px;}
+
+.preset-header-btn i.fticon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  font-size: 14px;}
 
 .preset-gallery-filter-bar {
   display: flex;
@@ -3742,7 +3770,7 @@
   height: 16px;
   fill: var(--text-muted);
   pointer-events: none;
-}
+  font-size: 16px;}
 
 .preset-search-input,
 .element-gallery-search-input {
@@ -3998,13 +4026,19 @@
   align-items: center;
   justify-content: center;
   fill: currentColor;
-}
+  font-size: 24px;}
 
 .element-gallery-card-icon svg {
   width: 22px;
   height: 22px;
   fill: currentColor;
-}
+  font-size: 22px;}
+
+.element-gallery-card-icon i.fticon {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  font-size: 22px;}
 
 .element-gallery-card-title {
   font-family: var(--font-brand);

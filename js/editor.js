@@ -224,6 +224,16 @@
         return window.syncBeatmarkDrawerUI.apply(this, args);
       }
     }
+    function navigateBeatmark(...args) {
+      if (typeof window.navigateBeatmark === 'function' && window.navigateBeatmark !== navigateBeatmark) {
+        return window.navigateBeatmark.apply(this, args);
+      }
+    }
+    function renderAudioClipWaveform(...args) {
+      if (typeof window.renderAudioClipWaveform === 'function' && window.renderAudioClipWaveform !== renderAudioClipWaveform) {
+        return window.renderAudioClipWaveform.apply(this, args);
+      }
+    }
     function updateVolumeAndSpeedBtnState(...args) {
       if (typeof window.updateVolumeAndSpeedBtnState === 'function' && window.updateVolumeAndSpeedBtnState !== updateVolumeAndSpeedBtnState) {
         return window.updateVolumeAndSpeedBtnState.apply(this, args);
@@ -6464,8 +6474,7 @@
     function getSurroundingKeyframes(layer, prop, time) {
       if (!layer || !layer.keyframes || !layer.keyframes[prop]) return { prevKf: null, nextKf: null };
       const list = [...layer.keyframes[prop]].sort((a, b) => a.time - b.time);
-      if (list.length === 0) return { prevKf: null, nextKf: null };
-      if (list.length === 1) return { prevKf: list[0], nextKf: null };
+      if (list.length < 2) return { prevKf: null, nextKf: null };
 
       const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
       const tol = Math.max(0.04, 0.5 / fps);
@@ -6483,14 +6492,14 @@
         }
       }
 
-      // 2. If playhead is before the first keyframe
-      if (time <= list[0].time) {
-        return { prevKf: list[0], nextKf: list[1] };
+      // 2. If playhead is before the first keyframe (beyond tolerance)
+      if (time < list[0].time - tol) {
+        return { prevKf: null, nextKf: null };
       }
 
-      // 3. If playhead is at or past the last keyframe
-      if (time >= list[list.length - 1].time) {
-        return { prevKf: list[list.length - 2], nextKf: list[list.length - 1] };
+      // 3. If playhead is past the last keyframe (beyond tolerance)
+      if (time > list[list.length - 1].time + tol) {
+        return { prevKf: null, nextKf: null };
       }
 
       // 4. If playhead is between two keyframes
@@ -6500,26 +6509,105 @@
         }
       }
 
-      return { prevKf: list[0], nextKf: list[1] };
+      return { prevKf: null, nextKf: null };
     }
     window.getSurroundingKeyframes = getSurroundingKeyframes;
 
-    // Update Transform Keyframe Button active state
+    // Update Transform Keyframe & Graph Button active state
     function updateTransformKeyframeBtnState() {
       const btn = document.getElementById('btn-transform-keyframe');
-      if (!btn) return;
+      const btnGraph = document.getElementById('btn-transform-graph');
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer) {
-        btn.classList.remove('is-active');
+        if (btn) btn.classList.remove('is-active');
+        if (btnGraph) {
+          btnGraph.disabled = true;
+          btnGraph.classList.add('is-disabled');
+        }
         return;
       }
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
-      const prop = window.activeKeyframeProperty || 'move';
+      const prop = window.activeTransformTool || window.activeKeyframeProperty || 'move';
       const kf = getKeyframeAtTime(layer, prop, currentSec);
-      btn.classList.toggle('is-active', !!kf);
+      if (btn) btn.classList.toggle('is-active', !!kf);
+
+      if (btnGraph) {
+        const kfList = (layer.keyframes && layer.keyframes[prop]) || [];
+        const canOpen = kfList.length >= 2;
+        btnGraph.disabled = !canOpen;
+        btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
     }
     window.updateTransformKeyframeBtnState = updateTransformKeyframeBtnState;
+
+    // Update Effects Keyframe & Graph Button active state
+    function updateEffectsKeyframeAndGraphBtnStates() {
+      const btnKf = document.getElementById('btn-effects-keyframe');
+      const btnGraph = document.getElementById('btn-effects-graph');
+      const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+      const effects = layer && Array.isArray(layer.effects) ? layer.effects : [];
+      const curProp = window.activeKeyframeProperty;
+      const isValidParam = !!(curProp && curProp.includes(':') && effects.some(f => curProp.startsWith(f.id + ':')));
+
+      if (!isValidParam || !layer) {
+        if (btnKf) {
+          btnKf.disabled = true;
+          btnKf.classList.add('is-disabled');
+          btnKf.classList.remove('is-active');
+        }
+        if (btnGraph) {
+          btnGraph.disabled = true;
+          btnGraph.classList.add('is-disabled');
+        }
+        return;
+      }
+
+      if (btnKf) {
+        btnKf.disabled = false;
+        btnKf.classList.remove('is-disabled');
+        const pps = window.currentPixelsPerSecond || 80;
+        const currentSec = Number((Math.abs(window.timelinePanX || 0) / pps).toFixed(3));
+        const kf = getKeyframeAtTime(layer, curProp, currentSec);
+        btnKf.classList.toggle('is-active', !!kf);
+      }
+
+      if (btnGraph) {
+        const kfList = (layer.keyframes && layer.keyframes[curProp]) || [];
+        const canOpen = kfList.length >= 2;
+        btnGraph.disabled = !canOpen;
+        btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
+    }
+    window.updateEffectsKeyframeAndGraphBtnStates = updateEffectsKeyframeAndGraphBtnStates;
+
+    // Unified Graph Button State Updater across all property views
+    function updateAllGraphBtnStates() {
+      if (typeof updateTransformKeyframeBtnState === 'function') updateTransformKeyframeBtnState();
+      if (typeof updateEffectsKeyframeAndGraphBtnStates === 'function') updateEffectsKeyframeAndGraphBtnStates();
+      const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+      const checkBtn = (btnId, propKey) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const kfList = (layer && layer.keyframes && layer.keyframes[propKey]) || [];
+        const canOpen = kfList.length >= 2;
+        btn.disabled = !canOpen;
+        btn.classList.toggle('is-disabled', !canOpen);
+      };
+      checkBtn('btn-blend-graph', 'opacity');
+      checkBtn('btn-volume-graph', 'volume');
+      const btnSpeed = document.getElementById('btn-speed-graph');
+      if (btnSpeed) {
+        const sKf = (layer && layer.keyframes && layer.keyframes.speed) || [];
+        const tKf = (layer && layer.keyframes && layer.keyframes.timeRemap) || [];
+        const canOpen = sKf.length >= 2 || tKf.length >= 2;
+        btnSpeed.disabled = !canOpen;
+        btnSpeed.classList.toggle('is-disabled', !canOpen);
+      }
+      const camProp = window.activeKeyframeProperty || 'cameraZoom';
+      checkBtn('btn-camera-graph', camProp);
+    }
+    window.updateAllGraphBtnStates = updateAllGraphBtnStates;
 
     // Toggle Keyframe at current playhead time
     function toggleKeyframeAtCurrentTime() {
@@ -6529,6 +6617,12 @@
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Number((Math.abs(window.timelinePanX || 0) / pps).toFixed(3));
       const prop = window.activeKeyframeProperty || 'move';
+
+      if (prop.includes(':')) {
+        const effects = layer && Array.isArray(layer.effects) ? layer.effects : [];
+        const isValid = effects.some(f => prop.startsWith(f.id + ':'));
+        if (!isValid) return;
+      }
 
       if (!prop.includes(':') && typeof syncLayerWithEffectiveProps === 'function') {
         syncLayerWithEffectiveProps(layer);
@@ -6705,9 +6799,58 @@
     }
     window.updateTimelineKeyframeMarkersHighlight = updateTimelineKeyframeMarkersHighlight;
 
+    function openEffectsGalleryDrawer() {
+      if (typeof window.closeGalleryCategory === 'function') {
+        window.closeGalleryCategory();
+      }
+      if (typeof window.syncGalleryHomeSections === 'function') {
+        window.syncGalleryHomeSections();
+      }
+      if (typeof window.autoFetchAndLoadEffects === 'function') {
+        window.autoFetchAndLoadEffects();
+      }
+      if (window.Drawer && typeof window.Drawer.open === 'function') {
+        window.Drawer.open('drawer-effects-gallery');
+      } else {
+        const el = document.getElementById('drawer-effects-gallery');
+        if (el) {
+          el.classList.add('is-active');
+          el.setAttribute('aria-hidden', 'false');
+        }
+      }
+    }
+    window.openEffectsGalleryDrawer = openEffectsGalleryDrawer;
+
+    function closeEffectsGalleryDrawer(triggerHistoryBack = true) {
+      if (window.Drawer && typeof window.Drawer.close === 'function') {
+        if (window.Drawer.activeDrawer && window.Drawer.activeDrawer.id === 'drawer-effects-gallery') {
+          window.Drawer.close(triggerHistoryBack);
+          return;
+        }
+      }
+      const el = document.getElementById('drawer-effects-gallery');
+      if (el) {
+        el.classList.remove('is-active');
+        el.setAttribute('aria-hidden', 'true');
+        const card = el.querySelector('.drawer-card');
+        if (card) card.style.height = '';
+      }
+    }
+    window.closeEffectsGalleryDrawer = closeEffectsGalleryDrawer;
+
     function switchLayerDrawerSubview(subviewName) {
-      const validSubviews = ['main', 'transform', 'graph', 'blend', 'effects', 'effects-gallery', 'camera', 'fill', 'volume', 'speed', 'shape', 'text', 'beatmark'];
+      if (subviewName === 'effects-gallery') {
+        openEffectsGalleryDrawer();
+        return;
+      }
+      const validSubviews = ['main', 'transform', 'graph', 'blend', 'effects', 'camera', 'fill', 'volume', 'speed', 'shape', 'text', 'beatmark'];
       if (!validSubviews.includes(subviewName)) subviewName = 'main';
+
+      // If drawer-effects-gallery is open when navigating to other subviews, close it
+      const fxGal = document.getElementById('drawer-effects-gallery');
+      if (fxGal && fxGal.classList.contains('is-active')) {
+        closeEffectsGalleryDrawer(false);
+      }
 
       const prevSubview = currentDrawerSubview || 'main';
       currentDrawerSubview = subviewName;
@@ -6735,7 +6878,6 @@
         'graph': document.getElementById('layer-drawer-graph-view'),
         'blend': document.getElementById('layer-drawer-blend-view'),
         'effects': document.getElementById('layer-drawer-effects-view'),
-        'effects-gallery': document.getElementById('layer-drawer-effects-gallery-view'),
         'camera': document.getElementById('layer-drawer-camera-view'),
         'fill': document.getElementById('layer-drawer-fill-view'),
         'volume': document.getElementById('layer-drawer-volume-view'),
@@ -6746,7 +6888,6 @@
       };
 
       const drawerCard = document.querySelector('#timeline-layer-drawer .drawer-card');
-      const prevH = (drawerCard && drawerCard.offsetHeight > 0) ? drawerCard.offsetHeight : 0;
 
       Object.entries(allSubviews).forEach(([name, el]) => {
         if (!el) return;
@@ -6763,43 +6904,17 @@
       });
 
       if (drawerCard) {
-        if (subviewName === 'effects-gallery') {
-          drawerCard.classList.add('is-effects-gallery');
-          if (typeof window.closeGalleryCategory === 'function') {
-            window.closeGalleryCategory();
-          }
-          if (typeof window.autoFetchAndLoadEffects === 'function') {
-            window.autoFetchAndLoadEffects();
-          }
-        } else {
-          drawerCard.classList.remove('is-effects-gallery');
+        drawerCard.classList.remove('is-effects-gallery');
+
+        if (drawerCard._subviewHeightTimer) {
+          clearTimeout(drawerCard._subviewHeightTimer);
+          delete drawerCard._subviewHeightTimer;
         }
 
-        // Smooth height transition between different subviews
-        if (prevH > 0 && prevSubview !== subviewName) {
-          drawerCard.style.height = '';
-          const nextH = drawerCard.offsetHeight;
-          if (nextH > 0 && Math.abs(prevH - nextH) > 4) {
-            drawerCard._targetHeight = nextH;
-            drawerCard.style.height = `${prevH}px`;
-            drawerCard.style.transition = 'height 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
-            requestAnimationFrame(() => {
-              drawerCard.style.height = `${nextH}px`;
-            });
-            clearTimeout(drawerCard._subviewHeightTimer);
-            drawerCard._subviewHeightTimer = setTimeout(() => {
-              drawerCard.style.height = '';
-              drawerCard.style.transition = '';
-              delete drawerCard._targetHeight;
-            }, 240);
-          } else {
-            drawerCard.style.height = '';
-            delete drawerCard._targetHeight;
-          }
-        } else {
-          drawerCard.style.height = '';
-          delete drawerCard._targetHeight;
-        }
+        // Standard subviews render instantaneously at their native height without delay
+        drawerCard.style.height = '';
+        drawerCard.style.transition = '';
+        delete drawerCard._targetHeight;
       }
 
       if (subviewName === 'main' || subviewName === 'text' || subviewName === 'fill' || subviewName === 'shape') {
@@ -6844,22 +6959,17 @@
         } catch (_) {}
       } else if (subviewName === 'effects') {
         const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
-        if (layer && Array.isArray(layer.effects) && layer.effects.length > 0) {
-          const curProp = window.activeKeyframeProperty;
-          const isValidFxProp = curProp && curProp.includes(':') && layer.effects.some(f => curProp.startsWith(f.id + ':'));
-          if (!isValidFxProp) {
-            window.activeKeyframeProperty = `${layer.effects[0].id}:brightness`;
-          }
-        }
+        const curProp = window.activeKeyframeProperty;
+        const isValidFxProp = curProp && curProp.includes(':') && layer && Array.isArray(layer.effects) && layer.effects.some(f => curProp.startsWith(f.id + ':'));
+        window.activeKeyframeProperty = isValidFxProp ? curProp : null;
         if (typeof syncEffectsRackUI === 'function') {
-          syncEffectsRackUI();
+          syncEffectsRackUI(true);
+        }
+        if (typeof updateEffectsKeyframeAndGraphBtnStates === 'function') {
+          updateEffectsKeyframeAndGraphBtnStates();
         }
         try {
           history.pushState({ drawerSubview: 'effects' }, '');
-        } catch (_) {}
-      } else if (subviewName === 'effects-gallery') {
-        try {
-          history.pushState({ drawerSubview: 'effects-gallery' }, '');
         } catch (_) {}
       } else if (subviewName === 'fill') {
         if (typeof syncFillControllerUI === 'function') {
@@ -6954,6 +7064,28 @@
         window.switchLayerDrawerSubview('transform');
       }
 
+      // Reveal: solo prop di dropdown (S->Scale saja, dst) + scroll ke barisnya.
+      // Twistie / U / collapse membersihkan solo (lihat toggleLayerKeyframeExpansion).
+      try {
+        const propRowMap = { scale: 'scale', rotation: 'rotate', position: 'move', opacity: 'opacity', anchor: 'origin' };
+        const target = propRowMap[prop];
+        const ids = (window.selectedLayerIds && window.selectedLayerIds.size > 0)
+          ? Array.from(window.selectedLayerIds)
+          : (window.selectedLayerId ? [window.selectedLayerId] : []);
+        if (target && ids.length > 0 && typeof toggleLayerKeyframeExpansion === 'function') {
+          const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
+          const layer = layers.find(l => String(l.id) === String(ids[0]));
+          if (layer) layer._kfSoloProp = target;
+          toggleLayerKeyframeExpansion(ids[0], true, false);
+          const row = document.querySelector(`.desktop-kf-prop-row[data-prop="${target}"]`);
+          if (row) {
+            row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            row.classList.add('is-shortcut-flash');
+            setTimeout(() => row.classList.remove('is-shortcut-flash'), 900);
+          }
+        }
+      } catch (_) {}
+
       if (prop === 'scale') {
         const btn = document.querySelector('.transform-tool-btn[data-tool="scale"]');
         if (btn) btn.click();
@@ -6985,6 +7117,7 @@
     window.focusLayerTransformProperty = focusLayerTransformProperty;
 
     window.addEventListener('drawer-opened', () => {
+      if (typeof syncRotateDialTrack === 'function') syncRotateDialTrack();
       if (typeof redrawComposition === 'function') redrawComposition('drawer-opened');
     });
     window.addEventListener('drawer-closed', () => {
@@ -6993,87 +7126,139 @@
 
     function updateRotateTrail(deg) {
       const trailEl = document.getElementById('rotate-trail-arc');
-      if (!trailEl) return;
+      const trackEl = document.getElementById('track-path-rotate');
+      const dial = document.getElementById('dial-transform-rotate');
+      if (!trailEl || !trackEl) return;
 
-      // Cap trail sweep between -360 and +360 (stop at 1 full turn / +1 or -1 circle)
+      // Cap trail sweep between -360 and +360 (stop at 1 full turn)
       let sweep = deg;
       if (sweep > 360) sweep = 360;
       if (sweep < -360) sweep = -360;
 
+      let totalLen = (dial && dial._totalLen) || 578.19;
+      try {
+        if (typeof trackEl.getTotalLength === 'function') {
+          const measured = trackEl.getTotalLength();
+          if (measured > 0) totalLen = measured;
+        }
+      } catch (_) {}
+
       if (Math.abs(sweep) < 0.5) {
-        trailEl.setAttribute('d', '');
-        return;
+        trailEl.style.strokeDasharray = `0 ${totalLen}`;
+        trailEl.style.strokeDashoffset = '0';
+      } else if (Math.abs(sweep) >= 359.5) {
+        trailEl.style.strokeDasharray = `${totalLen} 0`;
+        trailEl.style.strokeDashoffset = '0';
+      } else {
+        const trailLen = (Math.abs(sweep) / 360) * totalLen;
+        if (sweep > 0) {
+          trailEl.style.strokeDasharray = `${trailLen} ${totalLen}`;
+          trailEl.style.strokeDashoffset = '0';
+        } else {
+          trailEl.style.strokeDasharray = `0 ${totalLen - trailLen} ${trailLen} ${totalLen}`;
+          trailEl.style.strokeDashoffset = '0';
+        }
       }
+    }
 
-      const cx = 100;
-      const cy = 100;
-      const R = 86;
+    function syncRotateDialTrack() {
+      const dial = document.getElementById('dial-transform-rotate');
+      if (!dial) return null;
+      const trackEl = document.getElementById('track-path-rotate');
+      const trailEl = document.getElementById('rotate-trail-arc');
+      const svg = dial.querySelector('.rotate-dial-svg');
+      if (!trackEl || !trailEl || !svg) return null;
 
-      if (Math.abs(sweep) >= 359.5) {
-        // Full circle starting and ending at 12 o'clock
-        trailEl.setAttribute('d', `M ${cx} ${cy - R} A ${R} ${R} 0 1 1 ${cx} ${cy + R} A ${R} ${R} 0 1 1 ${cx} ${cy - R}`);
-        return;
-      }
+      const rect = dial.getBoundingClientRect();
+      const boxW = Math.round(rect.width) || dial.clientWidth || 320;
+      const boxH = Math.round(rect.height) || dial.clientHeight || 156;
 
-      // Start at 12 o'clock (cx, cy - R)
-      const startX = cx;
-      const startY = cy - R;
+      const padX = 18;
+      const padY = 16;
+      const left = padX;
+      const right = Math.max(left + 20, boxW - padX);
+      const top = padY;
+      const bottom = Math.max(top + 20, boxH - padY);
+      const trackW = right - left;
+      const trackH = bottom - top;
+      const cx = boxW / 2;
+      const R = Math.min(36, Math.floor(trackW / 2), Math.floor(trackH / 2));
 
-      const rad = ((sweep - 90) * Math.PI) / 180;
-      const endX = cx + R * Math.cos(rad);
-      const endY = cy + R * Math.sin(rad);
+      const d = `M ${cx} ${top} H ${right - R} A ${R} ${R} 0 0 1 ${right} ${top + R} V ${bottom - R} A ${R} ${R} 0 0 1 ${right - R} ${bottom} H ${left + R} A ${R} ${R} 0 0 1 ${left} ${bottom - R} V ${top + R} A ${R} ${R} 0 0 1 ${left + R} ${top} Z`;
 
-      const largeArc = Math.abs(sweep) > 180 ? 1 : 0;
-      const sweepFlag = sweep > 0 ? 1 : 0;
+      svg.setAttribute('viewBox', `0 0 ${boxW} ${boxH}`);
+      svg.setAttribute('preserveAspectRatio', 'none');
+      trackEl.setAttribute('d', d);
+      trailEl.setAttribute('d', d);
 
-      trailEl.setAttribute('d', `M ${startX} ${startY} A ${R} ${R} 0 ${largeArc} ${sweepFlag} ${endX} ${endY}`);
+      dial._lastW = boxW;
+      dial._lastH = boxH;
+      dial._totalLen = (typeof trackEl.getTotalLength === 'function' && trackEl.getTotalLength()) || (2 * (trackW + trackH) - 8 * R + 2 * Math.PI * R);
+      return { boxW, boxH, totalLen: dial._totalLen, cx, top };
     }
 
     function updateRotateKnob(deg) {
+      updateDesktopRotateDials();
       const dial = document.getElementById('dial-transform-rotate');
       const knob = document.getElementById('knob-transform-rotate');
       const valRot = document.getElementById('val-rotate-deg');
       const valTurns = document.getElementById('val-rotate-turns');
       if (!dial || !knob) return;
-      // 0 degrees at 12 o'clock (-90 degrees in trig coordinate space) like After Effects
-      const rad = ((deg - 90) * Math.PI) / 180;
-      // Dial center and circular track radius adapt dynamically to rendered size
-      const center = (dial.clientWidth || 200) / 2;
-      const radius = center * 0.86;
+
+      const trackEl = document.getElementById('track-path-rotate');
+      const trailEl = document.getElementById('rotate-trail-arc');
+      if (!trackEl || !trailEl) return;
+
+      const rect = dial.getBoundingClientRect();
+      const boxW = Math.round(rect.width) || dial.clientWidth || 320;
+      const boxH = Math.round(rect.height) || dial.clientHeight || 156;
+
+      // Elongated stadium squircle track geometry: dynamically sync viewBox and path to dial container
+      if (dial._lastW !== boxW || dial._lastH !== boxH || !dial._totalLen) {
+        syncRotateDialTrack();
+      }
+
+      const totalLen = dial._totalLen || ((typeof trackEl.getTotalLength === 'function' && trackEl.getTotalLength()) || 578.19);
+      const normDeg = ((deg % 360) + 360) % 360;
+      const dist = (normDeg / 360) * totalLen;
+      const pt = (typeof trackEl.getPointAtLength === 'function')
+        ? trackEl.getPointAtLength(dist)
+        : { x: boxW / 2, y: 16 };
+
       const knobHalf = (knob.offsetWidth || 28) / 2;
-      const kx = center + radius * Math.cos(rad) - knobHalf;
-      const ky = center + radius * Math.sin(rad) - knobHalf;
-      knob.style.left = `${kx}px`;
-      knob.style.top = `${ky}px`;
+      knob.style.left = `${pt.x - knobHalf}px`;
+      knob.style.top = `${pt.y - knobHalf}px`;
       knob.style.right = 'auto';
       knob.style.bottom = 'auto';
       knob.style.transform = 'none';
 
-      // Auto-observe size changes (e.g. splitter drag) so knob stays aligned
+      // Auto-observe size changes (e.g. splitter drag or orientation change) so elongated track & knob stay aligned
       if (window.ResizeObserver && !dial._hasResizeObserver) {
         dial._hasResizeObserver = true;
         const ro = new ResizeObserver(() => {
           if (dial.clientWidth > 0 && !window.isTransformInteracting) {
+            syncRotateDialTrack();
             const curInfo = getSelectedLayerAndBaseDims();
-            if (curInfo) {
-              const l = curInfo.layer;
-              let r = 0;
+            const l = curInfo ? curInfo.layer : null;
+            let r = 0;
+            if (l) {
               if (currentRotateAxis === 'x') r = l.rotX || 0;
               else if (currentRotateAxis === 'y') r = l.rotY || 0;
               else r = l.rotZ !== undefined ? l.rotZ : (l.rotation || 0);
-              updateRotateKnob(r);
             }
+            updateRotateKnob(r);
           }
         });
         ro.observe(dial);
       }
 
       const turns = Math.trunc(deg / 360);
-      const rem = Math.round(deg % 360);
+      const remRaw = deg % 360;
+      const rem = (Math.abs(remRaw - Math.round(remRaw)) < 0.001) ? Math.round(remRaw) : Number(remRaw.toFixed(1));
 
-      if (valTurns) {
+      if (valTurns && !valTurns.dataset.isEditing) {
         if (turns !== 0) {
-          valTurns.textContent = turns > 0 ? `+${turns}x` : `${turns}x`;
+          valTurns.textContent = turns > 0 ? `+${turns}` : `${turns}`;
           valTurns.style.display = 'block';
         } else {
           valTurns.textContent = '';
@@ -7081,11 +7266,315 @@
         }
       }
 
-      if (valRot) {
-        valRot.textContent = `${rem >= 0 ? '+' : ''}${rem}°`;
+      if (valRot && !valRot.dataset.isEditing) {
+        if (rem === 0) {
+          valRot.textContent = '0°';
+        } else {
+          valRot.textContent = `${rem > 0 ? '+' : ''}${rem}°`;
+        }
       }
 
       updateRotateTrail(deg);
+    }
+
+    // Desktop: 3 dial rotate X/Y/Z (tanpa switch). No-op bila elemen tak ada.
+    function rotAxisVal(l, axis) {
+      if (!l) return 0;
+      if (axis === 'x') return l.rotX || 0;
+      if (axis === 'y') return l.rotY || 0;
+      return l.rotZ !== undefined ? l.rotZ : (l.rotation || 0);
+    }
+
+    function updateDesktopRotateDials() {
+      if (!document.getElementById('dial-transform-rotate-z')
+        && !document.getElementById('jog-rotate-z')
+        && !document.getElementById('jog-rotate-x')
+        && !document.getElementById('jog-rotate-y')) return;
+      const info = (typeof getSelectedLayerAndBaseDims === 'function') ? getSelectedLayerAndBaseDims() : null;
+      const l = info ? info.layer : null;
+      const is3D = !!(l && l.is3D && l.type !== 'adjustment');
+      updateRotateSliders(l, is3D);
+      ['x', 'y', 'z'].forEach((axis) => {
+        const dial = document.getElementById(`dial-transform-rotate-${axis}`);
+        if (!dial) return;
+        const knob = document.getElementById(`knob-transform-rotate-${axis}`);
+        const valRot = document.getElementById(`val-rotate-deg-${axis}`);
+        const valTurns = document.getElementById(`val-rotate-turns-${axis}`);
+        const trailEl = document.getElementById(`rotate-trail-arc-${axis}`);
+        const deg = rotAxisVal(l, axis);
+        dial.classList.toggle('is-disabled', !is3D && axis !== 'z');
+        dial.setAttribute('aria-valuenow', String(Math.round(deg)));
+
+        const isSquircle = dial.classList.contains('is-watch-squircle');
+        const trackPath = isSquircle ? dial.querySelector('.rotate-track-bg') : null;
+
+        if (isSquircle && trackPath) {
+          const totalLen = (typeof trackPath.getTotalLength === 'function' && trackPath.getTotalLength()) || 578.19;
+          const normDeg = ((deg % 360) + 360) % 360;
+          const dist = (normDeg / 360) * totalLen;
+          const pt = (typeof trackPath.getPointAtLength === 'function') ? trackPath.getPointAtLength(dist) : { x: 100, y: 20 };
+          const w = dial.clientWidth || 200;
+          const h = dial.clientHeight || 200;
+          const size = Math.min(w, h);
+          const scale = size / 200;
+          const offsetX = (w - size) / 2;
+          const offsetY = (h - size) / 2;
+          if (knob) {
+            const knobHalf = (knob.offsetWidth || 20) / 2;
+            const kx = offsetX + pt.x * scale - knobHalf;
+            const ky = offsetY + pt.y * scale - knobHalf;
+            knob.style.left = `${kx}px`;
+            knob.style.top = `${ky}px`;
+            knob.style.right = 'auto';
+            knob.style.bottom = 'auto';
+            knob.style.transform = 'none';
+          }
+          if (trailEl) {
+            let sweep = deg;
+            if (sweep > 360) sweep = 360;
+            if (sweep < -360) sweep = -360;
+            const trailLen = (Math.abs(sweep) / 360) * totalLen;
+
+            if (Math.abs(sweep) < 0.5) {
+              trailEl.style.strokeDasharray = `0 ${totalLen}`;
+              trailEl.style.strokeDashoffset = '0';
+            } else if (Math.abs(sweep) >= 359.5) {
+              trailEl.style.strokeDasharray = `${totalLen} 0`;
+              trailEl.style.strokeDashoffset = '0';
+            } else if (sweep > 0) {
+              trailEl.style.strokeDasharray = `${trailLen} ${totalLen}`;
+              trailEl.style.strokeDashoffset = '0';
+            } else {
+              trailEl.style.strokeDasharray = `0 ${totalLen - trailLen} ${trailLen} ${totalLen}`;
+              trailEl.style.strokeDashoffset = '0';
+            }
+          }
+        } else {
+          if (knob) {
+            const rad = ((deg - 90) * Math.PI) / 180;
+            const center = (dial.clientWidth || 200) / 2;
+            const radius = center * 0.86;
+            const knobHalf = (knob.offsetWidth || 28) / 2;
+            knob.style.left = `${center + radius * Math.cos(rad) - knobHalf}px`;
+            knob.style.top = `${center + radius * Math.sin(rad) - knobHalf}px`;
+            knob.style.right = 'auto';
+            knob.style.bottom = 'auto';
+            knob.style.transform = 'none';
+          }
+          if (trailEl) {
+            let sweep = deg;
+            if (sweep > 360) sweep = 360;
+            if (sweep < -360) sweep = -360;
+            if (Math.abs(sweep) < 0.5) {
+              trailEl.setAttribute('d', '');
+            } else if (Math.abs(sweep) >= 359.5) {
+              trailEl.setAttribute('d', 'M 100 14 A 86 86 0 1 1 100 186 A 86 86 0 1 1 100 14');
+            } else {
+              const r2 = ((sweep - 90) * Math.PI) / 180;
+              const largeArc = Math.abs(sweep) > 180 ? 1 : 0;
+              const sweepFlag = sweep > 0 ? 1 : 0;
+              trailEl.setAttribute('d', `M 100 14 A 86 86 0 ${largeArc} ${sweepFlag} ${100 + 86 * Math.cos(r2)} ${100 + 86 * Math.sin(r2)}`);
+            }
+          }
+        }
+
+        const turns = Math.trunc(deg / 360);
+        const remRaw = deg % 360;
+        const rem = (Math.abs(remRaw - Math.round(remRaw)) < 0.001) ? Math.round(remRaw) : Number(remRaw.toFixed(1));
+        if (valTurns && !valTurns.dataset.isEditing) {
+          if (turns !== 0) {
+            valTurns.textContent = turns > 0 ? `+${turns}` : `${turns}`;
+            valTurns.style.display = 'block';
+          } else {
+            valTurns.textContent = '';
+            valTurns.style.display = 'none';
+          }
+        }
+        if (valRot && !valRot.dataset.isEditing) valRot.textContent = rem === 0 ? '0°' : `${rem > 0 ? '+' : ''}${rem}°`;
+
+        if (window.ResizeObserver && !dial._hasResizeObserver) {
+          dial._hasResizeObserver = true;
+          const ro = new ResizeObserver(() => {
+            if (dial.clientWidth > 0 && !window.isTransformInteracting) {
+              updateDesktopRotateDials();
+            }
+          });
+          ro.observe(dial);
+        }
+      });
+    }
+
+    function initDesktopRotateDials() {
+      ['x', 'y', 'z'].forEach((axis) => {
+        const dial = document.getElementById(`dial-transform-rotate-${axis}`);
+        if (!dial || dial._tripleInit) return;
+        dial._tripleInit = true;
+        let isRotating = false;
+        let lastAngle = 0;
+        let currentRot = 0;
+        let targetL = null;
+        let dialCenter = { x: 0, y: 0 };
+        dial.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          if (dial.classList.contains('is-disabled')) return;
+          const info = getSelectedLayerAndBaseDims();
+          if (!info) return;
+          targetL = info.layer;
+          if (targetL && targetL.expressions && (targetL.expressions.rotate || targetL.expressions.rotation || targetL.expressions.rotZ)) return;
+          window.isTransformInteracting = true;
+          syncLayerWithEffectiveProps(targetL);
+          invalidatePreviewCacheForLayer(targetL);
+          const rect = dial.getBoundingClientRect();
+          dialCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          isRotating = true;
+          lastAngle = Math.atan2(e.clientY - dialCenter.y, e.clientX - dialCenter.x) * (180 / Math.PI);
+          currentRot = rotAxisVal(targetL, axis);
+          try { dial.setPointerCapture(e.pointerId); } catch (_) {}
+          e.preventDefault();
+        });
+        dial.addEventListener('pointermove', (e) => {
+          if (!isRotating || !targetL) return;
+          const curAngle = Math.atan2(e.clientY - dialCenter.y, e.clientX - dialCenter.x) * (180 / Math.PI);
+          let delta = curAngle - lastAngle;
+          while (delta > 180) delta -= 360;
+          while (delta < -180) delta += 360;
+          currentRot += delta;
+          lastAngle = curAngle;
+          let val = Math.round(currentRot);
+          const gridBtn = document.getElementById('editor-icon-grid');
+          const isGridOn = gridBtn && gridBtn.classList.contains('is-active');
+          if (isGridOn) {
+            const snapAngles = [];
+            for (let a = -720; a <= 720; a += 45) snapAngles.push(a);
+            const sAngle = (window.findSnapTarget || findSnapTarget)(currentRot, snapAngles, 5);
+            if (sAngle !== null) val = sAngle;
+          }
+          if (axis === 'x') targetL.rotX = val;
+          else if (axis === 'y') targetL.rotY = val;
+          else { targetL.rotZ = val; targetL.rotation = val; }
+          if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+          recordLayerPropertyChange(targetL, 'rotate');
+          updateDesktopRotateDials();
+          redrawComposition();
+        });
+        const onTripleEnd = (e) => {
+          if (!isRotating) return;
+          try { dial.releasePointerCapture(e.pointerId); } catch (_) {}
+          isRotating = false;
+          window.isTransformInteracting = false;
+          const finishedLayer = targetL;
+          targetL = null;
+          if (finishedLayer) invalidatePreviewCacheForLayer(finishedLayer);
+          redrawComposition();
+          renderTimelineLayers();
+          saveCurrentProjectLayers();
+        };
+        dial.addEventListener('pointerup', onTripleEnd);
+        dial.addEventListener('pointercancel', onTripleEnd);
+      });
+    }
+
+    // Ruler jog X/Y tak terbatas (scrub seperti ruler parameter efek).
+    // 0.5 derajat per px; ticks bergerak via bindJogWheel, needle tetap.
+    const ROT_JOG_DEG_PER_PX = 0.5;
+
+    function rotDegText(deg) {
+      const turns = Math.trunc(deg / 360);
+      const remRaw = deg % 360;
+      const rem = (Math.abs(remRaw - Math.round(remRaw)) < 0.001) ? Math.round(remRaw) : Number(remRaw.toFixed(1));
+      return {
+        turns: turns !== 0 ? (turns > 0 ? `+${turns}` : `${turns}`) : '',
+        deg: rem === 0 ? '0°' : `${rem > 0 ? '+' : ''}${rem}°`
+      };
+    }
+
+    function updateRotateSliders(l, is3D) {
+      [['x', 'jog-rotate-x'], ['y', 'jog-rotate-y']].forEach(([axis, id]) => {
+        const jog = document.getElementById(id);
+        if (!jog) return;
+        const deg = rotAxisVal(l, axis);
+        if (axis !== 'z') {
+          jog.classList.toggle('is-disabled', !is3D);
+        }
+        jog.setAttribute('aria-valuenow', String(Math.round(deg)));
+        const t = rotDegText(deg);
+        const valRot = document.getElementById(`val-rotate-deg-${axis}`);
+        const valTurns = document.getElementById(`val-rotate-turns-${axis}`);
+        if (valTurns && !valTurns.dataset.isEditing) {
+          valTurns.textContent = t.turns;
+          valTurns.style.display = t.turns ? 'block' : 'none';
+        }
+        if (valRot && !valRot.dataset.isEditing) valRot.textContent = t.deg;
+      });
+    }
+
+    function initRotateSliders() {
+      [['x', true], ['y', false]].forEach(([axis, vertical]) => {
+        const jog = document.getElementById(`jog-rotate-${axis}`);
+        if (!jog || jog._jogInit) return;
+        jog._jogInit = true;
+        let targetL = null;
+        let startVal = 0;
+        const applyVal = (val) => {
+          if (!targetL) return;
+          const v = Math.round(val);
+          if (axis === 'x') targetL.rotX = v;
+          else if (axis === 'y') targetL.rotY = v;
+          else { targetL.rotZ = v; targetL.rotation = v; }
+          if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+          recordLayerPropertyChange(targetL, 'rotate');
+          updateDesktopRotateDials();
+          redrawComposition();
+        };
+        bindJogWheel(jog, {
+          onStart: () => {
+            if (jog.classList.contains('is-disabled')) return false;
+            const info = getSelectedLayerAndBaseDims();
+            if (!info) return false;
+            targetL = info.layer;
+            if (targetL && targetL.expressions && (targetL.expressions.rotate || targetL.expressions.rotation || targetL.expressions.rotZ)) {
+              targetL = null;
+              return false;
+            }
+            syncLayerWithEffectiveProps(targetL);
+            invalidatePreviewCacheForLayer(targetL);
+            startVal = rotAxisVal(targetL, axis);
+          },
+          onMove: (rawTotalDelta) => {
+            if (!targetL) return;
+            applyVal(startVal + rawTotalDelta * ROT_JOG_DEG_PER_PX);
+          },
+          onEnd: () => {
+            const finishedLayer = targetL;
+            targetL = null;
+            if (finishedLayer) invalidatePreviewCacheForLayer(finishedLayer);
+            redrawComposition();
+            renderTimelineLayers();
+          }
+        }, vertical);
+        jog.addEventListener('keydown', (e) => {
+          if (jog.classList.contains('is-disabled')) return;
+          const step = e.shiftKey ? 10 : 1;
+          let d = 0;
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') d = step;
+          else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') d = -step;
+          else if (e.key === 'Home') d = 'home';
+          else return;
+          e.preventDefault();
+          const info = getSelectedLayerAndBaseDims();
+          if (!info) return;
+          targetL = info.layer;
+          const cur = rotAxisVal(targetL, axis);
+          const nv = d === 'home' ? 0 : cur + d;
+          window.isTransformInteracting = true;
+          syncLayerWithEffectiveProps(targetL);
+          applyVal(nv);
+          targetL = null;
+          window.isTransformInteracting = false;
+          renderTimelineLayers();
+          saveCurrentProjectLayers();
+        });
+      });
     }
 
     function getSelectedLayerAndBaseDims() {
@@ -7168,9 +7657,9 @@
 
       const isAnchorSubmode = (window.moveAnchorSubmode === 'anchor');
       if (isAnchorSubmode) {
-        if (valPosX) valPosX.textContent = formatTransformNumber(curAnchorX);
-        if (valPosY) valPosY.textContent = formatTransformNumber(curAnchorY);
-        if (valPosZ) {
+        if (valPosX && !valPosX.dataset.isEditing) valPosX.textContent = formatTransformNumber(curAnchorX);
+        if (valPosY && !valPosY.dataset.isEditing) valPosY.textContent = formatTransformNumber(curAnchorY);
+        if (valPosZ && !valPosZ.dataset.isEditing) {
           valPosZ.textContent = formatTransformNumber(curAnchorZ);
           valPosZ.classList.toggle('is-neutral', Math.abs(curAnchorZ) < 0.01);
         }
@@ -7179,9 +7668,9 @@
         if (lblPosZ) lblPosZ.textContent = 'Anc Z';
         if (lblZRuler) lblZRuler.textContent = 'Anc Z';
       } else {
-        if (valPosX) valPosX.textContent = formatTransformNumber(curPosX);
-        if (valPosY) valPosY.textContent = formatTransformNumber(curPosY);
-        if (valPosZ) {
+        if (valPosX && !valPosX.dataset.isEditing) valPosX.textContent = formatTransformNumber(curPosX);
+        if (valPosY && !valPosY.dataset.isEditing) valPosY.textContent = formatTransformNumber(curPosY);
+        if (valPosZ && !valPosZ.dataset.isEditing) {
           valPosZ.textContent = formatTransformNumber(curPosZ);
           valPosZ.classList.toggle('is-neutral', Math.abs(curPosZ) < 0.01);
         }
@@ -7197,8 +7686,8 @@
 
       const valScaleW = document.getElementById('val-scale-w');
       const valScaleH = document.getElementById('val-scale-h');
-      if (valScaleW) valScaleW.textContent = formatTransformNumber(curScaleW);
-      if (valScaleH) valScaleH.textContent = formatTransformNumber(curScaleH);
+      if (valScaleW && !valScaleW.dataset.isEditing) valScaleW.textContent = formatTransformNumber(curScaleW);
+      if (valScaleH && !valScaleH.dataset.isEditing) valScaleH.textContent = formatTransformNumber(curScaleH);
 
       const has3DFx = Array.isArray(layer.effects) && layer.effects.some(f => {
         if (!f || f.disabled) return false;
@@ -7212,7 +7701,7 @@
         }
         return false;
       });
-      const is3DScale = is3D || has3DFx;
+      const is3DScale = has3DFx;
       const defaultZ = Math.round(Math.min(Math.abs(curScaleW), Math.abs(curScaleH)));
       if (is3DScale && layer.scaleZ === undefined) {
         layer.scaleZ = defaultZ;
@@ -7235,7 +7724,7 @@
       if (dualJog) {
         dualJog.classList.toggle('has-3d', is3DScale);
       }
-      if (valScaleZ) valScaleZ.textContent = formatTransformNumber(curScaleZ);
+      if (valScaleZ && !valScaleZ.dataset.isEditing) valScaleZ.textContent = formatTransformNumber(curScaleZ);
 
       const lblScaleW = document.getElementById('lbl-scale-w');
       const lblScaleH = document.getElementById('lbl-scale-h');
@@ -7312,8 +7801,8 @@
       const curSkewY = eff.skewY !== undefined ? eff.skewY : (layer.skewY || 0);
       const valSkewX = document.getElementById('val-skew-x');
       const valSkewY = document.getElementById('val-skew-y');
-      if (valSkewX) valSkewX.textContent = `${formatTransformNumber(curSkewX)}°`;
-      if (valSkewY) valSkewY.textContent = `${formatTransformNumber(curSkewY)}°`;
+      if (valSkewX && !valSkewX.dataset.isEditing) valSkewX.textContent = `${formatTransformNumber(curSkewX)}°`;
+      if (valSkewY && !valSkewY.dataset.isEditing) valSkewY.textContent = `${formatTransformNumber(curSkewY)}°`;
 
       // 6. Expression disabled state on transform panes & nav button
       const exprs = (layer && layer.expressions && typeof layer.expressions === 'object') ? layer.expressions : {};
@@ -7460,7 +7949,7 @@
       }
 
       function getCurrentViewBox(easing) {
-        const eas = easing || getActiveEasing();
+        const eas = easing || getActiveEasing() || [0.42, 0.0, 0.58, 1.0];
         if (!isGraphOvershootEnabled) {
           return { viewY: 0, viewH: BASE_SVG_H, extraTop: 0, extraBottom: 0 };
         }
@@ -7512,6 +8001,7 @@
 
       function getActiveEasing() {
         const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        if (!layer) return null;
         const prop = window.activeKeyframeProperty || 'move';
         const pps = window.currentPixelsPerSecond || 80;
         const currentSec = Math.abs(window.timelinePanX || 0) / pps;
@@ -7525,21 +8015,21 @@
           const matched = window.selectedKeyframes.find(it => it.layerId === window.selectedLayerId && (it.prop === prop || !prop) && Math.abs(it.time - currentSec) <= tol * 2);
           if (matched && matched.kf) {
             const l = matched.layer || (currentProjectState.layers || []).find(ly => ly.id === matched.layerId) || layer;
-            if (l && l.keyframes && Array.isArray(l.keyframes[matched.prop])) {
+            if (l && l.keyframes && Array.isArray(l.keyframes[matched.prop]) && l.keyframes[matched.prop].length >= 2) {
               const kfList = l.keyframes[matched.prop];
               const idx = kfList.indexOf(matched.kf);
               if (idx === kfList.length - 1 && idx > 0 && kfList[idx - 1].easing) {
                 return kfList[idx - 1].easing;
               }
-            }
-            if (matched.kf.easing && Array.isArray(matched.kf.easing) && matched.kf.easing.length === 4) {
-              return matched.kf.easing;
+              if (matched.kf.easing && Array.isArray(matched.kf.easing) && matched.kf.easing.length === 4) {
+                return matched.kf.easing;
+              }
             }
           }
         }
 
-        const { prevKf } = getSurroundingKeyframes(layer, prop, currentSec);
-        if (prevKf) {
+        const { prevKf, nextKf } = getSurroundingKeyframes(layer, prop, currentSec);
+        if (prevKf && nextKf) {
           if (!prevKf.easing || !Array.isArray(prevKf.easing) || prevKf.easing.length !== 4) {
             const defEas = (layer && (layer.defaultEasing || layer._defaultEasing) && (layer.defaultEasing || layer._defaultEasing)[prop])
               ? (layer.defaultEasing || layer._defaultEasing)[prop]
@@ -7548,10 +8038,8 @@
           }
           return prevKf.easing;
         }
-        if (layer && (layer.defaultEasing || layer._defaultEasing) && (layer.defaultEasing || layer._defaultEasing)[prop]) {
-          return (layer.defaultEasing || layer._defaultEasing)[prop];
-        }
-        return (layer && (layer.isOverlapCamera || layer.isOverlapNull)) ? [0.85, 0.0, 0.15, 1.0] : [0.42, 0.0, 0.58, 1.0];
+
+        return null;
       }
       window.getActiveEasing = getActiveEasing;
 
@@ -7659,9 +8147,43 @@
         ) || null;
       }
 
+      let _lastGraphSegmentKey = null;
+
       function updateGraphUI() {
         if (!svgLayer) return;
+        const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+        const prop = window.activeKeyframeProperty || 'move';
+        const pps = window.currentPixelsPerSecond || 80;
+        const currentSec = Math.abs(window.timelinePanX || 0) / pps;
+        const { prevKf, nextKf } = getSurroundingKeyframes(layer, prop, currentSec);
+        _lastGraphSegmentKey = `${layer ? layer.id : ''}_${prop}_${(prevKf && nextKf) ? (prevKf.time.toFixed(4) + '_' + nextKf.time.toFixed(4)) : 'none'}`;
+
         const easing = getActiveEasing();
+        const canvasFrame = document.getElementById('graph-canvas-frame');
+
+        if (!easing) {
+          if (canvasFrame) canvasFrame.classList.add('is-no-keyframe');
+          Object.values(presetBtns).forEach(btn => { if (btn) btn.classList.remove('is-active'); });
+          if (customPresetsContainer) {
+            customPresetsContainer.querySelectorAll('.graph-preset-btn').forEach(b => b.classList.remove('is-active'));
+          }
+          const btnReverse = document.getElementById('btn-graph-reverse');
+          const btnSnap = document.getElementById('btn-graph-snap');
+          const btnSavePreset = document.getElementById('btn-graph-save-preset');
+          if (btnReverse) btnReverse.setAttribute('disabled', 'true');
+          if (btnSnap) btnSnap.setAttribute('disabled', 'true');
+          if (btnSavePreset) btnSavePreset.setAttribute('disabled', 'true');
+          return;
+        }
+
+        if (canvasFrame) canvasFrame.classList.remove('is-no-keyframe');
+        const btnReverse = document.getElementById('btn-graph-reverse');
+        const btnSnap = document.getElementById('btn-graph-snap');
+        const btnSavePreset = document.getElementById('btn-graph-save-preset');
+        if (btnReverse) btnReverse.removeAttribute('disabled');
+        if (btnSnap) btnSnap.removeAttribute('disabled');
+        if (btnSavePreset) btnSavePreset.removeAttribute('disabled');
+
         const { viewY, viewH } = getCurrentViewBox(easing);
         updateSvgDimensions(viewH);
         const { minX, maxX, yStart, yEnd } = getBounds();
@@ -7780,15 +8302,23 @@
 
       function updatePlayheadTimeLine() {
         if (!timeLine) return;
-        const { minX, maxX } = getBounds();
-        const { viewY, viewH } = getCurrentViewBox();
         const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
         const prop = window.activeKeyframeProperty || 'move';
         const pps = window.currentPixelsPerSecond || 80;
         const currentSec = Math.abs(window.timelinePanX || 0) / pps;
 
-        let u = 0;
         const { prevKf, nextKf } = getSurroundingKeyframes(layer, prop, currentSec);
+        const segKey = `${layer ? layer.id : ''}_${prop}_${(prevKf && nextKf) ? (prevKf.time.toFixed(4) + '_' + nextKf.time.toFixed(4)) : 'none'}`;
+        if (segKey !== _lastGraphSegmentKey) {
+          _lastGraphSegmentKey = segKey;
+          updateGraphUI();
+          return;
+        }
+
+        const { minX, maxX } = getBounds();
+        const { viewY, viewH } = getCurrentViewBox();
+
+        let u = 0;
         if (prevKf && nextKf && nextKf.time > prevKf.time) {
           u = (currentSec - prevKf.time) / (nextKf.time - prevKf.time);
         } else if (layer) {
@@ -7872,6 +8402,40 @@
         }
       }
 
+      // Thumb 36px dari nilai easing apa adanya (termasuk overshoot y<0 / y>1).
+      // Tanpa overshoot -> identik mapping lama (kotak 4..32). Ada overshoot ->
+      // rentang diperluas + kotak boundary 0..1 digambar di posisi petanya.
+      function easingThumbSVG(p1x, p1y, p2x, p2y) {
+        const xs = [0, 1, p1x, p2x], ys = [0, 1, p1y, p2y];
+        const overX = xs.some((v) => v < 0 || v > 1);
+        const overY = ys.some((v) => v < 0 || v > 1);
+        let X, Y;
+        if (!overX && !overY) {
+          X = (v) => 4 + v * 28;
+          Y = (v) => 32 - v * 28;
+        } else {
+          const lox = Math.min(...xs), hix = Math.max(...xs), px = 0.08 * Math.max(hix - lox, 1);
+          const loy = Math.min(...ys), hiy = Math.max(...ys), py = 0.08 * Math.max(hiy - loy, 1);
+          X = (v) => 4 + ((v - lox + px) / (hix - lox + 2 * px)) * 28;
+          Y = (v) => 32 - ((v - loy + py) / (hiy - loy + 2 * py)) * 28;
+        }
+        const f = (n) => n.toFixed(1);
+        const c1x = f(X(p1x)), c1y = f(Y(p1y)), c2x = f(X(p2x)), c2y = f(Y(p2y));
+        const x0 = f(X(0)), x1 = f(X(1)), ya = f(Y(0)), yb = f(Y(1));
+        const bx = Math.min(x0, x1), by = Math.min(ya, yb);
+        const bw = Math.abs(x1 - x0), bh = Math.abs(ya - yb);
+        return `<svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
+              <rect class="preset-thumb-boundary" x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="2"/>
+              <line class="preset-thumb-tangent" x1="${x0}" y1="${ya}" x2="${c1x}" y2="${c1y}"/>
+              <circle class="preset-thumb-handle" cx="${c1x}" cy="${c1y}" r="2"/>
+              <line class="preset-thumb-tangent" x1="${x1}" y1="${yb}" x2="${c2x}" y2="${c2y}"/>
+              <circle class="preset-thumb-handle" cx="${c2x}" cy="${c2y}" r="2"/>
+              <path class="preset-thumb-curve" d="M ${x0} ${ya} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x1} ${yb}"/>
+              <circle class="preset-thumb-dot" cx="${x0}" cy="${ya}" r="2.2"/>
+              <circle class="preset-thumb-dot" cx="${x1}" cy="${yb}" r="2.2"/>
+            </svg>`;
+      }
+
       function renderCustomPresetsUI() {
         if (!customPresetsContainer) return;
         customPresetsContainer.innerHTML = '';
@@ -7883,12 +8447,6 @@
           if (!item || !Array.isArray(item.easing) || item.easing.length !== 4) return;
           const [p1x, p1y, p2x, p2y] = item.easing;
 
-          const clamp01 = (v) => Math.max(0, Math.min(1, v));
-          const c1x = 4 + clamp01(p1x) * 28;
-          const c1y = 32 - clamp01(p1y) * 28;
-          const c2x = 4 + clamp01(p2x) * 28;
-          const c2y = 32 - clamp01(p2y) * 28;
-
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'graph-preset-btn is-custom';
@@ -7897,27 +8455,17 @@
           btn.title = `${displayName} (Click to apply, right-click to delete)`;
           btn.setAttribute('aria-label', displayName);
 
-          const isMatched = Math.abs(p1x - activeEasing[0]) < tol &&
+          const isMatched = activeEasing &&
+                            Math.abs(p1x - activeEasing[0]) < tol &&
                             Math.abs(p1y - activeEasing[1]) < tol &&
                             Math.abs(p2x - activeEasing[2]) < tol &&
                             Math.abs(p2y - activeEasing[3]) < tol;
           if (isMatched) btn.classList.add('is-active');
 
           btn.innerHTML = `
-            <svg class="preset-thumb-svg" viewBox="0 0 36 36" aria-hidden="true">
-              <rect class="preset-thumb-boundary" x="4" y="4" width="28" height="28" rx="2"/>
-              <line class="preset-thumb-tangent" x1="4" y1="32" x2="${c1x.toFixed(1)}" y2="${c1y.toFixed(1)}"/>
-              <circle class="preset-thumb-handle" cx="${c1x.toFixed(1)}" cy="${c1y.toFixed(1)}" r="2"/>
-              <line class="preset-thumb-tangent" x1="32" y1="4" x2="${c2x.toFixed(1)}" y2="${c2y.toFixed(1)}"/>
-              <circle class="preset-thumb-handle" cx="${c2x.toFixed(1)}" cy="${c2y.toFixed(1)}" r="2"/>
-              <path class="preset-thumb-curve" d="M 4 32 C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, 32 4"/>
-              <circle class="preset-thumb-dot" cx="4" cy="32" r="2.2"/>
-              <circle class="preset-thumb-dot" cx="32" cy="4" r="2.2"/>
-            </svg>
+            ${easingThumbSVG(p1x, p1y, p2x, p2y)}
             <button type="button" class="graph-preset-delete-btn" title="Delete preset" aria-label="Delete preset">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-              </svg>
+              <i class='fticon fticon-close-3' aria-hidden='true'></i>
             </button>
           `;
 
@@ -7993,10 +8541,11 @@
       if (btnGraphReverse) {
         btnGraphReverse.addEventListener('click', (e) => {
           e.stopPropagation();
+          const easing = getActiveEasing();
+          if (!easing) return;
           if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
             window.UndoRedoManager.recordSnapshot();
           }
-          const easing = getActiveEasing();
           const reversed = [
             Number((1 - easing[2]).toFixed(3)),
             Number((1 - easing[3]).toFixed(3)),
@@ -8021,6 +8570,8 @@
       }
 
       function applyEasingPreset(presetEasing) {
+        const easing = getActiveEasing();
+        if (!easing) return;
         if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
           window.UndoRedoManager.recordSnapshot();
         }
@@ -8041,10 +8592,24 @@
         });
       });
 
+      // Default preset thumbs: render kurva asli dari nilai easing (bukan ikon).
+      // Pakai helper yang sama dengan custom preset (dukung overshoot).
+      function renderDefaultPresetThumbs() {
+        Object.entries(presetBtns).forEach(([pId, btn]) => {
+          if (!btn) return;
+          const target = PRESETS.find(p => p.id === pId);
+          if (!target) return;
+          const [p1x, p1y, p2x, p2y] = target.easing;
+          btn.innerHTML = easingThumbSVG(p1x, p1y, p2x, p2y);
+        });
+      }
+      renderDefaultPresetThumbs();
+
       if (btnSavePreset) {
         btnSavePreset.addEventListener('click', (e) => {
           e.stopPropagation();
           const easing = getActiveEasing();
+          if (!easing) return;
           const list = getCustomPresets();
           const defaultName = `Curve ${list.length + 1}`;
           list.push({
@@ -8089,6 +8654,7 @@
         btnGraphCopy.addEventListener('click', (e) => {
           e.stopPropagation();
           const currentEasing = getActiveEasing();
+          if (!currentEasing) return;
           const rounded = [
             Number(currentEasing[0].toFixed(3)),
             Number(currentEasing[1].toFixed(3)),
@@ -8144,12 +8710,13 @@
       if (btnCopyToAll) {
         btnCopyToAll.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
-            window.UndoRedoManager.recordSnapshot();
-          }
           const sourceEasing = (window._copiedGraphEasing && Array.isArray(window._copiedGraphEasing) && window._copiedGraphEasing.length === 4)
             ? window._copiedGraphEasing
             : getActiveEasing();
+          if (!sourceEasing) return;
+          if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
+            window.UndoRedoManager.recordSnapshot();
+          }
           const rounded = [
             Number(sourceEasing[0].toFixed(3)),
             Number(sourceEasing[1].toFixed(3)),
@@ -8213,6 +8780,8 @@
 
       function startHandleDrag(handleIndex, e) {
         if (activeDragHandleIndex !== null) return;
+        const eas = getActiveEasing();
+        if (!eas) return;
         activeDragHandleIndex = handleIndex;
 
         if (window.UndoRedoManager && !window.UndoRedoManager.isApplying) {
@@ -8231,7 +8800,7 @@
         }
 
         let isDragging = true;
-        let currentEasing = [...getActiveEasing()];
+        let currentEasing = [...eas];
         const bxIdx = (handleIndex === 1) ? 0 : 2;
         const byIdx = (handleIndex === 1) ? 1 : 3;
 
@@ -8465,30 +9034,33 @@
     // Reusable Jog Wheel Binder Function (Horizontal & Vertical)
     function bindJogWheel(el, callbacks, isVertical = false) {
       if (!el) return;
+      const vertical = Boolean(isVertical || (el.classList && el.classList.contains('is-vertical')));
       let isDragging = false;
       let startCoord = 0;
       let lastCoord = 0;
       let virtualDelta = 0;
+      let accumulatedTickOffset = 0;
       const ticksEl = el.querySelector('.jog-wheel-ticks');
 
       el.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
+        if (e.target && e.target.closest('.effects-param-pill-val, input, select')) return;
+        if (callbacks.onStart && callbacks.onStart(e) === false) return;
         isDragging = true;
         window.isTransformInteracting = true;
-        startCoord = isVertical ? e.clientY : e.clientX;
+        startCoord = vertical ? e.clientY : e.clientX;
         lastCoord = startCoord;
         virtualDelta = 0;
         try { el.setPointerCapture(e.pointerId); } catch (_) {}
-        if (callbacks.onStart) callbacks.onStart(e);
         e.preventDefault();
       });
 
       el.addEventListener('pointermove', (e) => {
         if (!isDragging) return;
-        const currentCoord = isVertical ? e.clientY : e.clientX;
-        const step = isVertical ? (lastCoord - currentCoord) : (currentCoord - lastCoord);
+        const currentCoord = vertical ? e.clientY : e.clientX;
+        const step = vertical ? (lastCoord - currentCoord) : (currentCoord - lastCoord);
         lastCoord = currentCoord;
-        const rawTotalDelta = isVertical ? (startCoord - currentCoord) : (currentCoord - startCoord);
+        const rawTotalDelta = vertical ? (startCoord - currentCoord) : (currentCoord - startCoord);
 
         let res = null;
         if (callbacks.onMove) {
@@ -8498,37 +9070,26 @@
         if (res && typeof res === 'object' && res.consumedStep !== undefined) {
           // Bounded jog wheel: strictly advance visual ticks only by the step actually consumed
           virtualDelta += res.consumedStep;
-          if (ticksEl) {
-            if (isVertical) {
-              ticksEl.style.backgroundPosition = `0 ${-virtualDelta}px`;
-            } else {
-              ticksEl.style.backgroundPosition = `${virtualDelta}px 0`;
-            }
-          }
         } else if (res && typeof res === 'object' && res.virtualDelta !== undefined) {
           virtualDelta = res.virtualDelta;
-          if (ticksEl) {
-            if (isVertical) {
-              ticksEl.style.backgroundPosition = `0 ${-virtualDelta}px`;
-            } else {
-              ticksEl.style.backgroundPosition = `${virtualDelta}px 0`;
-            }
-          }
         } else {
           // Default unconstrained scrolling
           virtualDelta = rawTotalDelta;
-          if (ticksEl) {
-            if (isVertical) {
-              ticksEl.style.backgroundPosition = `0 ${-virtualDelta}px`;
-            } else {
-              ticksEl.style.backgroundPosition = `${virtualDelta}px 0`;
-            }
+        }
+        
+        if (ticksEl && !ticksEl.classList.contains('is-bounded-tape')) {
+          const finalPos = accumulatedTickOffset + virtualDelta;
+          if (vertical) {
+            ticksEl.style.setProperty('background-position-y', `${-finalPos}px`, 'important');
+          } else {
+            ticksEl.style.setProperty('background-position-x', `${finalPos}px`, 'important');
           }
         }
       });
 
       const onEnd = (e) => {
         if (!isDragging) return;
+        accumulatedTickOffset += virtualDelta;
         if (e && e.pointerId !== undefined) {
           try { el.releasePointerCapture(e.pointerId); } catch (_) {}
         }
@@ -8541,6 +9102,57 @@
       el.addEventListener('pointerup', onEnd);
       el.addEventListener('pointercancel', onEnd);
       el.addEventListener('lostpointercapture', onEnd);
+
+      // Support two-finger trackpad scrolling
+      let isWheeling = false;
+      let wheelTotalDelta = 0;
+      el.addEventListener('wheel', (e) => {
+        if (e.target && e.target.closest('.effects-param-pill-val, input, select')) return;
+        e.preventDefault();
+        
+        if (!isWheeling) {
+          if (callbacks.onStart && callbacks.onStart(e) === false) return;
+          isWheeling = true;
+          window.isTransformInteracting = true;
+          wheelTotalDelta = 0;
+          virtualDelta = 0;
+        }
+        
+        const step = vertical ? -e.deltaY : -e.deltaX;
+        wheelTotalDelta += step;
+        
+        let res = null;
+        if (callbacks.onMove) {
+          res = callbacks.onMove(wheelTotalDelta, e, step, virtualDelta);
+        }
+
+        if (res && typeof res === 'object' && res.consumedStep !== undefined) {
+          virtualDelta += res.consumedStep;
+        } else if (res && typeof res === 'object' && res.virtualDelta !== undefined) {
+          virtualDelta = res.virtualDelta;
+        } else {
+          virtualDelta += step;
+        }
+        
+        if (ticksEl && !ticksEl.classList.contains('is-bounded-tape')) {
+          const finalPos = accumulatedTickOffset + virtualDelta;
+          if (vertical) {
+            ticksEl.style.setProperty('background-position-y', `${-finalPos}px`, 'important');
+          } else {
+            ticksEl.style.setProperty('background-position-x', `${finalPos}px`, 'important');
+          }
+        }
+        
+        if (el._wheelTimeout) clearTimeout(el._wheelTimeout);
+        el._wheelTimeout = setTimeout(() => {
+          if (!isWheeling) return;
+          isWheeling = false;
+          window.isTransformInteracting = false;
+          accumulatedTickOffset += virtualDelta;
+          if (callbacks.onEnd) callbacks.onEnd(e);
+          if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+        }, 150);
+      }, { passive: false });
     }
     window.bindJogWheel = bindJogWheel;
 
@@ -8589,6 +9201,10 @@
       if (btnTransformGraph) {
         btnTransformGraph.addEventListener('click', (e) => {
           e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const prop = window.activeTransformTool || window.activeKeyframeProperty || 'move';
+          const kfList = (layer && layer.keyframes && layer.keyframes[prop]) || [];
+          if (kfList.length < 2) return;
           window.previousDrawerSubview = 'transform';
           switchLayerDrawerSubview('graph');
         });
@@ -8776,6 +9392,10 @@
             pane.classList.toggle('is-active', pane.id === `pane-transform-${tool}`);
           });
 
+          if (tool === 'rotate' && typeof syncRotateDialTrack === 'function') {
+            syncRotateDialTrack();
+          }
+
           window.activeTransformTool = tool;
           window.activeKeyframeProperty = tool;
           if (typeof window.clearSelectedKeyframes === 'function') {
@@ -8851,6 +9471,7 @@
 
         movePad.addEventListener('pointerdown', (e) => {
           if (e.button !== 0) return;
+          if (e.target.closest('.transform-z-ruler-wrap')) return;
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
           targetL = info.layer;
@@ -9076,6 +9697,12 @@
       }
 
       // H1. Rotate Axis Switch Interaction (X, Y, Z)
+      const rotateAxisSwitchEl = document.getElementById('rotate-axis-switch');
+      if (rotateAxisSwitchEl) {
+        rotateAxisSwitchEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+        rotateAxisSwitchEl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        rotateAxisSwitchEl.addEventListener('mousedown', (e) => e.stopPropagation());
+      }
       const axisBtns = document.querySelectorAll('#rotate-axis-switch .segmented-switch-item');
       axisBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -9116,8 +9743,11 @@
         let currentRot = 0;
         let targetL = null;
         let dialCenter = { x: 0, y: 0 };
+        let dialHalfW = 100;
+        let dialHalfH = 100;
 
         rotateDial.addEventListener('pointerdown', (e) => {
+          if (e.target && (e.target.closest('.rotate-center-badge') || e.target.closest('#rotate-axis-switch'))) return;
           if (e.button !== 0) return;
           const info = getSelectedLayerAndBaseDims();
           if (!info) return;
@@ -9133,9 +9763,13 @@
             x: rect.left + rect.width / 2,
             y: rect.top + rect.height / 2
           };
+          dialHalfW = Math.max(1, rect.width / 2);
+          dialHalfH = Math.max(1, rect.height / 2);
 
           isRotating = true;
-          lastAngle = Math.atan2(e.clientY - dialCenter.y, e.clientX - dialCenter.x) * (180 / Math.PI);
+          const dx = (e.clientX - dialCenter.x) / dialHalfW;
+          const dy = (e.clientY - dialCenter.y) / dialHalfH;
+          lastAngle = Math.atan2(dy, dx) * (180 / Math.PI);
           if (currentRotateAxis === 'x') {
             currentRot = targetL.rotX !== undefined ? targetL.rotX : 0;
           } else if (currentRotateAxis === 'y') {
@@ -9144,13 +9778,15 @@
             currentRot = targetL.rotZ !== undefined ? targetL.rotZ : (targetL.rotation !== undefined ? targetL.rotation : 0);
           }
 
-          rotateDial.setPointerCapture(e.pointerId);
+          try { rotateDial.setPointerCapture(e.pointerId); } catch (_) {}
           e.preventDefault();
         });
 
         rotateDial.addEventListener('pointermove', (e) => {
           if (!isRotating || !targetL) return;
-          const curAngle = Math.atan2(e.clientY - dialCenter.y, e.clientX - dialCenter.x) * (180 / Math.PI);
+          const dx = (e.clientX - dialCenter.x) / dialHalfW;
+          const dy = (e.clientY - dialCenter.y) / dialHalfH;
+          const curAngle = Math.atan2(dy, dx) * (180 / Math.PI);
           let delta = curAngle - lastAngle;
           while (delta > 180) delta -= 360;
           while (delta < -180) delta += 360;
@@ -9209,6 +9845,8 @@
         rotateDial.addEventListener('pointerup', onRotEnd);
         rotateDial.addEventListener('pointercancel', onRotEnd);
       }
+      initDesktopRotateDials();
+      initRotateSliders();
 
       // 0. Z Position / Anchor Z Vertical Jog Wheel (#jog-pos-z)
       let posZInit = { z: 0, targetL: null, isAnchor: false };
@@ -9286,7 +9924,7 @@
         onMove: (deltaX) => {
           const { targetL, w, h, z, ratio, baseW, baseH } = scaleLinkedInit;
           if (!targetL) return;
-          let newW = w + deltaX * 2;
+          let newW = Math.max(1, w - deltaX * 2);
           let newH = ratio !== 0 ? newW / ratio : newW;
 
           // Snap to Grid when Grid Overlay is active
@@ -9396,7 +10034,8 @@
         onMove: (deltaX) => {
           const { targetL, w, baseW } = scaleWInit;
           if (!targetL) return;
-          let newW = w + deltaX * 2;
+          const isVert = document.getElementById('jog-scale-w')?.classList.contains('is-vertical');
+          let newW = Math.max(1, isVert ? (w + deltaX * 2) : (w - deltaX * 2));
 
           // Snap to Grid when Grid Overlay is active
           const gridBtn = document.getElementById('editor-icon-grid');
@@ -9471,7 +10110,8 @@
         onMove: (deltaX) => {
           const { targetL, h, baseH } = scaleHInit;
           if (!targetL) return;
-          let newH = h + deltaX * 2;
+          const isVert = document.getElementById('jog-scale-h')?.classList.contains('is-vertical');
+          let newH = Math.max(1, isVert ? (h + deltaX * 2) : (h - deltaX * 2));
 
           // Snap to Grid when Grid Overlay is active
           const gridBtn = document.getElementById('editor-icon-grid');
@@ -9546,7 +10186,8 @@
         onMove: (deltaX) => {
           const { targetL, z } = scaleZInit;
           if (!targetL) return;
-          let newZ = Math.max(1, Math.round(z + deltaX * 2));
+          const isVert = document.getElementById('jog-scale-z')?.classList.contains('is-vertical');
+          let newZ = Math.max(1, Math.round(isVert ? (z + deltaX * 2) : (z - deltaX * 2)));
           targetL.scaleZ = newZ;
           recordLayerPropertyChange(targetL, 'scale');
           const valZ = document.getElementById('val-scale-z');
@@ -9563,40 +10204,38 @@
         }
       });
 
-      // Direct Value Input on Scale Z Card (#card-scale-z)
-      const cardScaleZEl = document.getElementById('card-scale-z');
-      if (cardScaleZEl) {
-        cardScaleZEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const info = getSelectedLayerAndBaseDims();
-          if (!info) return;
-          const l = info.layer;
-          const curVal = l.scaleZ !== undefined ? l.scaleZ : Math.round(Math.min(Math.abs(l.scaleW || 300), Math.abs(l.scaleH || 300)));
-          if (typeof window.openValueInputPopover === 'function') {
-            window.openValueInputPopover(cardScaleZEl, {
-              initialValue: curVal,
-              min: 1,
-              max: 2000,
-              unit: 'px',
-              label: 'Depth (Z Scale)',
-              onApply: (newVal) => {
-                syncLayerWithEffectiveProps(l);
-                l.scaleZ = Math.max(1, Math.round(newVal));
-                recordLayerPropertyChange(l, 'scale');
-                const valZ = document.getElementById('val-scale-z');
-                if (valZ) valZ.textContent = l.scaleZ.toFixed(1);
-                invalidatePreviewCacheForLayer(l);
-                redrawComposition();
-                renderTimelineLayers();
-                saveCurrentProjectLayers();
-              }
-            });
-          }
-        });
-      }
 
-      // 4. Skew X Jog Wheel (#jog-skew-x)
-      let skewXInit = { skewX: 0, targetL: null };
+
+      // 4. Skew X Jog Wheel (#jog-skew-x) - rAF-coalesced apply, keyframe commit once on release
+      let skewXInit = { skewX: 0, targetL: null, valEl: null, gridOn: false, pendingDelta: 0, rafId: 0 };
+      const flushSkewX = () => {
+        skewXInit.rafId = 0;
+        const { targetL, skewX, pendingDelta, gridOn, valEl } = skewXInit;
+        if (!targetL) return;
+        let newSkewX = skewX + pendingDelta * 0.2;
+        if (gridOn) {
+          const snapAngles = [-45, -30, -15, 0, 15, 30, 45];
+          const sVal = (window.findSnapTarget || findSnapTarget)(newSkewX, snapAngles, 2.0);
+          if (sVal !== null) newSkewX = sVal;
+        }
+        newSkewX = Number(newSkewX.toFixed(1));
+        if (targetL.skewX === newSkewX) return;
+        targetL.skewX = newSkewX;
+        // Live-sync existing keyframe value only; auto-create deferred to onEnd (1x)
+        const kfListX = targetL.keyframes && targetL.keyframes.skew;
+        if (kfListX && kfListX.length > 0 && typeof getKeyframeAtTime === 'function') {
+          const ppsX = window.currentPixelsPerSecond || 80;
+          const secX = Number((Math.abs(window.timelinePanX || 0) / ppsX).toFixed(3));
+          const fpsX = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+          const kfX = getKeyframeAtTime(targetL, 'skew', secX, Math.max(0.04, 0.5 / fpsX));
+          if (kfX) kfX.value = [targetL.skewX || 0, targetL.skewY || 0];
+        }
+        if (valEl) {
+          const txtX = `${newSkewX.toFixed(1)}°`;
+          if (valEl.textContent !== txtX) valEl.textContent = txtX;
+        }
+        redrawComposition();
+      };
       bindJogWheel(document.getElementById('jog-skew-x'), {
         onStart: () => {
           const info = getSelectedLayerAndBaseDims();
@@ -9605,33 +10244,18 @@
           if (l && l.expressions && l.expressions.skew) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
-          skewXInit = { skewX: l.skewX || 0, targetL: l };
+          const gridBtnX = document.getElementById('editor-icon-grid');
+          skewXInit = { skewX: l.skewX || 0, targetL: l, valEl: document.getElementById('val-skew-x'), gridOn: !!(gridBtnX && gridBtnX.classList.contains('is-active')), pendingDelta: 0, rafId: 0 };
         },
         onMove: (deltaX) => {
-          const { targetL, skewX } = skewXInit;
-          if (!targetL) return;
-          let newSkewX = skewX + deltaX * 0.2;
-
-          // Snap to standard skew angles when grid is on
-          const gridBtn = document.getElementById('editor-icon-grid');
-          const isGridOn = gridBtn && gridBtn.classList.contains('is-active');
-          if (isGridOn) {
-            const snapAngles = [-45, -30, -15, 0, 15, 30, 45];
-            const sVal = (window.findSnapTarget || findSnapTarget)(newSkewX, snapAngles, 2.0);
-            if (sVal !== null) newSkewX = sVal;
-          }
-
-          targetL.skewX = Number(newSkewX.toFixed(1));
-
-          recordLayerPropertyChange(targetL, 'skew');
-
-          const valSkewX = document.getElementById('val-skew-x');
-          if (valSkewX) valSkewX.textContent = `${targetL.skewX.toFixed(1)}°`;
-
-          redrawComposition();
+          if (!skewXInit.targetL) return;
+          skewXInit.pendingDelta = deltaX;
+          if (!skewXInit.rafId) skewXInit.rafId = requestAnimationFrame(flushSkewX);
         },
         onEnd: () => {
+          if (skewXInit.rafId) { cancelAnimationFrame(skewXInit.rafId); skewXInit.rafId = 0; flushSkewX(); }
           if (skewXInit && skewXInit.targetL) {
+            if (typeof recordLayerPropertyChange === 'function') recordLayerPropertyChange(skewXInit.targetL, 'skew');
             invalidatePreviewCacheForLayer(skewXInit.targetL);
           }
           redrawComposition();
@@ -9640,8 +10264,36 @@
         }
       });
 
-      // 5. Skew Y Jog Wheel (#jog-skew-y)
-      let skewYInit = { skewY: 0, targetL: null };
+      // 5. Skew Y Jog Wheel (#jog-skew-y) - rAF-coalesced apply, keyframe commit once on release
+      let skewYInit = { skewY: 0, targetL: null, valEl: null, gridOn: false, pendingDelta: 0, rafId: 0 };
+      const flushSkewY = () => {
+        skewYInit.rafId = 0;
+        const { targetL, skewY, pendingDelta, gridOn, valEl } = skewYInit;
+        if (!targetL) return;
+        let newSkewY = skewY + pendingDelta * 0.2;
+        if (gridOn) {
+          const snapAngles = [-45, -30, -15, 0, 15, 30, 45];
+          const sVal = (window.findSnapTarget || findSnapTarget)(newSkewY, snapAngles, 2.0);
+          if (sVal !== null) newSkewY = sVal;
+        }
+        newSkewY = Number(newSkewY.toFixed(1));
+        if (targetL.skewY === newSkewY) return;
+        targetL.skewY = newSkewY;
+        // Live-sync existing keyframe value only; auto-create deferred to onEnd (1x)
+        const kfListY = targetL.keyframes && targetL.keyframes.skew;
+        if (kfListY && kfListY.length > 0 && typeof getKeyframeAtTime === 'function') {
+          const ppsY = window.currentPixelsPerSecond || 80;
+          const secY = Number((Math.abs(window.timelinePanX || 0) / ppsY).toFixed(3));
+          const fpsY = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
+          const kfY = getKeyframeAtTime(targetL, 'skew', secY, Math.max(0.04, 0.5 / fpsY));
+          if (kfY) kfY.value = [targetL.skewX || 0, targetL.skewY || 0];
+        }
+        if (valEl) {
+          const txtY = `${newSkewY.toFixed(1)}°`;
+          if (valEl.textContent !== txtY) valEl.textContent = txtY;
+        }
+        redrawComposition();
+      };
       bindJogWheel(document.getElementById('jog-skew-y'), {
         onStart: () => {
           const info = getSelectedLayerAndBaseDims();
@@ -9650,33 +10302,18 @@
           if (l && l.expressions && l.expressions.skew) return;
           syncLayerWithEffectiveProps(l);
           invalidatePreviewCacheForLayer(l);
-          skewYInit = { skewY: l.skewY || 0, targetL: l };
+          const gridBtnY = document.getElementById('editor-icon-grid');
+          skewYInit = { skewY: l.skewY || 0, targetL: l, valEl: document.getElementById('val-skew-y'), gridOn: !!(gridBtnY && gridBtnY.classList.contains('is-active')), pendingDelta: 0, rafId: 0 };
         },
         onMove: (deltaX) => {
-          const { targetL, skewY } = skewYInit;
-          if (!targetL) return;
-          let newSkewY = skewY + deltaX * 0.2;
-
-          // Snap to standard skew angles when grid is on
-          const gridBtn = document.getElementById('editor-icon-grid');
-          const isGridOn = gridBtn && gridBtn.classList.contains('is-active');
-          if (isGridOn) {
-            const snapAngles = [-45, -30, -15, 0, 15, 30, 45];
-            const sVal = (window.findSnapTarget || findSnapTarget)(newSkewY, snapAngles, 2.0);
-            if (sVal !== null) newSkewY = sVal;
-          }
-
-          targetL.skewY = Number(newSkewY.toFixed(1));
-
-          recordLayerPropertyChange(targetL, 'skew');
-
-          const valSkewY = document.getElementById('val-skew-y');
-          if (valSkewY) valSkewY.textContent = `${targetL.skewY.toFixed(1)}°`;
-
-          redrawComposition();
+          if (!skewYInit.targetL) return;
+          skewYInit.pendingDelta = deltaX;
+          if (!skewYInit.rafId) skewYInit.rafId = requestAnimationFrame(flushSkewY);
         },
         onEnd: () => {
+          if (skewYInit.rafId) { cancelAnimationFrame(skewYInit.rafId); skewYInit.rafId = 0; flushSkewY(); }
           if (skewYInit && skewYInit.targetL) {
+            if (typeof recordLayerPropertyChange === 'function') recordLayerPropertyChange(skewYInit.targetL, 'skew');
             invalidatePreviewCacheForLayer(skewYInit.targetL);
           }
           redrawComposition();
@@ -9684,6 +10321,645 @@
           saveCurrentProjectLayers();
         }
       });
+
+      // I. Transform Inline Textbox Editing (Click-to-Edit Readouts)
+      function parseTransformNumericInput(str) {
+        if (!str) return NaN;
+        str = String(str).replace(/px|deg|[°%]/gi, '').trim();
+        str = str.replace(/x$/i, '').trim();
+        if (/^[-+]?[0-9]*\.?[0-9]+([ \t]*[-+*/][ \t]*[-+]?[0-9]*\.?[0-9]+)*$/.test(str)) {
+          try {
+            const res = Function(`"use strict"; return (${str})`)();
+            if (typeof res === 'number' && !isNaN(res) && isFinite(res)) {
+              return res;
+            }
+          } catch (_) {}
+        }
+        const n = parseFloat(str);
+        return isNaN(n) ? NaN : n;
+      }
+
+      function parseTransformRotationInput(str) {
+        if (!str) return NaN;
+        str = String(str).trim();
+        if (!str) return NaN;
+
+        const hasDegreeSymbol = /°|deg\b/i.test(str) || /(?<=\d)\s*\*(?!\s*[0-9.])/.test(str);
+        let clean = str.replace(/°|deg\b/gi, '');
+        clean = clean.replace(/(?<=\d)\s*\*(?!\s*[0-9.])/g, '').trim();
+        clean = clean.replace(/\b(turns?|rot|putaran)\b/gi, 'x').trim();
+
+        function calcRot(turns, deg, isNegTurn) {
+          const d = Math.abs(deg);
+          if (isNegTurn) {
+            return (turns < 0 ? turns * 360 : 0) - d;
+          }
+          return turns * 360 + (deg < 0 ? deg : d);
+        }
+
+        // 1. Check for 'x' notation e.g. "1x 90", "+1x, 45", "-2x", "2x", "1x"
+        const xMatch = clean.match(/^([-+]?\d*\.?\d+)\s*x(?:[,\s]*([-+]?\d*\.?\d+))?$/i);
+        if (xMatch) {
+          const turnsStr = xMatch[1];
+          const turns = parseFloat(turnsStr);
+          const deg = (xMatch[2] !== undefined && xMatch[2] !== '') ? parseFloat(xMatch[2]) : 0;
+          if (!isNaN(turns) && !isNaN(deg)) {
+            const isNegTurn = turns < 0 || Object.is(turns, -0) || turnsStr.startsWith('-');
+            return calcRot(turns, deg, isNegTurn);
+          }
+        }
+
+        // 2. Check for comma or semicolon separated e.g. "+1, 0", "1, 90", "-2, 45", "0, 90", "-0, 90"
+        if (clean.includes(',') || clean.includes(';')) {
+          const parts = clean.split(/[,;]/);
+          const turnsStr = parts[0].trim();
+          const degStr = parts.slice(1).join(',').trim();
+          const turns = turnsStr ? parseFloat(turnsStr) : 0;
+          const deg = degStr ? parseFloat(degStr) : 0;
+          if (!isNaN(turns) && !isNaN(deg)) {
+            const isNegTurn = turns < 0 || Object.is(turns, -0) || turnsStr.startsWith('-');
+            return calcRot(turns, deg, isNegTurn);
+          }
+        }
+
+        // 3. Check for two space-separated numbers e.g. "+1 90", "-2 45", "1 0"
+        const spaceMatch = clean.match(/^([-+]?\d+)\s+([-+]?\d*\.?\d+)$/);
+        if (spaceMatch) {
+          const turnsStr = spaceMatch[1];
+          const turns = parseFloat(turnsStr);
+          const deg = parseFloat(spaceMatch[2]);
+          if (!isNaN(turns) && !isNaN(deg)) {
+            const isNegTurn = turns < 0 || Object.is(turns, -0) || turnsStr.startsWith('-');
+            return calcRot(turns, deg, isNegTurn);
+          }
+        }
+
+        // 4. Check for signed turn e.g. "+1", "+2", "-1", "-2" without degree symbol
+        if (!hasDegreeSymbol) {
+          const signedTurnMatch = clean.match(/^([+-]\d+)$/);
+          if (signedTurnMatch) {
+            const t = parseInt(signedTurnMatch[1], 10);
+            if (Math.abs(t) <= 20) {
+              return t * 360;
+            }
+          }
+        }
+
+        // 5. Single number or arithmetic expression e.g. "450", "90", "-180", "180+45", "360 * 2"
+        return parseTransformNumericInput(clean);
+      }
+
+      function updateLayerScaleGeometry(layer, baseW, baseH) {
+        layer._userResized = true;
+        layer._userResizedManual = true;
+        layer.normW = Math.abs(layer.scaleW) / baseW;
+        layer.normH = Math.abs(layer.scaleH) / baseH;
+        if (layer.type === 'shape' && layer.shapeProps) {
+          const sx = Number(layer.shapeProps.sizeX) || 300;
+          const sy = Number(layer.shapeProps.sizeY) || 300;
+          layer.transformScaleX = layer.scaleW / sx;
+          layer.transformScaleY = layer.scaleH / sy;
+        } else if (layer.type === 'text') {
+          const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+            ? window.FishTextEngine.getNaturalSize(layer)
+            : { width: 320, height: 100 };
+          layer.transformScaleX = layer.scaleW / Math.max(1, nat.width);
+          layer.transformScaleY = layer.scaleH / Math.max(1, nat.height);
+        }
+        const curPosX = layer.posX !== undefined ? layer.posX : baseW / 2;
+        const curPosY = layer.posY !== undefined ? layer.posY : baseH / 2;
+        layer.normX = (curPosX - layer.normW * baseW / 2) / baseW;
+        layer.normY = (curPosY - layer.normH * baseH / 2) / baseH;
+      }
+
+      function getTransformReadoutSpan(prop) {
+        if (prop === 'pos-x') return document.getElementById('val-pos-x');
+        if (prop === 'pos-y') return document.getElementById('val-pos-y');
+        if (prop === 'pos-z') return document.getElementById('val-pos-z');
+        if (prop === 'scale-w') return document.getElementById('val-scale-w');
+        if (prop === 'scale-h') return document.getElementById('val-scale-h');
+        if (prop === 'scale-z') return document.getElementById('val-scale-z');
+        if (prop === 'rotate-deg') return document.getElementById('val-rotate-deg') || document.getElementById('val-rotate-deg-z');
+        if (prop === 'rotate-turns') return document.getElementById('val-rotate-turns') || document.getElementById('val-rotate-turns-z');
+        if (prop === 'rotate-deg-z') return document.getElementById('val-rotate-deg-z');
+        if (prop === 'rotate-turns-z') return document.getElementById('val-rotate-turns-z');
+        if (prop === 'rotate-deg-x') return document.getElementById('val-rotate-deg-x');
+        if (prop === 'rotate-turns-x') return document.getElementById('val-rotate-turns-x');
+        if (prop === 'rotate-deg-y') return document.getElementById('val-rotate-deg-y');
+        if (prop === 'rotate-turns-y') return document.getElementById('val-rotate-turns-y');
+        if (prop === 'skew-x') return document.getElementById('val-skew-x');
+        if (prop === 'skew-y') return document.getElementById('val-skew-y');
+        return null;
+      }
+
+      const tabNavNext = {
+        'pos-x': 'pos-y',
+        'pos-y': 'pos-z',
+        'pos-z': 'pos-x',
+        'scale-w': 'scale-h',
+        'scale-h': 'scale-z',
+        'scale-z': 'scale-w',
+        'rotate-turns': 'rotate-deg',
+        'rotate-deg': 'rotate-turns',
+        'rotate-deg-z': 'rotate-deg-x',
+        'rotate-deg-x': 'rotate-deg-y',
+        'rotate-deg-y': 'rotate-deg-z',
+        'skew-x': 'skew-y',
+        'skew-y': 'skew-x'
+      };
+
+      const tabNavPrev = {
+        'pos-x': 'pos-z',
+        'pos-y': 'pos-x',
+        'pos-z': 'pos-y',
+        'scale-w': 'scale-z',
+        'scale-h': 'scale-w',
+        'scale-z': 'scale-h',
+        'rotate-turns': 'rotate-deg',
+        'rotate-deg': 'rotate-turns',
+        'rotate-deg-z': 'rotate-deg-y',
+        'rotate-deg-y': 'rotate-deg-x',
+        'rotate-deg-x': 'rotate-deg-z',
+        'skew-x': 'skew-y',
+        'skew-y': 'skew-x'
+      };
+
+      function startTransformInlineEdit(targetEl, propType) {
+        if (!targetEl || targetEl.dataset.isEditing === 'true') return;
+        const info = getSelectedLayerAndBaseDims();
+        if (!info || !info.layer) return;
+        const targetL = info.layer;
+        const baseW = info.baseW;
+        const baseH = info.baseH;
+
+        // Check if property is driven by active expression
+        const exprs = (targetL.expressions && typeof targetL.expressions === 'object') ? targetL.expressions : {};
+        if (propType.startsWith('pos')) {
+          if (exprs.move || (window.moveAnchorSubmode === 'anchor' && exprs.anchor)) return;
+        } else if (propType.startsWith('scale')) {
+          if (exprs.scale) return;
+        } else if (propType.startsWith('rotate')) {
+          if (exprs.rotate || exprs.rotation || exprs.rotZ) return;
+        } else if (propType.startsWith('skew')) {
+          if (exprs.skew) return;
+        }
+
+        const isAnchor = (window.moveAnchorSubmode === 'anchor');
+        const isRotateTurns = (propType === 'rotate-turns' || propType === 'rotate-turns-z' || propType === 'rotate-turns-x' || propType === 'rotate-turns-y');
+        const isRotateDeg = (propType === 'rotate-deg' || propType === 'rotate-deg-z' || propType === 'rotate-deg-x' || propType === 'rotate-deg-y');
+        const isRotate = isRotateTurns || isRotateDeg;
+        const targetRotateAxis = propType.endsWith('-x') ? 'x' : (propType.endsWith('-y') ? 'y' : (propType.endsWith('-z') ? 'z' : currentRotateAxis));
+        let currentVal = 0;
+        let initialStr = '';
+
+        if (propType === 'pos-x') {
+          currentVal = isAnchor ? (targetL.anchorX || 0) : (targetL.posX !== undefined ? targetL.posX : ((targetL.normX !== undefined ? targetL.normX + targetL.normW / 2 : 0.5) * baseW));
+        } else if (propType === 'pos-y') {
+          currentVal = isAnchor ? (targetL.anchorY || 0) : (targetL.posY !== undefined ? targetL.posY : ((targetL.normY !== undefined ? targetL.normY + targetL.normH / 2 : 0.5) * baseH));
+        } else if (propType === 'pos-z') {
+          currentVal = isAnchor ? (targetL.anchorZ || 0) : (targetL.posZ || 0);
+        } else if (propType === 'scale-w') {
+          currentVal = targetL.scaleW !== undefined ? targetL.scaleW : (targetL.normW !== undefined ? targetL.normW * baseW : baseW);
+        } else if (propType === 'scale-h') {
+          currentVal = targetL.scaleH !== undefined ? targetL.scaleH : (targetL.normH !== undefined ? targetL.normH * baseH : baseH);
+        } else if (propType === 'scale-z') {
+          currentVal = targetL.scaleZ !== undefined ? targetL.scaleZ : Math.round(Math.min(Math.abs(targetL.scaleW || baseW), Math.abs(targetL.scaleH || baseH)));
+        } else if (isRotateTurns) {
+          let curRot = 0;
+          if (targetRotateAxis === 'x') curRot = targetL.rotX || 0;
+          else if (targetRotateAxis === 'y') curRot = targetL.rotY || 0;
+          else curRot = targetL.rotZ !== undefined ? targetL.rotZ : (targetL.rotation || 0);
+          const turns = Math.trunc(curRot / 360);
+          initialStr = turns > 0 ? `+${turns}` : `${turns}`;
+        } else if (isRotateDeg) {
+          let curRot = 0;
+          if (targetRotateAxis === 'x') curRot = targetL.rotX || 0;
+          else if (targetRotateAxis === 'y') curRot = targetL.rotY || 0;
+          else curRot = targetL.rotZ !== undefined ? targetL.rotZ : (targetL.rotation || 0);
+          const remRaw = curRot % 360;
+          const rem = Math.abs(remRaw - Math.round(remRaw)) < 0.001 ? Math.round(remRaw) : Number(remRaw.toFixed(1));
+          initialStr = `${rem}°`;
+        } else if (propType === 'skew-x') {
+          currentVal = targetL.skewX || 0;
+        } else if (propType === 'skew-y') {
+          currentVal = targetL.skewY || 0;
+        }
+
+        if (!isRotate) {
+          initialStr = (Math.abs(currentVal - Math.round(currentVal)) < 0.001)
+            ? Math.round(currentVal).toString()
+            : Number(currentVal.toFixed(1)).toString();
+        }
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.size = 1;
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        input.className = 'transform-inline-input';
+        if (isRotate) input.classList.add('is-rotate');
+        if (isRotateTurns) input.classList.add('is-rotate-turns');
+        input.value = initialStr;
+        input.setAttribute('aria-label', `Edit ${propType}`);
+        input.setAttribute('inputmode', isRotateTurns ? 'numeric' : (isRotateDeg ? 'text' : 'decimal'));
+        input.setAttribute('enterkeyhint', 'done');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('autocorrect', 'off');
+
+        const targetComputed = window.getComputedStyle(targetEl);
+        input.style.setProperty('font-size', targetComputed.fontSize, 'important');
+        input.style.setProperty('font-family', targetComputed.fontFamily, 'important');
+        input.style.setProperty('font-weight', targetComputed.fontWeight, 'important');
+        input.style.setProperty('line-height', targetComputed.lineHeight, 'important');
+        input.style.setProperty('letter-spacing', targetComputed.letterSpacing, 'important');
+        input.style.setProperty('color', targetComputed.color, 'important');
+        input.style.setProperty('text-align', 'center', 'important');
+        input.style.setProperty('caret-color', targetComputed.color, 'important');
+        input.style.border = 'none';
+        input.style.outline = 'none';
+        input.style.background = 'transparent';
+        input.style.padding = '0';
+        input.style.margin = '0';
+        if (isRotateTurns) {
+          input.style.marginBottom = '3px';
+        }
+        input.style.boxShadow = 'none';
+        input.style.width = '100%';
+        input.style.minWidth = '0';
+        input.style.maxWidth = '100%';
+        input.style.boxSizing = 'border-box';
+
+        targetEl.dataset.isEditing = 'true';
+        targetEl.style.display = 'none';
+
+        targetEl.parentNode.insertBefore(input, targetEl.nextSibling);
+
+        input.focus();
+        try {
+          input.setSelectionRange(0, input.value.length);
+        } catch (_) {
+          input.select();
+        }
+
+        try {
+          input.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+        } catch (_) {}
+
+        let isDone = false;
+
+        function cleanup() {
+          document.removeEventListener('pointerdown', onOutsidePointerDown, true);
+          document.removeEventListener('touchstart', onOutsidePointerDown, true);
+          if (input.parentNode) {
+            input.parentNode.removeChild(input);
+          }
+          targetEl.style.display = '';
+          delete targetEl.dataset.isEditing;
+        }
+
+        const onOutsidePointerDown = (e) => {
+          if (isDone) return;
+          if (e.target === input || (input.contains && input.contains(e.target))) return;
+          commit();
+        };
+
+        setTimeout(() => {
+          if (!isDone) {
+            document.addEventListener('pointerdown', onOutsidePointerDown, true);
+            document.addEventListener('touchstart', onOutsidePointerDown, true);
+          }
+        }, 0);
+
+        function commit() {
+          if (isDone) return;
+          isDone = true;
+
+          const rawStr = input.value.trim();
+
+          let curRot = 0;
+          if (isRotate) {
+            if (targetRotateAxis === 'x') curRot = targetL.rotX || 0;
+            else if (targetRotateAxis === 'y') curRot = targetL.rotY || 0;
+            else curRot = targetL.rotZ !== undefined ? targetL.rotZ : (targetL.rotation || 0);
+          }
+
+          let val = NaN;
+          if (isRotateTurns) {
+            const cleanStr = rawStr.replace(/[xX°deg\b(turns?|rot|putaran)\b]/gi, '').trim();
+            const parsedTurns = cleanStr === '' ? 0 : parseInt(cleanStr, 10);
+            const newTurns = isNaN(parsedTurns) ? 0 : parsedTurns;
+            const curRemRaw = curRot % 360;
+            if (newTurns === 0) {
+              val = curRemRaw;
+            } else if (newTurns > 0) {
+              val = newTurns * 360 + Math.abs(curRemRaw);
+            } else {
+              val = newTurns * 360 - Math.abs(curRemRaw);
+            }
+          } else if (isRotateDeg) {
+            const hasTurnSyntax = /[xX,;]|\b(turns?|rot|putaran)\b/.test(rawStr) || /\s+/.test(rawStr.replace(/^[+-]/, ''));
+            if (hasTurnSyntax) {
+              val = parseTransformRotationInput(rawStr);
+            } else {
+              const degVal = parseTransformNumericInput(rawStr);
+              if (!isNaN(degVal)) {
+                if (Math.abs(degVal) >= 360) {
+                  val = degVal;
+                } else {
+                  const curTurns = Math.trunc(curRot / 360);
+                  if (curTurns === 0) {
+                    val = degVal;
+                  } else if (curTurns > 0) {
+                    val = curTurns * 360 + Math.abs(degVal);
+                  } else {
+                    val = curTurns * 360 - Math.abs(degVal);
+                  }
+                }
+              }
+            }
+          } else {
+            val = parseTransformNumericInput(rawStr);
+          }
+
+          if (isNaN(val)) {
+            cleanup();
+            if (isRotate) {
+              updateRotateKnob(curRot);
+              if (typeof updateDesktopRotateDials === 'function') updateDesktopRotateDials();
+            }
+            return;
+          }
+
+          syncLayerWithEffectiveProps(targetL);
+
+          if (propType === 'pos-x') {
+            if (isAnchor) {
+              targetL.anchorX = Number(val.toFixed(2));
+            } else {
+              targetL.posX = Number(val.toFixed(2));
+              const curScaleW = targetL.scaleW !== undefined ? targetL.scaleW : (targetL.normW !== undefined ? targetL.normW * baseW : baseW);
+              targetL.normX = (targetL.posX - Math.abs(curScaleW) / 2) / baseW;
+            }
+            recordLayerPropertyChange(targetL, 'move');
+          } else if (propType === 'pos-y') {
+            if (isAnchor) {
+              targetL.anchorY = Number(val.toFixed(2));
+            } else {
+              targetL.posY = Number(val.toFixed(2));
+              const curScaleH = targetL.scaleH !== undefined ? targetL.scaleH : (targetL.normH !== undefined ? targetL.normH * baseH : baseH);
+              targetL.normY = (targetL.posY - Math.abs(curScaleH) / 2) / baseH;
+            }
+            recordLayerPropertyChange(targetL, 'move');
+          } else if (propType === 'pos-z') {
+            if (isAnchor) {
+              targetL.anchorZ = Number(val.toFixed(2));
+            } else {
+              targetL.posZ = Number(val.toFixed(2));
+            }
+            recordLayerPropertyChange(targetL, 'move');
+          } else if (propType === 'scale-w') {
+            const oldW = targetL.scaleW !== undefined ? targetL.scaleW : (targetL.normW !== undefined ? targetL.normW * baseW : baseW);
+            const oldH = targetL.scaleH !== undefined ? targetL.scaleH : (targetL.normH !== undefined ? targetL.normH * baseH : baseH);
+            const oldZ = targetL.scaleZ !== undefined ? targetL.scaleZ : Math.round(Math.min(Math.abs(oldW), Math.abs(oldH)));
+            const newW = Math.max(1, Number(val.toFixed(1)));
+
+            const singleJog = document.getElementById('jog-scale-linked');
+            const isLinked = isScaleLinked && singleJog && singleJog.style.display !== 'none';
+
+            targetL.scaleW = newW;
+            if (isLinked) {
+              const ratio = (oldH !== 0 && !isNaN(oldH)) ? (oldW / oldH) : 1;
+              targetL.scaleH = Number((ratio !== 0 ? newW / ratio : newW).toFixed(1));
+              if (targetL.scaleZ !== undefined && oldW !== 0) {
+                const factor = Math.abs(newW) / Math.abs(oldW);
+                targetL.scaleZ = Math.max(1, Math.round(oldZ * factor));
+              }
+            }
+            updateLayerScaleGeometry(targetL, baseW, baseH);
+            recordLayerPropertyChange(targetL, 'scale');
+          } else if (propType === 'scale-h') {
+            const oldW = targetL.scaleW !== undefined ? targetL.scaleW : (targetL.normW !== undefined ? targetL.normW * baseW : baseW);
+            const oldH = targetL.scaleH !== undefined ? targetL.scaleH : (targetL.normH !== undefined ? targetL.normH * baseH : baseH);
+            const newH = Math.max(1, Number(val.toFixed(1)));
+
+            const singleJog = document.getElementById('jog-scale-linked');
+            const isLinked = isScaleLinked && singleJog && singleJog.style.display !== 'none';
+
+            targetL.scaleH = newH;
+            if (isLinked) {
+              const ratio = (oldH !== 0 && !isNaN(oldH)) ? (oldW / oldH) : 1;
+              targetL.scaleW = Number((ratio !== 0 ? newH * ratio : newH).toFixed(1));
+            }
+            updateLayerScaleGeometry(targetL, baseW, baseH);
+            recordLayerPropertyChange(targetL, 'scale');
+          } else if (propType === 'scale-z') {
+            targetL.scaleZ = Math.max(1, Math.round(val));
+            recordLayerPropertyChange(targetL, 'scale');
+          } else if (isRotate) {
+            const newRot = (Math.abs(val - Math.round(val)) < 0.001) ? Math.round(val) : Number(val.toFixed(1));
+            if (targetRotateAxis === 'x') {
+              targetL.rotX = newRot;
+            } else if (targetRotateAxis === 'y') {
+              targetL.rotY = newRot;
+            } else {
+              targetL.rotZ = newRot;
+              targetL.rotation = newRot;
+            }
+            if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+            recordLayerPropertyChange(targetL, 'rotate');
+          } else if (propType === 'skew-x') {
+            targetL.skewX = Number(val.toFixed(1));
+            recordLayerPropertyChange(targetL, 'skew');
+          } else if (propType === 'skew-y') {
+            targetL.skewY = Number(val.toFixed(1));
+            recordLayerPropertyChange(targetL, 'skew');
+          }
+
+          cleanup();
+
+          if (isRotate) {
+            let curRot = 0;
+            if (targetRotateAxis === 'x') curRot = targetL.rotX || 0;
+            else if (targetRotateAxis === 'y') curRot = targetL.rotY || 0;
+            else curRot = targetL.rotZ !== undefined ? targetL.rotZ : (targetL.rotation || 0);
+            updateRotateKnob(curRot);
+            if (typeof updateDesktopRotateDials === 'function') updateDesktopRotateDials();
+          }
+
+          invalidatePreviewCacheForLayer(targetL);
+          syncTransformControllerValues();
+          redrawComposition();
+          renderTimelineLayers();
+          saveCurrentProjectLayers();
+        }
+
+        function cancel() {
+          if (isDone) return;
+          isDone = true;
+          cleanup();
+          if (isRotate) {
+            let curRot = 0;
+            if (targetRotateAxis === 'x') curRot = targetL.rotX || 0;
+            else if (targetRotateAxis === 'y') curRot = targetL.rotY || 0;
+            else curRot = targetL.rotZ !== undefined ? targetL.rotZ : (targetL.rotation || 0);
+            updateRotateKnob(curRot);
+            if (typeof updateDesktopRotateDials === 'function') updateDesktopRotateDials();
+          }
+        }
+
+        input.addEventListener('keydown', (e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            commit();
+          } else if (e.key === 'Escape' || e.keyCode === 27) {
+            e.preventDefault();
+            cancel();
+          } else if (e.key === 'Tab') {
+            e.preventDefault();
+            const nextProp = e.shiftKey ? tabNavPrev[propType] : tabNavNext[propType];
+            commit();
+            if (nextProp) {
+              const nextEl = getTransformReadoutSpan(nextProp);
+              if (nextEl && nextEl.offsetParent !== null && !nextEl.closest('[style*="display: none"]')) {
+                setTimeout(() => {
+                  startTransformInlineEdit(nextEl, nextProp);
+                }, 20);
+              }
+            }
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          commit();
+        });
+
+        input.addEventListener('pointerdown', (e) => e.stopPropagation());
+        input.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        input.addEventListener('mousedown', (e) => e.stopPropagation());
+        input.addEventListener('click', (e) => e.stopPropagation());
+      }
+      window.startTransformInlineEdit = startTransformInlineEdit;
+
+      function bindTransformInlineEditing() {
+        // Prevent move pad pointerdown/touchstart drag when clicking transform values header
+        const movePadHeader = document.querySelector('#pad-transform-move .transform-values-header');
+        if (movePadHeader) {
+          movePadHeader.addEventListener('pointerdown', (e) => e.stopPropagation());
+          movePadHeader.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+          movePadHeader.addEventListener('mousedown', (e) => e.stopPropagation());
+        }
+
+        function bindCardTap(el, readoutSpan, prop) {
+          if (!el || !readoutSpan) return;
+          el.addEventListener('pointerdown', (e) => e.stopPropagation());
+          el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+          el.addEventListener('mousedown', (e) => e.stopPropagation());
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startTransformInlineEdit(readoutSpan, prop);
+          });
+        }
+
+        // Position X & Y groups
+        const posGroups = document.querySelectorAll('#pane-transform-move .transform-val-group');
+        if (posGroups.length >= 2) {
+          bindCardTap(posGroups[0], document.getElementById('val-pos-x'), 'pos-x');
+          bindCardTap(posGroups[1], document.getElementById('val-pos-y'), 'pos-y');
+        }
+
+        // Position Z card
+        const valPosZ = document.getElementById('val-pos-z');
+        if (valPosZ) {
+          bindCardTap(valPosZ.closest('.transform-val-card'), valPosZ, 'pos-z');
+        }
+
+        // Rotate Center Badge
+        const rotateCenterBadge = document.querySelector('#pane-transform-rotate .rotate-center-badge');
+        if (rotateCenterBadge) {
+          bindCardTap(rotateCenterBadge, document.getElementById('val-rotate-deg'), 'rotate-deg');
+        }
+
+        // Rotate Readouts (Desktop Z, X, Y)
+        const readoutRotZ = document.getElementById('readout-rotate-z');
+        if (readoutRotZ) {
+          bindCardTap(readoutRotZ, document.getElementById('val-rotate-deg-z'), 'rotate-deg-z');
+        }
+        const readoutRotX = document.getElementById('readout-rotate-x');
+        if (readoutRotX) {
+          bindCardTap(readoutRotX, document.getElementById('val-rotate-deg-x'), 'rotate-deg-x');
+        }
+        const readoutRotY = document.getElementById('readout-rotate-y');
+        if (readoutRotY) {
+          bindCardTap(readoutRotY, document.getElementById('val-rotate-deg-y'), 'rotate-deg-y');
+        }
+
+        // Scale Width card
+        const valScaleW = document.getElementById('val-scale-w');
+        if (valScaleW) {
+          bindCardTap(valScaleW.closest('.transform-val-card'), valScaleW, 'scale-w');
+        }
+
+        // Scale Height card
+        const valScaleH = document.getElementById('val-scale-h');
+        if (valScaleH) {
+          bindCardTap(valScaleH.closest('.transform-val-card'), valScaleH, 'scale-h');
+        }
+
+        // Scale Depth (Z) card
+        const cardScaleZ = document.getElementById('card-scale-z');
+        const valScaleZ = document.getElementById('val-scale-z');
+        if (cardScaleZ && valScaleZ) {
+          bindCardTap(cardScaleZ, valScaleZ, 'scale-z');
+        }
+
+        // Skew X card
+        const valSkewX = document.getElementById('val-skew-x');
+        if (valSkewX) {
+          bindCardTap(valSkewX.closest('.transform-val-card'), valSkewX, 'skew-x');
+        }
+
+        // Skew Y card
+        const valSkewY = document.getElementById('val-skew-y');
+        if (valSkewY) {
+          bindCardTap(valSkewY.closest('.transform-val-card'), valSkewY, 'skew-y');
+        }
+
+        // Direct span click listeners
+        const propMap = [
+          { id: 'val-pos-x', prop: 'pos-x' },
+          { id: 'val-pos-y', prop: 'pos-y' },
+          { id: 'val-pos-z', prop: 'pos-z' },
+          { id: 'val-scale-w', prop: 'scale-w' },
+          { id: 'val-scale-h', prop: 'scale-h' },
+          { id: 'val-scale-z', prop: 'scale-z' },
+          { id: 'val-rotate-deg', prop: 'rotate-deg' },
+          { id: 'val-rotate-turns', prop: 'rotate-turns' },
+          { id: 'val-rotate-deg-z', prop: 'rotate-deg-z' },
+          { id: 'val-rotate-turns-z', prop: 'rotate-turns-z' },
+          { id: 'val-rotate-deg-x', prop: 'rotate-deg-x' },
+          { id: 'val-rotate-turns-x', prop: 'rotate-turns-x' },
+          { id: 'val-rotate-deg-y', prop: 'rotate-deg-y' },
+          { id: 'val-rotate-turns-y', prop: 'rotate-turns-y' },
+          { id: 'val-skew-x', prop: 'skew-x' },
+          { id: 'val-skew-y', prop: 'skew-y' }
+        ];
+
+        propMap.forEach(({ id, prop }) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('pointerdown', (e) => e.stopPropagation());
+            el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+            el.addEventListener('mousedown', (e) => e.stopPropagation());
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              startTransformInlineEdit(el, prop);
+            });
+          }
+        });
+      }
+
+      bindTransformInlineEditing();
 
       // J. Popstate support for native back navigation
       window.addEventListener('popstate', (e) => {
@@ -9707,12 +10983,12 @@
         }
         if (currentDrawerSubview === 'graph') {
           switchLayerDrawerSubview(window.previousDrawerSubview || 'transform');
-        } else if (currentDrawerSubview === 'effects-gallery') {
+        } else if (document.getElementById('drawer-effects-gallery') && document.getElementById('drawer-effects-gallery').classList.contains('is-active')) {
           const iv = document.getElementById('effects-items-view');
           if (iv && iv.style.display !== 'none' && typeof window.closeGalleryCategory === 'function') {
             window.closeGalleryCategory();
           } else {
-            switchLayerDrawerSubview('effects');
+            closeEffectsGalleryDrawer(false);
           }
         } else if (currentDrawerSubview === 'transform' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'camera' || currentDrawerSubview === 'fill' || currentDrawerSubview === 'volume' || currentDrawerSubview === 'speed' || currentDrawerSubview === 'shape') {
           switchLayerDrawerSubview('main');
@@ -9797,16 +11073,26 @@
 
     function updateBlendKeyframeBtnState() {
       const btn = document.getElementById('btn-blend-keyframe');
-      if (!btn) return;
+      const btnGraph = document.getElementById('btn-blend-graph');
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer) {
-        btn.classList.remove('is-active');
+        if (btn) btn.classList.remove('is-active');
+        if (btnGraph) {
+          btnGraph.disabled = true;
+          btnGraph.classList.add('is-disabled');
+        }
         return;
       }
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
       const kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, 'opacity', currentSec) : null;
-      btn.classList.toggle('is-active', !!kf);
+      if (btn) btn.classList.toggle('is-active', !!kf);
+      if (btnGraph) {
+        const kfList = (layer && layer.keyframes && layer.keyframes.opacity) || [];
+        const canOpen = kfList.length >= 2;
+        btnGraph.disabled = !canOpen;
+        btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
     }
     window.updateBlendKeyframeBtnState = updateBlendKeyframeBtnState;
 
@@ -9845,6 +11131,9 @@
       if (btnBlendGraph) {
         btnBlendGraph.addEventListener('click', (e) => {
           e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const kfList = (layer && layer.keyframes && layer.keyframes.opacity) || [];
+          if (kfList.length < 2) return;
           window.activeKeyframeProperty = 'opacity';
           window.previousDrawerSubview = 'blend';
           switchLayerDrawerSubview('graph');
@@ -10029,16 +11318,26 @@
 
     function updateVolumeKeyframeBtnState() {
       const btn = document.getElementById('btn-volume-keyframe');
-      if (!btn) return;
+      const btnGraph = document.getElementById('btn-volume-graph');
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer) {
-        btn.classList.remove('is-active');
+        if (btn) btn.classList.remove('is-active');
+        if (btnGraph) {
+          btnGraph.disabled = true;
+          btnGraph.classList.add('is-disabled');
+        }
         return;
       }
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
       const kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, 'volume', currentSec) : null;
-      btn.classList.toggle('is-active', !!kf);
+      if (btn) btn.classList.toggle('is-active', !!kf);
+      if (btnGraph) {
+        const kfList = (layer && layer.keyframes && layer.keyframes.volume) || [];
+        const canOpen = kfList.length >= 2;
+        btnGraph.disabled = !canOpen;
+        btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
     }
     window.updateVolumeKeyframeBtnState = updateVolumeKeyframeBtnState;
 
@@ -10088,6 +11387,9 @@
       if (btnVolumeGraph) {
         btnVolumeGraph.addEventListener('click', (e) => {
           e.stopPropagation();
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          const kfList = (layer && layer.keyframes && layer.keyframes.volume) || [];
+          if (kfList.length < 2) return;
           window.activeKeyframeProperty = 'volume';
           window.previousDrawerSubview = 'volume';
           switchLayerDrawerSubview('graph');
@@ -10332,7 +11634,7 @@
         toggleBtn.type = 'button';
         toggleBtn.className = 'audio-fx-toggle-btn' + (!fx.disabled ? ' is-active' : '');
         toggleBtn.title = fx.disabled ? 'Enable effect' : 'Disable effect';
-        toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+        toggleBtn.innerHTML = '<i class="fticon fticon-chk-graph-overshoot" aria-hidden="true"></i>';
         toggleBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           fx.disabled = !fx.disabled;
@@ -10355,7 +11657,7 @@
         delBtn.type = 'button';
         delBtn.className = 'audio-fx-del-btn';
         delBtn.title = 'Remove effect';
-        delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+        delBtn.innerHTML = '<i class="fticon fticon-delete-beatmark" aria-hidden="true"></i>';
         delBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           layer.audioEffects.splice(index, 1);
@@ -10544,17 +11846,27 @@
 
     function updateSpeedKeyframeBtnState() {
       const btn = document.getElementById('btn-speed-keyframe');
-      if (!btn) return;
+      const btnGraph = document.getElementById('btn-speed-graph');
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer) {
-        btn.classList.remove('is-active');
+        if (btn) btn.classList.remove('is-active');
+        if (btnGraph) {
+          btnGraph.disabled = true;
+          btnGraph.classList.add('is-disabled');
+        }
         return;
       }
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
       const prop = (layer.speedMode === 'time_remap') ? 'timeRemap' : 'speed';
       const kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, prop, currentSec) : null;
-      btn.classList.toggle('is-active', !!kf);
+      if (btn) btn.classList.toggle('is-active', !!kf);
+      if (btnGraph) {
+        const kfList = (layer.keyframes && layer.keyframes[prop]) || [];
+        const canOpen = kfList.length >= 2;
+        btnGraph.disabled = !canOpen;
+        btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
     }
     window.updateSpeedKeyframeBtnState = updateSpeedKeyframeBtnState;
 
@@ -10589,6 +11901,8 @@
           e.stopPropagation();
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           const prop = (layer && layer.speedMode === 'time_remap') ? 'timeRemap' : 'speed';
+          const kfList = (layer && layer.keyframes && layer.keyframes[prop]) || [];
+          if (kfList.length < 2) return;
           window.activeKeyframeProperty = prop;
           window.previousDrawerSubview = 'speed';
           switchLayerDrawerSubview('graph');
@@ -13301,13 +14615,10 @@
       noneBtn.className = `layer-link-item ${!hasParent ? 'is-selected' : ''}`;
       noneBtn.innerHTML = `
         <span class="layer-link-preview-box is-none" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="9"/>
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-          </svg>
+          <i class='fticon fticon-icon-13' aria-hidden='true'></i>
         </span>
         <span class="layer-link-item-name">None</span>
-        ${!hasParent ? '<span class="layer-link-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>' : ''}
+        ${!hasParent ? '<span class="layer-link-check" aria-hidden="true"><i class="fticon fticon-icon-14" aria-hidden="true"></i></span>' : ''}
       `;
       noneBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -13335,19 +14646,19 @@
       function getPreviewHtml(l) {
         const type = l.type || 'image';
         if (type === 'camera') {
-          return `<span class="layer-link-preview-box is-camera" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-2c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/></svg></span>`;
+          return `<span class="layer-link-preview-box is-camera" aria-hidden="true"><i class='fticon fticon-icon-15' aria-hidden='true'></i></span>`;
         }
         if (type === 'null') {
-          return `<span class="layer-link-preview-box is-null" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="3.5" height="3.5" rx="0.5"/><rect x="17.5" y="3" width="3.5" height="3.5" rx="0.5"/><rect x="3" y="17.5" width="3.5" height="3.5" rx="0.5"/><rect x="17.5" y="17.5" width="3.5" height="3.5" rx="0.5"/><path d="M6.5 4h11v1.5h-11zm0 14.5h11v1.5h-11zM4 6.5h1.5v11H4zm14.5 0h1.5v11h-1.5z"/><path d="M11.25 8h1.5v3.25H16v1.5h-3.25V16h-1.5v-3.25H8v-1.5h3.25z"/></svg></span>`;
+          return `<span class="layer-link-preview-box is-null" aria-hidden="true"><i class='fticon fticon-icon-16' aria-hidden='true'></i></span>`;
         }
         if (type === 'adjustment') {
-          return `<span class="layer-link-preview-box is-adj" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8v16z"/></svg></span>`;
+          return `<span class="layer-link-preview-box is-adj" aria-hidden="true"><i class='fticon fticon-icon-17' aria-hidden='true'></i></span>`;
         }
         if (type === 'audio') {
-          return `<span class="layer-link-preview-box is-audio" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></span>`;
+          return `<span class="layer-link-preview-box is-audio" aria-hidden="true"><i class='fticon fticon-icon-18' aria-hidden='true'></i></span>`;
         }
         if (type === 'text') {
-          return `<span class="layer-link-preview-box is-text" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg></span>`;
+          return `<span class="layer-link-preview-box is-text" aria-hidden="true"><i class='fticon fticon-icon-19' aria-hidden='true'></i></span>`;
         }
         let thumb = l.thumbUrl;
         if (!thumb && l.mediaId && window.importedMediaMap && window.importedMediaMap.has(l.mediaId)) {
@@ -13358,8 +14669,8 @@
           return `<span class="layer-link-preview-box" aria-hidden="true"><img src="${thumb}" class="layer-link-preview-img" alt="" loading="lazy" draggable="false"/></span>`;
         }
         const iconSvg = (type === 'video')
-          ? `<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>`
-          : `<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
+          ? `<i class="fticon fticon-icon-20" aria-hidden="true"></i>`
+          : `<i class="fticon fticon-icon-21" aria-hidden="true"></i>`;
         return `<span class="layer-link-preview-box is-media" aria-hidden="true">${iconSvg}</span>`;
       }
 
@@ -13382,7 +14693,7 @@
         itemBtn.innerHTML = `
           ${getPreviewHtml(layerItem)}
           <span class="layer-link-item-name">${layerItem.name || 'Untitled Layer'}</span>
-          ${isCurrentParent ? '<span class="layer-link-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>' : ''}
+          ${isCurrentParent ? '<span class="layer-link-check" aria-hidden="true"><i class="fticon fticon-icon-14" aria-hidden="true"></i></span>' : ''}
         `;
 
         if (!isDisabled) {
@@ -13506,17 +14817,27 @@
 
     function updateCameraKeyframeBtnState() {
       const btn = document.getElementById('btn-camera-keyframe');
-      if (!btn) return;
+      const btnGraph = document.getElementById('btn-camera-graph');
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       if (!layer || layer.type !== 'camera') {
-        btn.classList.remove('is-active');
+        if (btn) btn.classList.remove('is-active');
+        if (btnGraph) {
+          btnGraph.disabled = true;
+          btnGraph.classList.add('is-disabled');
+        }
         return;
       }
       const pps = window.currentPixelsPerSecond || 80;
       const currentSec = Math.abs(window.timelinePanX || 0) / pps;
       const prop = window.activeKeyframeProperty || 'cameraLens';
       const kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, prop, currentSec) : null;
-      btn.classList.toggle('is-active', !!kf);
+      if (btn) btn.classList.toggle('is-active', !!kf);
+      if (btnGraph) {
+        const kfList = (layer.keyframes && layer.keyframes[prop]) || [];
+        const canOpen = kfList.length >= 2;
+        btnGraph.disabled = !canOpen;
+        btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
     }
     window.updateCameraKeyframeBtnState = updateCameraKeyframeBtnState;
 
@@ -13565,6 +14886,9 @@
           } else if (!window.activeKeyframeProperty || !window.activeKeyframeProperty.startsWith('camera')) {
             window.activeKeyframeProperty = 'cameraLens';
           }
+          const curProp = window.activeKeyframeProperty || 'cameraLens';
+          const kfList = (layer && layer.keyframes && layer.keyframes[curProp]) || [];
+          if (kfList.length < 2) return;
           switchLayerDrawerSubview('graph');
         });
       }
@@ -13764,6 +15088,7 @@
       // SUBVIEW 13: AUDIO BEATMARK CONTROLLER UI & ENGINE
       // ==========================================================================
       const _audioWaveformPeaksCache = new Map();
+      const _audioDecodingPromises = new Map();
 
       function getTimelineCurrentSec() {
         const pps = window.currentPixelsPerSecond || 80;
@@ -13794,79 +15119,151 @@
           hash = ((hash << 5) - hash) + s.charCodeAt(i);
           hash |= 0;
         }
-        const baseSeed = (Math.abs(hash) % 1000) + 1;
+        const seed = Math.abs(hash) || 12345;
+        let rng = seed;
+        function nextRng() {
+          rng = (rng * 1664525 + 1013904223) >>> 0;
+          return (rng >>> 0) / 4294967296;
+        }
+
+        const beats = 12 + (seed % 8);
         for (let i = 0; i < numBars; i++) {
           const t = i / numBars;
-          const v1 = Math.sin(t * 22 + baseSeed);
-          const v2 = Math.sin(t * 54 + baseSeed * 2.3);
-          const v3 = Math.cos(t * 9 + baseSeed * 3.7);
-          const noise = Math.abs((Math.sin(i * 997 + baseSeed) * 43758.5453) % 1);
-          const raw = Math.abs(v1 * 0.45 + v2 * 0.3 + v3 * 0.15 + noise * 0.1);
-          peaks[i] = Math.max(0.18, Math.min(0.96, raw));
+          const macro = Math.sin(t * Math.PI) * 0.35 + 0.55;
+          const phase = (t * beats) % 1;
+          const pulse = Math.exp(-phase * 4.2);
+          const noise = nextRng() * 0.38;
+          const raw = (pulse * 0.48 + noise * 0.38 + 0.12) * macro;
+          peaks[i] = Math.max(0.12, Math.min(0.95, raw));
         }
         return peaks;
       }
 
-      async function getAudioPeaksForLayer(layer, numBars = 120) {
-        if (!layer) return generateProceduralPeaks('default', numBars);
+      async function getAudioPeaksForLayer(layer, targetBars = 800) {
+        if (!layer) return generateProceduralPeaks('default', 120);
         const cacheKey = layer.mediaId || layer.id || 'audio';
-        if (_audioWaveformPeaksCache.has(cacheKey)) {
-          return _audioWaveformPeaksCache.get(cacheKey);
+        const cached = _audioWaveformPeaksCache.get(cacheKey);
+        if (cached && cached.isReal) {
+          return cached.peaks;
         }
 
-        if (!layer.dataUrl) {
-          const procedural = generateProceduralPeaks(layer.id || layer.name || 'audio', numBars);
-          _audioWaveformPeaksCache.set(cacheKey, procedural);
-          return procedural;
+        if (_audioDecodingPromises.has(cacheKey)) {
+          return _audioDecodingPromises.get(cacheKey);
         }
 
-        try {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (!AudioCtx) throw new Error('No AudioContext');
-          const audioCtx = new AudioCtx();
+        const decodePromise = (async () => {
+          let audioSrc = layer.dataUrl;
+          let blobToRevoke = null;
 
-          let arrayBuffer;
-          if (typeof layer.dataUrl === 'string' && layer.dataUrl.startsWith('data:')) {
-            const commaIdx = layer.dataUrl.indexOf(',');
-            const base64Str = commaIdx !== -1 ? layer.dataUrl.slice(commaIdx + 1) : layer.dataUrl;
-            const binaryStr = atob(base64Str);
-            const len = binaryStr.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-              bytes[i] = binaryStr.charCodeAt(i);
-            }
-            arrayBuffer = bytes.buffer;
-          } else {
-            const response = await fetch(layer.dataUrl);
-            arrayBuffer = await response.arrayBuffer();
+          if (!audioSrc && layer.blob) {
+            try {
+              blobToRevoke = URL.createObjectURL(layer.blob);
+              audioSrc = blobToRevoke;
+            } catch (_) {}
           }
 
-          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-          const channelData = audioBuffer.getChannelData(0);
-          const step = Math.max(1, Math.floor(channelData.length / numBars));
-          const peaks = new Float32Array(numBars);
-
-          for (let i = 0; i < numBars; i++) {
-            let max = 0;
-            const start = i * step;
-            const end = Math.min(channelData.length, start + step);
-            const sampleStride = Math.max(1, Math.floor((end - start) / 64));
-            for (let j = start; j < end; j += sampleStride) {
-              const val = Math.abs(channelData[j]);
-              if (val > max) max = val;
+          if (!audioSrc && window.layerMediaCache) {
+            const entry = window.layerMediaCache.get(layer.id) || window.layerMediaCache.get(layer.mediaId);
+            if (entry && entry.el && entry.el.src && !entry.el.src.startsWith('data:,')) {
+              audioSrc = entry.el.src;
             }
-            peaks[i] = Math.max(0.12, Math.min(1.0, max));
           }
 
-          _audioWaveformPeaksCache.set(cacheKey, peaks);
-          try { if (audioCtx.state !== 'closed') audioCtx.close(); } catch (_) {}
-          return peaks;
-        } catch (err) {
-          console.warn('[Beatmark] Audio peak extraction fallback:', err);
-          const fallback = generateProceduralPeaks(layer.id || layer.name || 'audio', numBars);
-          _audioWaveformPeaksCache.set(cacheKey, fallback);
-          return fallback;
-        }
+          if (!audioSrc && window._activeMediaMap && layer.mediaId && window._activeMediaMap.has(layer.mediaId)) {
+            const item = window._activeMediaMap.get(layer.mediaId);
+            if (item) {
+              if (item.dataUrl) {
+                audioSrc = item.dataUrl;
+              } else if (item.blob) {
+                try {
+                  blobToRevoke = URL.createObjectURL(item.blob);
+                  audioSrc = blobToRevoke;
+                } catch (_) {}
+              }
+            }
+          }
+
+          if (!audioSrc && layer.mediaId && window.FishDatabase && typeof window.FishDatabase.getMedia === 'function') {
+            try {
+              const item = await window.FishDatabase.getMedia(layer.mediaId);
+              if (item) {
+                if (item.dataUrl) {
+                  audioSrc = item.dataUrl;
+                } else if (item.blob) {
+                  blobToRevoke = URL.createObjectURL(item.blob);
+                  audioSrc = blobToRevoke;
+                } else if (item.buffer) {
+                  const b = new Blob([item.buffer], { type: item.mimeType || 'audio/mp3' });
+                  blobToRevoke = URL.createObjectURL(b);
+                  audioSrc = blobToRevoke;
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (!audioSrc) {
+            const fallback = generateProceduralPeaks(layer.id || layer.name || 'audio', targetBars);
+            _audioWaveformPeaksCache.set(cacheKey, { peaks: fallback, isReal: false });
+            return fallback;
+          }
+
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) throw new Error('No AudioContext');
+            const audioCtx = new AudioCtx();
+
+            let arrayBuffer;
+            if (typeof audioSrc === 'string' && audioSrc.startsWith('data:')) {
+              const commaIdx = audioSrc.indexOf(',');
+              const base64Str = commaIdx !== -1 ? audioSrc.slice(commaIdx + 1) : audioSrc;
+              const binaryStr = atob(base64Str);
+              const len = binaryStr.length;
+              const bytes = new Uint8Array(len);
+              for (let i = 0; i < len; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+              }
+              arrayBuffer = bytes.buffer;
+            } else {
+              const response = await fetch(audioSrc);
+              arrayBuffer = await response.arrayBuffer();
+            }
+
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            const channelData = audioBuffer.getChannelData(0);
+            const numBars = Math.max(300, Math.min(1200, Math.round((audioBuffer.duration || 10) * 40)));
+            const step = Math.max(1, Math.floor(channelData.length / numBars));
+            const peaks = new Float32Array(numBars);
+
+            for (let i = 0; i < numBars; i++) {
+              let max = 0;
+              const start = i * step;
+              const end = Math.min(channelData.length, start + step);
+              const sampleStride = Math.max(1, Math.floor((end - start) / 48));
+              for (let j = start; j < end; j += sampleStride) {
+                const val = Math.abs(channelData[j]);
+                if (val > max) max = val;
+              }
+              peaks[i] = Math.max(0.08, Math.min(1.0, max));
+            }
+
+            _audioWaveformPeaksCache.set(cacheKey, { peaks, isReal: true });
+            try { if (audioCtx.state !== 'closed') audioCtx.close(); } catch (_) {}
+            if (blobToRevoke) {
+              try { URL.revokeObjectURL(blobToRevoke); } catch (_) {}
+            }
+            return peaks;
+          } catch (err) {
+            console.warn('[AudioPeaks] Audio peak extraction fallback:', err);
+            const fallback = generateProceduralPeaks(layer.id || layer.name || 'audio', targetBars);
+            _audioWaveformPeaksCache.set(cacheKey, { peaks: fallback, isReal: false });
+            return fallback;
+          } finally {
+            _audioDecodingPromises.delete(cacheKey);
+          }
+        })();
+
+        _audioDecodingPromises.set(cacheKey, decodePromise);
+        return decodePromise;
       }
 
       function renderBeatmarkWaveform(layer) {
@@ -13895,11 +15292,14 @@
         ctx.clearRect(0, 0, w, h);
 
         const cacheKey = layer ? (layer.mediaId || layer.id || 'audio') : null;
-        let peaks = cacheKey && _audioWaveformPeaksCache.has(cacheKey) ? _audioWaveformPeaksCache.get(cacheKey) : null;
-        if (!peaks) {
-          peaks = generateProceduralPeaks(layer ? (layer.id || layer.name || 'audio') : 'audio', 120);
-          if (layer && layer.dataUrl) {
-            getAudioPeaksForLayer(layer, 120).then(() => {
+        const entry = cacheKey && _audioWaveformPeaksCache.has(cacheKey) ? _audioWaveformPeaksCache.get(cacheKey) : null;
+        let peaks = entry ? entry.peaks : null;
+        if (!peaks || !entry.isReal) {
+          if (!peaks) {
+            peaks = generateProceduralPeaks(layer ? (layer.id || layer.name || 'audio') : 'audio', 120);
+          }
+          if (layer) {
+            getAudioPeaksForLayer(layer, 800).then(() => {
               if (window.currentDrawerSubview === 'beatmark') {
                 renderBeatmarkWaveform(layer);
               }
@@ -13907,7 +15307,7 @@
           }
         }
 
-        const numBars = peaks.length;
+        const numBars = 120;
         const barStep = w / numBars;
         const barWidth = Math.max(2 * dpr, barStep * 0.65);
         const midY = h / 2;
@@ -13924,7 +15324,9 @@
         const activeBarIndex = Math.floor(relProgress * numBars);
 
         for (let i = 0; i < numBars; i++) {
-          const peak = peaks[i];
+          const frac = i / numBars;
+          const idx = Math.min(peaks.length - 1, Math.floor(frac * peaks.length));
+          const peak = peaks[idx] !== undefined ? peaks[idx] : 0.2;
           const barHeight = Math.max(4 * dpr, peak * (h * 0.82));
           const x = i * barStep + (barStep - barWidth) / 2;
           const y = midY - barHeight / 2;
@@ -13939,6 +15341,90 @@
           ctx.fill();
         }
       }
+
+      function renderAudioClipWaveform(layer, clipEl) {
+        if (!layer || layer.type !== 'audio' || !clipEl) return;
+        const canvas = clipEl.querySelector('.timeline-audio-waveform-canvas');
+        if (!canvas) return;
+
+        const pps = window.currentPixelsPerSecond || 80;
+        const clipW = Math.max(16, Math.round(layer.widthPx || ((layer.durationSec || 5) * pps)));
+        const clipH = clipEl.offsetHeight || 38;
+
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const w = Math.round(clipW * dpr);
+        const h = Math.round(clipH * dpr);
+
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, w, h);
+
+        const cacheKey = layer.mediaId || layer.id || 'audio';
+        const entry = _audioWaveformPeaksCache.get(cacheKey);
+        let peaks = entry ? entry.peaks : null;
+
+        if (!peaks || !entry.isReal) {
+          if (!peaks) {
+            peaks = generateProceduralPeaks(cacheKey, 120);
+          }
+          getAudioPeaksForLayer(layer, 800).then(() => {
+            if (clipEl && clipEl.isConnected) {
+              renderAudioClipWaveform(layer, clipEl);
+            }
+          });
+        }
+
+        const isSelected = clipEl.classList.contains('is-selected') || (window.selectedLayerId === layer.id);
+
+        if (isSelected) {
+          const computedStyle = getComputedStyle(clipEl);
+          const trackAudio = computedStyle.getPropertyValue('--track-audio').trim() || '#bbf29b';
+          ctx.fillStyle = trackAudio;
+          ctx.globalAlpha = 0.65;
+        } else {
+          ctx.fillStyle = 'rgba(14, 16, 21, 0.32)';
+          ctx.globalAlpha = 1.0;
+        }
+
+        const mediaDur = Math.max(0.1, layer.mediaDuration || (layer.durationSec || 5));
+        const offsetSec = Math.max(0, layer.sourceOffsetSec || 0);
+        const clipDur = Math.max(0.05, layer.durationSec || (clipW / pps) || 5);
+
+        const startRatio = Math.max(0, Math.min(1, offsetSec / mediaDur));
+        const endRatio = Math.max(startRatio, Math.min(1, (offsetSec + clipDur) / mediaDur));
+
+        const barStep = 3.5 * dpr;
+        const barWidth = 2.2 * dpr;
+        const numBars = Math.max(4, Math.floor(w / barStep));
+        const midY = h / 2;
+        const maxBarH = h * 0.74;
+        const radius = 1 * dpr;
+        const fullLen = peaks.length;
+
+        for (let i = 0; i < numBars; i++) {
+          const frac = startRatio + (i / numBars) * (endRatio - startRatio);
+          const idx = Math.min(fullLen - 1, Math.floor(frac * fullLen));
+          const peak = peaks[idx] !== undefined ? peaks[idx] : 0.2;
+          const barH = Math.max(3 * dpr, peak * maxBarH);
+          const x = Math.round(i * barStep);
+          const y = Math.round(midY - barH / 2);
+
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x, y, barWidth, barH, radius);
+          } else {
+            ctx.rect(x, y, barWidth, barH);
+          }
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+      }
+      window.renderAudioClipWaveform = renderAudioClipWaveform;
 
       function updateBeatmarkPlayheadNeedle() {
         const needle = document.getElementById('beatmark-waveform-needle');
@@ -13966,6 +15452,13 @@
           } else {
             playSvg.innerHTML = '<path d="M8 5v14l11-7z"/>';
           }
+        }
+
+        const btnAddGiant = document.getElementById('btn-add-beatmark-giant');
+        if (btnAddGiant) {
+          const beatmarks = Array.isArray(currentProjectState.beatmarks) ? currentProjectState.beatmarks : [];
+          const isNear = beatmarks.some(b => Math.abs(b - currentSec) <= 0.05);
+          btnAddGiant.classList.toggle('is-active', isNear);
         }
       }
       window.updateBeatmarkPlayheadNeedle = updateBeatmarkPlayheadNeedle;
@@ -14028,7 +15521,27 @@
           });
         }
 
-        // 3. Play / Pause button
+        // 3. Previous Keyframe / Beatmark button
+        const btnBeatmarkPrev = document.getElementById('btn-beatmark-prev');
+        if (btnBeatmarkPrev) {
+          btnBeatmarkPrev.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof navigateBeatmark === 'function') {
+              navigateBeatmark(-1);
+            } else if (typeof window.navigateBeatmark === 'function') {
+              window.navigateBeatmark(-1);
+            }
+            if (typeof updateBeatmarkPlayheadNeedle === 'function') {
+              updateBeatmarkPlayheadNeedle();
+            }
+            if (typeof syncBeatmarkDrawerUI === 'function') {
+              syncBeatmarkDrawerUI();
+            }
+          });
+        }
+
+        // 4. Play / Pause button
         const btnBeatmarkPlay = document.getElementById('btn-beatmark-play');
         if (btnBeatmarkPlay) {
           btnBeatmarkPlay.addEventListener('click', (e) => {
@@ -14040,6 +15553,26 @@
             const playBtn = document.getElementById('editor-btn-play');
             if (playBtn) playBtn.click();
             updateBeatmarkPlayheadNeedle();
+          });
+        }
+
+        // 5. Next Keyframe / Beatmark button
+        const btnBeatmarkNext = document.getElementById('btn-beatmark-next');
+        if (btnBeatmarkNext) {
+          btnBeatmarkNext.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof navigateBeatmark === 'function') {
+              navigateBeatmark(1);
+            } else if (typeof window.navigateBeatmark === 'function') {
+              window.navigateBeatmark(1);
+            }
+            if (typeof updateBeatmarkPlayheadNeedle === 'function') {
+              updateBeatmarkPlayheadNeedle();
+            }
+            if (typeof syncBeatmarkDrawerUI === 'function') {
+              syncBeatmarkDrawerUI();
+            }
           });
         }
 
@@ -14260,11 +15793,7 @@
 
             itemBtn.innerHTML = `
               <span class="camera-layer-option-icon">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                  <polyline points="2 17 12 22 22 17"></polyline>
-                  <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
+                <i class='fticon fticon-icon-22' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
               </span>
               <span class="camera-layer-option-name">${l.name || 'Layer'}</span>
               <span class="camera-layer-option-z">Z: ${lZ >= 0 ? '+' : ''}${lZ}</span>
@@ -14756,11 +16285,8 @@
       importTile.title = 'Import Image / Video';
       importTile.setAttribute('aria-label', 'Import Media');
       importTile.innerHTML = `
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>Import</span>
+        <span class="fill-media-thumbbox fill-media-import-box"><i class="fticon fticon-icon-23" style="width:22px;height:22px;font-size:22px;line-height:1;" aria-hidden="true"></i></span>
+        <span class="fill-media-name">Import</span>
       `;
       importTile.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -14790,24 +16316,19 @@
           (item.dataUrl && (item.dataUrl.startsWith('data:video') || /\.(mp4|webm|mov|mkv)(\?.*)?$/i.test(item.dataUrl))) ||
           (item.name && /\.(mp4|webm|mov|mkv)$/i.test(item.name));
 
-        let innerHtml = '';
+        let thumbboxHtml = '';
         if (isAudioItem) {
-          innerHtml = `<div class="fill-media-fallback fill-media-audio-fallback" title="${item.name || 'Audio'}">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-            </svg>
-            <span style="font-size: 8px; margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name ? item.name.slice(0, 6) : 'AUD'}</span>
+          thumbboxHtml = `<div class="fill-media-fallback fill-media-audio-fallback" title="${item.name || 'Audio'}">
+            <i class='fticon fticon-track-audio' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
           </div>`;
         } else if (isVideoItem) {
           const thumbSrc = item.thumbUrl || '';
           if (thumbSrc && !thumbSrc.startsWith('data:video')) {
-            innerHtml = `<img src="${thumbSrc}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
+            thumbboxHtml = `<img src="${thumbSrc}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
           } else {
-            innerHtml = `
+            thumbboxHtml = `
               <div class="fill-media-fallback fill-media-vid-fallback" title="${item.name || 'Video'}">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                </svg>
+                <i class='fticon fticon-icon' style='width:20px;height:20px;font-size:20px;line-height:1;' aria-hidden='true'></i>
               </div>
             `;
             if (item.dataUrl && typeof captureVideoThumbnail === 'function') {
@@ -14833,14 +16354,14 @@
           // image or precomp
           const thumbUrl = item.thumbUrl || item.dataUrl || '';
           if (thumbUrl && !thumbUrl.startsWith('data:video')) {
-            innerHtml = `<img src="${thumbUrl}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
+            thumbboxHtml = `<img src="${thumbUrl}" class="fill-media-thumb" alt="${item.name || ''}" loading="lazy">`;
           } else {
-            innerHtml = `<div class="fill-media-fallback">${item.name ? item.name.slice(0, 4) : 'MED'}</div>`;
+            thumbboxHtml = `<div class="fill-media-fallback">${item.name ? item.name.slice(0, 4) : 'MED'}</div>`;
           }
         }
         const badge = isVideoItem ? 'VID' : (item.type === 'precomp' ? 'COMP' : (isAudioItem ? 'AUD' : 'IMG'));
-        innerHtml += `<span class="fill-media-badge">${badge}</span>`;
-        tile.innerHTML = innerHtml;
+        const mediaName = item.name || badge;
+        tile.innerHTML = `<span class="fill-media-thumbbox">${thumbboxHtml}<span class="fill-media-badge">${badge}</span></span><span class="fill-media-name" title="${item.name || badge}">${mediaName}</span>`;
 
         tile.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -15521,26 +17042,9 @@
     window.showEffectsRackToast = showEffectsRackToast;
 
     function syncEffectsKeyframeState(layer) {
-      const btnEffectsKeyframe = document.getElementById('btn-effects-keyframe');
-      if (!layer) {
-        if (btnEffectsKeyframe) btnEffectsKeyframe.classList.remove('is-active');
-        return;
+      if (typeof updateEffectsKeyframeAndGraphBtnStates === 'function') {
+        updateEffectsKeyframeAndGraphBtnStates();
       }
-      const pps = window.currentPixelsPerSecond || 80;
-      const currentPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
-      const currentSec = Number((Math.abs(currentPanX) / pps).toFixed(3));
-      let activeProp = window.activeKeyframeProperty;
-      if (!activeProp && layer.effects && layer.effects[0]) {
-        activeProp = `${layer.effects[0].id}:brightness`;
-      }
-      const fps = (typeof getProjectFps === 'function') ? getProjectFps() : 60;
-      const tol = Math.max(0.04, 0.5 / fps);
-      let kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, activeProp, currentSec, tol) : null;
-      if (!kf && activeProp && activeProp.includes(':') && layer.effects && layer.effects[0] && activeProp.startsWith(layer.effects[0].id + ':')) {
-        const pName = activeProp.split(':')[1];
-        kf = (typeof getKeyframeAtTime === 'function') ? getKeyframeAtTime(layer, pName, currentSec, tol) : null;
-      }
-      if (btnEffectsKeyframe) btnEffectsKeyframe.classList.toggle('is-active', !!kf);
     }
 
     function duplicateEffect(fx, layer) {
@@ -15583,11 +17087,20 @@
       return '';
     }
 
-    function syncEffectsRackUI() {
-      const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
-      const rackEmpty = document.getElementById('effects-rack-empty');
+    function syncEffectsRackUI(force = false) {
+      const isEffectsActive = (typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'effects') ||
+        Boolean(document.querySelector('#layer-drawer-effects-view.is-active, #effects-rack.is-active'));
       const rackList = document.getElementById('effects-rack-list');
+      const rackEmpty = document.getElementById('effects-rack-empty');
       const btnEffectsKeyframe = document.getElementById('btn-effects-keyframe');
+
+      if (!isEffectsActive && !force) {
+        if (rackList) rackList.dataset.needsSync = 'true';
+        return;
+      }
+      if (rackList) rackList.removeAttribute('data-needs-sync');
+
+      const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
 
       if (!layer) {
         if (rackList) rackList.dataset.currentLayerId = '';
@@ -15678,6 +17191,30 @@
             // Skip hidden/button params — no sync needed
             if (pType === 'hidden' || pType === 'button') return;
 
+            const isSelected = (window.activeKeyframeProperty === propKey);
+            const paramRow = card.querySelector(`.effects-control-row[data-param*="${pId}"]`);
+            if (paramRow) {
+              if (paramRow.classList.contains('is-selected') !== isSelected) {
+                paramRow.classList.toggle('is-selected', isSelected);
+              }
+              if (paramRow._lastHasKf !== hasKf) {
+                paramRow._lastHasKf = hasKf;
+                const labelEl = paramRow.querySelector('.effects-param-name, .effects-param-select-btn');
+                if (labelEl) {
+                  let kfIcon = labelEl.querySelector('.fx-param-kf-icon');
+                  if (hasKf && !kfIcon) {
+                    kfIcon = document.createElement('i');
+                    kfIcon.className = 'fticon fticon-keyframe fx-param-kf-icon';
+                    kfIcon.setAttribute('aria-hidden', 'true');
+                    kfIcon.setAttribute('title', 'Has keyframes');
+                    labelEl.insertBefore(kfIcon, labelEl.firstChild);
+                  } else if (!hasKf && kfIcon) {
+                    kfIcon.remove();
+                  }
+                }
+              }
+            }
+
             if (pType === 'switch' || pType === 'boolean') {
               const rawVal = (hasKf && effFx && effFx[pId] !== undefined)
                 ? effFx[pId]
@@ -15743,10 +17280,9 @@
             const val = isDecimal
               ? Math.max(min, Math.min(max, Number(parseFloat(valNum).toFixed(2))))
               : Math.max(min, Math.min(max, Math.round(valNum)));
+
             const paramBtn = card.querySelector(`.fx-param-btn-${pId}`);
             if (paramBtn) {
-              const isSelected = (window.activeKeyframeProperty === propKey) ||
-                (!window.activeKeyframeProperty && fx === layer.effects[0] && pId === (def && def.params[0] ? def.params[0].id : 'brightness'));
               paramBtn.classList.toggle('is-active', isSelected);
             }
 
@@ -15769,6 +17305,14 @@
                 const clampedRatio = Math.max(0, Math.min(1, ratio));
                 track.style.width = (clampedRatio * 100).toFixed(1) + '%';
               }
+            }
+            const ticksEl = card.querySelector(`.fx-scrubber-${pId} .jog-wheel-ticks`);
+            if (ticksEl && ticksEl.classList.contains('is-bounded-tape') && max > min) {
+              const tapeW = parseFloat(ticksEl.dataset.tapeWidth) || parseFloat(getComputedStyle(ticksEl).getPropertyValue('--tape-width')) || 480;
+              const clampedRatio = Math.max(0, Math.min(1, ratio));
+              const offset = -clampedRatio * tapeW;
+              ticksEl.style.setProperty('--tape-offset', `${offset.toFixed(1)}px`);
+              ticksEl.style.clipPath = 'none';
             }
             if (pType === 'angle') {
               const turns = Math.trunc(val / 360);
@@ -16012,6 +17556,32 @@
       }, 50);
     }
     window.openValueInputPopover = openValueInputPopover;
+
+    function selectEffectParam(fxId, paramName) {
+      const rackList = document.getElementById('effects-rack-list');
+      if (!rackList || !fxId || !paramName) return;
+      const propKey = `${fxId}:${paramName}`;
+      window.activeKeyframeProperty = propKey;
+      rackList.querySelectorAll('.effects-control-row').forEach(row => {
+        const rFxId = row.dataset.effectId || (row.closest('.effects-card') ? row.closest('.effects-card').dataset.effectId : '');
+        const rParam = row.dataset.param || '';
+        const isMatch = (rFxId === fxId && (rParam === paramName || rParam.split(',').includes(paramName)));
+        row.classList.toggle('is-selected', isMatch);
+      });
+      rackList.querySelectorAll('.effects-param-select-btn').forEach(b => {
+        const parent = b.closest('.effects-card');
+        const bFxId = parent ? parent.dataset.effectId : '';
+        b.classList.toggle('is-active', bFxId === fxId && b.dataset.param === paramName);
+      });
+      const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+      if (layer && typeof syncEffectsKeyframeState === 'function') {
+        syncEffectsKeyframeState(layer);
+      }
+      if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
+        updateTimelineKeyframeMarkersHighlight();
+      }
+    }
+    window.selectEffectParam = selectEffectParam;
 
     function bindEffectsCardEventListeners() {
       const rackList = document.getElementById('effects-rack-list');
@@ -16335,17 +17905,7 @@
           if (paramBtn) {
             paramBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              const propKey = `${fx.id}:${paramName}`;
-              window.activeKeyframeProperty = propKey;
-              rackList.querySelectorAll('.effects-param-select-btn').forEach(b => {
-                const parent = b.closest('.effects-card');
-                const bFxId = parent ? parent.dataset.effectId : '';
-                b.classList.toggle('is-active', bFxId === fx.id && b.dataset.param === paramName);
-              });
-              syncEffectsKeyframeState(layer);
-              if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
-                updateTimelineKeyframeMarkersHighlight();
-              }
+              selectEffectParam(fx.id, paramName);
             });
           }
 
@@ -16354,6 +17914,7 @@
             badgeBtn.title = `Click to edit ${paramName} value`;
             badgeBtn.addEventListener('click', (e) => {
               e.stopPropagation();
+              selectEffectParam(fx.id, paramName);
               const defParam = (def && def.params) ? def.params.find(dp => dp.id === paramName) : null;
               const defaultVal = defParam ? (defParam.default !== undefined ? defParam.default : 0) : 0;
               const currentVal = fx[paramName] !== undefined ? fx[paramName] : defaultVal;
@@ -16363,18 +17924,6 @@
               const unit = defParam && defParam.unit !== undefined ? defParam.unit : '%';
               const label = defParam && defParam.label ? defParam.label : paramName;
               const isAngle = defParam && (defParam.type === 'angle' || defParam.unit === '°');
-
-              const propKey = `${fx.id}:${paramName}`;
-              window.activeKeyframeProperty = propKey;
-              rackList.querySelectorAll('.effects-param-select-btn').forEach(b => {
-                const parent = b.closest('.effects-card');
-                const bFxId = parent ? parent.dataset.effectId : '';
-                b.classList.toggle('is-active', bFxId === fx.id && b.dataset.param === paramName);
-              });
-              syncEffectsKeyframeState(layer);
-              if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
-                updateTimelineKeyframeMarkersHighlight();
-              }
 
               if (typeof window.openValueInputPopover === 'function') {
                 window.openValueInputPopover(badgeBtn, {
@@ -16393,7 +17942,13 @@
                     }
 
                     const ticksEl = card.querySelector(`.fx-scrubber-${paramName} .jog-wheel-ticks`);
-                    if (ticksEl) ticksEl.style.backgroundPosition = '0 0';
+                    if (ticksEl && ticksEl.classList.contains('is-bounded-tape') && max > min) {
+                      const tapeW = parseFloat(ticksEl.dataset.tapeWidth) || parseFloat(getComputedStyle(ticksEl).getPropertyValue('--tape-width')) || 480;
+                      const ratio = Math.max(0, Math.min(1, (newVal - min) / (max - min)));
+                      const offset = -ratio * tapeW;
+                      ticksEl.style.setProperty('--tape-offset', `${offset.toFixed(1)}px`);
+                      ticksEl.style.clipPath = 'none';
+                    }
 
                     const track = card.querySelector(`.fx-track-${paramName}`);
                     if (track) {
@@ -16416,6 +17971,7 @@
                       badgeBtn.textContent = (newVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
                     }
 
+                    const propKey = `${fx.id}:${paramName}`;
                     if (typeof recordLayerPropertyChange === 'function') {
                       recordLayerPropertyChange(layer, propKey);
                     }
@@ -16443,6 +17999,7 @@
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const param = btn.dataset.param;
+            if (param) selectEffectParam(fx.id, param);
             let val = btn.dataset.val;
             if (val === '0' || val === '1') {
               val = parseInt(val, 10);
@@ -16474,6 +18031,7 @@
           if (trigger) {
             trigger.addEventListener('click', (e) => {
               e.stopPropagation();
+              if (param) selectEffectParam(fx.id, param);
               // Close any other open dropdowns
               document.querySelectorAll('.custom-dropdown.is-open').forEach(other => {
                 if (other !== dropdown) {
@@ -16494,6 +18052,7 @@
           items.forEach(item => {
             item.addEventListener('click', (e) => {
               e.stopPropagation();
+              if (param) selectEffectParam(fx.id, param);
               const val = item.dataset.val;
               dropdown.dataset.value = val;
               if (label) label.textContent = item.textContent;
@@ -16528,6 +18087,8 @@
                 if (typeof redrawComposition === 'function') redrawComposition('effect-dropdown-change');
                 if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
                 if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
+                // Link ke inspector: segarkan readout transform agar realtime ikut berubah
+                if (typeof syncTransformControllerValues === 'function') syncTransformControllerValues();
               }
             });
           });
@@ -16538,6 +18099,7 @@
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const param = btn.dataset.param;
+            if (param) selectEffectParam(fx.id, param);
             const currentVal = fx[param] || '#000000';
 
             if (window.FishColorPicker) {
@@ -16564,8 +18126,13 @@
         });
 
         card.querySelectorAll('.effects-color-hex-input').forEach(input => {
+          input.addEventListener('focus', () => {
+            const param = input.dataset.param;
+            if (param) selectEffectParam(fx.id, param);
+          });
           input.addEventListener('input', () => {
             const param = input.dataset.param;
+            if (param) selectEffectParam(fx.id, param);
             let val = input.value.trim();
             if (!val.startsWith('#')) val = '#' + val;
             if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
@@ -16597,6 +18164,17 @@
             }
           });
         });
+
+        // 10. Direct row-level selection
+        card.querySelectorAll('.effects-control-row').forEach(row => {
+          row.addEventListener('click', (e) => {
+            if (e.target.closest('button, input, select, .custom-dropdown-trigger, .custom-dropdown-item')) return;
+            const param = row.dataset.param;
+            if (!param) return;
+            const primaryParam = param.split(',')[0];
+            selectEffectParam(fx.id, primaryParam);
+          });
+        });
       });
     }
 
@@ -16616,80 +18194,29 @@
       let hasDragged = false;
       let isBadgeClick = false;
       let cachedRect = null;
+      let cachedTapeW = 480;
       const propKey = `${fx.id}:${paramName}`;
+
+      const ticksEl = container.querySelector('.jog-wheel-ticks');
 
       bindJogWheel(container, {
         onStart: (e) => {
+          isBadgeClick = !!(e && e.target && e.target.closest('.effects-param-pill-val'));
+          if (isBadgeClick) return false;
           startPointerX = e ? e.clientX : 0;
           startPointerY = e ? e.clientY : 0;
           hasDragged = false;
           cachedRect = container.getBoundingClientRect();
-          isBadgeClick = !!(e && e.target && e.target.closest('.effects-param-pill-val'));
-          window.activeKeyframeProperty = propKey;
           window.activeScrubbingParam = propKey;
           window.isTransformInteracting = true;
+          selectEffectParam(fx.id, paramName);
           const isActivelyPlaying = isAnyPlaybackActive();
           if (!isActivelyPlaying && typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
 
           startVal = fx[paramName] !== undefined ? Number(fx[paramName]) : (defParam && defParam.default !== undefined ? Number(defParam.default) : 0);
           currentVal = startVal;
-
-          const rackList = document.getElementById('effects-rack-list');
-          if (rackList) {
-            rackList.querySelectorAll('.effects-param-select-btn').forEach(b => {
-              const parent = b.closest('.effects-card');
-              const bFxId = parent ? parent.dataset.effectId : '';
-              b.classList.toggle('is-active', bFxId === fx.id && b.dataset.param === paramName);
-            });
-          }
-          if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
-
-          // If user clicked directly on the slider track (not the badge), immediately position slider
-          if (!isBadgeClick && !isAngle && !isHue && e) {
-            const rect = cachedRect || container.getBoundingClientRect();
-            const pillW = Math.max(10, rect.width);
-            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : 0);
-            const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : 100);
-            const span = max - min;
-            if (span > 0) {
-              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / pillW));
-              const unit = fx.unit !== undefined ? fx.unit : (defParam && defParam.unit ? defParam.unit : '');
-              const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x' || unit.includes('.');
-              const rawNext = min + ratio * span;
-              const stepVal = (defParam && defParam.step) ? defParam.step : (isDecimal ? 0.05 : 1);
-              const displayVal = isDecimal
-                ? Number((Math.round(rawNext / stepVal) * stepVal).toFixed(2))
-                : Math.round(rawNext);
-              currentVal = Math.max(min, Math.min(max, displayVal));
-              fx[paramName] = currentVal;
-              container.setAttribute('aria-valuenow', currentVal);
-
-              const formatted = isDecimal ? currentVal.toFixed(2) : currentVal;
-              const badgeText = (currentVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
-              const track = card.querySelector(`.fx-track-${paramName}`);
-              if (track) {
-                const trackRatio = Math.max(0, Math.min(1, (currentVal - min) / span));
-                track.style.width = (trackRatio * 100).toFixed(1) + '%';
-              }
-              const badge = card.querySelector(`.fx-badge-${paramName}`);
-              if (badge) badge.textContent = badgeText;
-
-              if (fx && fx.type === 'brightness-contrast' && (paramName === 'brightness' || paramName === 'contrast')) {
-                layer[paramName] = fx[paramName];
-              }
-              if (typeof recordLayerPropertyChange === 'function') {
-                recordLayerPropertyChange(layer, propKey);
-              }
-              if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
-              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-              if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
-              const curveWidget = card.querySelector('.effects-curve-editor');
-              if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
-              if (typeof syncEffectsKeyframeState === 'function') syncEffectsKeyframeState(layer);
-              if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
-                updateTimelineKeyframeMarkersHighlight();
-              }
-            }
+          if (ticksEl) {
+            cachedTapeW = parseFloat(ticksEl.dataset.tapeWidth) || parseFloat(getComputedStyle(ticksEl).getPropertyValue('--tape-width')) || 480;
           }
         },
 
@@ -16722,43 +18249,52 @@
             }
           } else {
             // STRICT BOUNDED MODE (Wave Height, Wave Width, Blur, Size, Scale, etc.)
-            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : 0);
-            const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : 100);
+            const min = fx.min !== undefined ? fx.min : (defParam && defParam.min !== undefined ? defParam.min : (container.dataset.min !== undefined ? parseFloat(container.dataset.min) : 0));
+            const max = fx.max !== undefined ? fx.max : (defParam && defParam.max !== undefined ? defParam.max : (container.dataset.max !== undefined ? parseFloat(container.dataset.max) : 100));
             const span = max - min;
-            const unit = fx.unit !== undefined ? fx.unit : (defParam && defParam.unit ? defParam.unit : '');
-            const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || unit === 'x' || unit.includes('.');
-            const stepVal = (defParam && defParam.step) ? defParam.step : (isDecimal ? 0.05 : 1);
+            const unit = fx.unit !== undefined ? fx.unit : (defParam && defParam.unit ? defParam.unit : (container.dataset.unit || ''));
+            const isDecimal = (fx.step !== undefined && fx.step < 1) || (defParam && defParam.step !== undefined && defParam.step < 1) || (container.dataset.step !== undefined && parseFloat(container.dataset.step) < 1) || unit === 'x' || unit.includes('.');
+            const stepVal = (defParam && defParam.step) ? defParam.step : (container.dataset.step ? parseFloat(container.dataset.step) : (isDecimal ? 0.05 : 1));
 
-            const rect = cachedRect || container.getBoundingClientRect();
-            const pillW = Math.max(10, rect.width);
+            const tapeW = cachedTapeW;
 
-            if (e && e.shiftKey) {
-              // Shift mode: Fine-tuning precision scrubber (10x precision)
-              const fineSpeed = isDecimal ? (stepVal * 0.2) : Math.max(0.05, span / (pillW * 10));
-              currentVal = Math.max(min, Math.min(max, currentVal + step * fineSpeed));
-            } else {
-              // Direct Track Slider: Follows cursor along pill width from 0% (min) to 100% (max)
-              const clientX = e ? e.clientX : startPointerX;
-              const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / pillW));
-              const rawNext = min + ratio * span;
-              currentVal = isDecimal
-                ? Number((Math.round(rawNext / stepVal) * stepVal).toFixed(2))
-                : Math.round(rawNext);
-              currentVal = Math.max(min, Math.min(max, currentVal));
+            // Pure relative pan (1:1 direct feel like AE jog wheels, Shift = precision 0.2x, Alt = fast 2.5x)
+            // Drag right (step > 0) pulls tape right -> decreases value to MIN
+            // Drag left (step < 0) pulls tape left -> increases value to MAX
+            const speed = (e && e.shiftKey) ? 0.2 : ((e && e.altKey) ? 2.5 : 1.0);
+            const deltaVal = span > 0 ? (-step * (span / tapeW) * speed) : 0;
+            const nextVal = currentVal + deltaVal;
+            const prevVal = currentVal;
+            currentVal = Math.max(min, Math.min(max, nextVal));
+
+            const quantVal = isDecimal
+              ? Number((Math.round(currentVal / stepVal) * stepVal).toFixed(2))
+              : Math.round(currentVal);
+
+            fx[paramName] = quantVal;
+            container.setAttribute('aria-valuenow', quantVal);
+
+            const formatted = isDecimal ? quantVal.toFixed(2) : quantVal;
+            badgeText = (quantVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
+
+            // Physical ruler tape offset under stationary center needle:
+            // ratio 0 (min) -> offset = 0px (left border under needle)
+            // ratio 1 (max) -> offset = -tapeW px (right border under needle)
+            const ratio = span > 0 ? Math.max(0, Math.min(1, (currentVal - min) / span)) : 0;
+            const offset = -ratio * tapeW;
+
+            if (ticksEl) {
+              ticksEl.style.setProperty('--tape-offset', `${offset.toFixed(1)}px`);
+              ticksEl.style.clipPath = 'none';
             }
-
-            consumedStep = step;
-            fx[paramName] = currentVal;
-            container.setAttribute('aria-valuenow', currentVal);
-
-            const formatted = isDecimal ? currentVal.toFixed(2) : currentVal;
-            badgeText = (currentVal >= 0 && min < 0 ? '+' : '') + formatted + unit;
 
             const track = card.querySelector(`.fx-track-${paramName}`);
-            if (track && span > 0) {
-              const ratio = Math.max(0, Math.min(1, (currentVal - min) / span));
+            if (track) {
               track.style.width = (ratio * 100).toFixed(1) + '%';
             }
+
+            const consumedVal = currentVal - prevVal;
+            consumedStep = (span > 0 && speed > 0 && (span / tapeW * speed) > 0) ? (-consumedVal / ((span / tapeW) * speed)) : 0;
           }
 
           if (fx && fx.type === 'brightness-contrast' && (paramName === 'brightness' || paramName === 'contrast')) {
@@ -16774,7 +18310,15 @@
 
           if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
-          if (typeof redrawComposition === 'function') redrawComposition('effect-scrubber');
+          if (typeof redrawComposition === 'function') {
+            if (!window._scrubberRedrawRafPending) {
+              window._scrubberRedrawRafPending = true;
+              requestAnimationFrame(() => {
+                window._scrubberRedrawRafPending = false;
+                redrawComposition('effect-scrubber');
+              });
+            }
+          }
           const curveWidget = card.querySelector('.effects-curve-editor');
           if (curveWidget && typeof curveWidget._updateCurveSVG === 'function') curveWidget._updateCurveSVG();
 
@@ -16790,6 +18334,10 @@
           window.isTransformInteracting = false;
           window.activeScrubbingParam = null;
           cachedRect = null;
+          if (fx[paramName] !== undefined) {
+            currentVal = Number(fx[paramName]);
+            // Tape remains exactly where it was dragged; no visual jump on release.
+          }
           if (typeof recordLayerPropertyChange === 'function') {
             recordLayerPropertyChange(layer, propKey);
           }
@@ -16798,6 +18346,7 @@
           }
           if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
           if (!isAnyPlaybackActive() && typeof redrawComposition === 'function') {
+            window._scrubberRedrawRafPending = false;
             redrawComposition('effect-scrubber-end');
           }
           if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
@@ -16840,13 +18389,8 @@
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           const effects = layer && Array.isArray(layer.effects) ? layer.effects : [];
           const curProp = window.activeKeyframeProperty;
-          const isValid = curProp && curProp.includes(':') && effects.some(f => curProp.startsWith(f.id + ':'));
-          if (!isValid && effects.length > 0) {
-            const firstPId = (window.FishEffects && typeof window.FishEffects.getParamIds === 'function')
-              ? (window.FishEffects.getParamIds(effects[0])[0] || 'param')
-              : 'brightness';
-            window.activeKeyframeProperty = `${effects[0].id}:${firstPId}`;
-          }
+          const isValid = !!(curProp && curProp.includes(':') && effects.some(f => curProp.startsWith(f.id + ':')));
+          if (!isValid) return;
           if (typeof toggleKeyframeAtCurrentTime === 'function') {
             toggleKeyframeAtCurrentTime();
           }
@@ -16862,13 +18406,10 @@
           const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
           const effects = layer && Array.isArray(layer.effects) ? layer.effects : [];
           const curProp = window.activeKeyframeProperty;
-          const isValid = curProp && curProp.includes(':') && effects.some(f => curProp.startsWith(f.id + ':'));
-          if (!isValid && effects.length > 0) {
-            const firstPId = (window.FishEffects && typeof window.FishEffects.getParamIds === 'function')
-              ? (window.FishEffects.getParamIds(effects[0])[0] || 'param')
-              : 'brightness';
-            window.activeKeyframeProperty = `${effects[0].id}:${firstPId}`;
-          }
+          const isValid = !!(curProp && curProp.includes(':') && effects.some(f => curProp.startsWith(f.id + ':')));
+          if (!isValid) return;
+          const kfList = (layer.keyframes && layer.keyframes[curProp]) || [];
+          if (kfList.length < 2) return;
           window.previousDrawerSubview = 'effects';
           switchLayerDrawerSubview('graph');
         });
@@ -16879,7 +18420,7 @@
       if (btnAddEffect) {
         btnAddEffect.addEventListener('click', (e) => {
           e.stopPropagation();
-          switchLayerDrawerSubview('effects-gallery');
+          openEffectsGalleryDrawer();
         });
       }
 
@@ -17034,6 +18575,12 @@
 
       // 6. Gallery Navigation (Single back button handles: Category View -> Categories Grid, or Categories Grid -> Effects Rack)
       const btnEffectsGalleryBack = document.getElementById('btn-effects-gallery-back');
+      const galleryHomeView = document.getElementById('effects-gallery-home-view');
+      const favoritesSection = document.getElementById('effects-favorites-section');
+      const favoritesList = document.getElementById('effects-favorites-list');
+      const favoritesCountEl = document.getElementById('effects-favorites-count');
+      const lastUsedSection = document.getElementById('effects-last-used-section');
+      const lastUsedList = document.getElementById('effects-last-used-list');
       const categoryGrid = document.getElementById('effects-category-grid');
       const itemsView = document.getElementById('effects-items-view');
       const effectsItemsGrid = document.getElementById('effects-items-grid');
@@ -17049,6 +18596,78 @@
       const itemsTitleEl = document.getElementById('effects-items-category-title');
       const galleryBodyEl = document.getElementById('effects-gallery-body');
       const FALLBACK_EFFECT_ICON = 'assets/FXPH.svg';
+
+      // Favorite & Last Used Effects Storage
+      const FAVORITES_STORAGE_KEY = 'fishtools_favorite_effects';
+      const LAST_USED_STORAGE_KEY = 'fishtools_last_used_effects';
+
+      function getFavoriteEffectIds() {
+        try {
+          const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function isFavoriteEffect(id) {
+        if (!id) return false;
+        return getFavoriteEffectIds().includes(id);
+      }
+
+      function toggleFavoriteEffect(id) {
+        if (!id) return;
+        const favs = getFavoriteEffectIds();
+        const idx = favs.indexOf(id);
+        const isAdding = (idx === -1);
+        if (isAdding) {
+          favs.unshift(id);
+        } else {
+          favs.splice(idx, 1);
+        }
+        try {
+          localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favs));
+        } catch (_) {}
+        updateAllStarButtons(id, isAdding);
+        syncFavoritesList();
+      }
+
+      function updateAllStarButtons(id, isFav) {
+        const cards = document.querySelectorAll(`[data-effect-id="${id}"]`);
+        cards.forEach(card => {
+          const starBtn = card.querySelector('.effects-gallery-star-btn');
+          if (starBtn) {
+            starBtn.classList.toggle('is-favorite', isFav);
+            starBtn.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+            starBtn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+          }
+        });
+      }
+
+      function getLastUsedEffectIds() {
+        try {
+          const raw = localStorage.getItem(LAST_USED_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        } catch (_) {}
+        return [];
+      }
+
+      function recordLastUsedEffect(id) {
+        if (!id) return;
+        let list = getLastUsedEffectIds();
+        list = list.filter(item => item !== id);
+        list.unshift(id);
+        if (list.length > 12) list = list.slice(0, 12);
+        try {
+          localStorage.setItem(LAST_USED_STORAGE_KEY, JSON.stringify(list));
+        } catch (_) {}
+        syncLastUsedList();
+      }
 
       // activeCat: null = category home, 'all' = every effect, otherwise a category key
       const galleryUi = { activeCat: null, query: '', cards: new Map(), catSignature: '', searchRaf: 0, syncRaf: 0 };
@@ -17084,6 +18703,17 @@
         }, { once: true });
         thumb.appendChild(img);
 
+        // Star button at top-right corner
+        const isFav = isFavoriteEffect(def.id);
+        const starBtn = document.createElement('button');
+        starBtn.type = 'button';
+        starBtn.className = 'effects-gallery-star-btn' + (isFav ? ' is-favorite' : '');
+        starBtn.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+        starBtn.setAttribute('aria-label', (isFav ? 'Remove from favorites: ' : 'Add to favorites: ') + label);
+        starBtn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+        starBtn.innerHTML = '<svg class="effects-star-svg" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+        thumb.appendChild(starBtn);
+
         const nameEl = document.createElement('span');
         nameEl.className = 'effects-gallery-item-name';
         card.appendChild(thumb);
@@ -17098,6 +18728,15 @@
         card.title = label;
         const nameEl = card.querySelector('.effects-gallery-item-name');
         if (nameEl && nameEl.textContent !== label) nameEl.textContent = label;
+
+        const starBtn = card.querySelector('.effects-gallery-star-btn');
+        if (starBtn) {
+          const isFav = isFavoriteEffect(def.id);
+          starBtn.classList.toggle('is-favorite', isFav);
+          starBtn.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+          starBtn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+        }
+
         // Search haystack: name, id, category label, description and optional plugin keywords
         const keywords = Array.isArray(def.keywords) ? def.keywords.join(' ') : '';
         const alias = /box|cube/i.test(def.id + ' ' + label) ? ' cube kubus' : '';
@@ -17150,16 +18789,77 @@
         }
       }
 
+      function syncFavoritesList() {
+        if (!favoritesList || !favoritesSection) return;
+        if (!window.FishEffectsRegistry || typeof window.FishEffectsRegistry.get !== 'function') return;
+
+        const favIds = getFavoriteEffectIds();
+        const validDefs = favIds.map(id => window.FishEffectsRegistry.get(id)).filter(d => !!d);
+
+        if (validDefs.length === 0) {
+          favoritesSection.style.display = 'none';
+          favoritesList.replaceChildren();
+          return;
+        }
+
+        favoritesSection.style.display = '';
+        if (favoritesCountEl) {
+          favoritesCountEl.textContent = validDefs.length + (validDefs.length === 1 ? ' effect' : ' effects');
+        }
+
+        favoritesList.replaceChildren();
+        const frag = document.createDocumentFragment();
+        validDefs.forEach(def => {
+          const card = buildGalleryCard(def);
+          updateGalleryCard(card, def);
+          frag.appendChild(card);
+        });
+        favoritesList.appendChild(frag);
+      }
+
+      function syncLastUsedList() {
+        if (!lastUsedList || !lastUsedSection) return;
+        if (!window.FishEffectsRegistry || typeof window.FishEffectsRegistry.get !== 'function') return;
+
+        const ids = getLastUsedEffectIds();
+        const validDefs = ids.map(id => window.FishEffectsRegistry.get(id)).filter(d => !!d);
+
+        lastUsedSection.style.display = '';
+        lastUsedList.replaceChildren();
+
+        if (validDefs.length === 0) {
+          const emptyEl = document.createElement('div');
+          emptyEl.className = 'effects-gallery-empty-state';
+          emptyEl.textContent = 'No used effects';
+          lastUsedList.appendChild(emptyEl);
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        validDefs.forEach(def => {
+          const card = buildGalleryCard(def);
+          updateGalleryCard(card, def);
+          frag.appendChild(card);
+        });
+        lastUsedList.appendChild(frag);
+      }
+
       function renderGalleryView() {
         const q = galleryUi.query;
         const cat = galleryUi.activeCat;
         const atHome = (!q && cat === null);
 
         if (atHome) {
-          if (categoryGrid) categoryGrid.style.display = 'grid';
+          if (galleryHomeView) {
+            galleryHomeView.style.display = 'flex';
+          } else if (categoryGrid) {
+            categoryGrid.style.display = 'grid';
+          }
           if (itemsView) itemsView.style.display = 'none';
           if (noResultsEl) noResultsEl.style.display = 'none';
           if (btnEffectsGalleryBack) btnEffectsGalleryBack.title = 'Back to Effects Rack';
+          syncFavoritesList();
+          syncLastUsedList();
           return;
         }
 
@@ -17172,7 +18872,11 @@
           if (match) shown++;
         });
 
-        if (categoryGrid) categoryGrid.style.display = 'none';
+        if (galleryHomeView) {
+          galleryHomeView.style.display = 'none';
+        } else if (categoryGrid) {
+          categoryGrid.style.display = 'none';
+        }
         if (btnEffectsGalleryBack) btnEffectsGalleryBack.title = 'Back to Categories';
         if (shown === 0) {
           if (itemsView) itemsView.style.display = 'none';
@@ -17227,7 +18931,12 @@
           galleryUi.catSignature = signature;
           rebuildGalleryCategories(counts);
         }
-        if (added || signature) renderGalleryView();
+        if (added || signature) {
+          renderGalleryView();
+        } else {
+          syncFavoritesList();
+          syncLastUsedList();
+        }
       }
 
       // Dynamic automatic effects discovery & loader from manifest.json (safety net for late-added files;
@@ -17306,6 +19015,7 @@
           if (galleryUi.activeCat !== null || galleryUi.query) {
             closeGalleryCategory();
           } else {
+            closeEffectsGalleryDrawer();
             switchLayerDrawerSubview('effects');
           }
         });
@@ -17417,22 +19127,31 @@
 
         const params = getEffectParamIds(newFx);
         window.activeKeyframeProperty = `${newFx.id}:${params[0] || 'param'}`;
+        recordLastUsedEffect(effectTypeId);
+        closeEffectsGalleryDrawer();
         switchLayerDrawerSubview('effects');
         syncEffectsRackUI();
       }
       window.addEffectToLayer = addEffectToLayer;
       window.applyBrightnessContrastToLayer = () => addEffectToLayer('brightness-contrast');
+      window.syncGalleryHomeSections = () => {
+        syncFavoritesList();
+        syncLastUsedList();
+      };
 
       // 8. Add Effect: Universal Gallery Item Click (Stacking / Double supported!)
-      if (effectsItemsGrid) {
-        effectsItemsGrid.addEventListener('click', (e) => {
+      const attachCardClickDelegation = (container) => {
+        if (!container) return;
+        container.addEventListener('click', (e) => {
+          if (e.target.closest('.effects-gallery-star-btn')) return;
           const card = e.target.closest('.effects-gallery-item-card');
           if (!card) return;
           e.stopPropagation();
           const fxId = card.dataset.effectId || 'brightness-contrast';
           addEffectToLayer(fxId);
         });
-        effectsItemsGrid.addEventListener('keydown', (e) => {
+        container.addEventListener('keydown', (e) => {
+          if (e.target.closest('.effects-gallery-star-btn')) return;
           if (e.key === 'Enter') {
             const card = e.target.closest('.effects-gallery-item-card');
             if (!card) return;
@@ -17441,7 +19160,35 @@
             addEffectToLayer(fxId);
           }
         });
-      }
+      };
+      attachCardClickDelegation(effectsItemsGrid);
+      attachCardClickDelegation(favoritesList);
+      attachCardClickDelegation(lastUsedList);
+
+      // Universal capture handler for Star Favorite buttons
+      // Intercepts click during capture so it NEVER triggers card click
+      document.addEventListener('click', (e) => {
+        const starBtn = e.target.closest('.effects-gallery-star-btn');
+        if (!starBtn) return;
+        const card = starBtn.closest('.effects-gallery-item-card');
+        const fxId = card ? card.dataset.effectId : null;
+        if (!fxId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavoriteEffect(fxId);
+      }, true);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const starBtn = e.target.closest('.effects-gallery-star-btn');
+        if (!starBtn) return;
+        const card = starBtn.closest('.effects-gallery-item-card');
+        const fxId = card ? card.dataset.effectId : null;
+        if (!fxId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavoriteEffect(fxId);
+      }, true);
 
       // 9. Gallery Search Filter (frame-throttled; matches name, id, category, description, keywords)
       if (searchInput) {
@@ -17577,9 +19324,7 @@
         if (filtered.length === 0) {
           listEl.innerHTML = `
             <div class="preset-gallery-empty">
-              <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
-                <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-              </svg>
+              <i class='fticon fticon-icon-24' style='width:32px;height:32px;font-size:32px;line-height:1;' aria-hidden='true'></i>
               <span>No presets found. Save effects from the rack to create one!</span>
             </div>
           `;
@@ -17604,9 +19349,7 @@
               <div class="preset-card-actions">
                 <button type="button" class="btn-preset-apply" data-preset-id="${p.id}">Apply</button>
                 <button type="button" class="btn-preset-delete" data-preset-id="${p.id}" title="Delete Preset" aria-label="Delete Preset">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                  </svg>
+                  <i class='fticon fticon-delete-selected-layer' style='width:16px;height:16px;font-size:16px;line-height:1;' aria-hidden='true'></i>
                 </button>
               </div>
             </div>
@@ -17869,13 +19612,13 @@
         }
 
         const typeIconMap = {
-          text: '<svg viewBox="0 0 24 24"><path d="M3 4h9.5v3H6v3.5h5.5v3H6V20H3V4zm12 3.5h3v3h2.5v2.8H18v4.2c0 .9.5 1.5 1.4 1.5.5 0 .9-.1 1.2-.2v2.7c-.7.3-1.6.4-2.4.4-2.3 0-3.2-1.3-3.2-3.4v-5.2h-2v-2.8h2v-3z"/></svg>',
-          shape: '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
-          video: '<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>',
-          image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',
-          audio: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
-          adjustment: '<svg viewBox="0 0 24 24"><path d="M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zm0-18c4.41 0 8 3.59 8 8s-3.59 8-8 8V4z"/></svg>',
-          group: '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg>'
+          text: '<i class="fticon fticon-icon-25" aria-hidden="true"></i>',
+          shape: '<i class="fticon fticon-icon-26" aria-hidden="true"></i>',
+          video: '<i class="fticon fticon-icon-20" aria-hidden="true"></i>',
+          image: '<i class="fticon fticon-icon-21" aria-hidden="true"></i>',
+          audio: '<i class="fticon fticon-icon-18" aria-hidden="true"></i>',
+          adjustment: '<i class="fticon fticon-icon-27" aria-hidden="true"></i>',
+          group: '<i class="fticon fticon-icon-28" aria-hidden="true"></i>'
         };
 
         gridEl.innerHTML = filtered.map(item => {
@@ -17886,9 +19629,7 @@
           return `
             <div class="element-gallery-card" data-element-id="${item.id}" title="Click to insert to timeline">
               <button type="button" class="element-gallery-card-delete" data-element-id="${item.id}" title="Delete Element" aria-label="Delete Element">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                </svg>
+                <i class='fticon fticon-close-3' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
               </button>
               <div class="element-gallery-card-icon">${icon}</div>
               <span class="element-gallery-card-title">${item.name || 'Untitled'}</span>
@@ -20247,7 +21988,7 @@
             } else {
               previewHtml = `
                 <div class="media-item-fallback media-item-vid-placeholder">
-                  <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                  <i class='fticon fticon-icon-20' aria-hidden='true'></i>
                 </div>
                 <span class="media-item-type-badge">VID</span>
               `;
@@ -20276,14 +22017,14 @@
           } else if (item.type === 'precomp') {
             previewHtml = `
               <div class="media-item-fallback media-item-precomp-placeholder">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 7h6v4H7zm4 6h6v4h-6z"/></svg>
+                <i class='fticon fticon-icon-29' aria-hidden='true'></i>
               </div>
               <span class="media-item-type-badge">COMP</span>
             `;
           } else {
             previewHtml = `
               <div class="media-item-fallback">
-                <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                <i class='fticon fticon-icon-18' aria-hidden='true'></i>
               </div>
               <span class="media-item-type-badge">AUD</span>
             `;
@@ -20292,7 +22033,7 @@
           tile.innerHTML = `
             ${previewHtml}
             <button type="button" class="media-item-delete-btn" title="Delete Media" aria-label="Delete Media">
-              <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              <i class='fticon fticon-delete-media' aria-hidden='true'></i>
             </button>
           `;
 
@@ -20891,11 +22632,7 @@
               <div class="media-dropzone-col media-dropzone-image" data-drop-action="import-image">
                 <div class="media-dropzone-content">
                   <div class="media-dropzone-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                      <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14z"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polygon points="6,17.5 10.5,12 13.5,15.5 15.5,13.5 18,17.5"/>
-                    </svg>
+                    <i class='fticon fticon-icon-30' style='width:28px;height:28px;font-size:28px;line-height:1;' aria-hidden='true'></i>
                   </div>
                   <div class="media-dropzone-title">${autoAddToTimeline ? 'Import Photo to Timeline' : 'Import Photo to Project'}</div>
                   <div class="media-dropzone-desc">${autoAddToTimeline ? 'Add photo layer to composition' : 'Add photo to media pool'}</div>
@@ -20908,9 +22645,7 @@
               <div class="media-dropzone-col media-dropzone-mp3" data-drop-action="import-audio">
                 <div class="media-dropzone-content">
                   <div class="media-dropzone-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                    </svg>
+                    <i class='fticon fticon-track-audio' style='width:28px;height:28px;font-size:28px;line-height:1;' aria-hidden='true'></i>
                   </div>
                   <div class="media-dropzone-title">${autoAddToTimeline ? 'Import Audio to Timeline' : 'Import Audio to Project'}</div>
                   <div class="media-dropzone-desc">${autoAddToTimeline ? 'Add audio track to composition' : 'Add audio to media pool'}</div>
@@ -21472,6 +23207,7 @@
         const savedWidth = localStorage.getItem('oft_left_pane_width');
         if (savedWidth && window.innerWidth > 600) {
           mainBody.style.setProperty('--left-pane-width', savedWidth);
+          document.documentElement.style.setProperty('--left-pane-width', savedWidth);
         }
         const savedMobileH = localStorage.getItem('oft_mobile_preview_height');
         if (savedMobileH && window.innerWidth <= 600) {
@@ -21523,7 +23259,9 @@
             desktopRAF = requestAnimationFrame(() => {
               desktopRAF = null;
               if (!isDragging) return;
-              mainBody.style.setProperty('--left-pane-width', currentPercent.toFixed(2) + '%');
+              const wStr = currentPercent.toFixed(2) + '%';
+              mainBody.style.setProperty('--left-pane-width', wStr);
+              document.documentElement.style.setProperty('--left-pane-width', wStr);
             });
           }
         }
@@ -21541,9 +23279,11 @@
           } catch (_) {}
           document.body.style.cursor = '';
 
-          mainBody.style.setProperty('--left-pane-width', currentPercent.toFixed(2) + '%');
+          const wStr = currentPercent.toFixed(2) + '%';
+          mainBody.style.setProperty('--left-pane-width', wStr);
+          document.documentElement.style.setProperty('--left-pane-width', wStr);
           try {
-            localStorage.setItem('oft_left_pane_width', currentPercent.toFixed(2) + '%');
+            localStorage.setItem('oft_left_pane_width', wStr);
           } catch (_) {}
           syncTimelineAfterSplitResize();
         }
@@ -21561,17 +23301,21 @@
 
           if (e.key === 'ArrowLeft') {
             currentPercent = Math.max(20, currentPercent - 5);
-            mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
+            const wStr = currentPercent + '%';
+            mainBody.style.setProperty('--left-pane-width', wStr);
+            document.documentElement.style.setProperty('--left-pane-width', wStr);
             try {
-              localStorage.setItem('oft_left_pane_width', currentPercent + '%');
+              localStorage.setItem('oft_left_pane_width', wStr);
             } catch (_) {}
             syncTimelineAfterSplitResize();
             e.preventDefault();
           } else if (e.key === 'ArrowRight') {
             currentPercent = Math.min(80, currentPercent + 5);
-            mainBody.style.setProperty('--left-pane-width', currentPercent + '%');
+            const wStr = currentPercent + '%';
+            mainBody.style.setProperty('--left-pane-width', wStr);
+            document.documentElement.style.setProperty('--left-pane-width', wStr);
             try {
-              localStorage.setItem('oft_left_pane_width', currentPercent + '%');
+              localStorage.setItem('oft_left_pane_width', wStr);
             } catch (_) {}
             syncTimelineAfterSplitResize();
             e.preventDefault();
@@ -22318,9 +24062,7 @@
           item.setAttribute('aria-label', `Marker ${name} at ${timeStr}`);
           item.innerHTML = `
             <div class="timeline-beatmark-pin">
-              <svg viewBox="0 0 10 12" width="10" height="12" class="timeline-beatmark-svg" aria-hidden="true">
-                <path d="M 0 11 L 10 11 L 10 5 L 5 0 L 0 5 Z" fill="currentColor"/>
-              </svg>
+              <i class='fticon fticon-icon-31 timeline-beatmark-svg' style='width:10px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
             </div>
             <div class="timeline-beatmark-stem"></div>
             <span class="timeline-beatmark-label">${name}</span>
@@ -22330,9 +24072,7 @@
           item.setAttribute('aria-label', `Beatmark at ${timeStr}`);
           item.innerHTML = `
             <div class="timeline-beatmark-pin">
-              <svg viewBox="0 0 10 12" width="10" height="12" class="timeline-beatmark-svg" aria-hidden="true">
-                <path d="M 0 11 L 10 11 L 10 5 L 5 0 L 0 5 Z" fill="currentColor"/>
-              </svg>
+              <i class='fticon fticon-icon-31 timeline-beatmark-svg' style='width:10px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
             </div>
             <div class="timeline-beatmark-stem"></div>
           `;
@@ -23848,8 +25588,11 @@
           if (btnFill) btnFill.style.display = 'none';
           if (btnBlend) btnBlend.style.display = 'none';
           if (btnEffects) btnEffects.style.display = 'none';
-          if (actionGrid) actionGrid.classList.remove('is-camera-mode');
-          if (currentDrawerSubview === 'transform' || currentDrawerSubview === 'graph' || currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'effects-gallery' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'camera' || currentDrawerSubview === 'text') {
+          const fxGal = document.getElementById('drawer-effects-gallery');
+          if (fxGal && fxGal.classList.contains('is-active')) {
+            closeEffectsGalleryDrawer(false);
+          }
+          if (currentDrawerSubview === 'transform' || currentDrawerSubview === 'graph' || currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'camera' || currentDrawerSubview === 'text') {
             switchLayerDrawerSubview('main');
           }
         } else if (layer && layer.type === 'camera') {
@@ -23862,7 +25605,11 @@
           if (actionGrid) {
             actionGrid.classList.add('is-camera-mode');
           }
-          if (currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'effects-gallery' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'beatmark') {
+          const fxGal = document.getElementById('drawer-effects-gallery');
+          if (fxGal && fxGal.classList.contains('is-active')) {
+            closeEffectsGalleryDrawer(false);
+          }
+          if (currentDrawerSubview === 'fill' || currentDrawerSubview === 'blend' || currentDrawerSubview === 'effects' || currentDrawerSubview === 'shape' || currentDrawerSubview === 'beatmark') {
             switchLayerDrawerSubview('main');
           }
         } else {
@@ -23899,41 +25646,14 @@
           }
         }
 
-        renderTimelineLayers();
-        redrawComposition();
-        if (typeof syncTransformControllerValues === 'function') {
-          syncTransformControllerValues();
+        const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
+        if (overlayContainer && overlayContainer.children.length > 0 && typeof syncSelectionClassesInPlace === 'function') {
+          syncSelectionClassesInPlace();
+        } else {
+          renderTimelineLayers();
         }
-        if (typeof syncFillControllerUI === 'function') {
-          syncFillControllerUI();
-        }
-        if (typeof syncBlendOverlayValues === 'function') {
-          syncBlendOverlayValues();
-          if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
-        }
-        if (typeof syncEffectsRackUI === 'function') {
-          syncEffectsRackUI();
-        }
-        if (typeof syncCameraSettingsUI === 'function') {
-          syncCameraSettingsUI();
-          if (typeof updateCameraKeyframeBtnState === 'function') updateCameraKeyframeBtnState();
-        }
-        if (typeof syncVolumeControllerValues === 'function') {
-          syncVolumeControllerValues();
-          if (typeof updateVolumeKeyframeBtnState === 'function') updateVolumeKeyframeBtnState();
-          if (typeof renderAudioEffectsRack === 'function') renderAudioEffectsRack(layer);
-        }
-        if (typeof syncSpeedControllerValues === 'function') {
-          syncSpeedControllerValues();
-          if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
-        }
-        if (layer && layer.type === 'shape' && typeof syncShapeControllerUI === 'function') {
-          syncShapeControllerUI();
-        }
-        if (layer && layer.type === 'text' && typeof syncTextControllerUI === 'function') {
-          syncTextControllerUI();
-        }
-        // Auto-scroll into view if behind drawer
+
+        // Open drawer (No backdrop) IMMEDIATELY with zero blocking latency
         if (!isSelectorMode) {
           const vp = document.getElementById('timeline-layers-viewport');
           if (vp) vp.classList.add('has-drawer-open');
@@ -23943,7 +25663,6 @@
           const focusedSlot = document.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layerId}"]`);
           if (focusedSlot) focusedSlot.classList.add('is-focused');
 
-          // Open drawer (No backdrop)
           if (window.Drawer && !window.Drawer.isOpen('timeline-layer-drawer')) {
             window.Drawer.open('timeline-layer-drawer');
           }
@@ -23951,10 +25670,8 @@
           if (activeCard && currentDrawerSubview === 'main') {
             activeCard.style.height = '';
           }
-
-          // Smoothly center selected layer in visible timeline area above drawer
-          centerSelectedTimelineLayer(true, layerId);
         }
+
         updateEditorHeaderMode();
         if (typeof updateTimelineKeyframeMarkersHighlight === 'function') {
           updateTimelineKeyframeMarkersHighlight();
@@ -23964,6 +25681,55 @@
         }
         if (typeof window.updateClipboardButtonsVisibility === 'function') {
           window.updateClipboardButtonsVisibility();
+        }
+
+        // Only sync the active controller UI if currently in a parameter subview
+        if (typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview !== 'main') {
+          if (currentDrawerSubview === 'transform' && typeof syncTransformControllerValues === 'function') {
+            syncTransformControllerValues();
+          } else if (currentDrawerSubview === 'fill' && typeof syncFillControllerUI === 'function') {
+            syncFillControllerUI();
+          } else if (currentDrawerSubview === 'blend' && typeof syncBlendOverlayValues === 'function') {
+            syncBlendOverlayValues();
+            if (typeof updateBlendKeyframeBtnState === 'function') updateBlendKeyframeBtnState();
+          } else if (currentDrawerSubview === 'effects' && typeof syncEffectsRackUI === 'function') {
+            syncEffectsRackUI();
+          } else if (currentDrawerSubview === 'camera' && typeof syncCameraSettingsUI === 'function') {
+            syncCameraSettingsUI();
+            if (typeof updateCameraKeyframeBtnState === 'function') updateCameraKeyframeBtnState();
+          } else if (currentDrawerSubview === 'volume' && typeof syncVolumeControllerValues === 'function') {
+            syncVolumeControllerValues();
+            if (typeof updateVolumeKeyframeBtnState === 'function') updateVolumeKeyframeBtnState();
+            if (typeof renderAudioEffectsRack === 'function') renderAudioEffectsRack(layer);
+          } else if (currentDrawerSubview === 'speed' && typeof syncSpeedControllerValues === 'function') {
+            syncSpeedControllerValues();
+            if (typeof updateSpeedKeyframeBtnState === 'function') updateSpeedKeyframeBtnState();
+          } else if (layer && layer.type === 'shape' && currentDrawerSubview === 'shape' && typeof syncShapeControllerUI === 'function') {
+            syncShapeControllerUI();
+          } else if (layer && layer.type === 'text' && currentDrawerSubview === 'text' && typeof syncTextControllerUI === 'function') {
+            syncTextControllerUI();
+          }
+        }
+
+        // Sync wireframe viewer overlay immediately
+        const pps = window.currentPixelsPerSecond || 80;
+        const curPanX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
+        const currentSec = Math.max(0, -curPanX / pps);
+        const activeCanvas = document.getElementById('editor-active-canvas');
+        if (activeCanvas && typeof syncActiveViewerOverlay === 'function') {
+          syncActiveViewerOverlay(currentSec, activeCanvas.width, activeCanvas.height);
+        }
+
+        // Defer centering and full composition redraw to next animation frame to prevent blocking drawer slide-up
+        if (!isSelectorMode) {
+          requestAnimationFrame(() => {
+            if (typeof centerSelectedTimelineLayer === 'function') {
+              centerSelectedTimelineLayer(false, layerId);
+            }
+            redrawComposition();
+          });
+        } else {
+          redrawComposition();
         }
       }
       window.selectTimelineLayer = selectTimelineLayer;
@@ -24041,8 +25807,29 @@
 
       function deselectTimelineLayer() {
         // Auto-close selected layer drawer
-        if (window.Drawer && window.Drawer.isOpen('timeline-layer-drawer')) {
-          window.Drawer.close(false);
+        if (window.Drawer) {
+          if (window.Drawer.isOpen('timeline-layer-drawer')) {
+            window.Drawer.close('timeline-layer-drawer', false);
+          }
+          const layerDrawer = document.getElementById('timeline-layer-drawer');
+          if (layerDrawer && layerDrawer.classList.contains('is-active')) {
+            layerDrawer.classList.remove('is-active');
+            layerDrawer.setAttribute('aria-hidden', 'true');
+            const card = layerDrawer.querySelector('.drawer-card');
+            if (card) card.style.height = '';
+          }
+          const fxGal = document.getElementById('drawer-effects-gallery');
+          if (fxGal && fxGal.classList.contains('is-active')) {
+            fxGal.classList.remove('is-active');
+            fxGal.setAttribute('aria-hidden', 'true');
+            const card = fxGal.querySelector('.drawer-card');
+            if (card) card.style.height = '';
+          }
+          const remainingActive = document.querySelectorAll('.drawer-container.is-active');
+          if (remainingActive.length === 0) {
+            document.body.classList.remove('has-active-drawer');
+            document.querySelectorAll('.editor-timeline.has-drawer-open').forEach(t => t.classList.remove('has-drawer-open'));
+          }
         }
         if (typeof switchLayerDrawerSubview === 'function') {
           switchLayerDrawerSubview('main');
@@ -24092,7 +25879,12 @@
             t.classList.remove('is-selected');
           });
         }
-        renderTimelineLayers();
+        const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
+        if (overlayContainer && overlayContainer.children.length > 0 && typeof syncSelectionClassesInPlace === 'function') {
+          syncSelectionClassesInPlace();
+        } else {
+          renderTimelineLayers();
+        }
         redrawComposition();
         // Remove spotlight on deselect
         document.querySelectorAll('.timeline-lane-pill-slot.is-focused').forEach(s => s.classList.remove('is-focused'));
@@ -26729,6 +28521,10 @@
             const lid = clip.dataset.layerId;
             const isSel = selectedLayerIds.has(lid) || (lid === selectedLayerId);
             clip.classList.toggle('is-selected', isSel);
+            if (clip.classList.contains('clip-audio')) {
+              const l = (currentProjectState.layers || []).find(x => x.id === lid);
+              if (l) renderAudioClipWaveform(l, clip);
+            }
           });
           if (typeof renderTimelineLinkConnectors === 'function') renderTimelineLinkConnectors();
         }
@@ -27058,6 +28854,9 @@
       function getLayerCategorizedKeyframeRows(layer, onlyKeyframed = false) {
         if (!layer) return [];
         const categories = [];
+        // Solo prop via shortcut (S/P/R/T/A): bila aktif dan bukan mode keyframed,
+        // hanya prop itu yang tampil (kategori lain disembunyikan).
+        const soloProp = (!onlyKeyframed && layer._kfSoloProp) || null;
 
         function formatValText(prop, val) {
           if (val === undefined || val === null) return '';
@@ -27145,13 +28944,14 @@
             return Array.isArray(list) && list.length > 0;
           });
 
-          const activeProps = onlyKeyframed ? keyframedProps : (keyframedProps.length > 0 ? keyframedProps : transformDefs);
+          const activeProps = onlyKeyframed ? keyframedProps : transformDefs;
+          const shownProps = soloProp ? activeProps.filter(d => d.prop === soloProp) : activeProps;
 
-          if (activeProps.length > 0) {
+          if (shownProps.length > 0) {
             categories.push({
               id: 'transform',
               title: 'Transform',
-              props: activeProps.map(d => {
+              props: shownProps.map(d => {
                 const kfs = (layer.keyframes && layer.keyframes[d.prop]) || [];
                 const rawVal = (typeof getLayerPropertyValue === 'function') ? getLayerPropertyValue(layer, d.prop) : null;
                 return {
@@ -27165,8 +28965,8 @@
           }
         }
 
-        // 2. Effects Category
-        if (Array.isArray(layer.effects) && layer.effects.length > 0) {
+        // 2. Effects Category (disembunyikan saat solo prop)
+        if (!soloProp && Array.isArray(layer.effects) && layer.effects.length > 0) {
           layer.effects.forEach((fx, fxIdx) => {
             const def = (window.FishEffectsRegistry && typeof window.FishEffectsRegistry.get === 'function')
               ? window.FishEffectsRegistry.get(fx.type)
@@ -27217,8 +29017,8 @@
           });
         }
 
-        // 3. Camera Options
-        if (layer.type === 'camera') {
+        // 3. Camera Options (disembunyikan saat solo prop)
+        if (!soloProp && layer.type === 'camera') {
           const camDefs = [
             { prop: 'cameraZoom', label: 'Zoom' },
             { prop: 'cameraFocusDistance', label: 'Focus Distance' },
@@ -27228,7 +29028,7 @@
             const list = layer.keyframes && layer.keyframes[d.prop];
             return Array.isArray(list) && list.length > 0;
           });
-          const activeCam = onlyKeyframed ? keyframedCam : (keyframedCam.length > 0 ? keyframedCam : camDefs);
+          const activeCam = onlyKeyframed ? keyframedCam : camDefs;
           if (activeCam.length > 0) {
             categories.push({
               id: 'camera',
@@ -27248,7 +29048,7 @@
         }
 
         // 4. Audio
-        if (layer.type === 'audio' || layer.audioUrl) {
+        if (!soloProp && (layer.type === 'audio' || layer.audioUrl)) {
           const kfs = (layer.keyframes && layer.keyframes.volume) || [];
           if (!onlyKeyframed || (Array.isArray(kfs) && kfs.length > 0)) {
             categories.push({
@@ -27265,7 +29065,7 @@
         }
 
         // 5. Time Remap
-        if (layer.keyframes && (layer.keyframes.timeRemap || layer.keyframes.speed)) {
+        if (!soloProp && layer.keyframes && (layer.keyframes.timeRemap || layer.keyframes.speed)) {
           const timeProps = [];
           if (layer.keyframes.timeRemap) {
             timeProps.push({
@@ -27301,6 +29101,23 @@
         const treeEl = document.createElement('div');
         treeEl.className = 'desktop-kf-property-tree';
 
+        function getPlayheadSec() {
+          if (typeof getTimelineCurrentSec === 'function') return getTimelineCurrentSec();
+          if (typeof getCurrentPlayheadTime === 'function') return getCurrentPlayheadTime();
+          if (typeof window.getCurrentPlayheadTime === 'function') return window.getCurrentPlayheadTime();
+          const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+          const pan = (typeof window.timelinePanX !== 'undefined') ? window.timelinePanX : ((typeof panX !== 'undefined') ? panX : 0);
+          return Math.max(0, -pan / pps);
+        }
+
+        function getLayerPropEasing(l, propName) {
+          const easObj = (l && (l.defaultEasing || l._defaultEasing));
+          if (easObj && Array.isArray(easObj[propName]) && easObj[propName].length === 4) {
+            return [...easObj[propName]];
+          }
+          return [0.0, 0.0, 1.0, 1.0];
+        }
+
         catRows.forEach(cat => {
           const catRow = document.createElement('div');
           catRow.className = 'desktop-kf-cat-row';
@@ -27318,7 +29135,7 @@
             swBtn.title = 'Add / remove keyframe at playhead';
 
             function hasKfAtPlayhead() {
-              const t = (typeof window.currentTimelineSec === 'number') ? window.currentTimelineSec : 0;
+              const t = getPlayheadSec();
               const kfs = layer.keyframes && layer.keyframes[p.prop];
               return Array.isArray(kfs) && kfs.some(k => Math.abs(k.time - t) < 0.025);
             }
@@ -27327,14 +29144,14 @@
               const active = hasKfAtPlayhead();
               swBtn.classList.toggle('is-active', active);
               swBtn.innerHTML = active
-                ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L22 12L12 22L2 12Z"/></svg>`
-                : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 3.5L20.5 12L12 20.5L3.5 12Z"/></svg>`;
+                ? `<i class="fticon fticon-icon-32" style="width:12px;height:12px;font-size:12px;line-height:1;" aria-hidden="true"></i>`
+                : `<i class="fticon fticon-icon-33" style="width:12px;height:12px;font-size:12px;line-height:1;" aria-hidden="true"></i>`;
             }
             updateStopwatchState();
 
             swBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              const t = (typeof window.currentTimelineSec === 'number') ? window.currentTimelineSec : 0;
+              const t = Number(getPlayheadSec().toFixed(3));
               if (!layer.keyframes) layer.keyframes = {};
               if (!Array.isArray(layer.keyframes[p.prop])) layer.keyframes[p.prop] = [];
               const kfs = layer.keyframes[p.prop];
@@ -27349,14 +29166,27 @@
                 } else {
                   curVal = layer[p.prop];
                 }
-                kfs.push({ time: t, value: curVal, easing: layer.defaultEasing || 'ease-in-out' });
+                const defEasing = getLayerPropEasing(layer, p.prop);
+                kfs.push({ time: t, value: curVal, easing: defEasing });
                 kfs.sort((a, b) => a.time - b.time);
               }
               if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers(true);
-              if (typeof toggleLayerKeyframeExpansion === 'function') {
-                toggleLayerKeyframeExpansion(layer.id, true, layer._kfExpandedOnlyKeyframed);
-              } else if (typeof renderTimelineLayers === 'function') {
-                renderTimelineLayers();
+              if (typeof invalidatePreviewCacheForLayer === 'function') {
+                invalidatePreviewCacheForLayer(layer);
+              } else if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+                window.invalidatePreviewCacheForLayer(layer);
+              }
+              if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
+              if (typeof redrawComposition === 'function') redrawComposition();
+
+              // Update track lane markers in-place without destroying property tree DOM
+              const lane = layersTrack ? layersTrack.querySelector(`.timeline-track-lane[data-layer-id="${layer.id}"]`) : null;
+              if (lane) {
+                const oldTracks = lane.querySelector('.desktop-kf-tracks-wrapper');
+                if (oldTracks) oldTracks.remove();
+                const pps = window.currentPixelsPerSecond || (typeof pixelsPerSecond !== 'undefined' ? pixelsPerSecond : 80);
+                const tracksEl = buildDesktopKfTracksWrapper(layer, pps, layer._kfExpandedOnlyKeyframed);
+                lane.appendChild(tracksEl);
               }
               updateStopwatchState();
             });
@@ -27379,14 +29209,17 @@
 
             function commitMutation(rl) {
               if (rl.keyframes && Array.isArray(rl.keyframes[p.prop]) && rl.keyframes[p.prop].length > 0) {
-                const pps2 = window.currentPixelsPerSecond || 80;
-                const panX = window.timelinePanX !== undefined ? window.timelinePanX : 0;
-                const t = Number((Math.abs(panX) / pps2).toFixed(3));
+                const t = Number(getPlayheadSec().toFixed(3));
                 const kfs = rl.keyframes[p.prop];
                 const existIdx = kfs.findIndex(k => Math.abs(k.time - t) < 0.025);
                 const curVal = typeof getLayerPropertyValue === 'function' ? getLayerPropertyValue(rl, p.prop) : rl[p.prop];
-                if (existIdx >= 0) { kfs[existIdx].value = curVal; }
-                else { kfs.push({ time: t, value: curVal, easing: rl.defaultEasing || 'ease-in-out' }); kfs.sort((a, b) => a.time - b.time); }
+                const defEasing = getLayerPropEasing(rl, p.prop);
+                if (existIdx >= 0) {
+                  kfs[existIdx].value = curVal;
+                } else {
+                  kfs.push({ time: t, value: curVal, easing: defEasing });
+                  kfs.sort((a, b) => a.time - b.time);
+                }
               }
               if (typeof invalidatePreviewCacheForLayer === 'function') {
                 invalidatePreviewCacheForLayer(rl);
@@ -27612,8 +29445,8 @@
               const syncLinkIcon = () => {
                 const linked = getLive().scaleLinked !== false;
                 linkBtn.innerHTML = linked
-                  ? `<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6.5 9.5a3 3 0 0 0 4.24.24l2-2a3 3 0 0 0-4.24-4.24L7.4 4.6"/><path d="M9.5 6.5a3 3 0 0 0-4.24-.24l-2 2a3 3 0 0 0 4.24 4.24l1.06-1.06"/></svg>`
-                  : `<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="3 2"><path d="M6.5 9.5a3 3 0 0 0 4.24.24l2-2a3 3 0 0 0-4.24-4.24L7.4 4.6"/><path d="M9.5 6.5a3 3 0 0 0-4.24-.24l-2 2a3 3 0 0 0 4.24 4.24l1.06-1.06"/></svg>`;
+                  ? `<i class="fticon fticon-icon-34" style="width:10px;height:10px;font-size:10px;line-height:1;" aria-hidden="true"></i>`
+                  : `<i class="fticon fticon-icon-35" style="width:10px;height:10px;font-size:10px;line-height:1;" aria-hidden="true"></i>`;
                 linkBtn.classList.toggle('is-linked', linked);
               };
               syncLinkIcon();
@@ -27823,6 +29656,11 @@
                           if (l.keyframes) Object.values(l.keyframes).forEach(kList => {
                             if (Array.isArray(kList)) snapTargets.push(...kList.map(k => k.time));
                           });
+                          // Ujung layer (in/out) ikut magnet bila magnet nyala
+                          const lin = (l.startSec !== undefined) ? l.startSec : ((l.startPx || 0) / pps);
+                          snapTargets.push(Number(lin.toFixed(4)));
+                          const ldur = (l.durationSec !== undefined) ? l.durationSec : 0;
+                          if (ldur > 0) snapTargets.push(Number((lin + ldur).toFixed(4)));
                         });
                       }
                       for (let t of snapTargets) {
@@ -27867,7 +29705,14 @@
                     const affectedLayers = new Set();
                     multiDragSnapshots.forEach(s => {
                       if (s.layer && s.layer.keyframes && Array.isArray(s.layer.keyframes[s.prop])) {
-                        s.layer.keyframes[s.prop].sort((a, b) => a.time - b.time);
+                        // Merge: keyframe yang di-drop tepat di waktu keyframe lain -> gantikan
+                        const list = s.layer.keyframes[s.prop];
+                        for (let i = list.length - 1; i >= 0; i--) {
+                          if (list[i] !== s.kf && Math.abs(list[i].time - s.kf.time) < 0.001) {
+                            list.splice(i, 1);
+                          }
+                        }
+                        list.sort((a, b) => a.time - b.time);
                         affectedLayers.add(s.layer);
                       }
                     });
@@ -27975,6 +29820,9 @@
         const willExpand = (typeof forceState === 'boolean') ? forceState : !layer._kfExpanded;
         layer._kfExpanded = willExpand;
         layer._kfExpandedOnlyKeyframed = willExpand ? !!onlyKeyframed : false;
+        // Solo prop (shortcut S/P/R/T/A): hanya berlaku bila expand semua.
+        // Collapse atau mode keyframed-only (U) selalu bersihkan solo.
+        if (!willExpand || onlyKeyframed) layer._kfSoloProp = null;
 
         const overlayContainer = document.getElementById('timeline-lane-heads-overlay');
         const pillSlot = overlayContainer ? overlayContainer.querySelector(`.timeline-lane-pill-slot[data-layer-id="${layer.id}"]`) : null;
@@ -28098,9 +29946,7 @@
             emptyState.id = 'timeline-empty-state';
             emptyState.innerHTML = `
               <div class="timeline-empty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-                </svg>
+                <i class='fticon fticon-icon-11' aria-hidden='true'></i>
               </div>
               <span class="timeline-empty-text">Drop media here to import</span>
             `;
@@ -28127,10 +29973,10 @@
                    title="${layer.name} - ${isHidden ? 'Klik untuk tampilkan' : 'Klik untuk sembunyikan'}"
                    data-layer-id="${layer.id}">
                 <button type="button" class="timeline-layer-eye-btn" aria-label="${isHidden ? 'Show Layer' : 'Hide Layer'}" title="${isHidden ? 'Show Layer' : 'Hide Layer'}">
-                  <span class="svg-icon ${isHidden ? 'svg-icon-eye-off' : 'svg-icon-eye'}" aria-hidden="true"></span>
+                  <span class="fticon ${isHidden ? 'fticon fticon-eye-off' : 'fticon fticon-eye'}" aria-hidden="true"></span>
                 </button>
                 <button type="button" class="timeline-layer-checkbox ${isSelected ? 'is-selected' : ''}" aria-label="${isSelected ? 'Deselect Layer' : 'Select Layer'}" title="${isSelected ? 'Deselect Layer' : 'Select Layer'}">
-                  <span class="svg-icon svg-icon-check" aria-hidden="true"></span>
+                  <span class="fticon fticon-check" aria-hidden="true"></span>
                 </button>
               </div>
             `;
@@ -28432,13 +30278,14 @@
                    title="${layer.name}${isHidden ? ' (Hidden)' : ''}" 
                    data-layer-id="${layer.id}">
                 <button type="button" class="timeline-clip-handle handle-left" aria-label="Trim / Lengthen Start" title="Drag to trim or lengthen start">
-                  <span class="svg-icon svg-icon-chevron-left" style="width: 13px; height: 13px;" aria-hidden="true"></span>
+                  <span class="fticon fticon-chevron-left" style="width: 13px; height: 13px;" aria-hidden="true"></span>
                 </button>
                 <span class="timeline-clip-tag">${typeTag}</span>
                 <span class="clip-label">${layer.name}</span>
                 <button type="button" class="timeline-clip-handle handle-right" aria-label="Trim / Lengthen End" title="Drag to trim or lengthen end">
-                  <span class="svg-icon svg-icon-chevron-right" style="width: 13px; height: 13px;" aria-hidden="true"></span>
+                  <span class="fticon fticon-chevron-right" style="width: 13px; height: 13px;" aria-hidden="true"></span>
                 </button>
+                ${(clipType === 'audio') ? '<canvas class="timeline-audio-waveform-canvas"></canvas>' : ''}
                 ${(clipType === 'video') ? `
                 <div class="timeline-clip-progress-track ${layer._extractComplete ? 'is-complete' : ''}">
                   <div class="timeline-clip-progress ${layer._extractComplete ? 'is-complete' : ''}" style="width: ${(layer._extractProgress || 0) * 100}%;"></div>
@@ -28478,6 +30325,9 @@
           if (clipEl) {
             if (!isDesktop || !layer._kfExpanded) {
               renderLayerKeyframes(layer, clipEl);
+            }
+            if (clipType === 'audio') {
+              renderAudioClipWaveform(layer, clipEl);
             }
 
             // Interactive Drag for Text IN / OUT Animation Markers (Only in selection mode)
@@ -28577,10 +30427,12 @@
             let panStartScrollTop = 0;
             let initialStartPx = 0;
             let justFinishedSlide = false;
+            let justTappedInPointerUp = false;
             let slideRedrawRaf = null;
             const HOLD_DELAY = 360;
 
             function onClipPointerDown(e) {
+              justTappedInPointerUp = false;
               if (e.target.closest('.timeline-clip-handle') || e.target.closest('.timeline-keyframe-marker.is-active-prop') || e.target.closest('.text-anim-marker')) return;
               if (e.button !== undefined && e.button !== 0) return;
 
@@ -28953,13 +30805,17 @@
                   return;
                 }
 
-                // Case 3: Tap without hold
-                if (isSelectedLayer && !hasSlid) {
-                  const dist = Math.hypot(upEvent.clientX - startPointerX, upEvent.clientY - startPointerY);
-                  if (dist <= 5 && !upEvent.shiftKey) {
-                    if (typeof window.clearSelectedKeyframes === 'function') {
+                // Case 3: Tap without hold (Instant selection on pointerup with zero mobile click delay)
+                const dist = Math.hypot(upEvent.clientX - startPointerX, upEvent.clientY - startPointerY);
+                if (!hasSlid && dist <= 6) {
+                  if (isSelectedLayer && !isSelectorMode) {
+                    if (!upEvent.shiftKey && typeof window.clearSelectedKeyframes === 'function') {
                       window.clearSelectedKeyframes();
                     }
+                  } else {
+                    justTappedInPointerUp = true;
+                    toggleSelectTimelineLayer(layer.id, isSelectorMode);
+                    setTimeout(() => { justTappedInPointerUp = false; }, 400);
                   }
                 }
                 window.isTransformInteracting = false;
@@ -28979,6 +30835,11 @@
                 e.preventDefault();
                 hasMenuOpened = false;
                 justFinishedSlide = false;
+                return;
+              }
+              if (justTappedInPointerUp) {
+                e.stopPropagation();
+                justTappedInPointerUp = false;
                 return;
               }
               e.stopPropagation();
@@ -29072,6 +30933,7 @@
 
                   clipEl.style.left = `${layer.startPx}px`;
                   clipEl.style.width = `${layer.widthPx}px`;
+                  if (layer.type === 'audio') renderAudioClipWaveform(layer, clipEl);
                   if (typeof renderTimelineLinkConnectors === 'function') renderTimelineLinkConnectors();
                   redrawComposition();
                   updateTimelinePosition(panX, true);
@@ -29094,6 +30956,7 @@
                   layer.widthPx = Math.max(minWidth, Math.round(layer.durationSec * pps));
                   clipEl.style.left = `${layer.startPx}px`;
                   clipEl.style.width = `${layer.widthPx}px`;
+                  if (layer.type === 'audio') renderAudioClipWaveform(layer, clipEl);
 
                   invalidatePreviewCacheForLayer(layer, initialStartSec, initialEndSec);
                   redrawComposition();
@@ -29158,6 +31021,7 @@
                   layer.isDurationExplicit = true;
 
                   clipEl.style.width = `${layer.widthPx}px`;
+                  if (layer.type === 'audio') renderAudioClipWaveform(layer, clipEl);
                   const curTrimEndSec = (layer.startSec !== undefined ? layer.startSec : (layer.startPx / pixelsPerSecond)) + (layer.durationSec || 0);
                   if (curTrimEndSec > lastGeneratedDuration) {
                     generateRulerTicks(currentFps);
@@ -29181,6 +31045,7 @@
                   layer.durationSec = Math.max(1 / fps, Math.round(layer.durationSec * fps) / fps);
                   layer.widthPx = Math.max(minWidth, Math.round(layer.durationSec * pps));
                   clipEl.style.width = `${layer.widthPx}px`;
+                  if (layer.type === 'audio') renderAudioClipWaveform(layer, clipEl);
 
                   invalidatePreviewCacheForLayer(layer, initialStartSec, initialEndSec);
                   redrawComposition();
@@ -29238,11 +31103,7 @@
               pill.title = `Move Layer: ${layer.name}`;
               pill.innerHTML = `
                 <div class="reorder-grip" title="Drag to Move Layer Up / Down" aria-label="Drag to Reorder Layer">
-                  <svg class="reorder-grip-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-                    <line x1="4" y1="7" x2="20" y2="7"/>
-                    <line x1="4" y1="12" x2="20" y2="12"/>
-                    <line x1="4" y1="17" x2="20" y2="17"/>
-                  </svg>
+                  <i class='fticon fticon-drag-to-reorder-layer reorder-grip-svg' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
                 </div>
               `;
 
@@ -30036,10 +31897,13 @@
         }
 
         // Standard Transform Property Shortcuts: S (Scale), R (Rotation), P (Position), T (Opacity), A (Anchor Point), U (Reveal Keyframes)
+        // Mobile: U nonaktif (tanpa dropdown keyframe); S/P/R/T/A tetap buka panel kontrol transform.
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
           const hasSelected = !!(selectedLayerId || (selectedLayerIds && selectedLayerIds.size > 0) || (window.selectedLayerId));
+          const isMobileKb = (typeof window !== 'undefined' && typeof navigator !== 'undefined'
+            && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || ''));
           const k = e.key ? e.key.toLowerCase() : '';
-          if (hasSelected && k === 'u') {
+          if (!isMobileKb && hasSelected && k === 'u') {
             e.preventDefault();
             e.stopPropagation();
             const selectedIds = window.selectedLayerIds && window.selectedLayerIds.size > 0 
@@ -31314,7 +33178,7 @@
           currentLayer.type === 'precomp'
         ));
 
-        const volumeIcon = btnVolume.querySelector('.svg-icon');
+        const volumeIcon = btnVolume.querySelector('.fticon');
 
         btnSpeed.disabled = !supportsSpeed;
         btnSpeed.classList.toggle('is-disabled', !supportsSpeed);
@@ -31326,7 +33190,7 @@
 
         if (!supportsVolume) {
           if (volumeIcon) {
-            volumeIcon.className = 'svg-icon svg-icon-volume-mute';
+            volumeIcon.className = 'fticon fticon-volume-mute';
           }
           return;
         }
@@ -31343,10 +33207,10 @@
         const isMuted = (currentVol <= 0.001 || currentLayer.muted === true || currentLayer.isMuted === true);
 
         if (isMuted) {
-          if (volumeIcon) volumeIcon.className = 'svg-icon svg-icon-volume-mute';
+          if (volumeIcon) volumeIcon.className = 'fticon fticon-volume-mute';
           btnVolume.title = 'Volume (0% - Mute)';
         } else {
-          if (volumeIcon) volumeIcon.className = 'svg-icon svg-icon-volume';
+          if (volumeIcon) volumeIcon.className = 'fticon fticon-volume';
           btnVolume.title = `Volume (${Math.round(currentVol * 100)}%)`;
         }
       }
@@ -34699,7 +36563,7 @@
             <div class="matting-task-meta">
               <span class="matting-task-name">${task.layerName || 'Media'}</span>
               <button type="button" class="matting-task-cancel" title="Cancel" data-task-id="${task.id}">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <i class='fticon fticon-close' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
               </button>
             </div>
             <div class="matting-task-status">${statusText}</div>

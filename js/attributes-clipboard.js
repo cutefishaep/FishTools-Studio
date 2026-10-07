@@ -25,37 +25,37 @@
     fill: {
       id: 'fill',
       label: 'Fill',
-      icon: '<svg viewBox="0 0 24 24"><path d="M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5zM16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21z"/></svg>',
+      icon: '<i class="fticon fticon-icon-37" aria-hidden="true"></i>',
       isApplicable: (l) => l && (l.type === 'shape' || l.type === 'video' || l.type === 'image')
     },
     opacityBlend: {
       id: 'opacityBlend',
       label: 'Opacity & Blend',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 9.5h8M4 12h10M5 14.5h8" stroke-width="1.2" stroke-linecap="round"/><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>',
+      icon: '<i class="fticon fticon-icon-38" aria-hidden="true"></i>',
       isApplicable: () => true
     },
     effects: {
       id: 'effects',
       label: 'Effects',
-      icon: '<svg viewBox="0 0 24 24"><path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/></svg>',
+      icon: '<i class="fticon fticon-icon-39" aria-hidden="true"></i>',
       isApplicable: () => true
     },
     transform: {
       id: 'transform',
       label: 'Transform',
-      icon: '<svg viewBox="0 0 24 24"><path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm16 5h-5v2h7v-7h-2v5z"/></svg>',
+      icon: '<i class="fticon fticon-icon-40" aria-hidden="true"></i>',
       isApplicable: () => true
     },
     borderShadow: {
       id: 'borderShadow',
       label: 'Border & Shadow',
-      icon: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>',
+      icon: '<i class="fticon fticon-icon-41" aria-hidden="true"></i>',
       isApplicable: (l) => l && (l.type === 'shape' || l.type === 'image')
     },
     speedVolume: {
       id: 'speedVolume',
       label: 'Speed & Volume',
-      icon: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>',
+      icon: '<i class="fticon fticon-icon-42" aria-hidden="true"></i>',
       isApplicable: (l) => l && l.type === 'video'
     }
   };

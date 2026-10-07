@@ -12,6 +12,30 @@
     return Math.max(min, Math.min(max, val));
   }
 
+  // Ray-vs-rounded-rect intersection: exact perimeter point for a hue-ring
+  // cursor so it tracks both circular rings and squircle rings.
+  function _squirclePoint(cx, cy, hx, hy, r, angleRad) {
+    const dx = Math.cos(angleRad);
+    const dy = Math.sin(angleRad);
+    const tx = Math.abs(dx) < 1e-9 ? Infinity : hx / Math.abs(dx);
+    const ty = Math.abs(dy) < 1e-9 ? Infinity : hy / Math.abs(dy);
+    const t = Math.min(tx, ty);
+    let px = cx + dx * t;
+    let py = cy + dy * t;
+    if (r > 0 && Math.abs(px - cx) > hx - r && Math.abs(py - cy) > hy - r) {
+      const sx = dx >= 0 ? 1 : -1;
+      const sy = dy >= 0 ? 1 : -1;
+      const acx = cx + sx * (hx - r);
+      const acy = cy + sy * (hy - r);
+      const vx = px - acx;
+      const vy = py - acy;
+      const len = Math.hypot(vx, vy) || 1;
+      px = acx + (vx / len) * r;
+      py = acy + (vy / len) * r;
+    }
+    return { x: px, y: py };
+  }
+
   function hsvToRgb(h, s, v) {
     h = (h % 360 + 360) % 360;
     const c = v * s;
@@ -225,30 +249,17 @@
         <nav class="color-picker-sidebar">
           <button type="button" class="color-picker-tab-btn" data-tab="eyedropper" title="Eyedropper" aria-label="Eyedropper">
             <span class="color-picker-tab-icon-wrap">
-              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12.5 8.5 L16 5a2.12 2.12 0 0 1 3 3L15.5 11.5" />
-                <path d="M10.5 6.5 L17.5 13.5" />
-                <path d="M12.5 8.5 L6.5 14.5 C5.8 15.2 5.3 16.1 5 17.1 L4 20 L6.9 19 C7.9 18.7 8.8 18.2 9.5 17.5 L15.5 11.5" />
-              </svg>
+              <i class="fticon fticon-eyedropper color-picker-tab-icon" aria-hidden="true"></i>
             </span>
           </button>
           <button type="button" class="color-picker-tab-btn" data-tab="spectrum" title="Color Wheel & Sliders" aria-label="Color Wheel">
             <span class="color-picker-tab-icon-wrap">
-              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3.5" y="4.5" width="17" height="15" rx="3.5" />
-                <circle cx="15.5" cy="8.5" r="1.5" />
-              </svg>
+              <i class="fticon fticon-color-wheel color-picker-tab-icon" aria-hidden="true"></i>
             </span>
           </button>
           <button type="button" class="color-picker-tab-btn" data-tab="palette" title="Color Palette" aria-label="Color Palette">
             <span class="color-picker-tab-icon-wrap">
-              <svg viewBox="0 0 24 24" class="color-picker-tab-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
-                <circle cx="13.5" cy="6.5" r="1" fill="currentColor" />
-                <circle cx="17.5" cy="10.5" r="1" fill="currentColor" />
-                <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
-                <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
-              </svg>
+              <i class="fticon fticon-palette color-picker-tab-icon" aria-hidden="true"></i>
             </span>
           </button>
         </nav>
@@ -581,17 +592,30 @@
       this.svCursor.style.top = ((1 - this.color.v) * svH) + 'px';
       this.svCursor.style.backgroundColor = hex;
 
-      // 4. Hue Wheel Ring Cursor
+      // 4. Hue Wheel Ring Cursor (follows ring shape: circle or squircle)
       const wheelW = this.wheelRing.clientWidth || 106;
       const wheelH = this.wheelRing.clientHeight || 106;
       const cx = wheelW / 2;
       const cy = wheelH / 2;
-      const rMid = (cx + (cx - 16)) / 2;
       const rad = ((this.color.h - 90) * Math.PI) / 180;
-      const curX = cx + Math.cos(rad) * rMid;
-      const curY = cy + Math.sin(rad) * rMid;
-      this.wheelCursor.style.left = curX + 'px';
-      this.wheelCursor.style.top = curY + 'px';
+      const ringCS = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(this.wheelRing) : null;
+      let outerR = Math.min(cx, cy);
+      if (ringCS) {
+        const parsedR = parseFloat(ringCS.borderTopLeftRadius) || 0;
+        if (parsedR > 0) outerR = Math.min(parsedR, outerR);
+      }
+      let maskInset = 16;
+      const maskEl = this.wheelRing.querySelector('.color-picker-wheel-ring-mask');
+      if (maskEl && typeof window !== 'undefined' && window.getComputedStyle) {
+        const parsedInset = parseFloat(window.getComputedStyle(maskEl).top);
+        if (!isNaN(parsedInset) && parsedInset >= 0) maskInset = parsedInset;
+      }
+      const midHx = Math.max(1, cx - maskInset / 2);
+      const midHy = Math.max(1, cy - maskInset / 2);
+      const midR = Math.max(0, Math.min(outerR - maskInset / 2, Math.min(midHx, midHy)));
+      const squirclePt = _squirclePoint(cx, cy, midHx, midHy, midR, rad);
+      this.wheelCursor.style.left = squirclePt.x + 'px';
+      this.wheelCursor.style.top = squirclePt.y + 'px';
       this.wheelCursor.style.backgroundColor = `rgb(${pureHueRgb.r}, ${pureHueRgb.g}, ${pureHueRgb.b})`;
 
       // Wheel Center display

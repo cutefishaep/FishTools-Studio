@@ -8,10 +8,10 @@
 /* 1. Effects Rack Subview Container Layout */
 .effects-rack-layout {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 48px 1fr;
   width: 100%;
-  height: 260px;
-  min-height: 230px;
+  height: 250px;
+  min-height: 240px;
   background-color: var(--bg-panel);
   color: var(--text-primary);
   font-family: var(--font-brand);
@@ -79,7 +79,13 @@
   width: 20px;
   height: 20px;
   fill: currentColor;
-}
+  font-size: 20px;}
+
+.effects-back-btn i.fticon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  font-size: 20px;}
 
 .effects-rack-title {
   font-size: 14px;
@@ -131,7 +137,14 @@
   height: 14px;
   fill: currentColor;
   flex-shrink: 0;
-}
+  font-size: 14px;}
+
+.btn-effects-header-action i.fticon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  flex-shrink: 0;
+  font-size: 14px;}
 
 /* 3. Small "Add Effects" Button (Compact Pill / Action Button) */
 .btn-add-effect {
@@ -171,7 +184,14 @@
   height: 13px;
   fill: currentColor;
   flex-shrink: 0;
-}
+  font-size: 13px;}
+
+.btn-add-effect i.fticon {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  flex-shrink: 0;
+  font-size: 13px;}
 
 /* 4. Rack Body & Effect Cards Stack */
 .effects-rack-body {
@@ -209,13 +229,19 @@
   justify-content: center;
   margin-bottom: 10px;
   flex-shrink: 0;
-}
+  font-size: 44px;}
 
 .effects-empty-icon-wrap svg {
   width: 22px;
   height: 22px;
   fill: currentColor;
-}
+  font-size: 22px;}
+
+.effects-empty-icon-wrap i.fticon {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  font-size: 22px;}
 
 .effects-empty-title {
   font-size: 13.5px;
@@ -267,7 +293,7 @@
   height: 18px;
   fill: currentColor;
   flex-shrink: 0;
-}
+  font-size: 18px;}
 
 .effects-item-name {
   font-size: 12px;
@@ -315,7 +341,13 @@
   width: 16px;
   height: 16px;
   fill: currentColor;
-}
+  font-size: 16px;}
+
+.effects-item-action-btn i.fticon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  font-size: 16px;}
 
 /* 7. Effect Card & Inspector Controls (Matches Reference Design) */
 .effects-rack-list {
@@ -379,7 +411,7 @@
   fill: currentColor;
   flex-shrink: 0;
   transition: transform 0.12s ease;
-}
+  font-size: 16px;}
 
 .effects-card.is-swipe-active .effects-swipe-trash-icon {
   transform: scale(1.2);
@@ -413,37 +445,65 @@
   gap: 8px;
   cursor: pointer;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
-.effects-card-caret-btn {
+.effects-card-caret-btn,
+.effects-card-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   background: transparent;
   color: var(--text-muted);
   border: none;
+  border-radius: 6px;
   padding: 0;
+  margin: 0;
   outline: none;
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.12s ease;
+  transition: color 0.12s ease, background-color 0.12s ease;
 }
 
-.effects-card-caret-btn:hover {
+.effects-card-caret-btn:hover,
+.effects-card-toggle-btn:hover {
   color: var(--text-primary);
+  background-color: var(--bg-panel-hover);
 }
 
-.effects-card-caret {
-  width: 10px;
-  height: 10px;
-  fill: currentColor;
-  transition: transform 0.15s ease;
+.effects-card-caret,
+i.fticon.effects-card-caret {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  fill: currentColor !important;
+  color: inherit !important;
+  transform-origin: 50% 50% !important;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.effects-card-caret::before,
+i.fticon.effects-card-caret::before {
+  display: block !important;
+  width: 14px !important;
+  height: 14px !important;
+  line-height: 14px !important;
+  text-align: center !important;
+  font-size: 14px !important;
 }
 
 .effects-card.is-expanded .effects-card-caret {
-  transform: rotate(90deg);
+  transform: rotate(90deg) !important;
 }
 
 .effects-card-title {
@@ -467,19 +527,11 @@
   flex-shrink: 0;
 }
 
-/* Eye toggle, Kebab menu, and Drag handle are ALWAYS visible in both collapsed and expanded states */
+/* Eye toggle, Kebab menu, Delete button, and Drag handle are ALWAYS visible in both collapsed and expanded states */
 .effects-card-eye-btn,
 .effects-card-kebab-btn,
+.effects-card-delete-btn,
 .effects-card-drag-handle {
-  display: inline-flex !important;
-}
-
-/* Delete button visibility */
-.effects-card:not(.is-expanded) .effects-card-delete-btn {
-  display: none !important;
-}
-
-.effects-card.is-expanded .effects-card-delete-btn {
   display: inline-flex !important;
 }
 
@@ -526,7 +578,14 @@
 .effects-card-delete-btn svg {
   width: 18px;
   height: 18px;
-}
+  font-size: 18px;}
+
+.effects-card-eye-btn i.fticon,
+.effects-card-kebab-btn i.fticon,
+.effects-card-delete-btn i.fticon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;}
 
 .effects-card-drag-handle {
   display: inline-flex;
@@ -553,7 +612,12 @@
 .effects-card-drag-handle svg {
   width: 18px;
   height: 18px;
-}
+  font-size: 18px;}
+
+.effects-card-drag-handle i.fticon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;}
 
 .effects-card.is-dragging {
   opacity: 0.45;
@@ -660,6 +724,99 @@
 .effects-param-label.is-active {
   color: var(--color-primary);
   font-weight: 700;
+}
+
+/* Parameter Keyframe Diamond Indicator Icon */
+.fx-param-kf-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  color: var(--color-primary);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.fx-param-kf-icon svg {
+  width: 8px;
+  height: 8px;
+  fill: currentColor;
+}
+
+/* Selected Effect Parameter Row (Inverted High-Contrast Highlight) */
+.effects-control-row.is-selected {
+  background-color: var(--color-primary) !important;
+  border-radius: 8px;
+  padding: 3px 6px;
+  margin: 1px 0;
+  box-sizing: border-box;
+}
+
+.effects-control-row.is-selected .effects-param-label,
+.effects-control-row.is-selected .effects-param-select-btn,
+.effects-control-row.is-selected .fx-param-name {
+  color: var(--bg-canvas) !important;
+  font-weight: 700 !important;
+}
+
+.effects-control-row.is-selected .fx-param-kf-icon {
+  color: var(--bg-canvas) !important;
+}
+
+.effects-control-row.is-selected .effects-param-pill,
+.effects-control-row.is-selected .jog-wheel-container {
+  background-color: var(--bg-canvas) !important;
+  border-color: var(--bg-canvas) !important;
+}
+
+.effects-control-row.is-selected .effects-param-pill-val {
+  color: var(--color-primary) !important;
+  font-weight: 700 !important;
+}
+
+.effects-control-row.is-selected .jog-wheel-needle {
+  background-color: var(--color-primary) !important;
+}
+
+.effects-control-row.is-selected .jog-wheel-ticks.is-bounded-tape {
+  background-color: var(--bg-panel) !important;
+}
+
+.effects-control-row.is-selected .effects-axis-badge {
+  color: var(--color-primary) !important;
+}
+
+.effects-control-row.is-selected .custom-dropdown-trigger {
+  background-color: var(--bg-canvas) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--bg-canvas) !important;
+}
+
+.effects-control-row.is-selected .custom-dropdown-label,
+.effects-control-row.is-selected .custom-dropdown-arrow {
+  color: var(--color-primary) !important;
+}
+
+.effects-control-row.is-selected .effects-segmented-group {
+  background-color: var(--bg-canvas) !important;
+}
+
+.effects-control-row.is-selected .effects-segmented-btn {
+  color: var(--text-muted) !important;
+}
+
+.effects-control-row.is-selected .effects-segmented-btn.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+.effects-control-row.is-selected .effects-color-hex-input {
+  background-color: var(--bg-canvas) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--bg-canvas) !important;
 }
 
 /* Right Column: Value Scrub Pill or Control */
@@ -825,7 +982,7 @@
 .effects-segmented-group {
   flex: 1;
   width: 100%;
-  height: 26px;
+  height: 32px;
   display: flex;
   align-items: center;
   gap: 3px;
@@ -878,7 +1035,7 @@
 
 .effects-control-row .custom-dropdown-trigger {
   width: 100%;
-  height: 26px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1004,15 +1161,15 @@
 /* Color Picker Control Row */
 .effects-color-picker-wrap {
   flex: 1;
-  height: 26px;
+  height: 32px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .effects-color-swatch-btn {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   cursor: pointer;
   border-radius: 4px;
@@ -1040,7 +1197,7 @@
 
 .effects-color-hex-input {
   flex: 1;
-  height: 26px;
+  height: 32px;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-panel);
   border-radius: 4px;
@@ -1084,8 +1241,9 @@
 /* 8. Mobile Responsive Refinements */
 @media (max-width: 600px) {
   .effects-rack-layout {
-    height: 230px;
-    min-height: 210px;
+    grid-template-columns: 48px 1fr;
+    height: 240px;
+    min-height: 240px;
   }
 }
 
@@ -1169,7 +1327,14 @@
   height: 15px;
   fill: var(--text-muted);
   flex-shrink: 0;
-}
+  font-size: 15px;}
+
+.effects-gallery-search-box i.fticon {
+  width: 15px;
+  height: 15px;
+  fill: var(--text-muted);
+  flex-shrink: 0;
+  font-size: 15px;}
 
 .effects-gallery-search-input {
   background: transparent;
@@ -1202,6 +1367,86 @@
 
 .effects-gallery-body::-webkit-scrollbar {
   display: none;
+}
+
+/* ── Gallery Home Sections (Favorites, Last Used, Category) ───────────── */
+.effects-gallery-home-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.effects-gallery-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.effects-gallery-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.effects-gallery-section-title {
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.effects-gallery-section-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.effects-gallery-horizontal-list {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 8px;
+  margin: 0 -2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.effects-gallery-horizontal-list::-webkit-scrollbar {
+  display: none;
+}
+
+.effects-gallery-horizontal-list .effects-gallery-item-card {
+  flex: 0 0 84px;
+  width: 84px;
+}
+
+.effects-gallery-empty-state {
+  flex: 1 1 100%;
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  color: var(--text-muted);
+  font-family: var(--font-brand);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  background-color: var(--bg-dashboard);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 8px;
+  box-sizing: border-box;
+  user-select: none;
 }
 
 /* ── Category tiles ───────────────────────────────────────────────────── */
@@ -1399,6 +1644,7 @@
 }
 
 .effects-gallery-item-thumb {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 8px;
@@ -1420,6 +1666,49 @@
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+/* Star favorite button at top-right corner of card thumbnail */
+.effects-gallery-star-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--bg-canvas);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.effects-gallery-star-btn .effects-star-svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.effects-gallery-star-btn.is-favorite {
+  background-color: var(--bg-canvas);
+  color: var(--color-primary);
+}
+
+.effects-gallery-star-btn.is-favorite .effects-star-svg {
+  fill: var(--color-primary);
+  stroke: var(--color-primary);
 }
 
 .effects-gallery-item-name {
@@ -1483,6 +1772,18 @@
   .effects-gallery-item-card:active:hover .effects-gallery-item-thumb {
     background-color: var(--color-primary);
   }
+  .effects-gallery-star-btn:hover {
+    background-color: var(--bg-panel-hover);
+    color: var(--color-primary);
+    transform: scale(1.12);
+  }
+  .effects-gallery-star-btn.is-favorite:hover {
+    background-color: var(--bg-panel-hover);
+    color: var(--color-primary-hover);
+  }
+  .effects-gallery-star-btn:active {
+    transform: scale(0.92);
+  }
 }
 
 /* Mobile: comfortable thumb reach, search on its own row, bigger tap targets */
@@ -1507,6 +1808,27 @@
   }
   .effects-gallery-body {
     padding: 0 10px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .effects-gallery-home-view {
+    gap: 14px;
+  }
+  .effects-gallery-horizontal-list {
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+  .effects-gallery-horizontal-list .effects-gallery-item-card {
+    flex: 0 0 76px;
+    width: 76px;
+  }
+  .effects-gallery-star-btn {
+    width: 20px;
+    height: 20px;
+    top: 3px;
+    right: 3px;
+  }
+  .effects-gallery-star-btn .effects-star-svg {
+    width: 11px;
+    height: 11px;
   }
   .effects-category-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1762,4 +2084,33 @@
   color: var(--text-muted);
   text-align: center;
   font-style: italic;
+}
+
+/* Force consistent 32px height for all effect controls overriding desktop.css & transform-controller.css */
+body .effects-rack-main .effects-control-row .effects-param-pill.jog-wheel-container,
+body .effects-rack-main .effects-control-row .effects-segmented-group,
+body .effects-rack-main .effects-control-row .effects-custom-dropdown,
+body .effects-rack-main .effects-control-row .custom-dropdown-trigger {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  margin: 0 !important;
+}
+
+body .effects-rack-main .effects-control-row .effects-param-pill.jog-wheel-container,
+body .effects-rack-main .effects-control-row .custom-dropdown-trigger {
+  padding: 0 8px !important;
+}
+
+body .effects-rack-main .effects-control-row .effects-segmented-group {
+  padding: 2px !important;
+}
+
+/* Force label buttons to 32px to match */
+body .effects-rack-main .effects-control-row .effects-param-select-btn {
+  height: 32px !important;
+}
+
+body .effects-rack-main .effects-control-row .effects-param-value-btn {
+  height: 32px !important;
 }

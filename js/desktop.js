@@ -1073,7 +1073,7 @@
           twistie.className = `desktop-layer-twistie-btn ${layer && layer._kfExpanded ? 'is-expanded' : ''}`;
           twistie.title = layer && layer._kfExpanded ? 'Collapse Keyframes (U)' : 'Expand Keyframes (U)';
           twistie.setAttribute('aria-label', twistie.title);
-          twistie.innerHTML = `<svg class="desktop-twistie-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>`;
+          twistie.innerHTML = `<i class="fticon fticon-icon-36 desktop-twistie-icon" style="width:12px;height:12px;font-size:12px;line-height:1;" aria-hidden="true"></i>`;
           pill.prepend(twistie);
 
           twistie.addEventListener('pointerdown', (e) => {
@@ -1086,6 +1086,7 @@
             const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
             const targetLayer = currentLayers.find(l => String(l.id) === String(layerId)) || layer;
             if (targetLayer) {
+              targetLayer._kfSoloProp = null;
               if (typeof window.toggleLayerKeyframeExpansion === 'function') {
                 window.toggleLayerKeyframeExpansion(targetLayer.id, !targetLayer._kfExpanded, false);
               } else {
@@ -1113,7 +1114,7 @@
             idxEl = document.createElement('span');
             idxEl.className = 'desktop-layer-null-icon';
             idxEl.title = 'Null Object (Drag to link)';
-            idxEl.innerHTML = '<span class="svg-icon svg-icon-null" aria-hidden="true"></span>';
+            idxEl.innerHTML = '<span class="fticon fticon-layer-null" aria-hidden="true"></span>';
             const eyeBtn = pill.querySelector('.timeline-layer-eye-btn');
             if (eyeBtn && eyeBtn.nextSibling) {
               pill.insertBefore(idxEl, eyeBtn.nextSibling);
@@ -1181,7 +1182,7 @@
           mblurBtn.className = 'desktop-layer-mblur-btn' + (isMbOn ? ' is-active' : '');
           mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
           mblurBtn.setAttribute('aria-label', mblurBtn.title);
-          mblurBtn.innerHTML = '<span class="svg-icon svg-icon-motion-blur" aria-hidden="true"></span>';
+          mblurBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" class="svg-motion-blur" aria-hidden="true"><circle cx="16.5" cy="12" r="4.5"/><circle cx="11.5" cy="12" r="4.5" fill-opacity="0.55"/><circle cx="6.5" cy="12" r="4.5" fill-opacity="0.25"/></svg>';
           controlCol.appendChild(mblurBtn);
 
           mblurBtn.addEventListener('pointerdown', (e) => {
@@ -1249,6 +1250,53 @@
           mblurBtn.title = isMbOn ? 'Motion Blur: Enabled' : 'Motion Blur: Disabled (Click to enable)';
         }
 
+
+        // Desktop: collapse-transformations switch khusus precomp.
+        // Kolom selalu ada di sebelah motion blur untuk layer precompose.
+        let btnCollapse = controlCol.querySelector('.desktop-layer-collapse-btn');
+        if (layer && layer.type === 'precomp') {
+          const isCollapseOn = !!layer.collapseTransformations;
+          if (!btnCollapse) {
+            btnCollapse = document.createElement('button');
+            btnCollapse.type = 'button';
+            btnCollapse.className = 'desktop-layer-collapse-btn' + (isCollapseOn ? ' is-active' : '');
+            btnCollapse.title = isCollapseOn ? 'Collapse Transformations: Enabled' : 'Collapse Transformations: Disabled';
+            btnCollapse.setAttribute('aria-label', btnCollapse.title);
+            btnCollapse.innerHTML = '<i class="fticon fticon-collapse-transformations" aria-hidden="true"></i>';
+            controlCol.appendChild(btnCollapse);
+            btnCollapse.addEventListener('pointerdown', (e) => {
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+            });
+            btnCollapse.addEventListener('click', (e) => {
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              e.preventDefault();
+              const curLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
+              const targetIds = window.selectedLayerIds && window.selectedLayerIds.has(layerId) && window.selectedLayerIds.size > 1 ? new Set(Array.from(window.selectedLayerIds).map(String)) : new Set([String(layerId)]);
+              const target = curLayers.find(l => String(l.id) === String(layerId)) || layer;
+              const nextState = target ? !target.collapseTransformations : true;
+              curLayers.forEach(l => {
+                if (targetIds.has(String(l.id))) {
+                  l.collapseTransformations = nextState;
+                  if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(l);
+                }
+              });
+              btnCollapse.classList.toggle('is-active', nextState);
+              btnCollapse.title = nextState ? 'Collapse Transformations: Enabled' : 'Collapse Transformations: Disabled';
+              btnCollapse.setAttribute('aria-label', btnCollapse.title);
+              if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers(true);
+              if (typeof window.redrawComposition === 'function') window.redrawComposition();
+            });
+          } else {
+            btnCollapse.className = 'desktop-layer-collapse-btn' + (isCollapseOn ? ' is-active' : '');
+            btnCollapse.title = isCollapseOn ? 'Collapse Transformations: Enabled' : 'Collapse Transformations: Disabled';
+            btnCollapse.setAttribute('aria-label', btnCollapse.title);
+          }
+        } else if (btnCollapse) {
+          btnCollapse.remove();
+        }
+
         let btn3D = controlCol.querySelector('.desktop-layer-3d-btn');
         const is3DOn = !!(layer && layer.is3D);
         const canBe3D = layer && layer.type !== 'audio';
@@ -1261,7 +1309,7 @@
           btn3D.className = 'desktop-layer-3d-btn' + (is3DOn ? ' is-active' : '');
           btn3D.title = is3DOn ? '3D Layer: Enabled' : '3D Layer: Disabled (Click to enable)';
           btn3D.setAttribute('aria-label', btn3D.title);
-          btn3D.innerHTML = '<span class="svg-icon svg-icon-3d" aria-hidden="true"></span>';
+          btn3D.innerHTML = '<span class="fticon fticon-badge-3d" aria-hidden="true"></span>';
           controlCol.appendChild(btn3D);
 
           btn3D.addEventListener('pointerdown', (e) => {
@@ -1329,7 +1377,7 @@
           parentCol.className = 'desktop-layer-parent-col';
           parentCol.innerHTML = `
             <button type="button" class="desktop-layer-pickwhip-btn" title="Parent Pickwhip (drag to layer to link)" aria-label="Parent Pickwhip">
-              <span class="svg-icon svg-icon-pickwhip" aria-hidden="true"></span>
+              <span class="fticon fticon-pickwhip" aria-hidden="true"></span>
             </button>
             <button type="button" class="desktop-layer-parent-badge" title="Parent Layer" aria-label="Select Parent Layer">
               <span class="parent-label-text">None</span>
@@ -1751,7 +1799,7 @@
   }
 
   // Live panel width with cached layout read to eliminate style thrashing during playback
-  let _cachedDesktopPanelW = 240;
+  let _cachedDesktopPanelW = 310;
   function updateCachedDesktopPanelW() {
     const rootVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--desktop-layer-panel-w'));
     if (!isNaN(rootVal) && rootVal > 0) {
@@ -1763,7 +1811,7 @@
       _cachedDesktopPanelW = gutter.offsetWidth;
       return;
     }
-    _cachedDesktopPanelW = 240;
+    _cachedDesktopPanelW = 310;
   }
   function getDesktopPanelW() {
     return _cachedDesktopPanelW;
@@ -3028,6 +3076,9 @@
               window.executeMoveOut();
             }
           } else if (e.key && e.key.toLowerCase() === 'u') {
+            const isMobileKb = (typeof window !== 'undefined' && typeof navigator !== 'undefined'
+              && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || ''));
+            if (isMobileKb) return;
             const currentLayers = (window.currentProjectState && window.currentProjectState.layers) || [];
             const selectedIds = window.selectedLayerIds && window.selectedLayerIds.size > 0 
               ? Array.from(window.selectedLayerIds) 

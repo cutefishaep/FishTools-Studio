@@ -767,7 +767,7 @@
       };
       const isExpanded = fx.isExpanded !== false;
       const isDisabled = !!fx.disabled;
-      const selectedProp = activeProperty || (typeof window !== 'undefined' && window.activeKeyframeProperty) || (def.params[0] ? `${fx.id}:${def.params[0].id}` : '');
+      const selectedProp = activeProperty || (typeof window !== 'undefined' && window.activeKeyframeProperty) || '';
       const ticksMarkup = getRulerTicksSVG();
 
       // Mobile / editor.html layout lock: 3D Element requires desktop workstation
@@ -783,18 +783,18 @@
         return `
         <div class="effects-card fx-${fx.id} ${isExpanded ? 'is-expanded' : ''} ${isDisabled ? 'is-disabled' : ''}" data-effect-id="${fx.id}" data-effect-type="${fx.type}">
           <div class="effects-card-header">
-            <div class="effects-card-left">
-              <button type="button" class="effects-card-toggle-btn" title="Toggle Controls" aria-label="Toggle Controls">
-                <svg viewBox="0 0 24 24" class="effects-card-caret"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+            <div class="effects-card-header-left">
+              <button type="button" class="effects-card-caret-btn" title="Toggle Controls" aria-label="Toggle Controls">
+                <i class="fticon fticon-toggle-controls effects-card-caret" aria-hidden="true"></i>
               </button>
               <span class="effects-card-title">${fx.name || def.name}</span>
             </div>
             <div class="effects-card-actions">
               <button type="button" class="effects-card-eye-btn ${isDisabled ? '' : 'is-active'}" title="Enable/Disable Effect" aria-label="Toggle Effect">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                <i class='fticon fticon-toggle-effect' aria-hidden='true'></i>
               </button>
               <button type="button" class="effects-card-delete-btn" title="Remove Effect" aria-label="Delete">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                <i class='fticon fticon-delete-beatmark' aria-hidden='true'></i>
               </button>
             </div>
           </div>
@@ -839,10 +839,15 @@
             : (fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 1));
           const switchVal = (rawVal === 1 || rawVal === true || rawVal === '1' || rawVal === 'true' || rawVal === 'on') ? 1 : 0;
 
+          const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const isParamActive = (selectedProp === propKey) || (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
+
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-switch" data-param="${p.id}">
+            <div class="effects-control-row effects-control-row-switch ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
-                <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
+                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                </button>
               </div>
               <div class="effects-param-val-col">
                 <div class="effects-segmented-group effects-switch-group" data-param="${p.id}">
@@ -857,6 +862,14 @@
 
         if (type === 'select') {
           processedParams.add(p.id);
+          const propKey = `${fx.id}:${p.id}`;
+          const builtInProps = ['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount'];
+          const hasKf = !!(layer && layer.keyframes && (
+            (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
+          ));
+          const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const isParamActive = (selectedProp === propKey) || (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
           const rawSelectVal = fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 'normal');
           const selectVal = String(rawSelectVal).toLowerCase();
           const rawOpts = Array.isArray(p.options) && p.options.length > 0 ? p.options : ['normal', 'multiply', 'overlay'];
@@ -876,9 +889,11 @@
             `).join('');
 
             controlsHTMLArr.push(`
-              <div class="effects-control-row effects-control-row-select" data-param="${p.id}">
+              <div class="effects-control-row effects-control-row-select ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
                 <div class="effects-param-label-col">
-                  <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+                  <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
+                    ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                  </button>
                 </div>
                 <div class="effects-param-val-col">
                   <div class="effects-segmented-group" data-param="${p.id}">
@@ -900,17 +915,17 @@
           }).join('');
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-select" data-param="${p.id}">
+            <div class="effects-control-row effects-control-row-select ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
-                <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
+                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                </button>
               </div>
               <div class="effects-param-val-col">
                 <div class="custom-dropdown effects-custom-dropdown" data-param="${p.id}" data-value="${currentVal}">
                   <button type="button" class="custom-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" title="Select ${p.label || p.id}">
                     <span class="custom-dropdown-label">${currentLabel}</span>
-                    <svg class="custom-dropdown-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M7 10l5 5 5-5z"/>
-                    </svg>
+                    <i class='fticon fticon-select-animation-target custom-dropdown-arrow' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                   </button>
                   <div class="custom-dropdown-menu" role="listbox">
                     ${items}
@@ -924,11 +939,21 @@
 
         if (type === 'color') {
           processedParams.add(p.id);
+          const propKey = `${fx.id}:${p.id}`;
+          const builtInProps = ['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount'];
+          const hasKf = !!(layer && layer.keyframes && (
+            (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
+          ));
+          const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const isParamActive = (selectedProp === propKey) || (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
           const colorVal = (fx[p.id] !== undefined && fx[p.id]) ? fx[p.id] : (p.default || '#000000');
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-color" data-param="${p.id}">
+            <div class="effects-control-row effects-control-row-color ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
-                <span class="effects-param-label" title="${p.label || p.id}">${p.label || p.id}</span>
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
+                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                </button>
               </div>
               <div class="effects-param-val-col">
                 <div class="effects-color-picker-wrap">
@@ -1072,13 +1097,6 @@
           processedParams.add(p.id);
           processedParams.add(pairY.id);
 
-          const propKeyX = `${fx.id}:${p.id}`;
-          const propKeyY = `${fx.id}:${pairY.id}`;
-
-          const isParamActive = (selectedProp === propKeyX) || (selectedProp === propKeyY) ||
-            (!selectedProp && fx === layer.effects[0] && p.id === paramsList[0].id) ||
-            (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
-
           const pairLabel = (p.label || p.id).replace(/\s*([_ -]?[Xx])\b.*$/, '').trim() || (p.label || p.id);
 
           // Values for X
@@ -1093,7 +1111,6 @@
             : Math.max(minX, Math.min(maxX, Math.round(rawValX)));
           const formattedValX = isDecimalX ? numValX.toFixed(2) : numValX;
           const badgeTextX = (numValX >= 0 && minX < 0 ? '+' : '') + formattedValX + unitX;
-          const trackWidthX = (maxX > minX) ? Math.max(0, Math.min(100, ((numValX - minX) / (maxX - minX)) * 100)).toFixed(1) : 0;
 
           // Values for Y
           const minY = fx.min !== undefined ? fx.min : (pairY.min !== undefined ? pairY.min : -100);
@@ -1107,28 +1124,54 @@
             : Math.max(minY, Math.min(maxY, Math.round(rawValY)));
           const formattedValY = isDecimalY ? numValY.toFixed(2) : numValY;
           const badgeTextY = (numValY >= 0 && minY < 0 ? '+' : '') + formattedValY + unitY;
-          const trackWidthY = (maxY > minY) ? Math.max(0, Math.min(100, ((numValY - minY) / (maxY - minY)) * 100)).toFixed(1) : 0;
+          const spanX = maxX - minX;
+          const tapeWidthX = 480;
+          const ratioX = spanX > 0 ? Math.max(0, Math.min(1, (numValX - minX) / spanX)) : 0;
+          const tapeOffsetX = -ratioX * tapeWidthX;
+
+          const spanY = maxY - minY;
+          const tapeWidthY = 480;
+          const ratioY = spanY > 0 ? Math.max(0, Math.min(1, (numValY - minY) / spanY)) : 0;
+          const tapeOffsetY = -ratioY * tapeWidthY;
+
+          const propKeyX = `${fx.id}:${p.id}`;
+          const propKeyY = `${fx.id}:${pairY.id}`;
+          const hasKfX = !!(layer && layer.keyframes && (
+            (layer.keyframes[propKeyX] && layer.keyframes[propKeyX].length > 0) ||
+            (layer.effects && fx === layer.effects[0] && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
+          ));
+          const hasKfY = !!(layer && layer.keyframes && (
+            (layer.keyframes[propKeyY] && layer.keyframes[propKeyY].length > 0) ||
+            (layer.effects && fx === layer.effects[0] && layer.keyframes[pairY.id] && layer.keyframes[pairY.id].length > 0)
+          ));
+          const hasKf = hasKfX || hasKfY;
+          const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const isParamActive = (selectedProp === propKeyX) || (selectedProp === propKeyY) ||
+            (selectedProp === p.id && (!layer.effects || fx === layer.effects[0])) ||
+            (selectedProp === pairY.id && (!layer.effects || fx === layer.effects[0]));
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-pair" data-param="${p.id},${pairY.id}">
+            <div class="effects-control-row effects-control-row-pair ${isParamActive ? 'is-selected' : ''}" data-param="${p.id},${pairY.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
-                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${pairLabel} for keyframing">
-                  ${pairLabel}
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${pairLabel} for keyframing">
+                  ${kfIconHTML}<span class="fx-param-name">${pairLabel}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
                 <div class="effects-param-pair">
                   <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unitX}" data-min="${minX}" data-max="${maxX}" ${p.step ? `data-step="${p.step}"` : ''} role="slider" aria-valuemin="${minX}" aria-valuemax="${maxX}" aria-valuenow="${numValX}" aria-label="${p.label || p.id} Scrubber">
-                    <div class="effects-pill-track fx-track-${p.id}" style="width: ${trackWidthX}%;"></div>
-                    <div class="jog-wheel-ticks" style="display:none;"></div>
-                    <div class="jog-wheel-needle" style="display:none;"></div>
+                    <div class="jog-wheel-track-viewport">
+                      <div class="jog-wheel-ticks is-bounded-tape" style="--tape-width: ${tapeWidthX}px; --tape-offset: ${tapeOffsetX.toFixed(1)}px;" data-tape-width="${tapeWidthX}"></div>
+                    </div>
+                    <div class="jog-wheel-needle"></div>
                     <span class="effects-axis-badge">X</span>
                     <span class="effects-param-pill-val fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">${badgeTextX}</span>
                   </div>
                   <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${pairY.id}" data-param="${pairY.id}" data-unit="${unitY}" data-min="${minY}" data-max="${maxY}" ${pairY.step ? `data-step="${pairY.step}"` : ''} role="slider" aria-valuemin="${minY}" aria-valuemax="${maxY}" aria-valuenow="${numValY}" aria-label="${pairY.label || pairY.id} Scrubber">
-                    <div class="effects-pill-track fx-track-${pairY.id}" style="width: ${trackWidthY}%;"></div>
-                    <div class="jog-wheel-ticks" style="display:none;"></div>
-                    <div class="jog-wheel-needle" style="display:none;"></div>
+                    <div class="jog-wheel-track-viewport">
+                      <div class="jog-wheel-ticks is-bounded-tape" style="--tape-width: ${tapeWidthY}px; --tape-offset: ${tapeOffsetY.toFixed(1)}px;" data-tape-width="${tapeWidthY}"></div>
+                    </div>
+                    <div class="jog-wheel-needle"></div>
                     <span class="effects-axis-badge">Y</span>
                     <span class="effects-param-pill-val fx-badge-${pairY.id}" data-param="${pairY.id}" title="Click to edit ${pairY.label || pairY.id} value">${badgeTextY}</span>
                   </div>
@@ -1142,8 +1185,13 @@
         // Single number or angle parameter
         processedParams.add(p.id);
         const propKey = `${fx.id}:${p.id}`;
+        const builtInProps = ['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount'];
+        const hasKf = !!(layer && layer.keyframes && (
+          (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
+          (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
+        ));
+        const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
         const isParamActive = (selectedProp === propKey) ||
-          (!selectedProp && fx === layer.effects[0] && p.id === paramsList[0].id) ||
           (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
 
         if (type === 'angle') {
@@ -1159,17 +1207,18 @@
           const trackWidth = ((normAngle / 360) * 100).toFixed(1);
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row" data-param="${p.id}">
+            <div class="effects-control-row ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
-                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${p.label || p.id} for keyframing">
-                  ${p.label || p.id}
+                <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
+                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
                 <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unit}" data-type="angle" data-is-angle="true" data-unlimited="true" role="slider" aria-valuenow="${angleVal}" aria-label="${p.label || p.id} Angle Scrubber">
-                  <div class="effects-pill-track fx-track-${p.id}" style="width: ${trackWidth}%;"></div>
-                  <div class="jog-wheel-ticks" style="display:none;"></div>
-                  <div class="jog-wheel-needle" style="display:none;"></div>
+                  <div class="jog-wheel-track-viewport">
+                    <div class="jog-wheel-ticks"></div>
+                  </div>
+                  <div class="jog-wheel-needle"></div>
                   <span class="effects-param-pill-val fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">${badgeText}</span>
                 </div>
               </div>
@@ -1190,20 +1239,24 @@
           : Math.max(min, Math.min(max, Math.round(rawVal)));
         const formattedVal = isDecimal ? numVal.toFixed(2) : numVal;
         const badgeText = (numVal >= 0 && min < 0 ? '+' : '') + formattedVal + unit;
-        const trackWidth = (max > min) ? Math.max(0, Math.min(100, ((numVal - min) / (max - min)) * 100)).toFixed(1) : 0;
+        const span = max - min;
+        const tapeWidth = 480;
+        const ratio = span > 0 ? Math.max(0, Math.min(1, (numVal - min) / span)) : 0;
+        const tapeOffset = -ratio * tapeWidth;
 
         controlsHTMLArr.push(`
-          <div class="effects-control-row" data-param="${p.id}">
+          <div class="effects-control-row ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
             <div class="effects-param-label-col">
-              <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" title="Select ${p.label || p.id} for keyframing">
-                ${p.label || p.id}
+              <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
+                ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
               </button>
             </div>
             <div class="effects-param-val-col">
               <div class="effects-param-pill jog-wheel-container is-horizontal effects-ruler-scrubber fx-scrubber-${p.id}" data-param="${p.id}" data-unit="${unit}" data-min="${min}" data-max="${max}" ${p.step ? `data-step="${p.step}"` : ''} role="slider" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${numVal}" aria-label="${p.label || p.id} Scrubber">
-                <div class="effects-pill-track fx-track-${p.id}" style="width: ${trackWidth}%;"></div>
-                <div class="jog-wheel-ticks" style="display:none;"></div>
-                <div class="jog-wheel-needle" style="display:none;"></div>
+                <div class="jog-wheel-track-viewport">
+                  <div class="jog-wheel-ticks is-bounded-tape" style="--tape-width: ${tapeWidth}px; --tape-offset: ${tapeOffset.toFixed(1)}px;" data-tape-width="${tapeWidth}"></div>
+                </div>
+                <div class="jog-wheel-needle"></div>
                 <span class="effects-param-pill-val fx-badge-${p.id}" data-param="${p.id}" title="Click to edit ${p.label || p.id} value">${badgeText}</span>
               </div>
             </div>
@@ -1215,13 +1268,13 @@
       return `
         <div class="effects-card ${isExpanded ? 'is-expanded' : ''}" data-effect-id="${fx.id}">
           <div class="effects-card-swipe-bg" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor" class="effects-swipe-trash-icon"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            <i class="fticon fticon-delete-beatmark effects-swipe-trash-icon" aria-hidden="true"></i>
             <span class="effects-swipe-label">Delete</span>
           </div>
           <div class="effects-card-header">
             <div class="effects-card-header-left">
               <button type="button" class="effects-card-caret-btn" title="Toggle Expand" aria-label="Toggle Expand">
-                <svg viewBox="0 0 24 24" class="effects-card-caret"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+                <i class="fticon fticon-toggle-controls effects-card-caret" aria-hidden="true"></i>
               </button>
               <span class="effects-card-title">${fx.name || def.name}</span>
             </div>
@@ -1229,16 +1282,16 @@
             <!-- Header Right Actions: Eye toggle, Kebab menu, Delete, and Drag handle (always visible) -->
             <div class="effects-card-actions">
               <button type="button" class="effects-card-eye-btn ${isDisabled ? '' : 'is-active'}" title="Enable/Disable Effect" aria-label="Toggle Effect">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                <i class='fticon fticon-toggle-effect' aria-hidden='true'></i>
               </button>
               <button type="button" class="effects-card-kebab-btn" title="Effect Options" aria-label="Effect Options">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                <i class='fticon fticon-effect-options' aria-hidden='true'></i>
               </button>
               <button type="button" class="effects-card-delete-btn" title="Remove Effect" aria-label="Delete">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                <i class='fticon fticon-delete-beatmark' aria-hidden='true'></i>
               </button>
               <span class="effects-card-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                <i class='fticon fticon-drag-to-reorder' aria-hidden='true'></i>
               </span>
             </div>
           </div>

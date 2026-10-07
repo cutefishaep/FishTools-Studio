@@ -48,11 +48,7 @@
           <header class="template-topbar">
             <div class="template-topbar-inner">
               <button type="button" class="template-nav-btn" id="template-btn-back" title="Back to Projects" aria-label="Back to Projects">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 19H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/>
-                  <polyline points="14 16 10 12 14 8"/>
-                  <line x1="10" y1="12" x2="21" y2="12"/>
-                </svg>
+                <i class='fticon fticon-back-to-projects-2' aria-hidden='true'></i>
               </button>
               <span class="template-topbar-title">Template editor</span>
               <button type="button" class="template-btn-next" id="template-btn-next">Next</button>
@@ -67,9 +63,7 @@
                 <canvas class="template-preview-canvas" id="template-preview-canvas" width="1280" height="720"></canvas>
                 <div class="template-play-overlay" id="template-play-overlay">
                   <div class="template-play-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
+                    <i class='fticon fticon-play' aria-hidden='true'></i>
                   </div>
                 </div>
 
@@ -86,7 +80,7 @@
                     <div class="matting-widget-header">
                       <span class="matting-widget-title" id="template-matting-widget-title">Background Processing</span>
                       <button type="button" class="matting-widget-close" id="template-matting-widget-close" aria-label="Close">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <i class='fticon fticon-close' style='width:14px;height:14px;font-size:14px;line-height:1;' aria-hidden='true'></i>
                       </button>
                     </div>
                     <div class="matting-widget-list" id="template-matting-widget-list"></div>
@@ -145,11 +139,7 @@
           <div class="popover-menu-list">
             <!-- 1. Open Timeline (at top per user requirement) -->
             <button type="button" class="popover-menu-item" id="btn-template-open-timeline" title="Open Timeline">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="4" y1="6" x2="20" y2="6"/>
-                <line x1="4" y1="12" x2="14" y2="12"/>
-                <line x1="4" y1="18" x2="18" y2="18"/>
-              </svg>
+              <i class='fticon fticon-open-timeline' aria-hidden='true'></i>
               <span>Open Timeline</span>
             </button>
             <div class="popover-menu-divider"></div>
@@ -324,7 +314,7 @@
             <div class="matting-task-meta">
               <span class="matting-task-name">${task.layerName || 'Media'}</span>
               <button type="button" class="matting-task-cancel" title="Cancel" data-task-id="${task.id}">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <i class='fticon fticon-close' style='width:12px;height:12px;font-size:12px;line-height:1;' aria-hidden='true'></i>
               </button>
             </div>
             <div class="matting-task-status">${statusText}</div>
@@ -892,10 +882,10 @@
 
         const isVideo = slot.type === 'video';
         const typeIcon = isVideo
-          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
-          : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+          ? '<i class="fticon fticon-icon-5" aria-hidden="true"></i>'
+          : '<i class="fticon fticon-icon-6" aria-hidden="true"></i>';
 
-        const replaceSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4"/><polyline points="16 3 20 7 16 11"/><path d="M4 17h16"/><polyline points="8 13 4 17 8 21"/></svg>';
+        const replaceSvg = '<i class="fticon fticon-icon-7" aria-hidden="true"></i>';
 
         const thumbHtml = slot.thumbUrl
           ? ('<img class="template-card-thumb" src="' + slot.thumbUrl + '" alt="' + slot.name + '" />')
@@ -1308,10 +1298,10 @@
         const typeBadge = activeCard.querySelector('.template-card-badge-type');
         if (typeBadge) {
           typeBadge.innerHTML = isAudio
-            ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
+            ? '<i class="fticon fticon-add-reverb-effect" aria-hidden="true"></i>'
             : (isVideo
-              ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
-              : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>');
+              ? '<i class="fticon fticon-icon-5" aria-hidden="true"></i>'
+              : '<i class="fticon fticon-icon-6" aria-hidden="true"></i>');
         }
         const durEl = activeCard.querySelector('.template-card-duration');
         if (durEl) {
@@ -1328,9 +1318,7 @@
           fb.className = 'template-card-fallback template-card-audio-fallback';
           fb.title = slot.name;
           fb.innerHTML = `
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" style="margin-bottom: 2px;">
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-            </svg>
+            <i class="fticon fticon-track-audio" style="margin-bottom: 2px;width:22px;height:22px;font-size:22px;line-height:1;" aria-hidden="true"></i>
             <span style="max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.65rem;">${slot.name || 'AUDIO'}</span>
           `;
         } else {

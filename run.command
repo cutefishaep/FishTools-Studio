@@ -3,8 +3,13 @@
 #   FishTools Studio - macOS Server Launcher
 # ===================================================
 
-# Set working directory to script folder
-cd "$(dirname "$0")" || exit 1
+# Target FishTools Studio (wasm) if available
+WASM_DIR="$(dirname "$0")/../FishTools Studio (wasm)"
+if [ -d "$WASM_DIR" ]; then
+  cd "$WASM_DIR" || exit 1
+else
+  cd "$(dirname "$0")" || exit 1
+fi
 
 # Ensure Node and common package manager paths are available in GUI / Terminal session
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
@@ -14,8 +19,22 @@ if [ -d "$HOME/.nvm" ]; then
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use 2>/dev/null
 fi
 
+# Terminate any stale server instance on port 3000
+OLD_PID=$(lsof -ti :3000 2>/dev/null)
+if [ -n "$OLD_PID" ]; then
+  kill -9 $OLD_PID 2>/dev/null
+  sleep 0.4
+fi
+
+# Build WebAssembly binary if missing
+if [ ! -f "assets/wasm/fishtools-core.wasm" ]; then
+  echo "[WASM] Mengompilasi modul WebAssembly..."
+  npm run build:wasm
+fi
+
 clear
-echo "  OpenFishTools Studio (macOS)"
+echo "  OpenFishTools Studio (WASM Core Accelerated)"
+echo "  Core Engine   : WebAssembly High-Performance 3D Matrix & Perspective"
 echo "  Local Server  : http://localhost:3000"
 echo "  Desktop Route : http://localhost:3000/desktop"
 echo "  Editor Route  : http://localhost:3000/editor"

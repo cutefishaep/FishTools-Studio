@@ -276,6 +276,9 @@
       if (category === 'media' && typeof window.renderProjectMediaGrid === 'function') {
         window.renderProjectMediaGrid();
       }
+      if (category === 'shape' && typeof window.syncShapeButtonsUI === 'function') {
+        window.syncShapeButtonsUI();
+      }
       if (category === 'text' && typeof window.renderTextPresetsGrid === 'function') {
         window.renderTextPresetsGrid();
       }

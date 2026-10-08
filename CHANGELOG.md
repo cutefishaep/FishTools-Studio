@@ -5,6 +5,13 @@ All notable changes to OpenFishTools Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.132] - 2026-10-08
+
+### Fixed
+- **Shape Asset Icons Vector Rendering (`desktop.html`, `editor.html`, `js/shapes.js`, `css/desktop.css`, `css/drawer.css`)**: Replaced generic font icons in Project Asset Shape grid with crisp rendered SVG vector previews using normalized shape contours and theme-token colors.
+- **Shape Edit Live Canvas Invalidation Bug (`js/editor.js`, `js/desktop.js`)**: Fixed live shape preview rendering not updating when adjusting shape parameters (roundness, points, sides, inner radius, size, and stroke); serialized all shape properties in `shapeKey` and cleared stale buffer canvas cache flags so the canvas updates immediately without requiring a browser refresh.
+- **Desktop Inspector Effects & Transform Layout (`desktop.html`, `css/desktop.css`)**: Cleaned up transform mode buttons into clean text-only controls and adjusted effect parameter spacing in desktop inspector.
+
 ## [0.5.131] - 2026-10-04
 
 ### Fixed

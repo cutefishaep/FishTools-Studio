@@ -120,6 +120,39 @@
       const ry = sy / 2;
       ctx.rect(cx - rx, cy - ry, sx, sy);
       return false;
+    },
+
+    /**
+     * Render crisp vector SVG for a shape type
+     * @param {string} shapeType
+     * @param {Object} options
+     * @returns {string}
+     */
+    renderSvg(shapeType, options = {}) {
+      const def = this.get(shapeType);
+      const width = options.width || 24;
+      const height = options.height || 24;
+      const className = options.className || 'layer-action-icon shape-render-icon';
+      if (!def) {
+        return `<svg viewBox="0 0 24 24" width="${width}" height="${height}" fill="currentColor" class="${className}" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/></svg>`;
+      }
+      if (def.iconSvg) {
+        return `<svg viewBox="0 0 24 24" width="${width}" height="${height}" fill="currentColor" class="${className}" aria-hidden="true">${def.iconSvg}</svg>`;
+      }
+      if (typeof def.getContour === 'function') {
+        const pts = def.getContour(def.defaultProps || {}, 100, 100);
+        if (Array.isArray(pts) && pts.length >= 3) {
+          let maxDist = 1;
+          pts.forEach(p => {
+            const d = Math.hypot(p.x, p.y);
+            if (d > maxDist) maxDist = d;
+          });
+          const scale = 9 / maxDist;
+          const svgPoints = pts.map(p => `${(12 + p.x * scale).toFixed(2)},${(12 + p.y * scale).toFixed(2)}`).join(' ');
+          return `<svg viewBox="0 0 24 24" width="${width}" height="${height}" fill="currentColor" class="${className}" aria-hidden="true"><polygon points="${svgPoints}"/></svg>`;
+        }
+      }
+      return `<svg viewBox="0 0 24 24" width="${width}" height="${height}" fill="currentColor" class="${className}" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/></svg>`;
     }
   };
 

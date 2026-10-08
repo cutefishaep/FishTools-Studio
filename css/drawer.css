@@ -1100,10 +1100,14 @@
   gap: 0;
   font-size: 52px;}
 
-.layer-action-btn.layer-action-btn-icon-only .layer-action-icon {
+.layer-action-btn.layer-action-btn-icon-only .layer-action-icon,
+.layer-action-btn.layer-action-btn-icon-only .shape-render-icon,
+.layer-action-btn.layer-action-btn-icon-only svg {
   width: 24px;
   height: 24px;
-  font-size: 24px;}
+  font-size: 24px;
+  fill: currentColor;
+}
 
 /* ==========================================================================
    BLEND & OVERLAY CONTROLLER DRAWER VIEW

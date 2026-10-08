@@ -32,7 +32,7 @@
         <h1 class="brand-title">FishTools</h1>
         <div class="brand-subtitle-row">
           <span class="brand-subtitle">Studio</span>
-          <span class="badge-pre-alpha" id="studio-version-badge">0.5.131</span>
+          <span class="badge-pre-alpha" id="studio-version-badge">0.5.132</span>
         </div>
       </div>
       <div class="studio-header-actions">
@@ -564,7 +564,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">FishTools Studio</h3>
-          <span class="welcome-badge">v0.5.131</span>
+          <span class="welcome-badge">v0.5.132</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -600,11 +600,40 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.132 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.132</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 8, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Shape Asset Icons Vector Rendering (`desktop.html`, `editor.html`, `js/shapes.js`, `css/desktop.css`, `css/drawer.css`)</span>
+                  <span class="changelog-item-desc">Replaced generic font icons in Project Asset Shape grid with crisp rendered SVG vector previews using normalized shape contours and theme-token colors.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Shape Edit Live Canvas Invalidation Bug (`js/editor.js`, `js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Fixed live shape preview rendering not updating when adjusting shape parameters (roundness, points, sides, inner radius, size, and stroke); serialized all shape properties in `shapeKey` and cleared stale buffer canvas cache flags so the canvas updates immediately without requiring a browser refresh.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Desktop Inspector Effects &amp; Transform Layout (`desktop.html`, `css/desktop.css`)</span>
+                  <span class="changelog-item-desc">Cleaned up transform mode buttons into clean text-only controls and adjusted effect parameter spacing in desktop inspector.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.131 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.131</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 4, 2026</span>
               </div>
               <div class="welcome-changelog-item">

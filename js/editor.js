@@ -657,6 +657,11 @@
             layer._dirty = true;
             if (layer._precompBufferCanvas) layer._precompBufferCanvas._lastRenderKey = null;
           }
+          if (layer.type === 'shape') {
+            layer._shapeDirty = true;
+            layer._fillDirty = true;
+            if (layer._shapeBufferCanvas) layer._shapeBufferCanvas._lastShapeKey = null;
+          }
           if (typeof invalidateEffectivePropsCache === 'function') invalidateEffectivePropsCache();
           return;
         }
@@ -680,6 +685,11 @@
         if (layer.type === 'precomp') {
           layer._dirty = true;
           if (layer._precompBufferCanvas) layer._precompBufferCanvas._lastRenderKey = null;
+        }
+        if (layer.type === 'shape') {
+          layer._shapeDirty = true;
+          layer._fillDirty = true;
+          if (layer._shapeBufferCanvas) layer._shapeBufferCanvas._lastShapeKey = null;
         }
         const curStart = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
         const curDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 400) / pps);
@@ -5283,6 +5293,9 @@
             targetLayer.shapeProps.sizeY = Math.round(Math.abs(targetLayer.scaleH));
             targetLayer.mediaWidth = targetLayer.shapeProps.sizeX;
             targetLayer.mediaHeight = targetLayer.shapeProps.sizeY;
+            targetLayer._shapeDirty = true;
+            targetLayer._fillDirty = true;
+            if (targetLayer._shapeBufferCanvas) targetLayer._shapeBufferCanvas._lastShapeKey = null;
             if (typeof syncShapeControllerUI === 'function') {
               syncShapeControllerUI();
             }
@@ -14002,9 +14015,11 @@
     function renderShapeToCanvas(layer, targetCanvas, targetW, targetH) {
       if (!targetCanvas || typeof targetCanvas.getContext !== 'function' || !layer) return targetCanvas;
       const sProps = layer.shapeProps || {};
-      const fillKey = (typeof getFillRenderKey === 'function') ? getFillRenderKey(layer) : (layer.fillType || 'color');
-      const shapeKey = `${layer.shapeType || 'rectangle'}_${sProps.sizeX}_${sProps.sizeY}_${sProps.roundness}_${sProps.strokeWidth}_${layer.strokeColor}_${fillKey}_${targetW}_${targetH}`;
-      if (!layer._fillDirty && targetCanvas._lastShapeKey === shapeKey && targetCanvas.width === targetW && targetCanvas.height === targetH) {
+      const sPropsKey = JSON.stringify(sProps);
+      const fillKey = (typeof getFillRenderKey === 'function') ? getFillRenderKey(layer) : `${layer.fillType || 'color'}_${layer.fillColor || ''}`;
+      const strokeKey = `${layer.strokeWidth || 0}_${layer.strokeColor || ''}`;
+      const shapeKey = `${layer.shapeType || 'rectangle'}_${sPropsKey}_${strokeKey}_${fillKey}_${targetW}_${targetH}`;
+      if (!layer._fillDirty && !layer._shapeDirty && targetCanvas._lastShapeKey === shapeKey && targetCanvas.width === targetW && targetCanvas.height === targetH) {
         return targetCanvas;
       }
 
@@ -14188,6 +14203,8 @@
       if (isMediaReady) {
         targetCanvas._lastShapeKey = shapeKey;
         targetCanvas._contentVersion = (targetCanvas._contentVersion || 0) + 1;
+        layer._fillDirty = false;
+        layer._shapeDirty = false;
       } else {
         targetCanvas._lastShapeKey = null;
       }
@@ -14323,6 +14340,11 @@
         layer.normH = layer.scaleH / baseH;
         layer.normX = (layer.posX - layer.scaleW / 2) / baseW;
         layer.normY = (layer.posY - layer.scaleH / 2) / baseH;
+        layer._shapeDirty = true;
+        layer._fillDirty = true;
+        if (layer._shapeBufferCanvas) {
+          layer._shapeBufferCanvas._lastShapeKey = null;
+        }
         if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
         if (typeof recordLayerPropertyChange === 'function') {
           recordLayerPropertyChange(layer, 'shape');
@@ -14339,6 +14361,11 @@
         if (!layer || layer.type !== 'shape') return;
         if (!layer.shapeProps) layer.shapeProps = {};
         layer.shapeProps[propKey] = value;
+        layer._shapeDirty = true;
+        layer._fillDirty = true;
+        if (layer._shapeBufferCanvas) {
+          layer._shapeBufferCanvas._lastShapeKey = null;
+        }
         if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
         if (typeof recordLayerPropertyChange === 'function') {
           recordLayerPropertyChange(layer, 'shape');
@@ -15022,43 +15049,59 @@
       }
 
       // 5d. Add Shape Layer Buttons in Add Layer Drawer
-      const shapeButtons = [
-        { id: 'btn-add-shape-kotak', type: 'rectangle' },
-        { id: 'btn-add-shape-segitiga', type: 'triangle' },
-        { id: 'btn-add-shape-lingkaran', type: 'circle' },
-        { id: 'btn-add-shape-bintang', type: 'star' },
-        { id: 'btn-add-shape-poligon', type: 'polygon' },
-        { id: 'btn-add-shape-kapsul', type: 'capsule' },
-        { id: 'btn-add-shape-hati', type: 'heart' }
-      ];
-      shapeButtons.forEach(item => {
-        const btn = document.getElementById(item.id);
-        if (btn && !btn._shapeWired) {
-          btn._shapeWired = true;
-          makeDraggableAsset(btn, { type: 'shape', shapeType: item.type, name: item.type });
-          btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            addShapeLayer(item.type);
-          });
-        }
-      });
-      if (typeof window !== 'undefined' && window.FishShapesRegistry) {
-        const allShapes = window.FishShapesRegistry.getAll();
-        allShapes.forEach(s => {
-          const alias = (s.aliases && s.aliases[0]) ? s.aliases[0] : s.id;
-          const btn = document.getElementById('btn-add-shape-' + alias) || document.getElementById('btn-add-shape-' + s.id);
-          if (btn && !btn._shapeWired) {
-            btn._shapeWired = true;
-            makeDraggableAsset(btn, { type: 'shape', shapeType: s.id, name: s.name || s.id });
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              addShapeLayer(s.id);
-            });
+      function syncShapeButtonsUI() {
+        if (typeof window === 'undefined') return;
+        const registry = window.FishShapesRegistry;
+        const shapeButtons = [
+          { id: 'btn-add-shape-kotak', type: 'rectangle' },
+          { id: 'btn-add-shape-segitiga', type: 'triangle' },
+          { id: 'btn-add-shape-lingkaran', type: 'circle' },
+          { id: 'btn-add-shape-bintang', type: 'star' },
+          { id: 'btn-add-shape-poligon', type: 'polygon' },
+          { id: 'btn-add-shape-kapsul', type: 'capsule' },
+          { id: 'btn-add-shape-hati', type: 'heart' }
+        ];
+
+        shapeButtons.forEach(item => {
+          const btn = document.getElementById(item.id);
+          if (btn) {
+            if (registry && typeof registry.renderSvg === 'function') {
+              btn.innerHTML = registry.renderSvg(item.type);
+            }
+            if (!btn._shapeWired) {
+              btn._shapeWired = true;
+              makeDraggableAsset(btn, { type: 'shape', shapeType: item.type, name: item.type });
+              btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                addShapeLayer(item.type);
+              });
+            }
           }
         });
+
+        if (registry && typeof registry.getAll === 'function') {
+          const allShapes = registry.getAll();
+          allShapes.forEach(s => {
+            const alias = (s.aliases && s.aliases[0]) ? s.aliases[0] : s.id;
+            const btn = document.getElementById('btn-add-shape-' + alias) || document.getElementById('btn-add-shape-' + s.id);
+            if (btn) {
+              btn.innerHTML = registry.renderSvg(s.id);
+              if (!btn._shapeWired) {
+                btn._shapeWired = true;
+                makeDraggableAsset(btn, { type: 'shape', shapeType: s.id, name: s.name || s.id });
+                btn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addShapeLayer(s.id);
+                });
+              }
+            }
+          });
+        }
       }
+      syncShapeButtonsUI();
+      window.syncShapeButtonsUI = syncShapeButtonsUI;
 
       // 5e. Edit Shape Button & Back Button in Timeline Layer Drawer
       const btnEditShape = document.getElementById('btn-layer-edit-shape');
@@ -23007,6 +23050,7 @@
         if (textPanel) textPanel.style.display = (cat === 'text') ? '' : 'none';
         if (elementPanel) elementPanel.style.display = (cat === 'element') ? '' : 'none';
         if (cat === 'media') renderMediaGrid();
+        if (cat === 'shape' && typeof syncShapeButtonsUI === 'function') syncShapeButtonsUI();
         if (cat === 'text' && typeof renderTextPresetsGrid === 'function') renderTextPresetsGrid();
         if (cat === 'element' && typeof renderSavedElementsGrid === 'function') renderSavedElementsGrid();
       }

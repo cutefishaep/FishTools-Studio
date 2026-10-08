@@ -331,37 +331,51 @@
                     <div class="layer-action-btn-grid" id="add-layer-shape-grid">
                       <!-- 1. Rectangle Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kotak" title="Rectangle" aria-label="Rectangle">
-                        <i class='fticon fticon-rectangle layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <rect x="3" y="3" width="18" height="18" rx="2.5"/>
+                        </svg>
                       </button>
 
                       <!-- 2. Triangle Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-segitiga" title="Triangle" aria-label="Triangle">
-                        <i class='fticon fticon-triangle layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <path d="M12 3.2L2.8 19.5c-.8 1.4.2 3.2 1.8 3.2h14.8c1.6 0 2.6-1.8 1.8-3.2L12 3.2z"/>
+                        </svg>
                       </button>
 
                       <!-- 3. Circle Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-lingkaran" title="Circle" aria-label="Circle">
-                        <i class='fticon fticon-circle layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <circle cx="12" cy="12" r="9.5"/>
+                        </svg>
                       </button>
 
                       <!-- 4. Star Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-bintang" title="Star" aria-label="Star">
-                        <i class='fticon fticon-shape layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
                       </button>
 
                       <!-- 5. Polygon Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-poligon" title="Polygon" aria-label="Polygon">
-                        <i class='fticon fticon-polygon layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <path d="M12 2.5l8.66 5v10L12 22.5l-8.66-5v-10L12 2.5z"/>
+                        </svg>
                       </button>
 
                       <!-- 6. Capsule Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-kapsul" title="Capsule" aria-label="Capsule">
-                        <i class='fticon fticon-capsule layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <rect x="3" y="6" width="18" height="12" rx="6"/>
+                        </svg>
                       </button>
 
                       <!-- 7. Heart Button -->
                       <button type="button" class="layer-action-btn layer-action-btn-icon-only" id="btn-add-shape-hati" title="Heart" aria-label="Heart">
-                        <i class='fticon fticon-heart layer-action-icon' aria-hidden='true'></i>
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" class="layer-action-icon shape-render-icon" aria-hidden="true">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -3781,7 +3795,7 @@
       <header class="welcome-modal-header">
         <div class="welcome-header-title-box">
           <h3 class="modal-title">OpenFishTools</h3>
-          <span class="welcome-badge">v0.5.131</span>
+          <span class="welcome-badge">v0.5.132</span>
         </div>
         <button type="button" class="modal-btn-close" aria-label="Close" onclick="closeWelcomeModal()">
           <i class='fticon fticon-close-3' style='width:18px;height:18px;font-size:18px;line-height:1;' aria-hidden='true'></i>
@@ -3811,11 +3825,40 @@
             </a>
           </div>
           <div class="welcome-changelog-feed">
+            <!-- Version 0.5.132 -->
+            <div class="welcome-version-block">
+              <div class="welcome-version-header">
+                <span class="welcome-version-pill">v0.5.132</span>
+                <span class="welcome-version-badge-latest">Latest</span>
+                <span class="welcome-version-date">Oct 8, 2026</span>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Shape Asset Icons Vector Rendering (`desktop.html`, `editor.html`, `js/shapes.js`, `css/desktop.css`, `css/drawer.css`)</span>
+                  <span class="changelog-item-desc">Replaced generic font icons in Project Asset Shape grid with crisp rendered SVG vector previews using normalized shape contours and theme-token colors.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Shape Edit Live Canvas Invalidation Bug (`js/editor.js`, `js/desktop.js`)</span>
+                  <span class="changelog-item-desc">Fixed live shape preview rendering not updating when adjusting shape parameters (roundness, points, sides, inner radius, size, and stroke); serialized all shape properties in `shapeKey` and cleared stale buffer canvas cache flags so the canvas updates immediately without requiring a browser refresh.</span>
+                </div>
+              </div>
+              <div class="welcome-changelog-item">
+                <span class="changelog-badge badge-fixed">Fixed</span>
+                <div class="changelog-item-content">
+                  <span class="changelog-item-title">Desktop Inspector Effects &amp; Transform Layout (`desktop.html`, `css/desktop.css`)</span>
+                  <span class="changelog-item-desc">Cleaned up transform mode buttons into clean text-only controls and adjusted effect parameter spacing in desktop inspector.</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Version 0.5.131 -->
             <div class="welcome-version-block">
               <div class="welcome-version-header">
                 <span class="welcome-version-pill">v0.5.131</span>
-                <span class="welcome-version-badge-latest">Latest</span>
                 <span class="welcome-version-date">Oct 4, 2026</span>
               </div>
               <div class="welcome-changelog-item">

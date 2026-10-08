@@ -569,8 +569,11 @@
   border-color: var(--color-primary) !important;
 }
 
-.desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover .layer-action-icon {
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover .layer-action-icon,
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover .shape-render-icon,
+.desktop-panel-left #add-layer-shape-grid .layer-action-btn:hover svg {
   fill: var(--bg-canvas) !important;
+  color: var(--bg-canvas) !important;
 }
 
 .desktop-panel-left #add-layer-shape-grid .layer-action-btn:active,
@@ -579,7 +582,9 @@
   transition: transform 0.05s ease !important;
 }
 
-.desktop-panel-left #add-layer-shape-grid .layer-action-icon {
+.desktop-panel-left #add-layer-shape-grid .layer-action-icon,
+.desktop-panel-left #add-layer-shape-grid .shape-render-icon,
+.desktop-panel-left #add-layer-shape-grid svg {
   width: 24px !important;
   height: 24px !important;
   fill: currentColor !important;

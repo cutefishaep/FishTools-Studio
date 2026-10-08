@@ -2522,7 +2522,9 @@
      */
     render3DMotionBlur(ctx, el, layer, bufferScale = 1, camera = null, currentSec = null, compState = null) {
       if (!ctx || !el || !this._hasValidDimensions(el)) return;
-      if (!this.isReady) {
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (!this.isReady || (w.isTransformInteracting && !isExport)) {
         this.renderLayer(ctx, el, layer, bufferScale, camera, currentSec);
         return;
       }
@@ -2558,6 +2560,11 @@
         : { n: 16 };
       const cfgSamples = (mbEngine && typeof mbEngine.getConfig === 'function') ? mbEngine.getConfig(compState).samples : 16;
       const samples = Math.max(2, plan.n || cfgSamples || 16);
+
+      if (plan.n <= 1) {
+        this.renderLayer(ctx, el, layer, bufferScale, camera, currentSec);
+        return;
+      }
 
       const targetCanvas = ctx.canvas;
       const vw = targetCanvas ? targetCanvas.width : (bounds.cx * 2 || 1920);
@@ -2817,6 +2824,9 @@
       if (!ctx || !run || run.length === 0 || !this.isReady) return false;
       const gl = this.gl;
       if (!gl) return false;
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (w.isTransformInteracting && !isExport) return false;
 
       const pool = (compState && Array.isArray(compState.layers) && compState.layers)
         || ((typeof window !== 'undefined' && window.currentProjectState && Array.isArray(window.currentProjectState.layers)) ? window.currentProjectState.layers : null);
@@ -2841,8 +2851,7 @@
         if (n > samples) samples = n;
       }
       if (!(samples >= 2)) {
-        const cfg = (mbEngine && typeof mbEngine.getConfig === 'function') ? mbEngine.getConfig(compState).samples : 16;
-        samples = Math.max(2, cfg || 16);
+        return false;
       }
 
       const targetCanvas = ctx.canvas;

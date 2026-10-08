@@ -828,9 +828,11 @@
       // new sample at 1/(i+1)). Transparent pixels dilute the mean, so trails stay
       // symmetric; buffer stays near full brightness, so no 8-bit hue shift.
       // Sample count is adaptive to the fastest glyph's travel so the smear is
-      // continuous, never stepped ghost copies. Layer-transform blur stays in FishMotionBlurEngine.
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      const isInteracting = !!(w.isTransformInteracting && !isExport);
       const mbEng = (typeof window !== 'undefined') ? window.FishMotionBlurEngine : null;
-      const mbOn = !isSubSample && !isStaticKey && mbEng && (typeof mbEng.isEffectBlurActive === 'function' ? mbEng.isEffectBlurActive(layer) : (typeof mbEng.isLayerActive === 'function' && mbEng.isLayerActive(layer)));
+      const mbOn = !isInteracting && !isSubSample && !isStaticKey && mbEng && (typeof mbEng.isEffectBlurActive === 'function' ? mbEng.isEffectBlurActive(layer) : (typeof mbEng.isLayerActive === 'function' && mbEng.isLayerActive(layer)));
       let drewBlur = false;
       if (mbOn) {
         const shutter = (typeof mbEng.getShutter === 'function')

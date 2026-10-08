@@ -112,6 +112,13 @@
     "icon": "assets/FXPH.svg"
   },
   {
+    "file": "dropdown_control.js",
+    "id": "dropdown-control",
+    "name": "Dropdown Menu Control",
+    "category": "expression",
+    "icon": "assets/FXPH.svg"
+  },
+  {
     "file": "exposure_gamma.js",
     "id": "exposure-gamma",
     "name": "Exposure / Gamma",

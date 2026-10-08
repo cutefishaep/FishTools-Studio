@@ -195,7 +195,7 @@
 
       _blurGLUvBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, _blurGLUvBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 0, 1, 1, 0, 1, 1]), gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 0, 0, 1, 1, 1, 0]), gl.STATIC_DRAW);
 
       function createFBOTexture() {
         const tex = gl.createTexture();
@@ -218,6 +218,7 @@
 
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       return true;
     } catch (_) {
       _blurGLFailed = true;
@@ -352,6 +353,7 @@
           // Upload source image to Tex0
           gl.activeTexture(gl.TEXTURE0);
           gl.bindTexture(gl.TEXTURE_2D, _blurGLTex0);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
           let uploaded = false;
           try {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcEl);
@@ -370,6 +372,7 @@
             _blurScratchCtx.clearRect(0, 0, sw, sh);
             _blurScratchCtx.drawImage(srcEl, 0, 0, sw, sh);
             try {
+              gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _blurScratchCanvas);
               uploaded = true;
             } catch (_) {}
@@ -787,7 +790,8 @@
               <button type="button" class="effects-card-caret-btn" title="Toggle Controls" aria-label="Toggle Controls">
                 <i class="fticon fticon-toggle-controls effects-card-caret" aria-hidden="true"></i>
               </button>
-              <span class="effects-card-title">${fx.name || def.name}</span>
+              <span class="effects-card-title" title="Click to rename effect" tabindex="0">${fx.name || def.name}</span>
+              <input type="text" class="effects-card-title-input" value="${fx.name || def.name}" style="display:none;" spellcheck="false" maxlength="50" aria-label="Rename effect">
             </div>
             <div class="effects-card-actions">
               <button type="button" class="effects-card-eye-btn ${isDisabled ? '' : 'is-active'}" title="Enable/Disable Effect" aria-label="Toggle Effect">
@@ -830,23 +834,29 @@
         if (type === 'switch' || type === 'boolean') {
           processedParams.add(p.id);
           const propKey = `${fx.id}:${p.id}`;
-          const hasKf = layer && layer.keyframes && (
+          const builtInProps = ['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount'];
+          const hasKf = !!(layer && layer.keyframes && (
             (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
-            (fx === layer.effects[0] && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
-          );
-          const rawVal = (hasKf && effFx && effFx[p.id] !== undefined)
+            (fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
+          ));
+          const hasExpr = !!(layer && layer.expressions && (
+            (layer.expressions[propKey] && String(layer.expressions[propKey]).trim().length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.expressions[p.id] && String(layer.expressions[p.id]).trim().length > 0)
+          ));
+          const rawVal = (effFx && effFx[p.id] !== undefined)
             ? effFx[p.id]
             : (fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 1));
           const switchVal = (rawVal === 1 || rawVal === true || rawVal === '1' || rawVal === 'true' || rawVal === 'on') ? 1 : 0;
 
           const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const exprIconHTML = hasExpr ? `<i class="fticon fticon-expression fx-param-expr-icon" aria-hidden="true" title="Has expression"></i>` : '';
           const isParamActive = (selectedProp === propKey) || (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-switch ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
+            <div class="effects-control-row effects-control-row-switch ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
                 <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
-                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                  ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
@@ -868,9 +878,14 @@
             (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
             (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
           ));
+          const hasExpr = !!(layer && layer.expressions && (
+            (layer.expressions[propKey] && String(layer.expressions[propKey]).trim().length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.expressions[p.id] && String(layer.expressions[p.id]).trim().length > 0)
+          ));
           const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const exprIconHTML = hasExpr ? `<i class="fticon fticon-expression fx-param-expr-icon" aria-hidden="true" title="Has expression"></i>` : '';
           const isParamActive = (selectedProp === propKey) || (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
-          const rawSelectVal = fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 'normal');
+          const rawSelectVal = (effFx && effFx[p.id] !== undefined) ? effFx[p.id] : (fx[p.id] !== undefined ? fx[p.id] : (p.default !== undefined ? p.default : 'normal'));
           const selectVal = String(rawSelectVal).toLowerCase();
           const rawOpts = Array.isArray(p.options) && p.options.length > 0 ? p.options : ['normal', 'multiply', 'overlay'];
           const opts = rawOpts.map(o => {
@@ -889,10 +904,10 @@
             `).join('');
 
             controlsHTMLArr.push(`
-              <div class="effects-control-row effects-control-row-select ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
+              <div class="effects-control-row effects-control-row-select ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
                 <div class="effects-param-label-col">
                   <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
-                    ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                    ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
                   </button>
                 </div>
                 <div class="effects-param-val-col">
@@ -915,10 +930,10 @@
           }).join('');
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-select ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
+            <div class="effects-control-row effects-control-row-select ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
                 <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
-                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                  ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
@@ -945,14 +960,19 @@
             (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
             (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
           ));
+          const hasExpr = !!(layer && layer.expressions && (
+            (layer.expressions[propKey] && String(layer.expressions[propKey]).trim().length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.expressions[p.id] && String(layer.expressions[p.id]).trim().length > 0)
+          ));
           const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const exprIconHTML = hasExpr ? `<i class="fticon fticon-expression fx-param-expr-icon" aria-hidden="true" title="Has expression"></i>` : '';
           const isParamActive = (selectedProp === propKey) || (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
-          const colorVal = (fx[p.id] !== undefined && fx[p.id]) ? fx[p.id] : (p.default || '#000000');
+          const colorVal = (effFx && effFx[p.id]) ? effFx[p.id] : ((fx[p.id] !== undefined && fx[p.id]) ? fx[p.id] : (p.default || '#000000'));
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-color ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
+            <div class="effects-control-row effects-control-row-color ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
                 <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
-                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                  ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
@@ -1136,25 +1156,36 @@
 
           const propKeyX = `${fx.id}:${p.id}`;
           const propKeyY = `${fx.id}:${pairY.id}`;
+          const builtInProps = ['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount'];
           const hasKfX = !!(layer && layer.keyframes && (
             (layer.keyframes[propKeyX] && layer.keyframes[propKeyX].length > 0) ||
-            (layer.effects && fx === layer.effects[0] && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
           ));
           const hasKfY = !!(layer && layer.keyframes && (
             (layer.keyframes[propKeyY] && layer.keyframes[propKeyY].length > 0) ||
-            (layer.effects && fx === layer.effects[0] && layer.keyframes[pairY.id] && layer.keyframes[pairY.id].length > 0)
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(pairY.id) && layer.keyframes[pairY.id] && layer.keyframes[pairY.id].length > 0)
+          ));
+          const hasExprX = !!(layer && layer.expressions && (
+            (layer.expressions[propKeyX] && String(layer.expressions[propKeyX]).trim().length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.expressions[p.id] && String(layer.expressions[p.id]).trim().length > 0)
+          ));
+          const hasExprY = !!(layer && layer.expressions && (
+            (layer.expressions[propKeyY] && String(layer.expressions[propKeyY]).trim().length > 0) ||
+            (layer.effects && fx === layer.effects[0] && !builtInProps.includes(pairY.id) && layer.expressions[pairY.id] && String(layer.expressions[pairY.id]).trim().length > 0)
           ));
           const hasKf = hasKfX || hasKfY;
+          const hasExpr = hasExprX || hasExprY;
           const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+          const exprIconHTML = hasExpr ? `<i class="fticon fticon-expression fx-param-expr-icon" aria-hidden="true" title="Has expression"></i>` : '';
           const isParamActive = (selectedProp === propKeyX) || (selectedProp === propKeyY) ||
             (selectedProp === p.id && (!layer.effects || fx === layer.effects[0])) ||
             (selectedProp === pairY.id && (!layer.effects || fx === layer.effects[0]));
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row effects-control-row-pair ${isParamActive ? 'is-selected' : ''}" data-param="${p.id},${pairY.id}" data-effect-id="${fx.id}">
+            <div class="effects-control-row effects-control-row-pair ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id},${pairY.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
                 <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${pairLabel} for keyframing">
-                  ${kfIconHTML}<span class="fx-param-name">${pairLabel}</span>
+                  ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${pairLabel}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
@@ -1190,7 +1221,12 @@
           (layer.keyframes[propKey] && layer.keyframes[propKey].length > 0) ||
           (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.keyframes[p.id] && layer.keyframes[p.id].length > 0)
         ));
+        const hasExpr = !!(layer && layer.expressions && (
+          (layer.expressions[propKey] && String(layer.expressions[propKey]).trim().length > 0) ||
+          (layer.effects && fx === layer.effects[0] && !builtInProps.includes(p.id) && layer.expressions[p.id] && String(layer.expressions[p.id]).trim().length > 0)
+        ));
         const kfIconHTML = hasKf ? `<i class="fticon fticon-keyframe fx-param-kf-icon" aria-hidden="true" title="Has keyframes"></i>` : '';
+        const exprIconHTML = hasExpr ? `<i class="fticon fticon-expression fx-param-expr-icon" aria-hidden="true" title="Has expression"></i>` : '';
         const isParamActive = (selectedProp === propKey) ||
           (selectedProp === p.id && (!layer.effects || fx === layer.effects[0]));
 
@@ -1207,10 +1243,10 @@
           const trackWidth = ((normAngle / 360) * 100).toFixed(1);
 
           controlsHTMLArr.push(`
-            <div class="effects-control-row ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
+            <div class="effects-control-row ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
               <div class="effects-param-label-col">
                 <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
-                  ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                  ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
                 </button>
               </div>
               <div class="effects-param-val-col">
@@ -1245,10 +1281,10 @@
         const tapeOffset = -ratio * tapeWidth;
 
         controlsHTMLArr.push(`
-          <div class="effects-control-row ${isParamActive ? 'is-selected' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
+          <div class="effects-control-row ${isParamActive ? 'is-selected' : ''} ${hasExpr ? 'has-active-expression' : ''}" data-param="${p.id}" data-effect-id="${fx.id}">
             <div class="effects-param-label-col">
               <button type="button" class="effects-param-label effects-param-select-btn fx-param-btn-${p.id} ${isParamActive ? 'is-active' : ''}" data-param="${p.id}" data-effect-id="${fx.id}" title="Select ${p.label || p.id} for keyframing">
-                ${kfIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
+                ${kfIconHTML}${exprIconHTML}<span class="fx-param-name">${p.label || p.id}</span>
               </button>
             </div>
             <div class="effects-param-val-col">
@@ -1276,7 +1312,8 @@
               <button type="button" class="effects-card-caret-btn" title="Toggle Expand" aria-label="Toggle Expand">
                 <i class="fticon fticon-toggle-controls effects-card-caret" aria-hidden="true"></i>
               </button>
-              <span class="effects-card-title">${fx.name || def.name}</span>
+              <span class="effects-card-title" title="Click to rename effect" tabindex="0">${fx.name || def.name}</span>
+              <input type="text" class="effects-card-title-input" value="${fx.name || def.name}" style="display:none;" spellcheck="false" maxlength="50" aria-label="Rename effect">
             </div>
 
             <!-- Header Right Actions: Eye toggle, Kebab menu, Delete, and Drag handle (always visible) -->
@@ -1298,6 +1335,7 @@
 
           <!-- Kebab Popover Dropdown -->
           <div class="effects-kebab-menu">
+            <button type="button" class="effects-kebab-item" data-action="rename">Rename</button>
             <button type="button" class="effects-kebab-item" data-action="details">Effect Details</button>
             <button type="button" class="effects-kebab-item" data-action="reset">Reset to Defaults</button>
             <button type="button" class="effects-kebab-item" data-action="duplicate">Duplicate</button>

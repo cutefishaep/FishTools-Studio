@@ -2459,6 +2459,33 @@
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  cursor: pointer !important;
+  border-radius: 3px !important;
+  padding: 1px 3px !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.desktop-panel-right .effects-card-title:hover,
+#desktop-panel-inspector .effects-card-title:hover {
+  background: var(--bg-panel-hover) !important;
+  color: var(--color-primary) !important;
+}
+
+.desktop-panel-right .effects-card-title-input,
+#desktop-panel-inspector .effects-card-title-input {
+  font-family: var(--font-brand) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  background: var(--bg-dashboard) !important;
+  border: 1px solid var(--color-primary) !important;
+  border-radius: 3px !important;
+  padding: 1px 4px !important;
+  height: 20px !important;
+  outline: none !important;
+  min-width: 70px !important;
+  max-width: 150px !important;
+  width: auto !important;
 }
 
 /* Header Right Actions: Always keep Eye and Drag handle visible */

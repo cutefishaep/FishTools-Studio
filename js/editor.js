@@ -5545,6 +5545,36 @@
     // ======================================================================
     // LAYER EXPRESSION EVALUATOR & EFFECT CONTROLLER BINDINGS
     // ======================================================================
+    function wrapSelectParamValue(val, pDef) {
+      const rawOpts = (pDef && Array.isArray(pDef.options)) ? pDef.options : ['Item 1', 'Item 2', 'Item 3'];
+      const opts = rawOpts.map(o => {
+        if (typeof o === 'object' && o !== null) {
+          return { value: String(o.value !== undefined ? o.value : ''), label: String(o.label || o.value || '') };
+        }
+        const s = String(o);
+        return { value: s, label: s };
+      });
+      const curStr = String(val !== undefined && val !== null ? val : (opts[0] ? opts[0].value : ''));
+      const idx = opts.findIndex(o => o.value.toLowerCase() === curStr.toLowerCase() || o.label.toLowerCase() === curStr.toLowerCase());
+      const index1 = (idx >= 0) ? (idx + 1) : 1;
+      const matchedOpt = (idx >= 0) ? opts[idx] : opts[0];
+      const nameStr = matchedOpt ? matchedOpt.label : curStr;
+
+      const obj = {
+        value: index1,
+        index: index1,
+        name: nameStr,
+        valueOf: function() { return index1; },
+        toString: function() { return nameStr; }
+      };
+      if (typeof Symbol !== 'undefined' && Symbol.toPrimitive) {
+        obj[Symbol.toPrimitive] = function(hint) {
+          return hint === 'string' ? nameStr : index1;
+        };
+      }
+      return obj;
+    }
+
     function createEffectProxy(fx) {
       if (!fx) {
         const dummy = function() { return 0; };
@@ -5555,15 +5585,29 @@
         return dummy;
       }
       const isPoint = (fx.type === 'point-control' || fx.id === 'point-control' || (fx.point_x !== undefined && fx.point_y !== undefined));
+      const isDropdown = (fx.type === 'dropdown-control' || fx.id === 'dropdown-control' || fx.menu !== undefined);
+
       const proxyFn = function(paramNameOrIdx) {
         if (isPoint) {
           if (paramNameOrIdx === undefined || paramNameOrIdx === 'point' || paramNameOrIdx === 'Point' || paramNameOrIdx === 'value') {
             return [Number(fx.point_x) || 0, Number(fx.point_y) || 0];
           }
         }
+        if (isDropdown) {
+          if (paramNameOrIdx === undefined || paramNameOrIdx === 'menu' || paramNameOrIdx === 'Menu' || paramNameOrIdx === 'value' || paramNameOrIdx === 1) {
+            const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type || 'dropdown-control') : null;
+            const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === 'menu') : null;
+            return wrapSelectParamValue(fx.menu, pDef);
+          }
+        }
         if (typeof paramNameOrIdx === 'number') {
           const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
           const pId = pIds[paramNameOrIdx - 1] || pIds[paramNameOrIdx];
+          const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
+          const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === pId) : null;
+          if (pDef && pDef.type === 'select') {
+            return wrapSelectParamValue(fx[pId], pDef);
+          }
           return (pId && fx[pId] !== undefined) ? fx[pId] : (fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0));
         }
         if (typeof paramNameOrIdx === 'string') {
@@ -5571,15 +5615,52 @@
           if (cleanKey.includes('slider') || cleanKey.includes('adbeslidercontrol')) {
             return fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0);
           }
+          if (isDropdown && (cleanKey === 'menu' || cleanKey.includes('dropdown') || cleanKey === 'value')) {
+            const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type || 'dropdown-control') : null;
+            const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === 'menu') : null;
+            return wrapSelectParamValue(fx.menu, pDef);
+          }
           for (const key of Object.keys(fx)) {
             if (key.toLowerCase().replace(/[\s_-]/g, '') === cleanKey) {
+              const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
+              const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === key) : null;
+              if (pDef && pDef.type === 'select') {
+                return wrapSelectParamValue(fx[key], pDef);
+              }
               return fx[key];
             }
           }
           const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
           if (def && Array.isArray(def.params)) {
             const pDef = def.params.find(p => (p.label && p.label.toLowerCase().replace(/[\s_-]/g, '') === cleanKey) || p.id.toLowerCase().replace(/[\s_-]/g, '') === cleanKey);
-            if (pDef && fx[pDef.id] !== undefined) return fx[pDef.id];
+            if (pDef && fx[pDef.id] !== undefined) {
+              if (pDef.type === 'select') {
+                return wrapSelectParamValue(fx[pDef.id], pDef);
+              }
+              return fx[pDef.id];
+            }
+          }
+          // Check for coordinate pair (e.g. "Offset" -> [offset_x, offset_y], "Position" -> [posX, posY])
+          const pairKeys = [
+            [cleanKey + '_x', cleanKey + '_y'],
+            [cleanKey + '-x', cleanKey + '-y'],
+            [cleanKey + 'x', cleanKey + 'y']
+          ];
+          for (const [kX, kY] of pairKeys) {
+            const foundX = Object.keys(fx).find(k => k.toLowerCase().replace(/[\s_-]/g, '') === kX);
+            const foundY = Object.keys(fx).find(k => k.toLowerCase().replace(/[\s_-]/g, '') === kY);
+            if (foundX && foundY && fx[foundX] !== undefined && fx[foundY] !== undefined) {
+              return [Number(fx[foundX]) || 0, Number(fx[foundY]) || 0];
+            }
+          }
+          if (def && Array.isArray(def.params)) {
+            const pX = def.params.find(p => (p.label || p.id).toLowerCase().replace(/\s*([_ -]?[Xx])\b.*$/, '').replace(/[\s_-]/g, '') === cleanKey && (p.id.endsWith('_x') || p.id.endsWith('-x') || (p.id.endsWith('X') && p.id.length > 1)));
+            if (pX) {
+              const yId = pX.id.endsWith('_x') ? pX.id.slice(0, -2) + '_y' : (pX.id.endsWith('-x') ? pX.id.slice(0, -2) + '-y' : pX.id.slice(0, -1) + 'Y');
+              if (fx[pX.id] !== undefined && fx[yId] !== undefined) {
+                return [Number(fx[pX.id]) || 0, Number(fx[yId]) || 0];
+              }
+            }
           }
         }
         const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
@@ -5595,12 +5676,26 @@
         proxyFn.point = [Number(fx.point_x) || 0, Number(fx.point_y) || 0];
       }
 
-      const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
-      const defaultVal = (pIds[0] && fx[pIds[0]] !== undefined) ? fx[pIds[0]] : (fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0));
-      proxyFn.value = defaultVal;
-      proxyFn.slider = fx.slider !== undefined ? fx.slider : defaultVal;
-      proxyFn.valueOf = function() { return Number(defaultVal) || 0; };
-      proxyFn.toString = function() { return String(defaultVal); };
+      if (isDropdown) {
+        const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type || 'dropdown-control') : null;
+        const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === 'menu') : null;
+        const wrappedMenu = wrapSelectParamValue(fx.menu, pDef);
+        proxyFn.menu = wrappedMenu;
+        proxyFn.value = wrappedMenu.value;
+        proxyFn.name = wrappedMenu.name;
+        proxyFn.valueOf = function() { return wrappedMenu.value; };
+        proxyFn.toString = function() { return wrappedMenu.name; };
+        if (typeof Symbol !== 'undefined' && Symbol.toPrimitive) {
+          proxyFn[Symbol.toPrimitive] = function(hint) { return hint === 'string' ? wrappedMenu.name : wrappedMenu.value; };
+        }
+      } else {
+        const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fx) : [];
+        const defaultVal = (pIds[0] && fx[pIds[0]] !== undefined) ? fx[pIds[0]] : (fx.slider !== undefined ? fx.slider : (fx.value !== undefined ? fx.value : 0));
+        proxyFn.value = defaultVal;
+        proxyFn.slider = fx.slider !== undefined ? fx.slider : defaultVal;
+        proxyFn.valueOf = function() { return Number(defaultVal) || 0; };
+        proxyFn.toString = function() { return String(defaultVal); };
+      }
       return proxyFn;
     }
 
@@ -5949,6 +6044,366 @@
     }
     window.evaluateLayerExpression = evaluateLayerExpression;
 
+    function evaluateEffectParamExpression(code, paramId, fxEff, paramDef, baseProps, layer, currentSec, visited = null, layerPool = null) {
+      if (!code || typeof code !== 'string') return;
+      const trimmed = code.trim();
+      if (!trimmed) return;
+
+      const time = currentSec;
+      const type = paramDef ? (paramDef.type || 'number') : 'number';
+
+      // Determine initial value & coordinate pair context
+      let val;
+      let partnerId = null;
+      let isYComponent = false;
+      if (paramId.endsWith('_x')) partnerId = paramId.slice(0, -2) + '_y';
+      else if (paramId.endsWith('-x')) partnerId = paramId.slice(0, -2) + '-y';
+      else if (paramId.endsWith('X') && paramId.length > 1) partnerId = paramId.slice(0, -1) + 'Y';
+      else if (paramId.endsWith('_y')) { partnerId = paramId.slice(0, -2) + '_x'; isYComponent = true; }
+      else if (paramId.endsWith('-y')) { partnerId = paramId.slice(0, -2) + '-x'; isYComponent = true; }
+      else if (paramId.endsWith('Y') && paramId.length > 1) { partnerId = paramId.slice(0, -1) + 'X'; isYComponent = true; }
+
+      if (type === 'color') {
+        const rawColor = String(fxEff[paramId] || (paramDef && paramDef.default) || '#ffffff').trim();
+        let hex = rawColor.startsWith('#') ? rawColor : ('#' + rawColor);
+        if (hex.length === 4) {
+          hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        }
+        let r = 255, g = 255, b = 255, a = 1.0;
+        if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+          r = parseInt(hex.slice(1, 3), 16);
+          g = parseInt(hex.slice(3, 5), 16);
+          b = parseInt(hex.slice(5, 7), 16);
+        }
+        val = [Number((r / 255).toFixed(4)), Number((g / 255).toFixed(4)), Number((b / 255).toFixed(4)), a];
+        val.hex = hex;
+        val.valueOf = () => hex;
+        val.toString = () => hex;
+      } else if (type === 'select') {
+        val = wrapSelectParamValue(fxEff[paramId], paramDef);
+      } else if (type === 'switch' || type === 'boolean') {
+        const raw = fxEff[paramId];
+        val = (raw === 1 || raw === true || raw === '1' || raw === 'true' || raw === 'on') ? 1 : 0;
+      } else if (partnerId && fxEff[partnerId] !== undefined) {
+        val = isYComponent
+          ? [Number(fxEff[partnerId]) || 0, Number(fxEff[paramId]) || 0]
+          : [Number(fxEff[paramId]) || 0, Number(fxEff[partnerId]) || 0];
+        val.valueOf = () => Number(fxEff[paramId]) || 0;
+      } else {
+        val = Number(fxEff[paramId]) || 0;
+      }
+
+      function wiggle(freq, amp) {
+        const f = Number(freq) || 1;
+        const a = Number(amp) || 10;
+        const t = time * f;
+        const noise1 = Math.sin(t * 6.28318) * 0.7 + Math.sin(t * 11.623) * 0.3;
+        const noise2 = Math.cos(t * 6.28318) * 0.7 + Math.sin(t * 14.137) * 0.3;
+        const noise3 = Math.sin(t * 8.412) * 0.7 + Math.cos(t * 13.2) * 0.3;
+        if (type === 'color' && Array.isArray(val)) {
+          const factor = a / 100;
+          return [
+            Math.max(0, Math.min(1, val[0] + noise1 * factor)),
+            Math.max(0, Math.min(1, val[1] + noise2 * factor)),
+            Math.max(0, Math.min(1, val[2] + noise3 * factor)),
+            val[3] !== undefined ? val[3] : 1
+          ];
+        }
+        if (Array.isArray(val)) {
+          return [val[0] + noise1 * a, val[1] + noise2 * a];
+        }
+        return val + noise1 * a;
+      }
+
+      function effect(nameOrIndex) {
+        const effectsList = (baseProps && Array.isArray(baseProps.effects)) ? baseProps.effects : (layer && Array.isArray(layer.effects) ? layer.effects : []);
+        let targetFx = null;
+        if (typeof nameOrIndex === 'number') {
+          targetFx = effectsList[nameOrIndex - 1] || effectsList[nameOrIndex];
+        } else if (typeof nameOrIndex === 'string') {
+          const q = nameOrIndex.trim().toLowerCase();
+          targetFx = effectsList.find(fx => {
+            const n = (fx.name || fx.type || '').toLowerCase();
+            const t = (fx.type || '').toLowerCase();
+            return n === q || t === q || n.replace(/[\s_-]/g, '') === q.replace(/[\s_-]/g, '');
+          });
+          if (!targetFx) {
+            targetFx = effectsList.find(fx => (fx.name || '').toLowerCase().includes(q) || (fx.type || '').toLowerCase().includes(q));
+          }
+        }
+        if (!targetFx) {
+          const dummy = function() { return 0; };
+          dummy.value = 0;
+          dummy.slider = 0;
+          dummy.valueOf = () => 0;
+          dummy.toString = () => '0';
+          return dummy;
+        }
+        return createEffectProxy(targetFx);
+      }
+
+      function linear(t, tMin, tMax, vMin, vMax) {
+        if (t <= tMin) return vMin;
+        if (t >= tMax) return vMax;
+        const norm = (t - tMin) / (tMax - tMin);
+        if (Array.isArray(vMin) && Array.isArray(vMax)) {
+          return vMin.map((vm, idx) => vm + ((vMax[idx] !== undefined ? vMax[idx] : vm) - vm) * norm);
+        }
+        return vMin + (vMax - vMin) * norm;
+      }
+
+      function clamp(v, minVal, maxVal) {
+        return Math.max(minVal, Math.min(maxVal, v));
+      }
+
+      function addVec(a, b) {
+        if (Array.isArray(a) && Array.isArray(b)) {
+          return [a[0] + b[0], a[1] + (b[1] !== undefined ? b[1] : b[0]), (a[2] || 0) + (b[2] || 0)];
+        }
+        if (Array.isArray(a) && typeof b === 'number') {
+          return [a[0] + b, a[1] + b, (a[2] || 0) + b];
+        }
+        if (typeof a === 'number' && Array.isArray(b)) {
+          return [a + b[0], a + (b[1] !== undefined ? b[1] : b[0]), a + (b[2] || 0)];
+        }
+        return a + b;
+      }
+
+      const pool = (Array.isArray(layerPool) && layerPool.length > 0) ? layerPool : (currentProjectState.layers || []);
+      const layerIdx = pool.findIndex(l => l.id === layer.id);
+      const index = (layerIdx >= 0) ? (layerIdx + 1) : 1;
+      const pps = window.currentPixelsPerSecond || 80;
+      const inPoint = layer.startSec !== undefined ? layer.startSec : ((layer.startPx || 0) / pps);
+      const durationSec = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+      const outPoint = Number((inPoint + durationSec).toFixed(4));
+      const compMarkerObj = getCompMarkerObject();
+      const layerMarkerObj = getLayerMarkerObject(layer);
+
+      const thisLayer = {
+        effect,
+        width: layer.mediaWidth || layer.widthPx || 1920,
+        height: layer.mediaHeight || layer.heightPx || 1080,
+        index: index,
+        name: layer.name || 'Layer',
+        inPoint,
+        outPoint,
+        marker: layerMarkerObj,
+        time
+      };
+
+      const thisComp = {
+        numLayers: pool.length,
+        marker: compMarkerObj,
+        layer: function(nameOrIndex) {
+          let otherLayer = null;
+          if (typeof nameOrIndex === 'number') {
+            otherLayer = pool[nameOrIndex - 1];
+          } else if (typeof nameOrIndex === 'string') {
+            const q = nameOrIndex.trim().toLowerCase();
+            otherLayer = pool.find(l => (l.name || '').toLowerCase() === q);
+          }
+          if (!otherLayer) {
+            if (!_cachedEmptyMarkerObj) _cachedEmptyMarkerObj = createMarkerObject([]);
+            return {
+              marker: _cachedEmptyMarkerObj,
+              inPoint: 0,
+              outPoint: 100,
+              effect: () => createEffectProxy(null),
+              transform: { position: [0, 0, 0], rotation: 0, scale: [100, 100], opacity: 100 }
+            };
+          }
+          const otherInPoint = otherLayer.startSec !== undefined ? otherLayer.startSec : ((otherLayer.startPx || 0) / pps);
+          const otherDur = otherLayer.durationSec !== undefined ? otherLayer.durationSec : ((otherLayer.widthPx || 320) / pps);
+          const otherOutPoint = Number((otherInPoint + otherDur).toFixed(4));
+          const otherMarkerObj = (otherLayer.type !== 'null' && Array.isArray(otherLayer.markers) && otherLayer.markers.length > 0)
+            ? getLayerMarkerObject(otherLayer)
+            : (_cachedEmptyMarkerObj || (_cachedEmptyMarkerObj = createMarkerObject([])));
+
+          let _otherEff = null;
+          function getOtherEff() {
+            if (!_otherEff) {
+              _otherEff = (typeof getLayerEffectivePropsAtTime === 'function')
+                ? getLayerEffectivePropsAtTime(otherLayer, currentSec, visited, pool)
+                : otherLayer;
+            }
+            return _otherEff;
+          }
+
+          return {
+            marker: otherMarkerObj,
+            inPoint: otherInPoint,
+            outPoint: otherOutPoint,
+            effect: function(fxName) {
+              const eff = getOtherEff();
+              const fxList = eff.effects || otherLayer.effects || [];
+              let target = null;
+              if (typeof fxName === 'number') {
+                target = fxList[fxName - 1] || fxList[fxName];
+              } else if (typeof fxName === 'string') {
+                const q = fxName.trim().toLowerCase();
+                target = fxList.find(f => {
+                  const n = (f.name || f.type || '').toLowerCase();
+                  return n === q || n.replace(/[\s_-]/g, '') === q.replace(/[\s_-]/g, '') || n.includes(q);
+                });
+              }
+              return createEffectProxy(target);
+            },
+            get transform() {
+              const eff = getOtherEff();
+              return {
+                position: [eff.posX || 0, eff.posY || 0, eff.posZ || 0],
+                rotation: eff.rotZ || 0,
+                scale: [eff.scaleW || 100, eff.scaleH || 100],
+                opacity: (eff.opacity !== undefined ? eff.opacity : 1) * 100
+              };
+            }
+          };
+        },
+        width: 1920,
+        height: 1080,
+        frameRate: currentProjectState.fps || 60,
+        duration: currentProjectState.durationSec || 5
+      };
+
+      let compiledFn = _compiledExpressionCache.get(trimmed);
+      if (!compiledFn) {
+        let script = trimmed.replace(/\b([a-zA-Z0-9_$]+)\s*\+\s*\[([^\]]+)\]/g, (m, g1, g2) => `addVec(${g1}, [${g2}])`);
+        try {
+          compiledFn = new Function(
+            'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
+            'inPoint', 'outPoint', 'index', 'addVec',
+            'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
+            'return eval(' + JSON.stringify(script) + ');'
+          );
+        } catch (_) {
+          try {
+            let fallbackScript = trimmed;
+            if (!fallbackScript.includes('return ') && !fallbackScript.includes('return\n')) {
+              const lines = fallbackScript.split('\n');
+              const lastIdx = lines.length - 1;
+              lines[lastIdx] = 'return (' + lines[lastIdx].replace(/;$/, '') + ');';
+              fallbackScript = lines.join('\n');
+            }
+            compiledFn = new Function(
+              'time', 'value', 'effect', 'wiggle', 'linear', 'clamp', 'thisLayer', 'thisComp',
+              'inPoint', 'outPoint', 'index', 'addVec',
+              'sin', 'cos', 'tan', 'abs', 'floor', 'ceil', 'round', 'sqrt', 'PI', 'min', 'max', 'random',
+              fallbackScript
+            );
+          } catch (e) {
+            compiledFn = () => undefined;
+          }
+        }
+        if (_compiledExpressionCache.size > 200) {
+          _compiledExpressionCache.clear();
+        }
+        _compiledExpressionCache.set(trimmed, compiledFn);
+      }
+
+      let result;
+      try {
+        result = compiledFn(
+          time, val, effect, wiggle, linear, clamp, thisLayer, thisComp,
+          inPoint, outPoint, index, addVec,
+          Math.sin, Math.cos, Math.tan, Math.abs, Math.floor, Math.ceil, Math.round, Math.sqrt, Math.PI, Math.min, Math.max, Math.random
+        );
+      } catch (e) {
+        return;
+      }
+
+      if (result === undefined || result === null || (typeof result === 'number' && isNaN(result))) return;
+
+      // Coerce result according to parameter type
+      if (type === 'color') {
+        if (typeof result === 'string') {
+          let s = result.trim();
+          if (s.startsWith('rgb')) {
+            const m = s.match(/\d+/g);
+            if (m && m.length >= 3) {
+              const rHex = Math.max(0, Math.min(255, parseInt(m[0], 10))).toString(16).padStart(2, '0');
+              const gHex = Math.max(0, Math.min(255, parseInt(m[1], 10))).toString(16).padStart(2, '0');
+              const bHex = Math.max(0, Math.min(255, parseInt(m[2], 10))).toString(16).padStart(2, '0');
+              fxEff[paramId] = '#' + rHex + gHex + bHex;
+              return;
+            }
+          }
+          if (!s.startsWith('#')) s = '#' + s;
+          if (/^#[0-9a-fA-F]{3,8}$/.test(s)) {
+            if (s.length === 4) s = '#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+            fxEff[paramId] = s.slice(0, 7);
+          }
+        } else if (Array.isArray(result)) {
+          const rRaw = Number(result[0]) || 0;
+          const gRaw = Number(result[1]) || 0;
+          const bRaw = Number(result[2]) || 0;
+          const isNorm = (rRaw <= 1.0 && gRaw <= 1.0 && bRaw <= 1.0 && rRaw >= 0 && gRaw >= 0 && bRaw >= 0);
+          const r = Math.max(0, Math.min(255, Math.round(isNorm ? rRaw * 255 : rRaw)));
+          const g = Math.max(0, Math.min(255, Math.round(isNorm ? gRaw * 255 : gRaw)));
+          const b = Math.max(0, Math.min(255, Math.round(isNorm ? bRaw * 255 : bRaw)));
+          fxEff[paramId] = '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+        }
+      } else if (type === 'select') {
+        const rawOpts = (paramDef && Array.isArray(paramDef.options)) ? paramDef.options : [];
+        const opts = rawOpts.map(o => {
+          if (typeof o === 'object' && o !== null) {
+            return { value: String(o.value !== undefined ? o.value : ''), label: String(o.label || o.value || '') };
+          }
+          const str = String(o);
+          return { value: str, label: str };
+        });
+        if (typeof result === 'number') {
+          const idx = Math.round(result) - 1; // 1-based index (AE)
+          const targetOpt = (idx >= 0 && idx < opts.length) ? opts[idx] : (opts[Math.round(result)] || opts[0]);
+          if (targetOpt) fxEff[paramId] = targetOpt.value;
+        } else if (typeof result === 'string') {
+          const q = result.trim().toLowerCase();
+          const targetOpt = opts.find(o => o.value.toLowerCase() === q || o.label.toLowerCase() === q);
+          if (targetOpt) {
+            fxEff[paramId] = targetOpt.value;
+          } else {
+            fxEff[paramId] = result;
+          }
+        } else if (typeof result === 'object' && result !== null) {
+          if (result.name !== undefined) fxEff[paramId] = String(result.name);
+          else if (result.value !== undefined) {
+            if (typeof result.value === 'number') {
+              const idx = Math.round(result.value) - 1;
+              const targetOpt = (idx >= 0 && idx < opts.length) ? opts[idx] : opts[0];
+              if (targetOpt) fxEff[paramId] = targetOpt.value;
+            } else {
+              fxEff[paramId] = String(result.value);
+            }
+          }
+        }
+      } else if (type === 'switch' || type === 'boolean') {
+        const truthy = (result === true || result === 1 || result === '1' || result === 'true' || result === 'on');
+        fxEff[paramId] = truthy ? 1 : 0;
+      } else if (partnerId && fxEff[partnerId] !== undefined) {
+        if (Array.isArray(result)) {
+          const xVal = Number(result[0]);
+          const yVal = Number(result[1]);
+          if (!isNaN(xVal)) fxEff[isYComponent ? partnerId : paramId] = xVal;
+          if (!isNaN(yVal)) fxEff[isYComponent ? paramId : partnerId] = yVal;
+        } else if (typeof result === 'object' && result !== null) {
+          const xVal = result.x !== undefined ? Number(result.x) : (result[0] !== undefined ? Number(result[0]) : NaN);
+          const yVal = result.y !== undefined ? Number(result.y) : (result[1] !== undefined ? Number(result[1]) : NaN);
+          if (!isNaN(xVal)) fxEff[isYComponent ? partnerId : paramId] = xVal;
+          if (!isNaN(yVal)) fxEff[isYComponent ? paramId : partnerId] = yVal;
+        } else if (typeof result === 'number' && !isNaN(result)) {
+          fxEff[paramId] = result;
+        }
+      } else {
+        let num = Number(Array.isArray(result) ? result[0] : result);
+        if (!isNaN(num)) {
+          if (paramDef && paramDef.min !== undefined && paramDef.max !== undefined) {
+            num = Math.max(paramDef.min, Math.min(paramDef.max, num));
+          }
+          fxEff[paramId] = num;
+        }
+      }
+    }
+    window.evaluateEffectParamExpression = evaluateEffectParamExpression;
+
     const _effectivePropsCache = new Map();
 
     function invalidateEffectivePropsCache() {
@@ -6219,6 +6674,31 @@
             if (baseProps.effects[0].brightness !== undefined) baseProps.brightness = baseProps.effects[0].brightness;
             if (baseProps.effects[0].contrast !== undefined) baseProps.contrast = baseProps.effects[0].contrast;
           }
+        }
+      }
+
+      // Apply expressions on effect parameters (overriding keyframes / manual values)
+      if (Array.isArray(baseProps.effects) && layer.expressions && typeof layer.expressions === 'object') {
+        const poolRef = (Array.isArray(layerPool) && layerPool.length > 0) ? layerPool : (currentProjectState.layers || []);
+        baseProps.effects.forEach((fxEff, idx) => {
+          const pIds = (typeof getEffectParamIds === 'function') ? getEffectParamIds(fxEff) : Object.keys(fxEff);
+          const def = (window.FishEffectsRegistry && typeof window.FishEffectsRegistry.get === 'function') ? window.FishEffectsRegistry.get(fxEff.type) : null;
+          pIds.forEach(pId => {
+            const scopedKey = `${fxEff.id}:${pId}`;
+            const builtInProps = ['move', 'scale', 'rotate', 'rotation', 'opacity', 'volume', 'origin', 'skew', 'speed', 'timeRemap', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount'];
+            const code = layer.expressions[scopedKey] || (idx === 0 && !builtInProps.includes(pId) && layer.expressions[pId] ? layer.expressions[pId] : null);
+            if (code && typeof code === 'string' && code.trim().length > 0) {
+              try {
+                const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === pId) : null;
+                evaluateEffectParamExpression(code, pId, fxEff, pDef, baseProps, layer, currentSec, visited, poolRef);
+              } catch (_) {}
+            }
+          });
+        });
+
+        if (baseProps.effects[0]) {
+          if (baseProps.effects[0].brightness !== undefined) baseProps.brightness = baseProps.effects[0].brightness;
+          if (baseProps.effects[0].contrast !== undefined) baseProps.contrast = baseProps.effects[0].contrast;
         }
       }
 
@@ -6558,6 +7038,7 @@
     function updateEffectsKeyframeAndGraphBtnStates() {
       const btnKf = document.getElementById('btn-effects-keyframe');
       const btnGraph = document.getElementById('btn-effects-graph');
+      const btnExpr = document.getElementById('btn-effects-expression');
       const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
       const effects = layer && Array.isArray(layer.effects) ? layer.effects : [];
       const curProp = window.activeKeyframeProperty;
@@ -6572,6 +7053,11 @@
         if (btnGraph) {
           btnGraph.disabled = true;
           btnGraph.classList.add('is-disabled');
+        }
+        if (btnExpr) {
+          btnExpr.disabled = true;
+          btnExpr.classList.add('is-disabled');
+          btnExpr.classList.remove('is-active', 'has-expression');
         }
         return;
       }
@@ -6590,6 +7076,14 @@
         const canOpen = kfList.length >= 2;
         btnGraph.disabled = !canOpen;
         btnGraph.classList.toggle('is-disabled', !canOpen);
+      }
+
+      if (btnExpr) {
+        btnExpr.disabled = false;
+        btnExpr.classList.remove('is-disabled');
+        const hasExpr = !!(layer.expressions && layer.expressions[curProp] && typeof layer.expressions[curProp] === 'string' && layer.expressions[curProp].trim().length > 0);
+        btnExpr.classList.toggle('has-expression', hasExpr);
+        btnExpr.classList.toggle('is-active', hasExpr);
       }
     }
     window.updateEffectsKeyframeAndGraphBtnStates = updateEffectsKeyframeAndGraphBtnStates;
@@ -9256,6 +9750,8 @@
       const exprClearBtn = document.getElementById('btn-expression-clear');
       const exprErrorMsg = document.getElementById('expression-error-msg');
 
+      const btnEffectsExpression = document.getElementById('btn-effects-expression');
+
       if (btnTransformExpression && exprPopover && exprTextarea) {
         btnTransformExpression.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -9263,6 +9759,7 @@
           if (!info || !info.layer) return;
           const layer = info.layer;
           const activeTool = window.activeTransformTool || 'move';
+          window.activeExpressionProperty = activeTool;
           const propNames = {
             move: 'Position',
             rotate: 'Rotation',
@@ -9286,18 +9783,62 @@
           }
         });
 
+        if (btnEffectsExpression) {
+          btnEffectsExpression.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (!layer) return;
+            const curProp = window.activeKeyframeProperty;
+            const effects = Array.isArray(layer.effects) ? layer.effects : [];
+            if (!curProp || !curProp.includes(':')) {
+              if (typeof showEffectsRackToast === 'function') {
+                showEffectsRackToast('Select an effect parameter first');
+              }
+              return;
+            }
+            const parts = curProp.split(':');
+            const fxId = parts[0];
+            const pId = parts[1];
+            const fx = effects.find(f => f.id === fxId);
+            if (!fx) return;
+            const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
+            const pDef = def && Array.isArray(def.params) ? def.params.find(p => p.id === pId) : null;
+            const fxName = fx.name || (def ? def.name : 'Effect');
+            const pLabel = (pDef && (pDef.label || pDef.id)) || pId;
+
+            window.activeExpressionProperty = curProp;
+            if (exprTitle) {
+              exprTitle.textContent = `${fxName} : ${pLabel} Expression`;
+            }
+            const curExpr = (layer.expressions && layer.expressions[curProp]) ? layer.expressions[curProp] : '';
+            exprTextarea.value = curExpr;
+            if (exprErrorMsg) {
+              exprErrorMsg.style.display = 'none';
+              exprErrorMsg.textContent = '';
+            }
+            if (window.Popover) {
+              window.Popover.toggle(btnEffectsExpression, 'popover-transform-expression');
+              if (window.Popover.isOpen && window.Popover.isOpen()) {
+                setTimeout(() => { exprTextarea.focus(); }, 50);
+              }
+            }
+          });
+        }
+
         exprTextarea.addEventListener('input', () => {
           const info = getSelectedLayerAndBaseDims();
-          if (!info || !info.layer) return;
-          const layer = info.layer;
-          const activeTool = window.activeTransformTool || 'move';
+          const curLayerId = window.selectedLayerId;
+          const layer = (info && info.layer) || (currentProjectState.layers || []).find(l => l.id === curLayerId);
+          if (!layer) return;
+          const targetProp = window.activeExpressionProperty || window.activeTransformTool || 'move';
+          const isEffectProp = targetProp.includes(':');
           const val = exprTextarea.value;
           const trimmed = val.trim();
 
           if (!layer.expressions) layer.expressions = {};
 
           if (!trimmed) {
-            delete layer.expressions[activeTool];
+            delete layer.expressions[targetProp];
             if (exprErrorMsg) {
               exprErrorMsg.style.display = 'none';
               exprErrorMsg.textContent = '';
@@ -9322,15 +9863,25 @@
                 exprErrorMsg.textContent = err.message || 'Syntax error in expression';
               }
             }
-            layer.expressions[activeTool] = val;
+            layer.expressions[targetProp] = val;
           }
 
-          syncTransformControllerValues();
+          if (isEffectProp) {
+            if (typeof updateEffectsKeyframeAndGraphBtnStates === 'function') {
+              updateEffectsKeyframeAndGraphBtnStates();
+            }
+            if (typeof syncEffectsRackUI === 'function') {
+              syncEffectsRackUI(true);
+            }
+          } else {
+            syncTransformControllerValues();
+          }
+
           if (typeof invalidatePreviewCacheForLayer === 'function') {
             invalidatePreviewCacheForLayer(layer);
           }
           if (typeof redrawComposition === 'function') {
-            redrawComposition('expressionEdit');
+            redrawComposition(isEffectProp ? 'effectExpressionEdit' : 'expressionEdit');
           }
           if (typeof saveCurrentProjectLayers === 'function') {
             saveCurrentProjectLayers();
@@ -9341,23 +9892,34 @@
           exprClearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const info = getSelectedLayerAndBaseDims();
-            if (!info || !info.layer) return;
-            const layer = info.layer;
-            const activeTool = window.activeTransformTool || 'move';
+            const curLayerId = window.selectedLayerId;
+            const layer = (info && info.layer) || (currentProjectState.layers || []).find(l => l.id === curLayerId);
+            if (!layer) return;
+            const targetProp = window.activeExpressionProperty || window.activeTransformTool || 'move';
+            const isEffectProp = targetProp.includes(':');
             if (layer.expressions) {
-              delete layer.expressions[activeTool];
+              delete layer.expressions[targetProp];
             }
             exprTextarea.value = '';
             if (exprErrorMsg) {
               exprErrorMsg.style.display = 'none';
               exprErrorMsg.textContent = '';
             }
-            syncTransformControllerValues();
+            if (isEffectProp) {
+              if (typeof updateEffectsKeyframeAndGraphBtnStates === 'function') {
+                updateEffectsKeyframeAndGraphBtnStates();
+              }
+              if (typeof syncEffectsRackUI === 'function') {
+                syncEffectsRackUI(true);
+              }
+            } else {
+              syncTransformControllerValues();
+            }
             if (typeof invalidatePreviewCacheForLayer === 'function') {
               invalidatePreviewCacheForLayer(layer);
             }
             if (typeof redrawComposition === 'function') {
-              redrawComposition('expressionClear');
+              redrawComposition(isEffectProp ? 'effectExpressionClear' : 'expressionClear');
             }
             if (typeof saveCurrentProjectLayers === 'function') {
               saveCurrentProjectLayers();
@@ -17681,6 +18243,7 @@
         const header = card.querySelector('.effects-card-header');
         const caretBtn = card.querySelector('.effects-card-caret-btn');
         const titleEl = card.querySelector('.effects-card-title');
+        const titleInput = card.querySelector('.effects-card-title-input');
         const kebabMenu = card.querySelector('.effects-kebab-menu');
 
         function toggleExpand(e) {
@@ -17694,7 +18257,119 @@
           }
         }
         if (caretBtn) caretBtn.addEventListener('click', toggleExpand);
-        if (titleEl) titleEl.addEventListener('click', toggleExpand);
+        if (header) {
+          header.addEventListener('click', (e) => {
+            if (e.target.closest('button, input, .effects-card-title, .effects-card-drag-handle, .effects-kebab-menu')) return;
+            toggleExpand(e);
+          });
+        }
+
+        // Inline Rename (After Effects Style: Click Title / Double Click / Enter Key / Kebab Menu)
+        function startRename() {
+          if (!titleEl || !titleInput) return;
+          titleEl.style.display = 'none';
+          titleInput.style.display = 'inline-block';
+          titleInput.value = fx.name || (def ? def.name : 'Effect');
+          titleInput.focus();
+          titleInput.select();
+        }
+
+        function commitRename() {
+          if (!titleInput || titleInput.style.display === 'none') return;
+          const oldName = fx.name || (def ? def.name : 'Effect');
+          const trimmed = titleInput.value.trim();
+          const newName = trimmed.length > 0 ? trimmed : (def ? def.name : 'Effect');
+          titleInput.style.display = 'none';
+          if (titleEl) {
+            titleEl.style.display = '';
+            titleEl.textContent = newName;
+          }
+          if (newName !== oldName) {
+            if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
+              window.UndoRedoManager.recordSnapshot();
+            }
+            fx.name = newName;
+
+            // Auto-update any expressions referencing effect("OldName")
+            const allLayers = (window.currentProjectState && window.currentProjectState.layers) || [layer];
+            allLayers.forEach(l => {
+              if (l.expressions && typeof l.expressions === 'object') {
+                const escOld = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`effect\\(\\s*(['"])${escOld}\\1\\s*\\)`, 'g');
+                let exprChanged = false;
+                Object.keys(l.expressions).forEach(k => {
+                  if (typeof l.expressions[k] === 'string' && regex.test(l.expressions[k])) {
+                    l.expressions[k] = l.expressions[k].replace(regex, `effect("$1${newName}$1")`);
+                    exprChanged = true;
+                  }
+                });
+              }
+            });
+            if (typeof window.invalidateEffectivePropsCache === 'function') {
+              window.invalidateEffectivePropsCache();
+            }
+
+            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+            if (typeof redrawComposition === 'function') redrawComposition('effect-rename');
+            if (typeof saveCurrentProjectLayers === 'function') saveCurrentProjectLayers();
+            if (typeof showEffectsRackToast === 'function') showEffectsRackToast(`Renamed to "${newName}"`);
+          }
+        }
+
+        function cancelRename() {
+          if (!titleInput || titleInput.style.display === 'none') return;
+          titleInput.style.display = 'none';
+          if (titleEl) titleEl.style.display = '';
+        }
+
+        if (titleEl) {
+          titleEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startRename();
+          });
+          titleEl.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            startRename();
+          });
+          titleEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              startRename();
+            }
+          });
+        }
+
+        if (titleInput) {
+          titleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              commitRename();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              cancelRename();
+            }
+          });
+          titleInput.addEventListener('blur', () => {
+            commitRename();
+          });
+          titleInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+          titleInput.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+          });
+        }
+
+        card.setAttribute('tabindex', '0');
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && e.target === card && (!titleInput || titleInput.style.display === 'none')) {
+            e.preventDefault();
+            startRename();
+          }
+        });
 
         // Horizontal Swipe-to-Delete Gesture on Unexpanded Card
         if (header) {
@@ -17871,7 +18546,9 @@
               card.classList.remove('has-kebab-open');
               const action = item.dataset.action;
 
-              if (action === 'details') {
+              if (action === 'rename') {
+                startRename();
+              } else if (action === 'details') {
                 const def = window.FishEffectsRegistry ? window.FishEffectsRegistry.get(fx.type) : null;
                 showEffectsRackToast(`${fx.name || (def ? def.name : 'Effect')}: ${def ? def.description : 'Adjust parameters'}`);
               } else if (action === 'reset') {
@@ -27043,6 +27720,9 @@
         if (copied.length > 0) {
           window.internalLayerClipboard = copied;
           window.lastClipboardType = 'layer';
+          if (copied.length === 1 && typeof window.FishAttributesClipboard !== 'undefined' && typeof window.FishAttributesClipboard.syncFromLayer === 'function') {
+            window.FishAttributesClipboard.syncFromLayer(copied[0]);
+          }
         }
         if (window.Popover) window.Popover.close();
       }

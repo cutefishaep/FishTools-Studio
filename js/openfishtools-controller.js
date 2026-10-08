@@ -1557,13 +1557,25 @@
     });
   }
 
+  // Helper: Create AE Expression Slider Control instance
+  function createSlider(name, val, min, max, step, unit) {
+    return {
+      id: 'fx_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      type: 'slider-control',
+      name: name,
+      slider: val,
+      value: val,
+      min: min !== undefined ? min : -10000,
+      max: max !== undefined ? max : 10000,
+      step: step !== undefined ? step : 1,
+      unit: unit || '',
+      isExpanded: true
+    };
+  }
+
   // --- BEAT EFFECT: FLASH (EXPOSURE FLASH BEAT) ---
   function applyBeatFlashEffect() {
     const pps = window.currentPixelsPerSecond || 80;
-    const fps = (typeof window.getProjectFps === 'function')
-      ? window.getProjectFps()
-      : ((window.currentProjectState && parseInt(window.currentProjectState.fps, 10)) || 60);
-    const fd = 1 / fps;
 
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
     const selId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size === 1 ? Array.from(window.selectedLayerIds)[0] : null);
@@ -1577,9 +1589,8 @@
 
     const startSec = selLayer.startSec !== undefined ? selLayer.startSec : ((selLayer.startPx || 0) / pps);
     const durationSec = selLayer.durationSec !== undefined ? selLayer.durationSec : ((selLayer.widthPx || 320) / pps);
-    const endSec = Number((startSec + durationSec).toFixed(4));
 
-    // Gather timeline beatmarks inside the selected layer duration
+    // Gather timeline or layer beatmarks
     let rawMarkers = [];
     if (Array.isArray(selLayer.markers) && selLayer.markers.length > 0) {
       rawMarkers = rawMarkers.concat(selLayer.markers.map(m => (typeof m === 'number' ? m : (m.time || 0))));
@@ -1591,12 +1602,9 @@
     if (Array.isArray(window.beatmarks) && window.beatmarks.length > 0) {
       rawMarkers = rawMarkers.concat(window.beatmarks);
     }
-    const allBeatmarks = Array.from(new Set(rawMarkers.map(m => Number(m.toFixed(4)))))
-      .filter(b => b >= (startSec - 0.001) && b <= (endSec + 0.001))
-      .sort((a, b) => a - b);
 
-    if (allBeatmarks.length === 0) {
-      const msg = 'Please place beatmarks across the selected layer first.';
+    if (rawMarkers.length === 0) {
+      const msg = 'Please place beatmarks on the timeline or selected layer first.';
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: 'EXPO', type: 'warn', message: msg });
     }
@@ -1612,7 +1620,7 @@
     if (!adj) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
     adj.name = 'Exposure Flash Beat';
 
-    // 2. Add Exposure / Gamma effect
+    // 2. Add Exposure / Gamma effect & Expression Slider Controllers
     const fx = (window.FishEffects && window.FishEffects.registry && typeof window.FishEffects.registry.createInstance === 'function')
       ? window.FishEffects.registry.createInstance('exposure-gamma')
       : null;
@@ -1629,80 +1637,47 @@
     expoFx.exposure = 0;
     expoFx.gamma = 0;
     expoFx.offset = 0;
-    adj.effects = [expoFx];
 
-    // 3. Build Keyframes:
-    // - Tepat di beatmark: exposure = 0.5
-    // - Mundur 1 frame sebelum beatmark: exposure = 0.0
-    // - Flash decay cepat setelah beatmark: exposure = 0.0
-    const easeFlashOut = [0.0, 0.0, 0.2, 1.0];
-    const linearEase = [0.0, 0.0, 1.0, 1.0];
-    const rawKfs = [];
+    const ampSlider = createSlider('Amp', 0.5, 0, 5, 0.05, '');
+    const decaySlider = createSlider('Decay', 18, 0.1, 100, 0.5, '');
+    const attackSlider = createSlider('Attack', 0, 0, 100, 1, '');
 
-    // Base start at 0 if first beatmark is after layer start
-    if (allBeatmarks[0] - fd > startSec + 0.001) {
-      rawKfs.push({ time: Number(startSec.toFixed(4)), value: { exposure: 0.0 }, easing: [...linearEase] });
-    }
+    adj.effects = [expoFx, ampSlider, decaySlider, attackSlider];
 
-    allBeatmarks.forEach((bm, i) => {
-      const nextBm = (i < allBeatmarks.length - 1) ? allBeatmarks[i + 1] : endSec;
-
-      // 1 frame mundur (belakang beatmark) = 0.0
-      const tBefore = Number(Math.max(startSec, bm - fd).toFixed(4));
-      rawKfs.push({
-        time: tBefore,
-        value: { exposure: 0.0 },
-        easing: [...linearEase]
-      });
-
-      // Tepat di beatmark = 0.5
-      const tBeat = Number(bm.toFixed(4));
-      rawKfs.push({
-        time: tBeat,
-        value: { exposure: 0.5 },
-        easing: [...easeFlashOut]
-      });
-
-      // Decay kembali ke 0.0 setelah beatmark (3-4 frame, tidak melewati beatmark berikutnya)
-      const maxDecayTime = nextBm - fd;
-      const decayDuration = Math.min(3.5 * fd, Math.max(fd, (nextBm - bm) * 0.45));
-      const tDecay = Number(Math.min(endSec, Math.min(maxDecayTime, bm + decayDuration)).toFixed(4));
-      if (tDecay > tBeat + 0.001) {
-        rawKfs.push({
-          time: tDecay,
-          value: { exposure: 0.0 },
-          easing: [...easeFlashOut]
-        });
-      }
-    });
-
-    // End at 0 if needed
-    rawKfs.push({ time: Number(endSec.toFixed(4)), value: { exposure: 0.0 }, easing: [...linearEase] });
-
-    // Sort & deduplicate close timestamps
-    rawKfs.sort((a, b) => a.time - b.time);
-    const kfs = [];
-    rawKfs.forEach(kf => {
-      const prev = kfs[kfs.length - 1];
-      if (!prev || Math.abs(prev.time - kf.time) > 0.001) {
-        kfs.push(kf);
-      } else {
-        if ((kf.value.exposure || 0) > (prev.value.exposure || 0)) {
-          prev.value.exposure = kf.value.exposure;
-        }
-      }
-    });
+    // 3. Attach Parameter Expression bound to Expression Controllers
+    const flashExpr = [
+      '// OpenFishTools Lite - Exposure Flash Beat Expression',
+      'amp = effect("Amp")("ADBE Slider Control-0001");',
+      'decay = effect("Decay")("ADBE Slider Control-0001");',
+      'attack = effect("Attack")("ADBE Slider Control-0001");',
+      '',
+      'm = (thisLayer.marker && thisLayer.marker.numKeys > 0) ? thisLayer.marker : ((index + 1 <= thisComp.numLayers && thisComp.layer(index + 1).marker && thisComp.layer(index + 1).marker.numKeys > 0) ? thisComp.layer(index + 1).marker : thisComp.marker);',
+      'res = value;',
+      'if (time >= inPoint && time <= outPoint && m && m.numKeys > 0) {',
+      '    n = 0;',
+      '    if (m.numKeys > 0) {',
+      '        n = m.nearestKey(time).index;',
+      '        if (m.key(n).time > time) n--;',
+      '    }',
+      '    if (n > 0) {',
+      '        markerTime = m.key(n).time;',
+      '        if (markerTime >= inPoint && markerTime <= outPoint) {',
+      '            t = time - markerTime;',
+      '            if (t >= 0 && t <= 0.5) {',
+      '                env = (attack > 0) ? (1 - Math.exp(-t * attack)) : 1;',
+      '                res = value + (amp * env) / Math.exp(t * decay);',
+      '            }',
+      '        }',
+      '    }',
+      '}',
+      'res;'
+    ].join('\n');
 
     const scopedKey = `${expoFx.id}:exposure`;
-    adj.keyframes = {
-      [scopedKey]: kfs,
-      exposure: kfs
-    };
-
-    if (!adj.defaultEasing) adj.defaultEasing = {};
-    adj.defaultEasing[scopedKey] = [...easeFlashOut];
-    adj.defaultEasing['exposure'] = [...easeFlashOut];
-    adj._defaultEasing = adj.defaultEasing;
+    adj.keyframes = {};
+    adj.expressions = adj.expressions || {};
+    adj.expressions[scopedKey] = flashExpr;
+    adj.expressions['exposure'] = flashExpr;
 
     // Position adjustment layer right above selected layer
     if (selId && selId !== adj.id) {
@@ -1726,6 +1701,7 @@
     }
 
     window.activeKeyframeProperty = scopedKey;
+    window.activeExpressionProperty = scopedKey;
     if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(adj);
     if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
     if (typeof window.renderTimelineLayers === 'function') window.renderTimelineLayers();
@@ -1739,10 +1715,6 @@
   function applyBeatBlurEffect(isRightClick) {
     const isLensBlur = (isRightClick === true);
     const pps = window.currentPixelsPerSecond || 80;
-    const fps = (typeof window.getProjectFps === 'function')
-      ? window.getProjectFps()
-      : ((window.currentProjectState && parseInt(window.currentProjectState.fps, 10)) || 60);
-    const fd = 1 / fps;
 
     const layers = (window.currentProjectState && window.currentProjectState.layers) || [];
     const selId = window.selectedLayerId || (window.selectedLayerIds && window.selectedLayerIds.size === 1 ? Array.from(window.selectedLayerIds)[0] : null);
@@ -1756,9 +1728,8 @@
 
     const startSec = selLayer.startSec !== undefined ? selLayer.startSec : ((selLayer.startPx || 0) / pps);
     const durationSec = selLayer.durationSec !== undefined ? selLayer.durationSec : ((selLayer.widthPx || 320) / pps);
-    const endSec = Number((startSec + durationSec).toFixed(4));
 
-    // Gather timeline beatmarks inside the selected layer duration
+    // Gather timeline or layer beatmarks
     let rawMarkers = [];
     if (Array.isArray(selLayer.markers) && selLayer.markers.length > 0) {
       rawMarkers = rawMarkers.concat(selLayer.markers.map(m => (typeof m === 'number' ? m : (m.time || 0))));
@@ -1770,12 +1741,9 @@
     if (Array.isArray(window.beatmarks) && window.beatmarks.length > 0) {
       rawMarkers = rawMarkers.concat(window.beatmarks);
     }
-    const allBeatmarks = Array.from(new Set(rawMarkers.map(m => Number(m.toFixed(4)))))
-      .filter(b => b >= (startSec - 0.001) && b <= (endSec + 0.001))
-      .sort((a, b) => a - b);
 
-    if (allBeatmarks.length === 0) {
-      const msg = 'Please place beatmarks across the selected layer first.';
+    if (rawMarkers.length === 0) {
+      const msg = 'Please place beatmarks on the timeline or selected layer first.';
       if (typeof window.showEffectsRackToast === 'function') window.showEffectsRackToast(msg);
       return JSON.stringify({ error: true, tool: 'LENS', type: 'warn', message: msg });
     }
@@ -1791,7 +1759,7 @@
     if (!adj) return JSON.stringify({ error: true, message: 'Failed to create adjustment layer' });
     adj.name = isLensBlur ? 'Lens Blur Beat' : 'Fast Box Blur Beat';
 
-    // 2. Add Blur effect:
+    // 2. Add Blur effect & Expression Slider Controllers:
     // - Left click: Fast Box Blur
     // - Right click: Lens Blur with bloom = 0, max blur = 5px
     let blurFx = null;
@@ -1812,7 +1780,7 @@
         bloom: 0
       };
       blurFx.radius = 0;
-      blurFx.bloom = 0; // Boom/bloom = 0 per user requirement
+      blurFx.bloom = 0; // Bloom = 0 per user requirement
       blurFx.aspectRatio = 100;
     } else {
       const fx = (window.FishEffects && window.FishEffects.registry && typeof window.FishEffects.registry.createInstance === 'function')
@@ -1830,80 +1798,47 @@
       blurFx.radius = 0;
       blurFx.iterations = 1;
     }
-    adj.effects = [blurFx];
 
-    // 3. Build Keyframes for radius:
-    // - Tepat di beatmark: radius = maxBlur (5 for lens blur, 10 for fast box blur)
-    // - Mundur 1 frame sebelum beatmark: radius = 0.0
-    // - Fast decay setelah beatmark: radius = 0.0
-    const easeBlurOut = [0.0, 0.0, 0.2, 1.0];
-    const linearEase = [0.0, 0.0, 1.0, 1.0];
-    const rawKfs = [];
+    const ampSlider = createSlider('Amp', maxBlur, 0, 100, 1, ' px');
+    const decaySlider = createSlider('Decay', 16, 0.1, 100, 0.5, '');
+    const attackSlider = createSlider('Attack', 0, 0, 100, 1, '');
 
-    // Base start at 0 if first beatmark is after layer start
-    if (allBeatmarks[0] - fd > startSec + 0.001) {
-      rawKfs.push({ time: Number(startSec.toFixed(4)), value: { radius: 0.0 }, easing: [...linearEase] });
-    }
+    adj.effects = [blurFx, ampSlider, decaySlider, attackSlider];
 
-    allBeatmarks.forEach((bm, i) => {
-      const nextBm = (i < allBeatmarks.length - 1) ? allBeatmarks[i + 1] : endSec;
-
-      // 1 frame mundur (belakang beatmark) = 0.0
-      const tBefore = Number(Math.max(startSec, bm - fd).toFixed(4));
-      rawKfs.push({
-        time: tBefore,
-        value: { radius: 0.0 },
-        easing: [...linearEase]
-      });
-
-      // Tepat di beatmark = maxBlur
-      const tBeat = Number(bm.toFixed(4));
-      rawKfs.push({
-        time: tBeat,
-        value: { radius: maxBlur },
-        easing: [...easeBlurOut]
-      });
-
-      // Decay kembali ke 0.0 setelah beatmark (3-4 frame, tidak melewati beatmark berikutnya)
-      const maxDecayTime = nextBm - fd;
-      const decayDuration = Math.min(3.5 * fd, Math.max(fd, (nextBm - bm) * 0.45));
-      const tDecay = Number(Math.min(endSec, Math.min(maxDecayTime, bm + decayDuration)).toFixed(4));
-      if (tDecay > tBeat + 0.001) {
-        rawKfs.push({
-          time: tDecay,
-          value: { radius: 0.0 },
-          easing: [...easeBlurOut]
-        });
-      }
-    });
-
-    // End at 0 if needed
-    rawKfs.push({ time: Number(endSec.toFixed(4)), value: { radius: 0.0 }, easing: [...linearEase] });
-
-    // Sort & deduplicate close timestamps
-    rawKfs.sort((a, b) => a.time - b.time);
-    const kfs = [];
-    rawKfs.forEach(kf => {
-      const prev = kfs[kfs.length - 1];
-      if (!prev || Math.abs(prev.time - kf.time) > 0.001) {
-        kfs.push(kf);
-      } else {
-        if ((kf.value.radius || 0) > (prev.value.radius || 0)) {
-          prev.value.radius = kf.value.radius;
-        }
-      }
-    });
+    // 3. Attach Parameter Expression bound to Expression Controllers
+    const blurExpr = [
+      '// OpenFishTools Lite - Blur Beat Expression',
+      'amp = effect("Amp")("ADBE Slider Control-0001");',
+      'decay = effect("Decay")("ADBE Slider Control-0001");',
+      'attack = effect("Attack")("ADBE Slider Control-0001");',
+      '',
+      'm = (thisLayer.marker && thisLayer.marker.numKeys > 0) ? thisLayer.marker : ((index + 1 <= thisComp.numLayers && thisComp.layer(index + 1).marker && thisComp.layer(index + 1).marker.numKeys > 0) ? thisComp.layer(index + 1).marker : thisComp.marker);',
+      'res = value;',
+      'if (time >= inPoint && time <= outPoint && m && m.numKeys > 0) {',
+      '    n = 0;',
+      '    if (m.numKeys > 0) {',
+      '        n = m.nearestKey(time).index;',
+      '        if (m.key(n).time > time) n--;',
+      '    }',
+      '    if (n > 0) {',
+      '        markerTime = m.key(n).time;',
+      '        if (markerTime >= inPoint && markerTime <= outPoint) {',
+      '            t = time - markerTime;',
+      '            if (t >= 0 && t <= 0.5) {',
+      '                env = (attack > 0) ? (1 - Math.exp(-t * attack)) : 1;',
+      '                res = value + (amp * env) / Math.exp(t * decay);',
+      '            }',
+      '        }',
+      '    }',
+      '}',
+      'res;'
+    ].join('\n');
 
     const scopedKey = `${blurFx.id}:radius`;
-    adj.keyframes = {
-      [scopedKey]: kfs,
-      radius: kfs
-    };
-
-    if (!adj.defaultEasing) adj.defaultEasing = {};
-    adj.defaultEasing[scopedKey] = [...easeBlurOut];
-    adj.defaultEasing['radius'] = [...easeBlurOut];
-    adj._defaultEasing = adj.defaultEasing;
+    adj.keyframes = {};
+    adj.expressions = adj.expressions || {};
+    adj.expressions[scopedKey] = blurExpr;
+    adj.expressions['radius'] = blurExpr;
 
     // Position adjustment layer right above selected layer
     if (selId && selId !== adj.id) {
@@ -1927,6 +1862,7 @@
     }
 
     window.activeKeyframeProperty = scopedKey;
+    window.activeExpressionProperty = scopedKey;
     if (typeof window.invalidatePreviewCacheForLayer === 'function') window.invalidatePreviewCacheForLayer(adj);
     if (typeof window.saveCurrentProjectLayers === 'function') window.saveCurrentProjectLayers();
     if (typeof window.renderTimelineLayers === 'function') window.renderTimelineLayers();

@@ -17,6 +17,7 @@ window.ContextMenu = (function () {
   let currentCloseCallback = null;
   let suppressNextClickTarget = null;
   let suppressClickUntil = 0;
+  let popstateAwaited = 0;
 
   const MARGIN = 10;
   const LONG_PRESS_MS = 450;
@@ -54,6 +55,10 @@ window.ContextMenu = (function () {
 
     // Native browser back button / popstate handling
     window.addEventListener('popstate', () => {
+      if (popstateAwaited > 0) {
+        popstateAwaited--;
+        return;
+      }
       if (isOpen) {
         close(false);
       }
@@ -143,7 +148,7 @@ window.ContextMenu = (function () {
 
       let iconHtml = '';
       if (item.icon) {
-        if (item.icon.trim().startsWith('<svg')) {
+        if (item.icon.includes('<')) {
           iconHtml = `<span class="context-menu-icon" aria-hidden="true">${item.icon}</span>`;
         } else {
           iconHtml = `<span class="context-menu-icon is-mask" style="--mask-url: url('${item.icon}');" aria-hidden="true"></span>`;
@@ -152,11 +157,22 @@ window.ContextMenu = (function () {
 
       btn.innerHTML = `${iconHtml}<span class="context-menu-label">${item.label || ''}</span>`;
 
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        close();
+        close(false);
         if (typeof item.action === 'function') {
-          item.action(options.target);
+          try {
+            await item.action(options.target);
+          } catch (err) {
+            console.error('ContextMenu action error:', err);
+          }
+        }
+        // If the action did NOT transition to a modal, revert contextMenu history state
+        if (window.history.state && window.history.state.contextMenuOpen && (!window.Modal || !window.Modal.activeModal)) {
+          popstateAwaited++;
+          window._contextMenuClosingHistoryBack = true;
+          window.history.back();
+          setTimeout(() => { window._contextMenuClosingHistoryBack = false; }, 350);
         }
       });
 
@@ -195,7 +211,10 @@ window.ContextMenu = (function () {
     isOpen = false;
 
     if (popHistory && window.history.state && window.history.state.contextMenuOpen) {
+      popstateAwaited++;
+      window._contextMenuClosingHistoryBack = true;
       window.history.back();
+      setTimeout(() => { window._contextMenuClosingHistoryBack = false; }, 350);
     }
 
     if (typeof currentCloseCallback === 'function') {
@@ -326,6 +345,7 @@ window.ContextMenu = (function () {
     open: open,
     close: close,
     bindTrigger: bindTrigger,
-    get isOpen() { return isOpen; }
+    get isOpen() { return isOpen; },
+    getAwaitedPopstate: () => popstateAwaited
   };
 })();

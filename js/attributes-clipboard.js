@@ -22,41 +22,78 @@
   let currentSourceLayer = null;
 
   const CATEGORY_DEFINITIONS = {
-    fill: {
-      id: 'fill',
-      label: 'Fill',
-      icon: '<i class="fticon fticon-icon-37" aria-hidden="true"></i>',
-      isApplicable: (l) => l && (l.type === 'shape' || l.type === 'video' || l.type === 'image')
+    // ROW 1: Quick Actions (Speed & Audio, stretched 50%/50%, cut buttons removed)
+    speed: {
+      id: 'speed',
+      row: 'top',
+      label: 'Speed',
+      icon: '<i class="fticon fticon-speed" aria-hidden="true"></i>',
+      isApplicable: (l) => l && (l.type === 'video' || l.type === 'audio' || l.type === 'precomp')
     },
-    opacityBlend: {
-      id: 'opacityBlend',
-      label: 'Opacity & Blend',
-      icon: '<i class="fticon fticon-icon-38" aria-hidden="true"></i>',
-      isApplicable: () => true
+    volume: {
+      id: 'volume',
+      row: 'top',
+      label: 'Audio',
+      icon: '<i class="fticon fticon-volume" aria-hidden="true"></i>',
+      isApplicable: (l) => l && (l.type === 'video' || l.type === 'audio' || l.type === 'precomp')
     },
-    effects: {
-      id: 'effects',
-      label: 'Effects',
-      icon: '<i class="fticon fticon-icon-39" aria-hidden="true"></i>',
-      isApplicable: () => true
+
+    // ROW 2: Action Drawer Buttons
+    group: {
+      id: 'group',
+      row: 'grid',
+      label: 'Edit Group',
+      icon: '<i class="fticon fticon-edit-group-enter-precompose" aria-hidden="true"></i>',
+      isApplicable: (l) => l && l.type === 'precomp'
+    },
+    shape: {
+      id: 'shape',
+      row: 'grid',
+      label: 'Edit Shape',
+      icon: '<i class="fticon fticon-edit-shape" aria-hidden="true"></i>',
+      isApplicable: (l) => l && l.type === 'shape'
+    },
+    text: {
+      id: 'text',
+      row: 'grid',
+      label: 'Text',
+      icon: '<i class="fticon fticon-edit-text" aria-hidden="true"></i>',
+      isApplicable: (l) => l && l.type === 'text'
+    },
+    camera: {
+      id: 'camera',
+      row: 'grid',
+      label: 'Camera settings',
+      icon: '<i class="fticon fticon-camera" aria-hidden="true"></i>',
+      isApplicable: (l) => l && l.type === 'camera'
     },
     transform: {
       id: 'transform',
+      row: 'grid',
       label: 'Transform',
-      icon: '<i class="fticon fticon-icon-40" aria-hidden="true"></i>',
-      isApplicable: () => true
+      icon: '<i class="fticon fticon-transform-layer" aria-hidden="true"></i>',
+      isApplicable: (l) => l && l.type !== 'audio'
     },
-    borderShadow: {
-      id: 'borderShadow',
-      label: 'Border & Shadow',
-      icon: '<i class="fticon fticon-icon-41" aria-hidden="true"></i>',
-      isApplicable: (l) => l && (l.type === 'shape' || l.type === 'image')
+    fill: {
+      id: 'fill',
+      row: 'grid',
+      label: 'Fill',
+      icon: '<i class="fticon fticon-fill-color-media-gradient" aria-hidden="true"></i>',
+      isApplicable: (l) => l && (l.type === 'shape' || l.type === 'video' || l.type === 'image' || l.type === 'text' || l.type === 'precomp')
     },
-    speedVolume: {
-      id: 'speedVolume',
-      label: 'Speed & Volume',
-      icon: '<i class="fticon fticon-icon-42" aria-hidden="true"></i>',
-      isApplicable: (l) => l && l.type === 'video'
+    blend: {
+      id: 'blend',
+      row: 'grid',
+      label: 'Blend and overlay',
+      icon: '<i class="fticon fticon-blend-overlay" aria-hidden="true"></i>',
+      isApplicable: (l) => l && (l.type === 'shape' || l.type === 'video' || l.type === 'image' || l.type === 'text' || l.type === 'precomp')
+    },
+    effects: {
+      id: 'effects',
+      row: 'grid',
+      label: 'Effects',
+      icon: '<i class="fticon fticon-effects" aria-hidden="true"></i>',
+      isApplicable: (l) => l && (l.type === 'shape' || l.type === 'video' || l.type === 'image' || l.type === 'text' || l.type === 'precomp')
     }
   };
 
@@ -87,7 +124,7 @@
    */
   function isSupportedLayerType(layer) {
     if (!layer || !layer.type) return false;
-    return layer.type === 'shape' || layer.type === 'video' || layer.type === 'image' || layer.type === 'text' || layer.type === 'null';
+    return layer.type === 'shape' || layer.type === 'video' || layer.type === 'image' || layer.type === 'text' || layer.type === 'audio' || layer.type === 'precomp' || layer.type === 'camera' || layer.type === 'null';
   }
 
   /**
@@ -245,19 +282,24 @@
     const startSec = (layer.startSec !== undefined) ? layer.startSec : ((layer.startPx || 0) / pps);
     const durationSec = (layer.durationSec !== undefined) ? layer.durationSec : ((layer.widthPx || 400) / pps);
 
+    const safeCloneSource = (window.UndoRedoManager && typeof window.UndoRedoManager._safeClone === 'function')
+      ? window.UndoRedoManager._safeClone(layer)
+      : JSON.parse(JSON.stringify(layer, (k, v) => (typeof v === 'function' || (k.startsWith('_') && k !== '_bgCutoutBitmap') ? undefined : v)));
+
     const payload = {
       sourceLayerId: layer.id,
       sourceLayerName: layer.name || 'Layer',
       sourceLayerType: layer.type,
       sourceStartSec: startSec,
       sourceDurationSec: durationSec,
+      sourceLayerSnapshot: safeCloneSource,
       categories: Array.from(categoriesSet),
       data: {}
     };
 
     // 1. Fill
     if (categoriesSet.has('fill')) {
-      const effectiveFillColor = layer.fillColor || layer.color || '#98ce7b';
+      const effectiveFillColor = (layer.textProps && layer.textProps.fillColor) || layer.fillColor || layer.color || '#98ce7b';
       const effectiveFillType = layer.fillType || (layer.type === 'video' || layer.type === 'image' ? 'media' : 'color');
       const effectiveMediaUrl = layer.dataUrl || layer.fillMediaUrl || layer.thumbUrl || null;
       const effectiveMediaId = layer.mediaId || layer.fillMediaId || null;
@@ -287,16 +329,67 @@
       };
     }
 
-    // 2. Opacity & Blend
-    if (categoriesSet.has('opacityBlend')) {
-      payload.data.opacityBlend = {
+    // 2. Text & Typography
+    if (categoriesSet.has('text') && layer.type === 'text') {
+      payload.data.text = {
+        textProps: layer.textProps ? JSON.parse(JSON.stringify(layer.textProps)) : {},
+        fillColor: (layer.textProps && layer.textProps.fillColor) || layer.fillColor || '#ffffff',
+        fontFamily: (layer.textProps && layer.textProps.fontFamily) || 'Cal Sans',
+        fontSize: (layer.textProps && layer.textProps.fontSize) || 48
+      };
+    }
+
+    // 3. Edit Shape
+    if (categoriesSet.has('shape') && layer.type === 'shape') {
+      payload.data.shape = {
+        shapeType: layer.shapeType || 'rectangle',
+        shapeProps: layer.shapeProps ? JSON.parse(JSON.stringify(layer.shapeProps)) : {},
+        roundness: layer.roundness,
+        strokeColor: layer.strokeColor,
+        strokeWidth: layer.strokeWidth,
+        strokeType: layer.strokeType,
+        isSolid: !!layer.isSolid,
+        keyframes: extractKeyframesForProps(layer, ['roundness', 'strokeWidth', 'strokeColor'])
+      };
+    }
+
+    // 4. Edit Group (Precompose)
+    if (categoriesSet.has('group') && layer.type === 'precomp') {
+      payload.data.group = {
+        layers: Array.isArray(layer.layers) ? JSON.parse(JSON.stringify(layer.layers)) : []
+      };
+    }
+
+    // 5. Camera settings
+    if (categoriesSet.has('camera') && layer.type === 'camera') {
+      payload.data.camera = {
+        cameraLens: layer.cameraLens,
+        cameraLensPreset: layer.cameraLensPreset,
+        cameraZoom: layer.cameraZoom,
+        cameraBlurEnabled: !!layer.cameraBlurEnabled,
+        cameraFocusMode: layer.cameraFocusMode,
+        cameraFocusDistance: layer.cameraFocusDistance,
+        cameraFocusTargetLayerId: layer.cameraFocusTargetLayerId,
+        cameraBlurAmount: layer.cameraBlurAmount,
+        cameraBlurNearFar: layer.cameraBlurNearFar,
+        cameraBlurBalance: layer.cameraBlurBalance,
+        keyframes: extractKeyframesForProps(layer, [
+          'cameraLens', 'cameraZoom', 'cameraFocusDistance', 'cameraBlurAmount', 'cameraBlurNearFar', 'cameraBlurBalance'
+        ])
+      };
+    }
+
+    // 6. Blend & Overlay (Opacity & Blend)
+    if (categoriesSet.has('blend') || categoriesSet.has('opacityBlend')) {
+      payload.data.blend = {
         opacity: (layer.opacity !== undefined) ? layer.opacity : 1.0,
         blendMode: layer.blendMode || 'normal',
         keyframes: extractKeyframesForProps(layer, ['opacity'])
       };
+      payload.data.opacityBlend = payload.data.blend;
     }
 
-    // 3. Effects
+    // 7. Effects
     if (categoriesSet.has('effects')) {
       const fxList = Array.isArray(layer.effects) ? JSON.parse(JSON.stringify(layer.effects)) : [];
       const effectKeyframes = {};
@@ -315,7 +408,7 @@
       };
     }
 
-    // 4. Transform
+    // 8. Transform
     if (categoriesSet.has('transform')) {
       const tProps = [
         'posX', 'posY', 'posZ',
@@ -338,7 +431,7 @@
       };
     }
 
-    // 5. Border & Shadow
+    // 9. Border & Shadow (backward compat)
     if (categoriesSet.has('borderShadow')) {
       const bsProps = [
         'strokeColor', 'strokeWidth', 'strokeType',
@@ -355,14 +448,33 @@
       };
     }
 
-    // 6. Speed & Volume
-    if (categoriesSet.has('speedVolume')) {
-      payload.data.speedVolume = {
+    // 10. Speed (Top row)
+    if (categoriesSet.has('speed') || categoriesSet.has('speedVolume')) {
+      payload.data.speed = {
         speed: (layer.speed !== undefined) ? layer.speed : 1.0,
+        speedInterpolation: layer.speedInterpolation || 'none',
+        keyframes: extractKeyframesForProps(layer, ['speed'])
+      };
+    }
+
+    // 11. Audio / Volume (Top row)
+    if (categoriesSet.has('volume') || categoriesSet.has('speedVolume')) {
+      payload.data.volume = {
         volume: (layer.volume !== undefined) ? layer.volume : 1.0,
         muted: !!layer.muted,
+        preservePitch: layer.preservePitch !== undefined ? layer.preservePitch : true,
         audioEffects: Array.isArray(layer.audioEffects) ? JSON.parse(JSON.stringify(layer.audioEffects)) : [],
-        keyframes: extractKeyframesForProps(layer, ['speed', 'volume'])
+        keyframes: extractKeyframesForProps(layer, ['volume'])
+      };
+    }
+
+    if (payload.data.speed || payload.data.volume) {
+      payload.data.speedVolume = {
+        speed: payload.data.speed ? payload.data.speed.speed : 1.0,
+        volume: payload.data.volume ? payload.data.volume.volume : 1.0,
+        muted: payload.data.volume ? payload.data.volume.muted : false,
+        audioEffects: payload.data.volume ? payload.data.volume.audioEffects : [],
+        keyframes: Object.assign({}, (payload.data.speed && payload.data.speed.keyframes) || {}, (payload.data.volume && payload.data.volume.keyframes) || {})
       };
     }
 
@@ -473,18 +585,75 @@
         window.invalidatePreviewCacheForLayer(targetLayer);
       }
 
+      if (targetLayer.type === 'text') {
+        if (!targetLayer.textProps) targetLayer.textProps = {};
+        if (d.fillColor !== undefined) {
+          targetLayer.fillColor = d.fillColor;
+          targetLayer.textProps.fillColor = d.fillColor;
+        }
+      }
+
       applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
-    // 2. Opacity & Blend
-    if (categoriesSet.has('opacityBlend') && payload.data.opacityBlend) {
-      const d = payload.data.opacityBlend;
+    // 2. Text & Typography
+    if (categoriesSet.has('text') && payload.data.text && targetLayer.type === 'text') {
+      const td = payload.data.text;
+      if (!targetLayer.textProps) targetLayer.textProps = {};
+      if (td.textProps) {
+        Object.assign(targetLayer.textProps, JSON.parse(JSON.stringify(td.textProps)));
+      }
+      if (td.fillColor) {
+        targetLayer.fillColor = td.fillColor;
+        targetLayer.textProps.fillColor = td.fillColor;
+      }
+      if (typeof window.FishTextEngine !== 'undefined' && typeof window.FishTextEngine.getNaturalSize === 'function') {
+        const nat = window.FishTextEngine.getNaturalSize(targetLayer);
+        if (nat && nat.width > 0 && nat.height > 0) {
+          targetLayer.mediaWidth = nat.width;
+          targetLayer.mediaHeight = nat.height;
+        }
+      }
+    }
+
+    // 3. Edit Shape
+    if (categoriesSet.has('shape') && payload.data.shape && targetLayer.type === 'shape') {
+      const d = payload.data.shape;
+      if (d.shapeType) targetLayer.shapeType = d.shapeType;
+      if (d.shapeProps) targetLayer.shapeProps = JSON.parse(JSON.stringify(d.shapeProps));
+      if (d.roundness !== undefined) targetLayer.roundness = d.roundness;
+      if (d.strokeColor !== undefined) targetLayer.strokeColor = d.strokeColor;
+      if (d.strokeWidth !== undefined) targetLayer.strokeWidth = d.strokeWidth;
+      if (d.strokeType !== undefined) targetLayer.strokeType = d.strokeType;
+      if (d.isSolid !== undefined) targetLayer.isSolid = d.isSolid;
+      if (d.keyframes) applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
+    }
+
+    // 4. Edit Group (Precompose)
+    if (categoriesSet.has('group') && payload.data.group && targetLayer.type === 'precomp') {
+      if (Array.isArray(payload.data.group.layers)) {
+        targetLayer.layers = JSON.parse(JSON.stringify(payload.data.group.layers));
+      }
+    }
+
+    // 5. Camera settings
+    if (categoriesSet.has('camera') && payload.data.camera && targetLayer.type === 'camera') {
+      const d = payload.data.camera;
+      ['cameraLens', 'cameraLensPreset', 'cameraZoom', 'cameraBlurEnabled', 'cameraFocusMode', 'cameraFocusDistance', 'cameraFocusTargetLayerId', 'cameraBlurAmount', 'cameraBlurNearFar', 'cameraBlurBalance'].forEach(p => {
+        if (d[p] !== undefined) targetLayer[p] = d[p];
+      });
+      if (d.keyframes) applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
+    }
+
+    // 6. Blend & Overlay (Opacity & Blend)
+    if ((categoriesSet.has('blend') || categoriesSet.has('opacityBlend')) && (payload.data.blend || payload.data.opacityBlend)) {
+      const d = payload.data.blend || payload.data.opacityBlend;
       if (d.opacity !== undefined) targetLayer.opacity = d.opacity;
       if (d.blendMode !== undefined) targetLayer.blendMode = d.blendMode;
       applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
-    // 3. Effects
+    // 7. Effects
     if (categoriesSet.has('effects') && payload.data.effects) {
       const d = payload.data.effects;
       // Clean up previous effect keyframes on target
@@ -524,7 +693,7 @@
       targetLayer.effects = newEffects;
     }
 
-    // 4. Transform
+    // 8. Transform
     if (categoriesSet.has('transform') && payload.data.transform) {
       const d = payload.data.transform;
       if (d.values) {
@@ -535,30 +704,49 @@
       applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
-    // 5. Border & Shadow
+    // 9. Border & Shadow (backward compat)
     if (categoriesSet.has('borderShadow') && payload.data.borderShadow) {
       const d = payload.data.borderShadow;
       if (d.values) {
         Object.keys(d.values).forEach(prop => {
           targetLayer[prop] = d.values[prop];
         });
+        if (targetLayer.type === 'text') {
+          if (!targetLayer.textProps) targetLayer.textProps = {};
+          if (d.values.strokeColor !== undefined) targetLayer.textProps.strokeColor = d.values.strokeColor;
+          if (d.values.strokeWidth !== undefined) targetLayer.textProps.strokeWidth = d.values.strokeWidth;
+          if (d.values.shadowColor !== undefined) targetLayer.textProps.shadowColor = d.values.shadowColor;
+          if (d.values.shadowBlur !== undefined) targetLayer.textProps.shadowBlur = d.values.shadowBlur;
+        }
       }
       applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
     }
 
-    // 6. Speed & Volume
-    if (categoriesSet.has('speedVolume') && payload.data.speedVolume && targetLayer.type === 'video') {
-      const d = payload.data.speedVolume;
-      if (d.speed !== undefined) targetLayer.speed = d.speed;
-      if (d.volume !== undefined) targetLayer.volume = d.volume;
-      if (d.muted !== undefined) targetLayer.muted = d.muted;
-      if (Array.isArray(d.audioEffects)) {
-        targetLayer.audioEffects = JSON.parse(JSON.stringify(d.audioEffects)).map(fx => {
-          fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-          return fx;
-        });
+    // 10. Speed
+    if ((categoriesSet.has('speed') || categoriesSet.has('speedVolume')) && (targetLayer.type === 'video' || targetLayer.type === 'audio' || targetLayer.type === 'precomp')) {
+      const d = payload.data.speed || payload.data.speedVolume;
+      if (d) {
+        if (d.speed !== undefined) targetLayer.speed = d.speed;
+        if (d.speedInterpolation !== undefined) targetLayer.speedInterpolation = d.speedInterpolation;
+        if (d.keyframes) applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
       }
-      applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
+    }
+
+    // 11. Audio / Volume
+    if ((categoriesSet.has('volume') || categoriesSet.has('speedVolume')) && (targetLayer.type === 'video' || targetLayer.type === 'audio' || targetLayer.type === 'precomp')) {
+      const d = payload.data.volume || payload.data.speedVolume;
+      if (d) {
+        if (d.volume !== undefined) targetLayer.volume = d.volume;
+        if (d.muted !== undefined) targetLayer.muted = d.muted;
+        if (d.preservePitch !== undefined) targetLayer.preservePitch = d.preservePitch;
+        if (Array.isArray(d.audioEffects)) {
+          targetLayer.audioEffects = JSON.parse(JSON.stringify(d.audioEffects)).map(fx => {
+            fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+            return fx;
+          });
+        }
+        if (d.keyframes) applyShiftedKeyframes(targetLayer, d.keyframes, sourceStartSec, sourceDur, targetStartSec, targetDur);
+      }
     }
 
     if (typeof window.invalidatePreviewCacheForLayer === 'function') {
@@ -578,10 +766,12 @@
 
     const titleEl = document.getElementById('attr-popover-title');
     const subtitleEl = document.getElementById('attr-popover-subtitle');
+    const speedAudioRowEl = document.getElementById('attr-speed-audio-row');
     const gridEl = document.getElementById('attr-toggle-grid');
     const actionBtn = document.getElementById('attr-btn-action');
 
     if (!gridEl || !actionBtn) return;
+    if (speedAudioRowEl) speedAudioRowEl.innerHTML = '';
     gridEl.innerHTML = '';
 
     if (mode === 'copy') {
@@ -607,7 +797,7 @@
         btn.className = 'attr-toggle-btn is-active';
         btn.dataset.category = catKey;
 
-        let labelText = def.label;
+        const labelText = def.label;
 
         btn.innerHTML = `
           <span class="attr-toggle-icon">${def.icon}</span>
@@ -625,7 +815,11 @@
           }
         });
 
-        gridEl.appendChild(btn);
+        if (def.row === 'top' && speedAudioRowEl) {
+          speedAudioRowEl.appendChild(btn);
+        } else {
+          gridEl.appendChild(btn);
+        }
       });
     } else {
       // Paste mode
@@ -642,16 +836,32 @@
 
       const clip = window.internalAttributeClipboard;
       const copiedCategories = clip ? new Set(clip.categories || []) : new Set();
+      if (copiedCategories.has('speedVolume')) {
+        copiedCategories.add('speed');
+        copiedCategories.add('volume');
+      }
+      if (copiedCategories.has('opacityBlend')) {
+        copiedCategories.add('blend');
+      }
+      if (copiedCategories.has('blend')) {
+        copiedCategories.add('opacityBlend');
+      }
 
       Object.keys(CATEGORY_DEFINITIONS).forEach(catKey => {
         const def = CATEGORY_DEFINITIONS[catKey];
-        const hasInClipboard = copiedCategories.has(catKey);
+        const isApplicableToTarget = currentTargetLayers.some(l => def.isApplicable(l));
+        if (!isApplicableToTarget) return;
+
+        const hasInClipboard = copiedCategories.has(catKey) ||
+          (catKey === 'speed' && (copiedCategories.has('speed') || copiedCategories.has('speedVolume'))) ||
+          (catKey === 'volume' && (copiedCategories.has('volume') || copiedCategories.has('speedVolume'))) ||
+          (catKey === 'blend' && (copiedCategories.has('blend') || copiedCategories.has('opacityBlend')));
 
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.dataset.category = catKey;
 
-        let labelText = def.label;
+        const labelText = def.label;
 
         if (hasInClipboard) {
           // Available from clipboard: enabled & active by default
@@ -678,7 +888,11 @@
           <span class="attr-toggle-label">${labelText}</span>
         `;
 
-        gridEl.appendChild(btn);
+        if (def.row === 'top' && speedAudioRowEl) {
+          speedAudioRowEl.appendChild(btn);
+        } else {
+          gridEl.appendChild(btn);
+        }
       });
     }
 
@@ -702,6 +916,14 @@
       const payload = extractAttributesPayload(currentSourceLayer, activeCategories);
       window.internalAttributeClipboard = payload;
       window.lastClipboardType = 'attributes';
+
+      // Keep internalLayerClipboard in sync with full layer clone
+      if (payload.sourceLayerSnapshot) {
+        const fullLayerClone = (window.UndoRedoManager && typeof window.UndoRedoManager._safeClone === 'function')
+          ? window.UndoRedoManager._safeClone(payload.sourceLayerSnapshot)
+          : JSON.parse(JSON.stringify(payload.sourceLayerSnapshot));
+        window.internalLayerClipboard = [fullLayerClone];
+      }
 
       if (window.Popover) window.Popover.close();
 
@@ -735,6 +957,18 @@
       }
       if (typeof window.syncFillControllerUI === 'function') {
         window.syncFillControllerUI();
+      }
+      if (typeof window.syncTextControllerUI === 'function') {
+        window.syncTextControllerUI();
+      }
+      if (typeof window.syncShapeControllerUI === 'function') {
+        window.syncShapeControllerUI();
+      }
+      if (typeof window.syncCameraSettingsUI === 'function') {
+        window.syncCameraSettingsUI();
+      }
+      if (typeof window.syncEffectsRackUI === 'function') {
+        window.syncEffectsRackUI();
       }
       if (typeof window.syncInspectorState === 'function') {
         window.syncInspectorState();
@@ -808,8 +1042,9 @@
       const selected = getSelectedLayers();
       const compatibleTargets = selected.filter(isSupportedLayerType);
 
-      if (compatibleTargets.length === 0) {
-        // No selection → paste as a brand-new layer carrying only the copied attributes
+      // If no layer is selected, OR if the selected layer is the exact source layer:
+      // User's intention is to duplicate/paste as a new layer at the playhead!
+      if (compatibleTargets.length === 0 || (compatibleTargets.length === 1 && compatibleTargets[0].id === window.internalAttributeClipboard.sourceLayerId)) {
         pasteAttributesAsNewLayer();
         return;
       }
@@ -829,9 +1064,8 @@
   }
 
   /**
-   * Create a new shape layer, apply all attribute clipboard categories to it,
-   * and insert at the top of the timeline (index 0).
-   * Used when user clicks Paste with no layer selected but attribute clipboard exists.
+   * Paste clipboard contents as a brand-new layer matching the exact source layer type and configuration,
+   * shifting keyframes and inserting at the playhead on top of the timeline.
    */
   function pasteAttributesAsNewLayer() {
     const clip = window.internalAttributeClipboard;
@@ -848,42 +1082,193 @@
     const playheadSec = Math.max(0, -panXVal / pps);
 
     const durSec = (clip.sourceDurationSec && clip.sourceDurationSec > 0.1) ? clip.sourceDurationSec : 5;
+    const origStartSec = clip.sourceStartSec !== undefined ? clip.sourceStartSec : 0;
+    const deltaSec = playheadSec - origStartSec;
 
-    // Build a clean default shape layer
     const newId = 'layer_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6) + '_' + ps.layers.length;
-    const newLayer = {
-      id: newId,
-      type: 'shape',
-      name: 'Pasted Layer',
-      startSec: playheadSec,
-      startPx: Math.round(playheadSec * pps),
-      durationSec: durSec,
-      widthPx: Math.round(durSec * pps),
-      posX: 0,
-      posY: 0,
-      scaleW: 1,
-      scaleH: 1,
-      rotZ: 0,
-      opacity: 1,
-      blendMode: 'normal',
-      fillColor: '#98ce7b',
-      fillType: 'color',
-      isSolid: true,
-      effects: [],
-      keyframes: {},
-      hidden: false,
-      locked: false
-    };
+
+    let newLayer;
+    if (clip.sourceLayerSnapshot) {
+      newLayer = (window.UndoRedoManager && typeof window.UndoRedoManager._safeClone === 'function')
+        ? window.UndoRedoManager._safeClone(clip.sourceLayerSnapshot)
+        : JSON.parse(JSON.stringify(clip.sourceLayerSnapshot));
+
+      newLayer.id = newId;
+      newLayer.name = clip.sourceLayerName ? (clip.sourceLayerName + ' (Copy)') : (clip.sourceLayerType ? (clip.sourceLayerType.charAt(0).toUpperCase() + clip.sourceLayerType.slice(1) + ' (Copy)') : 'Layer (Copy)');
+      newLayer.startSec = playheadSec;
+      newLayer.startPx = Math.round(playheadSec * pps);
+      newLayer.durationSec = durSec;
+      newLayer.widthPx = Math.round(durSec * pps);
+
+      // Deep clone keyframes & shift all times by deltaSec so animation aligns with pasted layer
+      if (newLayer.keyframes && Math.abs(deltaSec) > 0.0001) {
+        Object.keys(newLayer.keyframes).forEach(prop => {
+          if (Array.isArray(newLayer.keyframes[prop])) {
+            newLayer.keyframes[prop].forEach(kf => {
+              if (typeof kf.time === 'number') {
+                kf.time = Number(Math.max(0, kf.time + deltaSec).toFixed(4));
+              }
+            });
+          }
+        });
+      }
+
+      // Regenerate effect IDs and remap keyframes
+      if (Array.isArray(newLayer.effects)) {
+        newLayer.effects.forEach(fx => {
+          const oldId = fx.id;
+          const newFxId = 'fx_' + (fx.type || 'effect') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + Math.floor(Math.random() * 1000);
+          fx.id = newFxId;
+          if (newLayer.keyframes) {
+            Object.keys(newLayer.keyframes).forEach(k => {
+              if (k.startsWith(oldId + ':')) {
+                const paramName = k.slice(oldId.length + 1);
+                newLayer.keyframes[`${newFxId}:${paramName}`] = newLayer.keyframes[k];
+                delete newLayer.keyframes[k];
+              }
+            });
+          }
+        });
+      }
+
+      // Regenerate audio effect IDs
+      if (Array.isArray(newLayer.audioEffects)) {
+        newLayer.audioEffects.forEach(fx => {
+          fx.id = 'fx_' + (fx.type || 'audio') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        });
+      }
+
+      // Preserve media and cutout references
+      const origLayer = clip.sourceLayerSnapshot;
+      if (origLayer._bgCutoutBitmap) newLayer._bgCutoutBitmap = origLayer._bgCutoutBitmap;
+      if (origLayer._lastMattingModel) newLayer._lastMattingModel = origLayer._lastMattingModel;
+      if (origLayer._fillMediaImg) newLayer._fillMediaImg = origLayer._fillMediaImg;
+
+      if (window.FishBgRemovalEngine) {
+        const cutout = origLayer._bgCutoutBitmap || window.FishBgRemovalEngine.getPhotoCutout(origLayer);
+        if (cutout) {
+          newLayer._bgCutoutBitmap = cutout;
+          if (window.FishBgRemovalEngine._photoCutoutCache) {
+            window.FishBgRemovalEngine._photoCutoutCache.set(newId, cutout);
+            if (newLayer.mediaId) window.FishBgRemovalEngine._photoCutoutCache.set(newLayer.mediaId, cutout);
+          }
+        }
+      }
+
+      if (window.layerMediaCache) {
+        const origMedia = window.layerMediaCache.get(origLayer.id) || (origLayer.mediaId ? window.layerMediaCache.get(origLayer.mediaId) : null);
+        if (origMedia) {
+          window.layerMediaCache.set(newId, origMedia);
+        }
+      }
+    } else {
+      // Typed fallback if snapshot not stored
+      const sType = clip.sourceLayerType || 'shape';
+      if (sType === 'text') {
+        newLayer = {
+          id: newId,
+          type: 'text',
+          name: clip.sourceLayerName ? (clip.sourceLayerName + ' (Copy)') : 'Text (Copy)',
+          startSec: playheadSec,
+          startPx: Math.round(playheadSec * pps),
+          durationSec: durSec,
+          widthPx: Math.round(durSec * pps),
+          textProps: (clip.data && clip.data.text && clip.data.text.textProps) ? JSON.parse(JSON.stringify(clip.data.text.textProps)) : {
+            text: 'Text',
+            fontSize: 48,
+            fontFamily: 'Cal Sans',
+            fillColor: '#ffffff'
+          },
+          fillColor: (clip.data && clip.data.text && clip.data.text.fillColor) || '#ffffff',
+          fillType: 'color',
+          posX: 0,
+          posY: 0,
+          scaleW: 320,
+          scaleH: 100,
+          opacity: 1,
+          blendMode: 'normal',
+          effects: [],
+          keyframes: {},
+          hidden: false,
+          locked: false
+        };
+      } else if (sType === 'audio') {
+        newLayer = {
+          id: newId,
+          type: 'audio',
+          name: clip.sourceLayerName ? (clip.sourceLayerName + ' (Copy)') : 'Audio (Copy)',
+          startSec: playheadSec,
+          startPx: Math.round(playheadSec * pps),
+          durationSec: durSec,
+          widthPx: Math.round(durSec * pps),
+          speed: 1.0,
+          volume: 1.0,
+          muted: false,
+          audioEffects: [],
+          keyframes: {},
+          hidden: false,
+          locked: false
+        };
+      } else if (sType === 'video' || sType === 'image') {
+        newLayer = {
+          id: newId,
+          type: sType,
+          name: clip.sourceLayerName ? (clip.sourceLayerName + ' (Copy)') : (sType === 'video' ? 'Video (Copy)' : 'Image (Copy)'),
+          startSec: playheadSec,
+          startPx: Math.round(playheadSec * pps),
+          durationSec: durSec,
+          widthPx: Math.round(durSec * pps),
+          posX: 0,
+          posY: 0,
+          scaleW: 400,
+          scaleH: 300,
+          opacity: 1,
+          blendMode: 'normal',
+          effects: [],
+          keyframes: {},
+          hidden: false,
+          locked: false
+        };
+      } else {
+        newLayer = {
+          id: newId,
+          type: 'shape',
+          name: clip.sourceLayerName ? (clip.sourceLayerName + ' (Copy)') : 'Shape (Copy)',
+          startSec: playheadSec,
+          startPx: Math.round(playheadSec * pps),
+          durationSec: durSec,
+          widthPx: Math.round(durSec * pps),
+          posX: 0,
+          posY: 0,
+          scaleW: 1,
+          scaleH: 1,
+          rotZ: 0,
+          opacity: 1,
+          blendMode: 'normal',
+          fillColor: '#98ce7b',
+          fillType: 'color',
+          isSolid: true,
+          effects: [],
+          keyframes: {},
+          hidden: false,
+          locked: false
+        };
+      }
+    }
 
     if (window.UndoRedoManager && typeof window.UndoRedoManager.recordSnapshot === 'function') {
       window.UndoRedoManager.recordSnapshot();
     }
 
-    // Apply all clipboard categories directly — no popover needed
+    // Apply all clipboard categories directly
     const categoriesSet = new Set(clip.categories || []);
     applyAttributesToTarget(newLayer, clip, categoriesSet);
 
-    // Insert at top (renders above all other layers)
+    if (typeof window.invalidatePreviewCacheForLayer === 'function') {
+      window.invalidatePreviewCacheForLayer(newLayer);
+    }
+
+    // Insert at top of timeline
     ps.layers.unshift(newLayer);
 
     if (typeof window.saveCurrentProjectLayers === 'function') {
@@ -895,12 +1280,15 @@
     if (typeof window.redrawComposition === 'function') {
       window.redrawComposition('pasteAsNewLayer');
     }
+    if (typeof window.selectTimelineLayer === 'function') {
+      window.selectTimelineLayer(newId, false);
+    }
     if (typeof window.syncInspectorState === 'function') {
       window.syncInspectorState();
     }
 
-    const cats = Array.from(categoriesSet).map(k => (CATEGORY_DEFINITIONS[k] ? CATEGORY_DEFINITIONS[k].label : k));
-    notify('Pasted as new layer' + (cats.length ? ': ' + cats.join(', ') : ''));
+    const typeName = newLayer.type ? (newLayer.type.charAt(0).toUpperCase() + newLayer.type.slice(1)) : 'Layer';
+    notify(`Pasted as new ${typeName} layer`);
   }
 
   // Setup DOM listeners once ready
@@ -989,11 +1377,19 @@
     initAttributesClipboard();
   }
 
+  function syncFromLayer(layer) {
+    if (!layer) return;
+    const allCategories = new Set(Object.keys(CATEGORY_DEFINITIONS).filter(k => CATEGORY_DEFINITIONS[k].isApplicable(layer)));
+    const payload = extractAttributesPayload(layer, allCategories);
+    window.internalAttributeClipboard = payload;
+  }
+
   // Expose public API
   window.FishAttributesClipboard = {
     triggerCopy,
     triggerPaste,
     renderAttributesPopover,
-    updateVisibility: updateClipboardButtonsVisibility
+    updateVisibility: updateClipboardButtonsVisibility,
+    syncFromLayer
   };
 })();

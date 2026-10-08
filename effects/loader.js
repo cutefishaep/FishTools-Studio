@@ -9,7 +9,7 @@
  *
  * Add a new effect by dropping effects/<id>.js that calls FishEffectsRegistry.register({...}).
  * The embedded fallback list is generated - DO NOT EDIT DIRECTLY.
- * Fallback effect files: 62
+ * Fallback effect files: 63
  */
 (function () {
   'use strict';
@@ -31,6 +31,7 @@
   "deep_glow.js",
   "diffusion.js",
   "drop_shadow.js",
+  "dropdown_control.js",
   "exposure_gamma.js",
   "expression_controls.js",
   "extrude_3d.js",

@@ -352,30 +352,31 @@ async function initProjectsFetcher() {
   // Attach Right-Click & Press-Hold ContextMenu
   if (window.ContextMenu && typeof window.ContextMenu.bindTrigger === 'function') {
     window.ContextMenu.bindTrigger(listContainer, '.project-item', (target) => {
-      const projectId = target.dataset.id;
-      const projectName = target.querySelector('.project-name')?.textContent || 'Project';
+      const projectId = target.dataset.id || target.closest('.project-swipe-container')?.dataset?.id || '';
+      const projectName = target.querySelector('.project-name')?.textContent || target.closest('.project-swipe-container')?.dataset?.name || 'Project';
       return [
         {
           label: 'Save as .ofts',
           icon: '<i class="fticon fticon-export-presets-json" aria-hidden="true"></i>',
-          action: () => exportProjectAction(projectId, projectName)
+          action: (el) => exportProjectAction(projectId || el?.dataset?.id, projectName || el?.querySelector('.project-name')?.textContent)
         },
         {
           label: 'Share as Link',
           icon: '<i class="fticon fticon-icon-8" aria-hidden="true"></i>',
-          action: () => openShareProjectLinkModal(projectId, projectName)
+          action: (el) => openShareProjectLinkModal(projectId || el?.dataset?.id, projectName || el?.querySelector('.project-name')?.textContent)
         },
         {
           label: 'Project Settings',
           icon: '<i class="fticon fticon-icon-9" aria-hidden="true"></i>',
-          action: () => openProjectSettingsModal(projectId)
+          action: (el) => openProjectSettingsModal(projectId || el?.dataset?.id)
         },
         {
           label: 'Duplicate',
           icon: '<i class="fticon fticon-copy-link" aria-hidden="true"></i>',
-          action: async () => {
-            if (window.FishDatabase) {
-              await window.FishDatabase.duplicateProject(projectId);
+          action: async (el) => {
+            const pid = projectId || el?.dataset?.id;
+            if (pid && window.FishDatabase) {
+              await window.FishDatabase.duplicateProject(pid);
               await loadAndRender();
             }
           }
@@ -385,7 +386,7 @@ async function initProjectsFetcher() {
           label: 'Remove project',
           icon: '<i class="fticon fticon-delete-beatmark" aria-hidden="true"></i>',
           danger: true,
-          action: () => openDeleteModal(projectId, projectName)
+          action: (el) => openDeleteModal(projectId || el?.dataset?.id, projectName || el?.querySelector('.project-name')?.textContent)
         }
       ];
     });

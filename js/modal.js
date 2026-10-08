@@ -32,10 +32,13 @@ class ModalManager {
 
     // 3. Native / Browser Back Button Interception (History popstate)
     window.addEventListener('popstate', (e) => {
-      if (window._popoverClosingHistoryBack) {
+      if (window._popoverClosingHistoryBack || window._contextMenuClosingHistoryBack) {
         return;
       }
       if (window.Popover && typeof window.Popover.getAwaitedPopstate === 'function' && window.Popover.getAwaitedPopstate() > 0) {
+        return;
+      }
+      if (window.ContextMenu && typeof window.ContextMenu.getAwaitedPopstate === 'function' && window.ContextMenu.getAwaitedPopstate() > 0) {
         return;
       }
       if (e.state && e.state.modalOpen) {
@@ -64,10 +67,15 @@ class ModalManager {
     this.activeModal = el;
     el.classList.add('is-active');
 
-    // Push invisible state into history so Back button closes modal without changing URL
-    if (!this.historyPushed && (!window.history.state || !window.history.state.modalOpen)) {
-      window.history.pushState({ modalOpen: true, modalId: el.id }, '');
-      this.historyPushed = true;
+    // Push or replace history state so Back button closes modal without changing URL
+    if (!this.historyPushed) {
+      if (window.history.state && (window.history.state.contextMenuOpen || window.history.state.popoverOpen)) {
+        window.history.replaceState({ modalOpen: true, modalId: el.id }, '');
+        this.historyPushed = true;
+      } else if (!window.history.state || !window.history.state.modalOpen) {
+        window.history.pushState({ modalOpen: true, modalId: el.id }, '');
+        this.historyPushed = true;
+      }
     }
 
     // Auto-focus first input if present
@@ -79,16 +87,36 @@ class ModalManager {
 
   /**
    * Closes the active modal
-   * @param {boolean} triggerHistoryBack - whether to clean up the browser history entry
+   * @param {string|HTMLElement|boolean} [modalTargetOrTriggerBack=true]
+   * @param {boolean} [triggerHistoryBack=true]
    */
-  close(triggerHistoryBack = true) {
-    if (!this.activeModal) return;
+  close(modalTargetOrTriggerBack = true, triggerHistoryBack = true) {
+    let shouldTriggerHistory = true;
+    let targetEl = null;
 
-    const el = this.activeModal;
+    if (typeof modalTargetOrTriggerBack === 'boolean') {
+      shouldTriggerHistory = modalTargetOrTriggerBack;
+    } else if (typeof modalTargetOrTriggerBack === 'string') {
+      targetEl = document.getElementById(modalTargetOrTriggerBack);
+      if (typeof triggerHistoryBack === 'boolean') {
+        shouldTriggerHistory = triggerHistoryBack;
+      }
+    } else if (modalTargetOrTriggerBack instanceof HTMLElement) {
+      targetEl = modalTargetOrTriggerBack;
+      if (typeof triggerHistoryBack === 'boolean') {
+        shouldTriggerHistory = triggerHistoryBack;
+      }
+    }
+
+    const el = targetEl || this.activeModal;
+    if (!el) return;
+
     el.classList.remove('is-active');
-    this.activeModal = null;
+    if (this.activeModal === el) {
+      this.activeModal = null;
+    }
 
-    if (triggerHistoryBack && this.historyPushed && window.history.state && window.history.state.modalOpen) {
+    if (shouldTriggerHistory && this.historyPushed && window.history.state && window.history.state.modalOpen) {
       this.historyPushed = false;
       window.history.back();
     } else {

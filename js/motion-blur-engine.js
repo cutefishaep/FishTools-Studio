@@ -70,6 +70,9 @@
      * False inside a layer-level sample (the layer pass already averages those frames).
      */
     isEffectBlurActive(layer, compState = null, activeCamera = null) {
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (w.isTransformInteracting && !isExport) return false;
       return this._subDepth === 0 && this.isLayerActive(layer, compState, activeCamera);
     }
 
@@ -233,6 +236,9 @@
      */
     hasTextMotion(layer, currentSec, config = null, fps = 60) {
       if (!layer || layer.type !== 'text') return false;
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (w.isTransformInteracting && !isExport) return false;
       const tp = layer.textProps;
       if (!tp) return false;
 
@@ -295,6 +301,10 @@
      */
     hasMotion(layer, currentSec, config = null, fps = 60, layerList = null, cameraLayer = null) {
       if (!layer) return false;
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (w.isTransformInteracting && !isExport) return false;
+
       const cfg = config || this.getConfig();
 
       const frameDur = 1 / Math.max(1, fps);
@@ -596,6 +606,12 @@
      * Also returns the union screen rect the layer sweeps (null = unknown/large → full canvas).
      */
     planSamples(layer, bufferScale, camera, tStart, exposureTime, compState = null) {
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (w.isTransformInteracting && !isExport) {
+        return { n: 1, rect: null, travel: 0 };
+      }
+
       const q = this.getQuality(compState);
       const maxN = q.maxSamples;
       const minN = q.isExport ? Math.min(8, maxN) : Math.min(3, maxN);
@@ -679,6 +695,13 @@
     renderLayerWithMotionBlur(ctx, el, layer, bufferScale, camera, currentSec, renderSinglePassFn, compState = null) {
       if (!ctx || !el || !layer || typeof renderSinglePassFn !== 'function') return;
 
+      const w = (typeof window !== 'undefined') ? window : {};
+      const isExport = !!(w._isExportingVideo === true || w._isExportingSequence === true || w.isExporting === true);
+      if (w.isTransformInteracting && !isExport) {
+        renderSinglePassFn(ctx, el, layer, bufferScale, camera, currentSec);
+        return;
+      }
+
       const shutter = this.getShutter(compState, currentSec);
       const exposureTime = shutter.exposureTime;
       const tStart = shutter.tStart;
@@ -689,6 +712,11 @@
 
       const plan = this.planSamples(layer, bufferScale, camera, tStart, exposureTime, compState);
       const samples = plan.n;
+
+      if (samples <= 1) {
+        renderSinglePassFn(ctx, el, layer, bufferScale, camera, currentSec);
+        return;
+      }
 
       // Dirty rect: disabled due to coordinate space mismatch with viewport transform
       let rx = 0, ry = 0, rw = targetW, rh = targetH;

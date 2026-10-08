@@ -515,6 +515,33 @@ i.fticon.effects-card-caret::before {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.effects-card-title:hover {
+  background: var(--bg-panel-hover);
+  color: var(--color-primary);
+}
+
+.effects-card-title-input {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  background: var(--bg-dashboard);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin: -2px 0;
+  height: 22px;
+  outline: none;
+  min-width: 80px;
+  max-width: 180px;
+  width: auto;
 }
 
 /* Header Right Actions */
@@ -746,6 +773,26 @@ i.fticon.effects-card-caret::before {
   fill: currentColor;
 }
 
+/* Parameter Expression Indicator Icon */
+.fx-param-expr-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  color: var(--color-primary);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.fx-param-expr-icon svg {
+  width: 9px;
+  height: 9px;
+  fill: currentColor;
+}
+
 /* Selected Effect Parameter Row (Inverted High-Contrast Highlight) */
 .effects-control-row.is-selected {
   background-color: var(--color-primary) !important;
@@ -762,8 +809,14 @@ i.fticon.effects-card-caret::before {
   font-weight: 700 !important;
 }
 
-.effects-control-row.is-selected .fx-param-kf-icon {
+.effects-control-row.is-selected .fx-param-kf-icon,
+.effects-control-row.is-selected .fx-param-expr-icon {
   color: var(--bg-canvas) !important;
+}
+
+.effects-control-row.has-active-expression:not(.is-selected) .effects-param-label {
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .effects-control-row.is-selected .effects-param-pill,

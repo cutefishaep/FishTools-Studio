@@ -376,6 +376,7 @@
 }
 
 .custom-dropdown-item {
+  flex-shrink: 0;
   padding: 8px 12px;
   font-family: var(--font-brand);
   font-size: 13px;

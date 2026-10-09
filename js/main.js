@@ -357,22 +357,18 @@ async function initProjectsFetcher() {
       return [
         {
           label: 'Save as .ofts',
-          icon: '<i class="fticon fticon-export-presets-json" aria-hidden="true"></i>',
           action: (el) => exportProjectAction(projectId || el?.dataset?.id, projectName || el?.querySelector('.project-name')?.textContent)
         },
         {
           label: 'Share as Link',
-          icon: '<i class="fticon fticon-icon-8" aria-hidden="true"></i>',
           action: (el) => openShareProjectLinkModal(projectId || el?.dataset?.id, projectName || el?.querySelector('.project-name')?.textContent)
         },
         {
           label: 'Project Settings',
-          icon: '<i class="fticon fticon-icon-9" aria-hidden="true"></i>',
           action: (el) => openProjectSettingsModal(projectId || el?.dataset?.id)
         },
         {
           label: 'Duplicate',
-          icon: '<i class="fticon fticon-copy-link" aria-hidden="true"></i>',
           action: async (el) => {
             const pid = projectId || el?.dataset?.id;
             if (pid && window.FishDatabase) {
@@ -384,7 +380,6 @@ async function initProjectsFetcher() {
         { divider: true },
         {
           label: 'Remove project',
-          icon: '<i class="fticon fticon-delete-beatmark" aria-hidden="true"></i>',
           danger: true,
           action: (el) => openDeleteModal(projectId || el?.dataset?.id, projectName || el?.querySelector('.project-name')?.textContent)
         }

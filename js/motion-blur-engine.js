@@ -244,7 +244,7 @@
 
       const normIn = (typeof window !== 'undefined' && window.FishTextEngine && typeof window.FishTextEngine.normalizeAnimIn === 'function')
         ? window.FishTextEngine.normalizeAnimIn(tp.animIn || tp.animation)
-        : (tp.animIn || tp.animation || 'none');
+        : (tp.animIn || tp.animation || 'bounce_1');
       const normOut = (typeof window !== 'undefined' && window.FishTextEngine && typeof window.FishTextEngine.normalizeAnimOut === 'function')
         ? window.FishTextEngine.normalizeAnimOut(tp.animOut)
         : (tp.animOut || 'none');

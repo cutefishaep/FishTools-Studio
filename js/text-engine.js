@@ -40,7 +40,7 @@
     badgePaddingX: 20,
     badgePaddingY: 10,
     badgeRadius: 12,
-    animation: 'none',          // legacy alias for animIn
+    animation: 'bounce_1',      // legacy alias for animIn
     animSpeed: 1.0,
     animDecay: 7.0,
     animFreq: 3,
@@ -48,7 +48,7 @@
     animStagger: 0.5,
     animTarget: 'character',    // 'character' | 'word' | 'line'
     animDuration: 0.8,          // legacy alias for animInDuration
-    animIn: 'none',             // 'none' | 'bounce_1' | 'bounce_2' | 'bounce_3' | 'bounce_4' | 'typewriter' | 'wave' | 'fade_up' | 'glitch' | 'custom'
+    animIn: 'bounce_1',         // 'none' | 'bounce_1' | 'bounce_2' | 'bounce_3' | 'bounce_4' | 'typewriter' | 'wave' | 'fade_up' | 'glitch' | 'custom'
     animInDuration: 0.8,        // in seconds
     animOut: 'none',            // 'none' | 'bounce_out' | 'slide_out' | 'fade_down' | 'shrink_drop' | 'custom'
     animOutDuration: 0.6,       // in seconds
@@ -469,7 +469,7 @@
         resScale = Math.max(1.0, 240 / baseFontSize);
       }
 
-      const effectiveAnimIn = (p.animIn !== undefined && p.animIn !== null && p.animIn !== '') ? p.animIn : ((p.animation && p.animation !== 'none') ? p.animation : 'none');
+      const effectiveAnimIn = p.animIn || (p.animation && p.animation !== 'none' ? p.animation : 'bounce_1');
       const normIn = normalizeAnimIn(effectiveAnimIn);
       const inDur = Math.max(0.1, Number(p.animInDuration || p.animDuration) || 0.8);
 

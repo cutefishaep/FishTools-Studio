@@ -4660,8 +4660,7 @@
               axisX,
               axisY,
               lenSqX,
-              lenSqY,
-              fontSize: (selectedLayer.textProps && selectedLayer.textProps.fontSize) || 64
+              lenSqY
             };
 
             activeCanvasEl.setPointerCapture(e.pointerId);
@@ -5301,27 +5300,11 @@
               syncShapeControllerUI();
             }
           } else if (targetLayer.type === 'text') {
-            const startFontSize = Number(startLayerState.fontSize) || Number(targetLayer.textProps?.fontSize) || 64;
-            const startDim = (factorY !== 0) ? (Math.abs(startLayerState.scaleH) || 1) : (Math.abs(startLayerState.scaleW) || 1);
-            const curDim = (factorY !== 0) ? Math.abs(targetLayer.scaleH) : Math.abs(targetLayer.scaleW);
-            const scaleFactor = curDim / startDim;
-            const newFontSize = Math.max(12, Math.min(240, Math.round(startFontSize * scaleFactor)));
-            if (!targetLayer.textProps) targetLayer.textProps = {};
-            targetLayer.textProps.fontSize = newFontSize;
-            targetLayer._textDirty = true;
-            if (targetLayer._textBufferCanvas) targetLayer._textBufferCanvas._lastRenderKey = null;
-            if (window.FishTextEngine) {
-              const nat = window.FishTextEngine.getNaturalSize(targetLayer);
-              targetLayer.mediaWidth = nat.width;
-              targetLayer.mediaHeight = nat.height;
-              targetLayer.transformScaleX = 1;
-              targetLayer.transformScaleY = 1;
-              targetLayer.scaleW = nat.width;
-              targetLayer.scaleH = nat.height;
-            }
-            if (typeof syncTextControllerUI === 'function') {
-              syncTextControllerUI();
-            }
+            const nat = (window.FishTextEngine && window.FishTextEngine.getNaturalSize)
+              ? window.FishTextEngine.getNaturalSize(targetLayer)
+              : { width: 320, height: 100 };
+            targetLayer.transformScaleX = Math.abs(targetLayer.scaleW) / Math.max(1, nat.width);
+            targetLayer.transformScaleY = Math.abs(targetLayer.scaleH) / Math.max(1, nat.height);
           }
 
           if (typeof recordLayerPropertyChange === 'function') {
@@ -7547,13 +7530,6 @@
         }
         try {
           history.pushState({ drawerSubview: 'shape' }, '');
-        } catch (_) {}
-      } else if (subviewName === 'text') {
-        if (typeof syncTextControllerUI === 'function') {
-          syncTextControllerUI();
-        }
-        try {
-          history.pushState({ drawerSubview: 'text' }, '');
         } catch (_) {}
       } else if (subviewName === 'beatmark') {
         if (typeof syncBeatmarkDrawerUI === 'function') {
@@ -13795,49 +13771,12 @@
       return `${Number(v).toFixed(dec)}${unit}`;
     }
 
-    function updateTextJogTapeOffset(jogEl, v) {
-      if (!jogEl) return;
-      const ticksEl = jogEl.querySelector('.jog-wheel-ticks');
-      if (!ticksEl || !ticksEl.classList.contains('is-bounded-tape')) return;
-      const mn = parseFloat(jogEl.dataset.min);
-      const mx = parseFloat(jogEl.dataset.max);
-      if (!Number.isFinite(mn) || !Number.isFinite(mx) || mx <= mn) return;
-      const tapeW = parseFloat(ticksEl.dataset.tapeWidth) || parseFloat(getComputedStyle(ticksEl).getPropertyValue('--tape-width')) || 480;
-      const ratio = Math.max(0, Math.min(1, (v - mn) / (mx - mn)));
-      const offset = -ratio * tapeW;
-      ticksEl.style.setProperty('--tape-offset', `${offset.toFixed(1)}px`);
-      ticksEl.style.clipPath = 'none';
-    }
-
-    function calcTextJogValueFromDrag(jogEl, initVal, deltaX, customMax) {
-      if (!jogEl) return initVal;
-      const mn = parseFloat(jogEl.dataset.min);
-      const rawMax = customMax !== undefined ? customMax : parseFloat(jogEl.dataset.max);
-      const mx = Number.isFinite(rawMax) ? rawMax : 100;
-      if (!Number.isFinite(mn) || mx <= mn) return initVal;
-      const step = parseFloat(jogEl.dataset.step) || 1;
-      const dec = Number(jogEl.dataset.decimals) || 0;
-      const ticksEl = jogEl.querySelector('.jog-wheel-ticks');
-      const tapeW = (ticksEl && (parseFloat(ticksEl.dataset.tapeWidth) || parseFloat(getComputedStyle(ticksEl).getPropertyValue('--tape-width')))) || 480;
-
-      const span = mx - mn;
-      const startRatio = Math.max(0, Math.min(1, (initVal - mn) / span));
-      const startOffset = -startRatio * tapeW;
-      // 1:1 direct physical touch: moving finger right (+deltaX) moves tape right (+deltaX), moving finger left (-deltaX) moves tape left (-deltaX)
-      const targetOffset = Math.max(-tapeW, Math.min(0, startOffset + deltaX));
-      const ratio = -targetOffset / tapeW;
-      const rawVal = mn + ratio * span;
-      const quantVal = Math.round((rawVal - mn) / step) * step + mn;
-      return Number(Math.max(mn, Math.min(mx, quantVal)).toFixed(dec));
-    }
-
     function syncTextFormatControls(tp) {
-      // Jog badges & tape positions
+      // Jog badges
       document.querySelectorAll('[data-text-jog]').forEach(jog => {
         const key = jog.dataset.textJog;
         const v = Number(getTextPropValue(tp, key)) || 0;
         document.querySelectorAll(`[data-text-badge="${key}"]`).forEach(b => { b.textContent = formatTextJogValue(jog, v); });
-        updateTextJogTapeOffset(jog, v);
       });
       // Dropdowns
       document.querySelectorAll('[data-text-select]').forEach(dd => {
@@ -13914,6 +13853,10 @@
       // 2. Jog wheels
       document.querySelectorAll('[data-text-jog]').forEach(jog => {
         const key = jog.dataset.textJog;
+        const mn = Number(jog.dataset.min);
+        const mx = Number(jog.dataset.max);
+        const step = Number(jog.dataset.step) || 1;
+        const dec = Number(jog.dataset.decimals) || 0;
         let initVal = 0;
         bindJogWheel(jog, {
           onStart: () => {
@@ -13924,132 +13867,12 @@
           onMove: (delta) => {
             const layer = getSelectedTextLayer();
             if (!layer) return;
-            const v = calcTextJogValueFromDrag(jog, initVal, delta);
+            const v = Number(Math.max(mn, Math.min(mx, initVal + delta * step)).toFixed(dec));
             layer.textProps[key] = v;
             document.querySelectorAll(`[data-text-badge="${key}"]`).forEach(b => { b.textContent = formatTextJogValue(jog, v); });
-            updateTextJogTapeOffset(jog, v);
             applyTextLayerChange(layer);
           },
           onEnd: () => { saveCurrentProjectLayers(); }
-        });
-      });
-
-      // 2b. Click-to-edit on text param pill value badges
-      document.querySelectorAll('#layer-drawer-text-view .effects-param-pill-val').forEach(badge => {
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const jog = badge.closest('.jog-wheel-container');
-          if (!jog) return;
-          const layer = getSelectedTextLayer();
-          if (!layer) return;
-          const key = jog.dataset.textJog;
-          const mn = jog.dataset.min !== undefined ? parseFloat(jog.dataset.min) : 0;
-          const mx = jog.dataset.max !== undefined ? parseFloat(jog.dataset.max) : 100;
-          const step = jog.dataset.step !== undefined ? parseFloat(jog.dataset.step) : 1;
-          const unit = jog.dataset.unit || '';
-          const dec = Number(jog.dataset.decimals) || 0;
-          const label = jog.getAttribute('aria-label') || key || 'Value';
-
-          let curVal = 0;
-          let commitFn = null;
-
-          if (key) {
-            curVal = Number(getTextPropValue(layer.textProps, key)) || 0;
-            commitFn = (num) => {
-              layer.textProps[key] = num;
-              document.querySelectorAll(`[data-text-badge="${key}"]`).forEach(b => {
-                b.textContent = `${Number(num).toFixed(dec)}${unit}`;
-              });
-              updateTextJogTapeOffset(jog, num);
-              applyTextLayerChange(layer, { save: true, timeline: key.startsWith('anim') });
-            };
-          } else if (jog.id === 'jog-text-font-size') {
-            curVal = Number(layer.textProps?.fontSize) || 64;
-            commitFn = (num) => {
-              const n = Math.round(num);
-              layer.textProps.fontSize = n;
-              badge.textContent = `${n}px`;
-              updateTextJogTapeOffset(jog, n);
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-stroke-width') {
-            curVal = Number(layer.textProps?.strokeWidth) || 0;
-            commitFn = (num) => {
-              const n = Math.round(num);
-              layer.textProps.strokeWidth = n;
-              badge.textContent = `${n}px`;
-              updateTextJogTapeOffset(jog, n);
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-anim-in-duration') {
-            curVal = Number(layer.textProps?.animInDuration || layer.textProps?.animDuration) || 0.8;
-            commitFn = (num) => {
-              layer.textProps.animInDuration = num;
-              layer.textProps.animDuration = num;
-              badge.textContent = `${num.toFixed(2)}s`;
-              const alt = document.getElementById('val-text-anim-in-duration');
-              if (alt) alt.textContent = `${num.toFixed(2)}s`;
-              updateTextJogTapeOffset(jog, num);
-              renderTimelineLayers();
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-anim-out-duration') {
-            curVal = Number(layer.textProps?.animOutDuration) || 0.6;
-            commitFn = (num) => {
-              layer.textProps.animOutDuration = num;
-              badge.textContent = `${num.toFixed(2)}s`;
-              const alt = document.getElementById('val-text-anim-out-duration');
-              if (alt) alt.textContent = `${num.toFixed(2)}s`;
-              updateTextJogTapeOffset(jog, num);
-              renderTimelineLayers();
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-anim-decay') {
-            curVal = Number(layer.textProps?.animDecay) || 7.0;
-            commitFn = (num) => {
-              layer.textProps.animDecay = num;
-              badge.textContent = `${num.toFixed(1)}`;
-              updateTextJogTapeOffset(jog, num);
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-anim-freq') {
-            curVal = Number(layer.textProps?.animFreq) || 3.0;
-            commitFn = (num) => {
-              layer.textProps.animFreq = num;
-              badge.textContent = `${num.toFixed(1)}`;
-              updateTextJogTapeOffset(jog, num);
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-anim-amplitude') {
-            curVal = Number(layer.textProps?.animAmplitude) || 0.6;
-            commitFn = (num) => {
-              layer.textProps.animAmplitude = num;
-              badge.textContent = `${num.toFixed(2)}`;
-              updateTextJogTapeOffset(jog, num);
-              applyTextLayerChange(layer, { save: true });
-            };
-          } else if (jog.id === 'jog-text-anim-stagger') {
-            curVal = Number(layer.textProps?.animStagger) || 0.5;
-            commitFn = (num) => {
-              layer.textProps.animStagger = num;
-              badge.textContent = `${num.toFixed(2)}`;
-              updateTextJogTapeOffset(jog, num);
-              applyTextLayerChange(layer, { save: true });
-            };
-          }
-
-          if (commitFn && typeof window.openValueInputPopover === 'function') {
-            window.openValueInputPopover(badge, {
-              title: label,
-              value: curVal,
-              defaultValue: curVal,
-              min: mn,
-              max: mx,
-              step: step,
-              unit: unit,
-              onCommit: commitFn
-            });
-          }
         });
       });
 
@@ -14153,9 +13976,128 @@
         layer.textProps = window.FishTextEngine.getDefaultProps();
       }
       const tp = layer.textProps || {};
+      syncTextFormatControls(tp);
+
       const inputContent = document.getElementById('input-text-content');
       if (inputContent && document.activeElement !== inputContent) {
         inputContent.value = tp.text || '';
+      }
+
+      const valFontSize = document.getElementById('val-text-font-size');
+      if (valFontSize) valFontSize.textContent = `${Math.round(tp.fontSize || 64)}px`;
+
+      const valStrokeWidth = document.getElementById('val-text-stroke-width');
+      if (valStrokeWidth) valStrokeWidth.textContent = `${Math.round(tp.strokeWidth || 0)}px`;
+
+      const lblPreset = document.getElementById('lbl-text-preset-name');
+      if (lblPreset) {
+        const pObj = window.FishTextEngine ? window.FishTextEngine.getPreset(tp.presetId) : null;
+        lblPreset.textContent = pObj ? pObj.name : 'FishText';
+      }
+
+      const inDur = Math.max(0.1, Number(tp.animInDuration || tp.animDuration) || 0.8);
+      const outDur = Math.max(0.1, Number(tp.animOutDuration) || 0.6);
+      let curAnimIn = tp.animIn || tp.animation || 'bounce_1';
+      if (curAnimIn === 'bounce_pop') curAnimIn = 'bounce_1';
+      else if (curAnimIn === 'pop_in' || curAnimIn === 'bounce_drop') curAnimIn = 'bounce_2';
+      else if (curAnimIn === 'overshoot_slide') curAnimIn = 'bounce_3';
+      else if (curAnimIn === 'elastic_wobble') curAnimIn = 'bounce_4';
+      const curAnimOut = tp.animOut || 'none';
+
+      const valAnimInDur = document.getElementById('val-text-anim-in-duration');
+      if (valAnimInDur) valAnimInDur.textContent = `${inDur.toFixed(2)}s`;
+      const badgeAnimInDur = document.getElementById('badge-text-anim-in-dur');
+      if (badgeAnimInDur) badgeAnimInDur.textContent = `${inDur.toFixed(2)}s`;
+
+      const badgeDecay = document.getElementById('badge-text-anim-decay');
+      if (badgeDecay) badgeDecay.textContent = `${Number(tp.animDecay || 7.0).toFixed(1)}`;
+      const badgeFreq = document.getElementById('badge-text-anim-freq');
+      if (badgeFreq) badgeFreq.textContent = `${Number(tp.animFreq || 3).toFixed(1)}`;
+      const badgeAmp = document.getElementById('badge-text-anim-amplitude');
+      if (badgeAmp) badgeAmp.textContent = `${Number(tp.animAmplitude || 0.6).toFixed(2)}`;
+      const badgeStagger = document.getElementById('badge-text-anim-stagger');
+      if (badgeStagger) badgeStagger.textContent = `${Number(tp.animStagger || 0.5).toFixed(2)}`;
+
+      const valAnimOutDur = document.getElementById('val-text-anim-out-duration');
+      if (valAnimOutDur) valAnimOutDur.textContent = `${outDur.toFixed(2)}s`;
+      const badgeAnimOutDur = document.getElementById('badge-text-anim-out-dur');
+      if (badgeAnimOutDur) badgeAnimOutDur.textContent = `${outDur.toFixed(2)}s`;
+
+      // Sync IN Animation Dropdown
+      const ddAnimIn = document.getElementById('dropdown-text-anim-in');
+      if (ddAnimIn) {
+        ddAnimIn.dataset.value = curAnimIn;
+        const targetItem = ddAnimIn.querySelector(`.custom-dropdown-item[data-val="${curAnimIn}"]`);
+        const label = ddAnimIn.querySelector('.custom-dropdown-label');
+        if (targetItem && label) {
+          label.textContent = targetItem.textContent;
+        }
+        ddAnimIn.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.classList.toggle('is-selected', item.dataset.val === curAnimIn);
+        });
+      }
+
+      // Sync Animate By Dropdown
+      const curAnimTarget = tp.animTarget || 'character';
+      const ddAnimTarget = document.getElementById('dropdown-text-anim-target');
+      if (ddAnimTarget) {
+        ddAnimTarget.dataset.value = curAnimTarget;
+        const targetItem = ddAnimTarget.querySelector(`.custom-dropdown-item[data-val="${curAnimTarget}"]`);
+        const label = ddAnimTarget.querySelector('.custom-dropdown-label');
+        if (targetItem && label) label.textContent = targetItem.textContent;
+        ddAnimTarget.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.classList.toggle('is-selected', item.dataset.val === curAnimTarget);
+        });
+      }
+
+      // Sync OUT Animation Dropdown
+      const ddAnimOut = document.getElementById('dropdown-text-anim-out');
+      if (ddAnimOut) {
+        ddAnimOut.dataset.value = curAnimOut;
+        const targetItem = ddAnimOut.querySelector(`.custom-dropdown-item[data-val="${curAnimOut}"]`);
+        const label = ddAnimOut.querySelector('.custom-dropdown-label');
+        if (targetItem && label) {
+          label.textContent = targetItem.textContent;
+        }
+        ddAnimOut.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.classList.toggle('is-selected', item.dataset.val === curAnimOut);
+        });
+      }
+
+      const quickRow = document.getElementById('text-quick-presets-row');
+      if (quickRow && window.FishTextEngine) {
+        const presets = window.FishTextEngine.getPresets();
+        quickRow.innerHTML = presets.map(p => {
+          const isActive = (tp.presetId === p.id);
+          return `<button type="button" class="text-quick-preset-pill ${isActive ? 'is-active' : ''}" data-preset-id="${p.id}">${p.name}</button>`;
+        }).join('');
+        quickRow.querySelectorAll('.text-quick-preset-pill').forEach(pill => {
+          pill.addEventListener('click', (e) => {
+            e.preventDefault();
+            const pid = pill.dataset.presetId;
+            const pObj = window.FishTextEngine.getPreset(pid);
+            if (pObj) {
+              const keepText = layer.textProps.text;
+              layer.textProps = Object.assign({}, window.FishTextEngine.getDefaultProps(), pObj.props || {});
+              layer.textProps.text = keepText;
+              layer.textProps.presetId = pid;
+              layer.fillColor = layer.textProps.fillColor || '#ffffff';
+              layer._textBufferCanvas = null;
+              if (window.FishTextEngine) {
+                const nat = window.FishTextEngine.getNaturalSize(layer);
+                layer.scaleW = nat.width * (layer.transformScaleX || 1);
+                layer.scaleH = nat.height * (layer.transformScaleY || 1);
+                layer.mediaWidth = nat.width;
+                layer.mediaHeight = nat.height;
+              }
+              if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+              syncTextControllerUI();
+              renderTimelineLayers();
+              redrawComposition();
+              saveCurrentProjectLayers();
+            }
+          });
+        });
       }
     }
     window.syncTextControllerUI = syncTextControllerUI;
@@ -14181,6 +14123,297 @@
           saveCurrentProjectLayers();
         });
       }
+
+      // Font Size Jog Wheel
+      let initFontSize = 64;
+      bindJogWheel(document.getElementById('jog-text-font-size'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initFontSize = Number(layer.textProps?.fontSize) || 64;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const newSize = Math.max(12, Math.min(240, Math.round(initFontSize + delta)));
+          layer.textProps.fontSize = newSize;
+          layer._textBufferCanvas = null;
+          if (window.FishTextEngine) {
+            const nat = window.FishTextEngine.getNaturalSize(layer);
+            layer.scaleW = nat.width * (layer.transformScaleX || 1);
+            layer.scaleH = nat.height * (layer.transformScaleY || 1);
+            layer.mediaWidth = nat.width;
+            layer.mediaHeight = nat.height;
+          }
+          const valFontSize = document.getElementById('val-text-font-size');
+          if (valFontSize) valFontSize.textContent = `${newSize}px`;
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => {
+          saveCurrentProjectLayers();
+        }
+      });
+
+      // Outline Width Jog Wheel
+      let initStrokeW = 0;
+      bindJogWheel(document.getElementById('jog-text-stroke-width'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initStrokeW = Number(layer.textProps?.strokeWidth) || 0;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const newStroke = Math.max(0, Math.min(40, Math.round(initStrokeW + delta * 0.5)));
+          layer.textProps.strokeWidth = newStroke;
+          layer._textBufferCanvas = null;
+          const valStrokeWidth = document.getElementById('val-text-stroke-width');
+          if (valStrokeWidth) valStrokeWidth.textContent = `${newStroke}px`;
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => {
+          saveCurrentProjectLayers();
+        }
+      });
+
+      // Text IN Animation Dropdown
+      const ddAnimIn = document.getElementById('dropdown-text-anim-in');
+      if (ddAnimIn) {
+        ddAnimIn.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const val = item.dataset.val;
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (!layer || layer.type !== 'text') return;
+            if (!layer.textProps) layer.textProps = {};
+            layer.textProps.animIn = val;
+            layer.textProps.animation = val;
+            seedTextAnimatorIfNeutral(layer, val);
+            ddAnimIn.dataset.value = val;
+            const label = ddAnimIn.querySelector('.custom-dropdown-label');
+            if (label) label.textContent = item.textContent;
+            ddAnimIn.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.toggle('is-selected', i === item));
+            ddAnimIn.classList.remove('is-open');
+            layer._textBufferCanvas = null;
+            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+            renderTimelineLayers();
+            redrawComposition();
+            saveCurrentProjectLayers();
+          });
+        });
+      }
+
+      // Animate By Dropdown (character / word / line)
+      const ddAnimTarget = document.getElementById('dropdown-text-anim-target');
+      if (ddAnimTarget) {
+        ddAnimTarget.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const val = item.dataset.val;
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (!layer || layer.type !== 'text') return;
+            if (!layer.textProps) layer.textProps = {};
+            layer.textProps.animTarget = val;
+            ddAnimTarget.dataset.value = val;
+            const label = ddAnimTarget.querySelector('.custom-dropdown-label');
+            if (label) label.textContent = item.textContent;
+            ddAnimTarget.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.toggle('is-selected', i === item));
+            ddAnimTarget.classList.remove('is-open');
+            layer._textBufferCanvas = null;
+            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+            redrawComposition();
+            saveCurrentProjectLayers();
+          });
+        });
+      }
+
+      // IN Animation Duration Jog Wheel
+      let initInDur = 0.8;
+      bindJogWheel(document.getElementById('jog-text-anim-in-duration'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initInDur = Number(layer.textProps?.animInDuration || layer.textProps?.animDuration) || 0.8;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const pps = window.currentPixelsPerSecond || 80;
+          const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+          const maxIn = Math.max(0.2, clipDur * 0.48);
+          const newDur = Number(Math.max(0.1, Math.min(maxIn, initInDur + delta * 0.05)).toFixed(2));
+          layer.textProps.animInDuration = newDur;
+          layer.textProps.animDuration = newDur;
+          layer._textBufferCanvas = null;
+          const valIn = document.getElementById('val-text-anim-in-duration');
+          if (valIn) valIn.textContent = `${newDur.toFixed(2)}s`;
+          const badgeIn = document.getElementById('badge-text-anim-in-dur');
+          if (badgeIn) badgeIn.textContent = `${newDur.toFixed(2)}s`;
+          renderTimelineLayers();
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => {
+          saveCurrentProjectLayers();
+        }
+      });
+
+      // Text OUT Animation Dropdown
+      const ddAnimOut = document.getElementById('dropdown-text-anim-out');
+      if (ddAnimOut) {
+        ddAnimOut.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const val = item.dataset.val;
+            const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+            if (!layer || layer.type !== 'text') return;
+            if (!layer.textProps) layer.textProps = {};
+            layer.textProps.animOut = val;
+            seedTextAnimatorIfNeutral(layer, val);
+            ddAnimOut.dataset.value = val;
+            const label = ddAnimOut.querySelector('.custom-dropdown-label');
+            if (label) label.textContent = item.textContent;
+            ddAnimOut.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.toggle('is-selected', i === item));
+            ddAnimOut.classList.remove('is-open');
+            layer._textBufferCanvas = null;
+            if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+            renderTimelineLayers();
+            redrawComposition();
+            saveCurrentProjectLayers();
+          });
+        });
+      }
+
+      // OUT Animation Duration Jog Wheel
+      let initOutDur = 0.6;
+      bindJogWheel(document.getElementById('jog-text-anim-out-duration'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initOutDur = Number(layer.textProps?.animOutDuration) || 0.6;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const pps = window.currentPixelsPerSecond || 80;
+          const clipDur = layer.durationSec !== undefined ? layer.durationSec : ((layer.widthPx || 320) / pps);
+          const maxOut = Math.max(0.2, clipDur * 0.48);
+          const newDur = Number(Math.max(0.1, Math.min(maxOut, initOutDur + delta * 0.05)).toFixed(2));
+          layer.textProps.animOutDuration = newDur;
+          layer._textBufferCanvas = null;
+          const valOut = document.getElementById('val-text-anim-out-duration');
+          if (valOut) valOut.textContent = `${newDur.toFixed(2)}s`;
+          const badgeOut = document.getElementById('badge-text-anim-out-dur');
+          if (badgeOut) badgeOut.textContent = `${newDur.toFixed(2)}s`;
+          renderTimelineLayers();
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => {
+          saveCurrentProjectLayers();
+        }
+      });
+
+      // Decay Jog Wheel
+      let initDecay = 7.0;
+      bindJogWheel(document.getElementById('jog-text-anim-decay'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initDecay = Number(layer.textProps?.animDecay) || 7.0;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const newVal = Number(Math.max(0.5, Math.min(20, initDecay + delta * 0.15)).toFixed(1));
+          layer.textProps.animDecay = newVal;
+          layer._textBufferCanvas = null;
+          const badge = document.getElementById('badge-text-anim-decay');
+          if (badge) badge.textContent = `${newVal.toFixed(1)}`;
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => { saveCurrentProjectLayers(); }
+      });
+
+      // Frequency Jog Wheel
+      let initFreq = 3;
+      bindJogWheel(document.getElementById('jog-text-anim-freq'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initFreq = Number(layer.textProps?.animFreq) || 3;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const newVal = Number(Math.max(0.5, Math.min(8, initFreq + delta * 0.1)).toFixed(1));
+          layer.textProps.animFreq = newVal;
+          layer._textBufferCanvas = null;
+          const badge = document.getElementById('badge-text-anim-freq');
+          if (badge) badge.textContent = `${newVal.toFixed(1)}`;
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => { saveCurrentProjectLayers(); }
+      });
+
+      // Amplitude Jog Wheel
+      let initAmp = 0.6;
+      bindJogWheel(document.getElementById('jog-text-anim-amplitude'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initAmp = Number(layer.textProps?.animAmplitude) || 0.6;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const newVal = Number(Math.max(0.05, Math.min(2.0, initAmp + delta * 0.02)).toFixed(2));
+          layer.textProps.animAmplitude = newVal;
+          layer._textBufferCanvas = null;
+          const badge = document.getElementById('badge-text-anim-amplitude');
+          if (badge) badge.textContent = `${newVal.toFixed(2)}`;
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => { saveCurrentProjectLayers(); }
+      });
+
+      // Stagger Jog Wheel
+      let initStagger = 0.5;
+      bindJogWheel(document.getElementById('jog-text-anim-stagger'), {
+        onStart: () => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          initStagger = Number(layer.textProps?.animStagger) || 0.5;
+        },
+        onMove: (delta) => {
+          const layer = (currentProjectState.layers || []).find(l => l.id === window.selectedLayerId);
+          if (!layer || layer.type !== 'text') return;
+          if (!layer.textProps) layer.textProps = {};
+          const newVal = Number(Math.max(0.0, Math.min(1.0, initStagger + delta * 0.01)).toFixed(2));
+          layer.textProps.animStagger = newVal;
+          layer._textBufferCanvas = null;
+          const badge = document.getElementById('badge-text-anim-stagger');
+          if (badge) badge.textContent = `${newVal.toFixed(2)}`;
+          if (typeof invalidatePreviewCacheForLayer === 'function') invalidatePreviewCacheForLayer(layer);
+          redrawComposition();
+        },
+        onEnd: () => { saveCurrentProjectLayers(); }
+      });
+
+      initTextFormatControls();
     }
     window.initTextController = initTextController;
 
@@ -24410,9 +24643,6 @@
           if (typeof syncBeatmarkDrawerUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'beatmark') {
             syncBeatmarkDrawerUI();
           }
-          if (typeof syncTextControllerUI === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'text') {
-            syncTextControllerUI();
-          }
         }
         if (typeof updateGraphPlayheadLine === 'function' && typeof currentDrawerSubview !== 'undefined' && currentDrawerSubview === 'graph') {
           updateGraphPlayheadLine();
@@ -30825,7 +31055,7 @@
                   const animInDur = Math.max(0.1, Number(tp.animInDuration || tp.animDuration) || 0.8);
                   const animOutDur = Math.max(0.1, Number(tp.animOutDuration) || 0.6);
                   const clipW = layer.widthPx || 320;
-                  const hasIn = (tp.animIn || tp.animation || 'none') !== 'none';
+                  const hasIn = (tp.animIn || tp.animation || 'bounce_1') !== 'none';
                   const hasOut = (tp.animOut || 'none') !== 'none';
 
                   const inPx = Math.min(clipW * 0.48, Math.round(animInDur * pps));
@@ -30835,7 +31065,7 @@
 
                   return `
                     ${hasIn ? `
-                      <div class="text-anim-zone zone-in" style="width: ${inPx}px;" title="IN Animation: ${(tp.animIn || tp.animation || 'none').toUpperCase()} (${animInDur.toFixed(2)}s)"></div>
+                      <div class="text-anim-zone zone-in" style="width: ${inPx}px;" title="IN Animation: ${(tp.animIn || tp.animation || 'bounce_1').toUpperCase()} (${animInDur.toFixed(2)}s)"></div>
                       <div class="text-anim-marker marker-in" style="left: ${inMarkerLeft}px;" data-layer-id="${layer.id}" title="IN: ${animInDur.toFixed(2)}s (Drag to adjust)">IN ${animInDur.toFixed(1)}s</div>
                     ` : ''}
                     ${hasOut ? `

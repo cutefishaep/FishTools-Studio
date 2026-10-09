@@ -4047,82 +4047,99 @@
 
 /* 5. Desktop Inspector Subviews Consistency (Text, Camera, Beatmark, Audio, Speed) */
 /* Text Subview */
-.desktop-panel-right #layer-drawer-text-view .transform-nav-col,
-#desktop-panel-inspector #layer-drawer-text-view .transform-nav-col {
-  order: 1 !important;
-}
-
-.desktop-panel-right #layer-drawer-text-view .text-editor-work-area,
-#desktop-panel-inspector #layer-drawer-text-view .text-editor-work-area {
-  order: 2 !important;
-  flex: 1 !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 0 !important;
-  padding: 10px 10px !important;
+.desktop-panel-right #layer-drawer-text-view .shape-work-area {
+  height: 100% !important;
+  max-height: none !important;
+  padding: 12px 10px 24px 10px !important;
   overflow-y: auto !important;
-  overflow-x: hidden !important;
-  box-sizing: border-box !important;
-  background-color: var(--bg-dashboard) !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
+  gap: 8px !important;
 }
 
-.desktop-panel-right #layer-drawer-text-view .transform-tools-col,
-#desktop-panel-inspector #layer-drawer-text-view .transform-tools-col,
-.desktop-panel-right #text-tools-col,
-#desktop-panel-inspector #text-tools-col {
-  order: 3 !important;
-  width: 100% !important;
-  height: 38px !important;
-  min-height: 38px !important;
-  max-height: 38px !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 6px !important;
-  padding: 0 10px !important;
-  background-color: var(--bg-panel-inner) !important;
-  border-top: 1px solid var(--border-subtle) !important;
-  border-bottom: none !important;
-  border-left: none !important;
-  border-right: none !important;
-  box-sizing: border-box !important;
-  flex-shrink: 0 !important;
-}
-
-.desktop-panel-right #layer-drawer-text-view .transform-tools-col .transform-tool-btn,
-#desktop-panel-inspector #layer-drawer-text-view .transform-tools-col .transform-tool-btn,
-.desktop-panel-right #text-tools-col .transform-tool-btn,
-#desktop-panel-inspector #text-tools-col .transform-tool-btn {
-  width: auto !important;
-  min-width: 32px !important;
-  flex: 1 !important;
-  height: 28px !important;
-}
-
-.desktop-panel-right #layer-drawer-text-view .text-content-textarea {
-  width: 100% !important;
-  height: 68px !important;
-  min-height: 52px !important;
-  max-height: 120px !important;
-  background-color: var(--bg-panel-inner) !important;
+.desktop-panel-right #input-text-content {
+  background-color: var(--bg-panel) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--desktop-radius-sm) !important;
   color: var(--text-primary) !important;
   font-family: var(--font-brand) !important;
   font-size: 13px !important;
-  padding: 8px 10px !important;
-  resize: none !important;
-  outline: none !important;
-  box-sizing: border-box !important;
   transition: border-color 0.08s ease !important;
 }
 
-.desktop-panel-right #layer-drawer-text-view .text-content-textarea:focus {
+.desktop-panel-right #input-text-content:focus {
   border-color: var(--color-primary) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-trigger {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-brand) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-menu {
+  background-color: var(--bg-panel) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-item:hover {
+  background-color: var(--bg-panel-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .custom-dropdown-item.is-selected {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
+  font-weight: 700 !important;
+}
+
+/* Text Subview: Format Panel (tabs / section toggles / panes) */
+.desktop-panel-right #layer-drawer-text-view .segmented-switch {
+  height: 30px !important;
+  background-color: var(--bg-panel-inner) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+  padding: 2px !important;
+  gap: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .segmented-switch-item {
+  height: 24px !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-toggle-switch {
+  width: 96px !important;
+  height: 26px !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-toggle-switch .segmented-switch-item {
+  height: 20px !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-panel-tabs {
+  position: sticky !important;
+  top: -12px !important;
+  z-index: 5 !important;
+  background-color: var(--bg-panel-inner) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .text-tab-pane .shape-control-row {
+  margin-bottom: 0 !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .color-swatch-trigger {
+  background-color: var(--bg-panel) !important;
+  border-radius: var(--desktop-radius-sm) !important;
+}
+
+.desktop-panel-right #layer-drawer-text-view .color-swatch-trigger:hover,
+.desktop-panel-right #layer-drawer-text-view .color-swatch-trigger.is-active {
+  background-color: var(--color-primary) !important;
+  color: var(--bg-canvas) !important;
 }
 
 /* Camera Subview */

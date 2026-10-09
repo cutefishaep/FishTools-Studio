@@ -1174,10 +1174,6 @@ i.fticon.effects-card-caret::before {
 }
 
 .effects-control-row .custom-dropdown-item {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  min-height: 26px;
   padding: 6px 8px;
   font-family: var(--font-brand);
   font-size: 11px;
@@ -1191,7 +1187,6 @@ i.fticon.effects-card-caret::before {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-sizing: border-box;
 }
 
 .effects-control-row .custom-dropdown-item:hover {

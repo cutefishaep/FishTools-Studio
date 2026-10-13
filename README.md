@@ -1,5 +1,6 @@
 # OpenFishTools Studio
 
+[![Status: Deprecated](https://img.shields.io/badge/status-deprecated-red.svg)](https://github.com/openfishtools/Studio)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)](https://nodejs.org/)
 [![CI](https://github.com/cutefishaep/FishTools-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/cutefishaep/FishTools-Studio/actions)
@@ -11,22 +12,31 @@
 <a name="english"></a>
 ## English
 
+> [!WARNING]
+> **This repository is deprecated.**
+>
+> This repository is frozen at tag v0.5.132 and receives no further updates. Version v0.5.132 and every version below it are licensed under MIT, so if you want to sell it or use it commercially without disclosing your modifications, go ahead, just use this version.
+>
+> But if you want the latest version, there are conditions: you must disclose your complete source code under network copyleft if you modify or deploy it on the web, and giving credit is mandatory (how hard is it to give credit, seriously?). I made this project completely free so everyone is free to create without being extorted. Even with vibe coding like this, I still put up my own money for Antigravity Ultra. So just choose: want to make a closed-source fork, use this older MIT version. Want the latest updates, follow the rules of the new license (GNU AGPLv3).
+>
+> The newer, actively developed version is at [openfishtools/Studio](https://github.com/openfishtools/Studio). Please read that repository's LICENSE before using it.
+
 ### Overview
-OpenFishTools Studio is a browser-based motion graphics and video editing application built with vanilla web technologies. It provides a non-linear editor (NLE) with layer compositing, multi-track timeline keyframing, an extensible visual effect registry, and client-side hardware-accelerated video rendering.
+OpenFishTools Studio is a browser-based motion graphics and video editing application built with vanilla web technologies. It provides a non-linear editor (NLE) with layer compositing, a multi-track keyframe timeline, an extensible visual effect registry, and client-side video rendering.
 
-### Key Architecture & Capabilities
-- **Non-Linear Timeline**: Multi-track timeline supporting keyframe interpolation, parent & link hierarchies, blend modes, and nested precompositions.
-- **Dual Interface Modes**:
-  - **Desktop Suite** (`desktop.html`): After Effects-style layout with docked inspector panels, track headers, playhead scrubbing, and curve graph editor.
-  - **Mobile / Responsive Editor** (`editor.html`): Touch-friendly and viewport-adaptive canvas compositor with gesture-driven timeline controls.
-- **Modular Effect Plugin Engine**: Standalone effect modules located in `effects/*.js` registering directly to `FishEffectsRegistry` with automated parameter-to-timeline binding.
-- **Client-Side Video Export**: Utilizes WebCodecs API and MP4-muxer for local rendering and video generation directly inside the browser without cloud processing.
-- **Zero-Dependency Development Server**: Built-in HTTP server (`server.js`) with Server-Sent Events (SSE) live reload and optional Cloudflare tunnel support.
-- **Strict Design System**: 100% CSS theme token binding (`css/theme.css`), pure flat aesthetic without heavy blur or shadow overhead.
+### Key Features
+- **Non-linear timeline**: multi-track timeline with keyframe interpolation, parent and link hierarchies, blend modes, and nested precompositions.
+- **Two interface modes**:
+  - **Desktop** (`desktop.html`): After Effects-style layout with docked inspector panels, track headers, playhead scrubbing, and a curve graph editor.
+  - **Responsive** (`editor.html`): touch-friendly canvas compositor with gesture-driven timeline controls.
+- **Modular effect plugins**: each effect is a standalone module in `effects/*.js` that registers with `FishEffectsRegistry` and binds its parameters to the timeline automatically.
+- **Client-side video export**: renders and exports video in the browser using WebCodecs and MP4-muxer, with no cloud processing.
+- **Dependency-free dev server**: a built-in HTTP server (`server.js`) with live reload (SSE) and optional Cloudflare tunnel support.
+- **Design tokens**: all colors and spacing come from `css/theme.css`, with a flat visual style and no heavy blur or shadows.
 
-### System Requirements & Compatibility
-- **Node.js**: v18.0.0 or later (for local dev server).
-- **Web Browser**: Modern browser with WebCodecs and HTML5 Canvas support (Google Chrome 94+, Microsoft Edge 94+, Safari 16.4+).
+### Requirements
+- Node.js v18.0.0 or later (for the local dev server).
+- Browser with WebCodecs and HTML5 Canvas support (Chrome 94+, Edge 94+, Safari 16.4+).
 
 ### Quick Start
 
@@ -45,125 +55,116 @@ OpenFishTools Studio is a browser-based motion graphics and video editing applic
    ```bash
    npm start
    ```
-   *Alternative native launchers:*
-   - **macOS**: Double-click `./run.command`
-   - **Windows**: Double-click `run.bat`
+   *Alternative launchers:*
+   - **macOS**: double-click `./run.command`
+   - **Windows**: double-click `run.bat`
 
-4. **Access the application**:
-   - Desktop Interface: `http://localhost:3000/desktop.html`
-   - Responsive Interface: `http://localhost:3000/editor.html`
-   - Project Launcher & Dashboard: `http://localhost:3000/index.html`
+4. **Open the app**:
+   - Desktop interface: `http://localhost:3000/desktop.html`
+   - Responsive interface: `http://localhost:3000/editor.html`
+   - Project launcher: `http://localhost:3000/index.html`
 
 ### Project Structure
 
 ```text
-├── assets/          # Vector SVG icons, fonts, and static assets
-├── css/             # Design system tokens and component stylesheets
+├── assets/          # SVG icons, fonts, and static assets
+├── css/             # Design tokens and component stylesheets
 │   ├── theme.css    # Central color and spacing tokens
 │   ├── desktop.css  # Desktop NLE styling
 │   ├── editor.css   # Responsive editor styling
-│   └── modal.css    # Modular modal components
-├── effects/         # Modular visual effect plugins (FishEffectsRegistry)
+│   └── modal.css    # Modal components
+├── effects/         # Visual effect plugins (FishEffectsRegistry)
 ├── js/              # Core client-side modules
-│   ├── desktop.js   # Desktop interface, track controls, and graph editor
-│   ├── editor.js    # Canvas compositor, layer operations, and playback
+│   ├── desktop.js   # Desktop interface, track controls, graph editor
+│   ├── editor.js    # Canvas compositor, layer operations, playback
 │   ├── fishtool-engine.js  # 2D/3D matrix transforms and rendering pipeline
 │   ├── FishExport-Enggine.js # WebCodecs export engine
 │   └── main.js      # Project launcher and IndexedDB storage
 ├── functions/       # Cloudflare Pages / Workers backend handlers
-├── scripts/         # Verification test suite and build synchronizers
+├── scripts/         # Test suite and build helpers
 │   ├── test-suite.js          # Automated test runner
 │   ├── static-scope-audit.js  # AST scope and syntax audit
-│   ├── prepare-wrangler.js    # Wrangler configuration synchronizer
+│   ├── prepare-wrangler.js    # Generates wrangler config from .env
 │   └── sync-effects.js        # Effect manifest generator
 ├── server.js        # Local development server
 ├── version.json     # Single source of truth for versioning
-└── CHANGELOG.md     # Chronological release notes
+└── CHANGELOG.md     # Release notes
 ```
 
-### Configuration (`.env` & `wrangler.jsonc`)
+### Configuration (`.env` and `wrangler.jsonc`)
 
-1. **Local Environment (`.env`)**:
-   Create a `.env` file in the root directory for optional local backend features:
-   ```env
-   # Optional local .env configuration
-   CATBOX_USERHASH=your_catbox_userhash
-   SHARE_SECRET_TOKEN=your_secret_upload_token
-   CF_KV_NAMESPACE_ID=your_kv_namespace_id
+Because `.env` and `wrangler.jsonc` are gitignored, follow these steps to configure them:
+
+1. **Setup `.env`**:
+   Copy the example template:
+   ```bash
+   cp .env.example .env
    ```
+   Configure the environment variables as needed:
+   - `SHARE_SECRET_TOKEN`: Secret upload authorization token protecting `/api/share`.
+   - `CATBOX_USERHASH`: Optional Catbox account hash for cloud asset hosting.
+   - `CF_KV_NAMESPACE_ID`: Cloudflare KV namespace ID for shared projects.
 
-2. **Cloudflare Worker Configuration (`wrangler.jsonc`)**:
-   Generate or create `wrangler.jsonc` before deploying to Cloudflare:
-   - **Automated**: Run `npm run prepare:wrangler` (creates `wrangler.jsonc` from `.env` or system environment variables).
-   - **Manual**: Create `wrangler.jsonc` in the root directory:
-   ```json
-   {
-   	"$schema": "node_modules/wrangler/config-schema.json",
-   	"name": "fishtools-studio",
-   	"main": "_worker.js",
-   	"compatibility_date": "2026-09-15",
-   	"keep_vars": true,
-   	"assets": {
-   		"directory": ".",
-   		"binding": "ASSETS",
-   		"html_handling": "none",
-   		"run_worker_first": true
-   	},
-   	"observability": {
-   		"enabled": true
-   	},
-   	"kv_namespaces": [
-   		{
-   			"binding": "PROJECTS_KV",
-   			"id": "YOUR_KV_NAMESPACE_ID",
-   			"remote": true
-   		}
-   	]
-   }
-   ```
+2. **Generate `wrangler.jsonc`**:
+   - **Automatic (Recommended)**:
+     ```bash
+     npm run prepare:wrangler
+     ```
+     This reads `CF_KV_NAMESPACE_ID` from `.env` and generates `wrangler.jsonc`.
+   - **Manual**:
+     Copy the template directly:
+     ```bash
+     cp wrangler.example.jsonc wrangler.jsonc
+     ```
 
-Environment variables:
-- `SHARE_SECRET_TOKEN`: Protects `/api/share` uploads from unauthorized access.
-- `CATBOX_USERHASH`: Optional Catbox user account hash for cloud hosting.
-- `CF_KV_NAMESPACE_ID`: Cloudflare KV namespace ID for shared projects.
-
-### Automated Testing
-Run the comprehensive test suite (syntax validation, AST scope verification, HTML integrity):
+### Testing
+Run the test suite (syntax validation, AST scope verification, HTML integrity):
 ```bash
 npm test
 ```
 
 ### AI Agent Guidance
-Autonomous coding agents (Cursor, GitHub Copilot, Cline, Windsurf, OpenCode) should consult [`AGENTS.md`](AGENTS.md) for architectural maps, strict design token enforcement rules, and error investigation protocols.
+Autonomous coding agents (Cursor, GitHub Copilot, Cline, Windsurf, OpenCode) should read [`AGENTS.md`](AGENTS.md) for the architecture map, design token rules, and error investigation protocol.
 
 ### License
-This project is licensed under the [MIT License](LICENSE).
+This repository, meaning version v0.5.132 and every version below it, is licensed under the MIT License. You may use, modify, and distribute it, including commercially, as long as you keep the copyright notice and the license text in all copies.
+
+The actively developed version at [openfishtools/Studio](https://github.com/openfishtools/Studio) is released under a different license ([GNU AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)), which requires disclosing the full source code for any modifications or web deployments (network copyleft). Its terms do not apply to this repository.
 
 ---
 
 <a name="bahasa-indonesia"></a>
 ## Bahasa Indonesia
 
+> [!WARNING]
+> **Repositori ini sudah tidak dipakai lagi (deprecated).**
+>
+> Repositori ini dibekukan di tag v0.5.132 dan tidak akan menerima pembaruan. Versi v0.5.132 dan semua versi di bawahnya pakai lisensi MIT, jadi kalo mau dijual atau dipake buat komersial tanpa wajib buka source code, silakan, pake aja versi ini.
+>
+> Tapi kalo lu mau versi terbaru, ada syaratnya: wajib buka seluruh source code modifikasinya (network copyleft) jika dideploy ke web/jaringan & wajib kasih kredit (apa susahnya sih ngasih kredit). Proyek ini gw bikin gratis biar semua orang bebas berkreasi tanpa dipalak. Meski vibe coding gini, gw juga modal sendiri buat Antigravity Ultra. Jadi pilih aja: mau bikin versi closed-source, pake versi MIT ini. Mau update terbaru, ikutin aturan di lisensi baru (GNU AGPLv3).
+>
+> Versi terbaru yang aktif dikembangkan ada di [openfishtools/Studio](https://github.com/openfishtools/Studio). Baca LICENSE di repositori tersebut sebelum memakainya.
+
 ### Ringkasan
-OpenFishTools Studio adalah aplikasi grafis gerak (motion graphics) dan penyunting video non-linear berbasis web yang dibangun menggunakan teknologi web murni (*vanilla*). Menyediakan editor non-linear (NLE) dengan *compositing* layer, animasi *keyframe* pada multi-track timeline, sistem plugin efek visual modular, dan rendering video berbasis akselerasi perangkat keras langsung di sisi klien (*client-side*).
+OpenFishTools Studio adalah aplikasi motion graphics dan penyunting video berbasis web yang dibangun dengan teknologi web murni (vanilla). Aplikasi ini menyediakan editor non-linear (NLE) dengan compositing layer, timeline multi-track dengan keyframe, sistem plugin efek visual yang bisa diperluas, dan rendering video di sisi klien.
 
-### Arsitektur & Kapabilitas Utama
-- **Timeline Non-Linear**: Mendukung animasi *keyframe*, hierarki *parent & link*, mode *blend*, serta komposisi bertingkat (*precomps*).
-- **Dua Mode Antarmuka**:
-  - **Desktop Suite** (`desktop.html`): Tata letak desktop profesional dengan panel inspektur terintegrasi, header track, playhead scrubbing, dan kurva *graph editor*.
-  - **Editor Responsif** (`editor.html`): Kompositor canvas yang adaptif terhadap perangkat mobile maupun tablet dengan kontrol sentuh.
-- **Arsitektur Efek Modular**: Seluruh efek visual merupakan modul plugin independen di dalam `effects/*.js` yang terdaftar langsung ke `FishEffectsRegistry` dengan integrasi parameter ke timeline secara otomatis.
-- **Ekspor Video Client-Side**: Memanfaatkan WebCodecs API dan MP4-muxer untuk proses rendering dan ekspor video langsung di dalam peramban (*browser*) tanpa ketergantungan server pemroses video eksternal.
-- **Server Lokal Mandiri**: Server HTTP bawaan (`server.js`) tanpa dependensi eksternal, dilengkapi fitur *live reload* otomatis (SSE) dan integrasi opsional tunnel Cloudflare.
-- **Sistem Desain Terstandarisasi**: Mengikat 100% warna dan token desain dari `css/theme.css` dengan prinsip *flat design* murni tanpa efek blur atau bayangan berat.
+### Fitur Utama
+- **Timeline non-linear**: timeline multi-track dengan interpolasi keyframe, hierarki parent dan link, mode blend, dan precomposition bertingkat.
+- **Dua mode antarmuka**:
+  - **Desktop** (`desktop.html`): tata letak ala After Effects dengan panel inspektur, header track, playhead scrubbing, dan graph editor.
+  - **Responsif** (`editor.html`): kompositor canvas yang mendukung layar sentuh, dengan kontrol timeline berbasis gestur.
+- **Plugin efek modular**: tiap efek adalah modul mandiri di `effects/*.js` yang terdaftar ke `FishEffectsRegistry` dan parameternya otomatis terhubung ke timeline.
+- **Ekspor video di sisi klien**: rendering dan ekspor video langsung di browser memakai WebCodecs dan MP4-muxer, tanpa pemrosesan di cloud.
+- **Server dev tanpa dependensi**: server HTTP bawaan (`server.js`) dengan live reload (SSE) dan dukungan opsional tunnel Cloudflare.
+- **Design token**: semua warna dan spasi berasal dari `css/theme.css`, dengan gaya flat tanpa blur atau bayangan berat.
 
-### Persyaratan Sistem & Kompatibilitas
-- **Node.js**: Versi 18.0.0 atau lebih baru.
-- **Peramban Web**: Peramban modern dengan dukungan WebCodecs dan HTML5 Canvas (Google Chrome 94+, Microsoft Edge 94+, Safari 16.4+).
+### Persyaratan
+- Node.js v18.0.0 atau lebih baru (untuk server lokal).
+- Browser dengan dukungan WebCodecs dan HTML5 Canvas (Chrome 94+, Edge 94+, Safari 16.4+).
 
-### Panduan Memulai Cepat
+### Memulai
 
-1. **Kloning repositori**:
+1. **Clone repositori**:
    ```bash
    git clone https://github.com/cutefishaep/FishTools-Studio.git
    cd FishTools-Studio
@@ -178,96 +179,78 @@ OpenFishTools Studio adalah aplikasi grafis gerak (motion graphics) dan penyunti
    ```bash
    npm start
    ```
-   *Peluncur langsung sistem operasi:*
-   - **macOS**: Klik dua kali file `./run.command`
-   - **Windows**: Klik dua kali file `run.bat`
+   *Peluncur alternatif:*
+   - **macOS**: klik dua kali `./run.command`
+   - **Windows**: klik dua kali `run.bat`
 
-4. **Akses aplikasi melalui peramban**:
-   - Antarmuka Desktop: `http://localhost:3000/desktop.html`
-   - Antarmuka Responsif: `http://localhost:3000/editor.html`
-   - Manajemen Proyek: `http://localhost:3000/index.html`
+4. **Buka aplikasi**:
+   - Antarmuka desktop: `http://localhost:3000/desktop.html`
+   - Antarmuka responsif: `http://localhost:3000/editor.html`
+   - Peluncur proyek: `http://localhost:3000/index.html`
 
-### Struktur Direktori Proyek
+### Struktur Proyek
 
 ```text
-├── assets/          # Ikon vektor SVG, font, dan berkas statis
-├── css/             # Token desain tema dan lembar gaya CSS
-│   ├── theme.css    # Token warna utama dan tipografi
-│   ├── desktop.css  # Tampilan antarmuka desktop NLE
-│   ├── editor.css   # Tampilan antarmuka editor responsif
-│   └── modal.css    # Komponen dialog pop-up modular
-├── effects/         # Plugin efek visual mandiri (FishEffectsRegistry)
-├── js/              # Modul fungsional utama aplikasi
-│   ├── desktop.js   # Logika desktop, pengaturan track, dan graph editor
-│   ├── editor.js    # Komposisi canvas layer, manipulasi, dan playback
-│   ├── fishtool-engine.js  # Mesin transformasi matriks 2D/3D & rendering
+├── assets/          # Ikon SVG, font, dan aset statis
+├── css/             # Design token dan stylesheet komponen
+│   ├── theme.css    # Token warna dan spasi utama
+│   ├── desktop.css  # Gaya antarmuka desktop NLE
+│   ├── editor.css   # Gaya antarmuka editor responsif
+│   └── modal.css    # Komponen modal
+├── effects/         # Plugin efek visual (FishEffectsRegistry)
+├── js/              # Modul inti sisi klien
+│   ├── desktop.js   # Antarmuka desktop, kontrol track, graph editor
+│   ├── editor.js    # Kompositor canvas, operasi layer, playback
+│   ├── fishtool-engine.js  # Transformasi matriks 2D/3D dan pipeline rendering
 │   ├── FishExport-Enggine.js # Mesin ekspor WebCodecs
-│   └── main.js      # Peluncur proyek dan basis data IndexedDB
+│   └── main.js      # Peluncur proyek dan penyimpanan IndexedDB
 ├── functions/       # Handler backend Cloudflare Pages / Workers
-├── scripts/         # Skrip otomatisasi, pengujian, dan sinkronisasi
-│   ├── test-suite.js          # Skrip pengujian otomatis
-│   ├── static-scope-audit.js  # Audit cakupan AST dan sintaksis JS
-│   ├── prepare-wrangler.js    # Sinkronisasi konfigurasi Cloudflare dari .env
-│   └── sync-effects.js        # Generator manifest efek otomatis
+├── scripts/         # Test suite dan skrip bantu build
+│   ├── test-suite.js          # Penjalan tes otomatis
+│   ├── static-scope-audit.js  # Audit cakupan AST dan sintaksis
+│   ├── prepare-wrangler.js    # Membuat konfigurasi wrangler dari .env
+│   └── sync-effects.js        # Generator manifest efek
 ├── server.js        # Server pengembangan lokal
-├── version.json     # Sumber kebenaran tunggal untuk versi aplikasi
-└── CHANGELOG.md     # Catatan rilis kronologis
+├── version.json     # Sumber tunggal untuk versi
+└── CHANGELOG.md     # Catatan rilis
 ```
 
-### Konfigurasi Lingkungan (`.env` & `wrangler.jsonc`)
+### Konfigurasi (`.env` dan `wrangler.jsonc`)
 
-1. **Lingkungan Lokal (`.env`)**:
-   Buat berkas `.env` di direktori utama untuk mengaktifkan fitur backend lokal (opsional):
-   ```env
-   # Konfigurasi opsional .env lokal
-   CATBOX_USERHASH=your_catbox_userhash
-   SHARE_SECRET_TOKEN=your_secret_upload_token
-   CF_KV_NAMESPACE_ID=your_kv_namespace_id
+Karena berkas `.env` dan `wrangler.jsonc` diabaikan oleh Git, ikuti langkah berikut untuk menyiapkannya:
+
+1. **Siapkan berkas `.env`**:
+   Salin template contoh:
+   ```bash
+   cp .env.example .env
    ```
+   Lalu sesuaikan variabelnya:
+   - `SHARE_SECRET_TOKEN`: Melindungi endpoint `/api/share` dari upload tanpa izin.
+   - `CATBOX_USERHASH`: (Opsional) Hash akun Catbox untuk hosting berkas aset.
+   - `CF_KV_NAMESPACE_ID`: ID namespace Cloudflare KV untuk proyek cloud.
 
-2. **Konfigurasi Cloudflare Worker (`wrangler.jsonc`)**:
-   Buat berkas `wrangler.jsonc` sebelum melakukan deployment ke Cloudflare:
-   - **Otomatis**: Jalankan `npm run prepare:wrangler` (menghasilkan `wrangler.jsonc` dari `.env` atau environment variable sistem).
-   - **Manual**: Buat berkas `wrangler.jsonc` di direktori utama:
-   ```json
-   {
-   	"$schema": "node_modules/wrangler/config-schema.json",
-   	"name": "fishtools-studio",
-   	"main": "_worker.js",
-   	"compatibility_date": "2026-09-15",
-   	"keep_vars": true,
-   	"assets": {
-   		"directory": ".",
-   		"binding": "ASSETS",
-   		"html_handling": "none",
-   		"run_worker_first": true
-   	},
-   	"observability": {
-   		"enabled": true
-   	},
-   	"kv_namespaces": [
-   		{
-   			"binding": "PROJECTS_KV",
-   			"id": "YOUR_KV_NAMESPACE_ID",
-   			"remote": true
-   		}
-   	]
-   }
-   ```
+2. **Buat berkas `wrangler.jsonc`**:
+   - **Otomatis (Direkomendasikan)**:
+     ```bash
+     npm run prepare:wrangler
+     ```
+     Perintah ini membaca `CF_KV_NAMESPACE_ID` dari `.env` dan otomatis membuat `wrangler.jsonc`.
+   - **Manual**:
+     Salin template bawaan langsung:
+     ```bash
+     cp wrangler.example.jsonc wrangler.jsonc
+     ```
 
-Daftar variabel lingkungan:
-- `SHARE_SECRET_TOKEN`: Melindungi endpoint `/api/share` agar hanya pengguna terotorisasi yang dapat mengunggah proyek ke database cloud.
-- `CATBOX_USERHASH`: Kunci akun Catbox opsional untuk hosting berkas cloud.
-- `CF_KV_NAMESPACE_ID`: ID namespace Cloudflare KV untuk proyek cloud.
-
-### Pengujian Otomatis
-Jalankan rangkaian pengujian menyeluruh (validasi sintaksis, verifikasi cakupan AST, integritas dokumen HTML):
+### Pengujian
+Jalankan test suite (validasi sintaksis, verifikasi cakupan AST, integritas HTML):
 ```bash
 npm test
 ```
 
 ### Panduan untuk AI Agent
-AI coding agent mandiri (Cursor, GitHub Copilot, Cline, Windsurf, OpenCode) wajib membaca dan mematuhi panduan dalam [`AGENTS.md`](AGENTS.md) mengenai peta arsitektur kode, kepatuhan token CSS, dan protokol investigasi bug runtime.
+AI coding agent (Cursor, GitHub Copilot, Cline, Windsurf, OpenCode) sebaiknya membaca [`AGENTS.md`](AGENTS.md) untuk peta arsitektur, aturan design token, dan protokol investigasi error.
 
 ### Lisensi
-Proyek ini didistribusikan di bawah [Lisensi MIT](LICENSE).
+Repositori ini, yaitu versi v0.5.132 dan semua versi di bawahnya, berlisensi MIT. Kamu boleh memakai, memodifikasi, dan mendistribusikannya, termasuk untuk keperluan komersial, selama tetap menyertakan pemberitahuan hak cipta dan teks lisensi di setiap salinan.
+
+Versi yang aktif dikembangkan di [openfishtools/Studio](https://github.com/openfishtools/Studio) memakai lisensi yang berbeda ([GNU AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html)) dengan perlindungan copyleft (wajib membuka source code modifikasinya jika di-deploy ke web/jaringan). Ketentuan tersebut tidak berlaku untuk repositori ini.
